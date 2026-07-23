@@ -1,0 +1,71 @@
+"use client";
+
+import { useActionState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/forms/submit-button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { updateProfileAction, changePasswordAction } from "@/actions/profile";
+import type { ActionState } from "@/actions/auth";
+
+export function ProfileNameForm({ name }: { name: string }) {
+  const [state, formAction] = useActionState<ActionState, FormData>(updateProfileAction, null);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4">
+      {state?.error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" name="name" defaultValue={name} required />
+        {state?.fieldErrors?.name ? (
+          <p className="text-sm text-destructive">{state.fieldErrors.name[0]}</p>
+        ) : null}
+      </div>
+      <div>
+        <SubmitButton pendingText="Saving...">Save name</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+export function ChangePasswordForm() {
+  const [state, formAction] = useActionState<ActionState, FormData>(changePasswordAction, null);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4">
+      {state?.error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="currentPassword">Current password</Label>
+        <Input id="currentPassword" name="currentPassword" type="password" required />
+        {state?.fieldErrors?.currentPassword ? (
+          <p className="text-sm text-destructive">{state.fieldErrors.currentPassword[0]}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="newPassword">New password</Label>
+        <Input id="newPassword" name="newPassword" type="password" required />
+        {state?.fieldErrors?.newPassword ? (
+          <p className="text-sm text-destructive">{state.fieldErrors.newPassword[0]}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirmPassword">Confirm new password</Label>
+        <Input id="confirmPassword" name="confirmPassword" type="password" required />
+        {state?.fieldErrors?.confirmPassword ? (
+          <p className="text-sm text-destructive">{state.fieldErrors.confirmPassword[0]}</p>
+        ) : null}
+      </div>
+      <div>
+        <SubmitButton pendingText="Updating...">Update password</SubmitButton>
+      </div>
+    </form>
+  );
+}
