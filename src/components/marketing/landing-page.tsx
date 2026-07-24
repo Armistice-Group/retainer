@@ -48,24 +48,24 @@ const FEATURES = [
 
 const PRICE_PER_MONTH = 12;
 
-export function LandingPage() {
+export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Header />
+      <Header isAuthenticated={isAuthenticated} />
       <main className="flex-1">
-        <Hero />
+        <Hero isAuthenticated={isAuthenticated} />
         <ReplacesRow />
         <Features />
         <McpSpotlight />
-        <Pricing />
-        <FinalCta />
+        <Pricing isAuthenticated={isAuthenticated} />
+        <FinalCta isAuthenticated={isAuthenticated} />
       </main>
-      <Footer />
+      <Footer isAuthenticated={isAuthenticated} />
     </div>
   );
 }
 
-function Header() {
+function Header({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
@@ -81,19 +81,27 @@ function Header() {
           </a>
         </nav>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/login">Log in</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link href="/signup">Start free</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button size="sm" asChild>
+              <Link href="/dashboard">Go to dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button size="sm" asChild>
+                <Link href="/signup">Start free</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>
   );
 }
 
-function Hero() {
+function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
       <div>
@@ -106,18 +114,30 @@ function Hero() {
           client logins.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Button size="lg" asChild>
-            <Link href="/signup">
-              Start free <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/login">Log in</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button size="lg" asChild>
+              <Link href="/dashboard">
+                Go to dashboard <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button size="lg" asChild>
+                <Link href="/signup">
+                  Start free <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/login">Log in</Link>
+              </Button>
+            </>
+          )}
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Free for up to 2 clients. No credit card.
-        </p>
+        {!isAuthenticated ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            Free for up to 2 clients. No credit card.
+          </p>
+        ) : null}
       </div>
 
       <LedgerPreview />
@@ -252,7 +272,7 @@ function McpSpotlight() {
   );
 }
 
-function Pricing() {
+function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section id="pricing" className="mx-auto w-full max-w-6xl px-6 py-20">
       <div className="mb-12 max-w-xl">
@@ -281,7 +301,9 @@ function Pricing() {
             )}
           </ul>
           <Button variant="outline" asChild>
-            <Link href="/signup">Start free</Link>
+            <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
+              {isAuthenticated ? "Go to dashboard" : "Start free"}
+            </Link>
           </Button>
         </Card>
 
@@ -310,7 +332,9 @@ function Pricing() {
             ))}
           </ul>
           <Button asChild>
-            <Link href="/signup">Start free</Link>
+            <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
+              {isAuthenticated ? "Go to dashboard" : "Start free"}
+            </Link>
           </Button>
         </Card>
       </div>
@@ -318,16 +342,18 @@ function Pricing() {
   );
 }
 
-function FinalCta() {
+function FinalCta({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <section className="border-t border-border">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-5 px-6 py-20 text-center">
         <h2 className="text-3xl font-semibold tracking-tight">
-          Set up your workspace in under a minute.
+          {isAuthenticated
+            ? "Pick up where you left off."
+            : "Set up your workspace in under a minute."}
         </h2>
         <Button size="lg" asChild>
-          <Link href="/signup">
-            Start free <ArrowRight className="size-4" />
+          <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
+            {isAuthenticated ? "Go to dashboard" : "Start free"} <ArrowRight className="size-4" />
           </Link>
         </Button>
       </div>
@@ -335,7 +361,7 @@ function FinalCta() {
   );
 }
 
-function Footer() {
+function Footer({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <footer className="border-t border-border">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
@@ -343,8 +369,8 @@ function Footer() {
           <span className="text-primary">Retainer</span> — client, project, and billing
           management for consultants.
         </span>
-        <Link href="/login" className="hover:text-foreground">
-          Log in
+        <Link href={isAuthenticated ? "/dashboard" : "/login"} className="hover:text-foreground">
+          {isAuthenticated ? "Dashboard" : "Log in"}
         </Link>
       </div>
     </footer>
