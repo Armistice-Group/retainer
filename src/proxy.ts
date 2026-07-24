@@ -4,7 +4,7 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/login", "/signup"];
+const PUBLIC_PATHS = ["/", "/login", "/signup"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -18,7 +18,7 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (req.auth && (pathname === "/login" || pathname === "/signup")) {
+  if (req.auth && (pathname === "/" || pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
