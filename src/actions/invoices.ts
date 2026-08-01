@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { generateInvoiceSchema } from "@/lib/validations/invoice";
@@ -18,6 +19,7 @@ import {
   InvoiceError,
 } from "@/lib/services/invoices";
 import { pushInvoiceToQuickBooks, QuickBooksError } from "@/lib/services/quickbooks-sync";
+import { getInvoiceGateBlockers, type InvoiceGateBlocker } from "@/lib/services/code-health";
 import type { ActionState } from "@/actions/auth";
 
 export async function generateInvoiceAction(
@@ -163,6 +165,51 @@ export async function removeLineItemAction(lineItemId: string, invoiceId: string
   revalidatePath(`/invoices/${invoiceId}`);
 }
 
+async function notifyInvoiceStatusChange(
+  org: { id: string; name: string; slackWebhookUrl: string | null },
+  invoice: {
+    id: string;
+    number: string;
+    total: Prisma.Decimal;
+    currency: string;
+    client: { name: string };
+  },
+  status: "SENT" | "PAID"
+) {
+  const origin = await getOrigin();
+  const invoiceUrl = `${origin}/invoices/${invoice.id}`;
+  const total = formatCurrency(invoice.total, invoice.currency);
+  const verb = status === "PAID" ? "was paid" : "was sent";
+  const message = `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`;
+
+  const adminIds = await getOrgAdminUserIds(prisma, org.id);
+  await notify(prisma, {
+    orgId: org.id,
+    userIds: adminIds,
+    type: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
+    message,
+    link: `/invoices/${invoice.id}`,
+  });
+
+  await postToSlack(org.slackWebhookUrl, message);
+
+  const ownerEmail = await getOrgOwnerEmail(prisma, org.id);
+  if (ownerEmail) {
+    await sendEmail({
+      to: ownerEmail,
+      subject: `${status === "PAID" ? "Paid" : "Sent"}: invoice ${invoice.number}`,
+      react: InvoiceStatusEmail({
+        orgName: org.name,
+        invoiceNumber: invoice.number,
+        clientName: invoice.client.name,
+        total,
+        status: status === "PAID" ? "paid" : "sent",
+        invoiceUrl,
+      }),
+    });
+  }
+}
+
 export async function setInvoiceStatusAction(
   invoiceId: string,
   status: "DRAFT" | "SENT" | "PAID" | "VOID"
@@ -179,39 +226,43 @@ export async function setInvoiceStatusAction(
   revalidatePath("/invoices");
 
   if (status === "SENT" || status === "PAID") {
-    const origin = await getOrigin();
-    const invoiceUrl = `${origin}/invoices/${invoice.id}`;
-    const total = formatCurrency(invoice.total, invoice.currency);
-    const verb = status === "PAID" ? "was paid" : "was sent";
-    const message = `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`;
-
-    const adminIds = await getOrgAdminUserIds(prisma, org.id);
-    await notify(prisma, {
-      orgId: org.id,
-      userIds: adminIds,
-      type: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
-      message,
-      link: `/invoices/${invoice.id}`,
-    });
-
-    await postToSlack(org.slackWebhookUrl, message);
-
-    const ownerEmail = await getOrgOwnerEmail(prisma, org.id);
-    if (ownerEmail) {
-      await sendEmail({
-        to: ownerEmail,
-        subject: `${status === "PAID" ? "Paid" : "Sent"}: invoice ${invoice.number}`,
-        react: InvoiceStatusEmail({
-          orgName: org.name,
-          invoiceNumber: invoice.number,
-          clientName: invoice.client.name,
-          total,
-          status: status === "PAID" ? "paid" : "sent",
-          invoiceUrl,
-        }),
-      });
-    }
+    await notifyInvoiceStatusChange(org, invoice, status);
   }
+}
+
+export type SendInvoiceState = {
+  error?: string;
+  blockers?: InvoiceGateBlocker[];
+} | null;
+
+/** Same as setInvoiceStatusAction(id, "SENT"), but checks each gated
+ * project's latest AI Code Health scan first. A blocked send isn't silently
+ * refused — the caller can resubmit with `override=true` to send anyway. */
+export async function sendInvoiceAction(
+  invoiceId: string,
+  _prevState: SendInvoiceState,
+  formData: FormData
+): Promise<SendInvoiceState> {
+  const { org } = await requireOrgContext();
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { client: true },
+  });
+  if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
+  if (invoice.status !== "DRAFT") return { error: "Only draft invoices can be sent." };
+
+  const override = formData.get("override") === "true";
+  if (!override) {
+    const blockers = await getInvoiceGateBlockers(invoiceId);
+    if (blockers.length > 0) return { blockers };
+  }
+
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { status: "SENT" } });
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+  await notifyInvoiceStatusChange(org, invoice, "SENT");
+
+  return null;
 }
 
 export async function deleteInvoiceAction(invoiceId: string) {

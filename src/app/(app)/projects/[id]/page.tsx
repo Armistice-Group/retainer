@@ -16,6 +16,8 @@ import { deleteProjectAction, removeProjectMemberAction } from "@/actions/projec
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { CodeHealthCard } from "./code-health-card";
+import type { Finding } from "@/lib/codeHealth/checks";
 
 export default async function ProjectDetailPage({
   params,
@@ -23,7 +25,8 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
+  const canManage = role === "OWNER" || role === "ADMIN";
 
   const project = await prisma.project.findUnique({
     where: { id },
@@ -36,6 +39,11 @@ export default async function ProjectDetailPage({
         include: { user: true },
         orderBy: { date: "desc" },
         take: 8,
+      },
+      repo: {
+        include: {
+          scans: { orderBy: { createdAt: "desc" }, take: 1 },
+        },
       },
     },
   });
@@ -53,6 +61,14 @@ export default async function ProjectDetailPage({
     id: m.user.id,
     name: m.user.name,
   }));
+  const latestScan = project.repo?.scans[0]
+    ? {
+        score: project.repo.scans[0].score,
+        findings: project.repo.scans[0].findings as unknown as Finding[],
+        createdAt: project.repo.scans[0].createdAt.toISOString(),
+      }
+    : null;
+
   const taskItems = project.tasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -118,6 +134,14 @@ export default async function ProjectDetailPage({
               <LinkList links={project.links} redirectPath={`/projects/${project.id}`} />
             </CardContent>
           </Card>
+
+          <CodeHealthCard
+            projectId={project.id}
+            repo={project.repo ? { githubOwner: project.repo.githubOwner, githubName: project.repo.githubName } : null}
+            latestScan={latestScan}
+            gateEnabled={project.codeHealthGateEnabled}
+            canManage={canManage}
+          />
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">

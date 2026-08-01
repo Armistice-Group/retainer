@@ -78,6 +78,7 @@ model Organization {
   notifications        Notification[]
   apiKeys              ApiKey[]
   quickBooksConnection QuickBooksConnection?
+  githubConnection     GithubConnection?
 }
 
 model User {
@@ -96,6 +97,7 @@ model User {
   notifications               Notification[]
   apiKeys                     ApiKey[]
   connectedQuickBooksAccounts QuickBooksConnection[]
+  connectedGithubAccounts     GithubConnection[]
 }
 
 model Membership {
@@ -190,14 +192,15 @@ model Link {
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
-  status      ProjectStatus @default(ACTIVE)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                     String        @id @default(cuid())
+  name                   String
+  description            String?
+  status                 ProjectStatus @default(ACTIVE)
+  startDate              DateTime?
+  endDate                DateTime?
+  codeHealthGateEnabled  Boolean       @default(false)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -210,6 +213,7 @@ model Project {
   tasks            Task[]
   timeEntries      TimeEntry[]
   invoiceLineItems InvoiceLineItem[]
+  repo             Repo?
 
   @@index([orgId])
   @@index([clientId])
@@ -386,4 +390,49 @@ model QuickBooksConnection {
 
   connectedById String?
   connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+}
+
+model GithubConnection {
+  id          String   @id @default(cuid())
+  login       String
+  accessToken String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orgId String       @unique
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  connectedById String?
+  connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+
+  repos Repo[]
+}
+
+model Repo {
+  id          String   @id @default(cuid())
+  githubOwner String
+  githubName  String
+  installedAt DateTime @default(now())
+
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  connectionId String
+  connection   GithubConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  scans Scan[]
+
+  @@index([connectionId])
+}
+
+model Scan {
+  id        String   @id @default(cuid())
+  score     Int
+  findings  Json
+  createdAt DateTime @default(now())
+
+  repoId String
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, createdAt])
 }

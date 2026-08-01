@@ -22,6 +22,7 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { toISODate } from "@/lib/date";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
+import { SendInvoiceButton } from "./send-invoice-button";
 
 export default async function InvoiceDetailPage({
   params,
@@ -57,13 +58,7 @@ export default async function InvoiceDetailPage({
                 <Download className="size-3.5" /> Download PDF
               </a>
             </Button>
-            {isDraft ? (
-              <form action={setInvoiceStatusAction.bind(null, invoice.id, "SENT")}>
-                <Button size="sm" type="submit">
-                  Mark as sent
-                </Button>
-              </form>
-            ) : null}
+            {isDraft ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
             {invoice.status === "SENT" ? (
               <>
                 <form action={setInvoiceStatusAction.bind(null, invoice.id, "PAID")}>

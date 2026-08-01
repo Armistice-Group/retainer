@@ -11,3 +11,11 @@ export async function disconnectQuickBooksAction() {
   await prisma.quickBooksConnection.deleteMany({ where: { orgId: org.id } });
   revalidatePath("/settings");
 }
+
+export async function disconnectGithubAction() {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  await prisma.githubConnection.deleteMany({ where: { orgId: org.id } });
+  revalidatePath("/settings");
+}
