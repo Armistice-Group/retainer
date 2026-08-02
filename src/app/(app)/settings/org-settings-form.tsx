@@ -3,10 +3,9 @@
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { updateOrgSettingsAction } from "@/actions/org";
+import { updateOrgGeneralAction } from "@/actions/org";
 import type { ActionState } from "@/actions/auth";
 
 type Org = {
@@ -17,15 +16,12 @@ type Org = {
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
-  domain: string | null;
-  autoJoinDomain: boolean;
-  logoUrl: string | null;
   brandColor: string | null;
 };
 
 export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean }) {
   const [state, formAction] = useActionState<ActionState, FormData>(
-    updateOrgSettingsAction,
+    updateOrgGeneralAction,
     null
   );
 
@@ -79,79 +75,6 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
           />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="externalBillingLabel">External billing tool name</Label>
-          <Input
-            id="externalBillingLabel"
-            name="externalBillingLabel"
-            placeholder="e.g. Bill.com, Found"
-            defaultValue={org.externalBillingLabel ?? ""}
-            disabled={readOnly}
-          />
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="externalBillingUrl">External billing tool link</Label>
-          <Input
-            id="externalBillingUrl"
-            name="externalBillingUrl"
-            placeholder="https://"
-            defaultValue={org.externalBillingUrl ?? ""}
-            disabled={readOnly}
-          />
-          <p className="text-xs text-muted-foreground">
-            A quick link to your accounting or payments platform for teams that generate invoices
-            outside Consultainer.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="domain">Organization domain</Label>
-          <Input
-            id="domain"
-            name="domain"
-            placeholder="acme.com"
-            defaultValue={org.domain ?? ""}
-            disabled={readOnly}
-          />
-          {state?.fieldErrors?.domain ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.domain[0]}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Must match your own email domain. Teammates who sign up with a matching email can
-              auto-join below.
-            </p>
-          )}
-        </div>
-        <div className="flex items-end pb-2.5">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="autoJoinDomain"
-              name="autoJoinDomain"
-              defaultChecked={org.autoJoinDomain}
-              disabled={readOnly}
-            />
-            <Label htmlFor="autoJoinDomain" className="font-normal">
-              Auto-join teammates with a matching email domain
-            </Label>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="logoUrl">Logo URL</Label>
-          <Input
-            id="logoUrl"
-            name="logoUrl"
-            placeholder="https://.../logo.png"
-            defaultValue={org.logoUrl ?? ""}
-            disabled={readOnly}
-          />
-          {state?.fieldErrors?.logoUrl ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.logoUrl[0]}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              A hosted image URL — shown on invoice PDFs in place of your org name. No file
-              upload yet, so host it yourself (e.g. your website) and paste the link.
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-2">
           <Label htmlFor="brandColor">Brand color</Label>
           <div className="flex items-center gap-2">
             <input
@@ -180,6 +103,30 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
               Accents invoice PDFs. Leave blank for the default.
             </p>
           )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="externalBillingLabel">External billing tool name</Label>
+          <Input
+            id="externalBillingLabel"
+            name="externalBillingLabel"
+            placeholder="e.g. Bill.com, Found"
+            defaultValue={org.externalBillingLabel ?? ""}
+            disabled={readOnly}
+          />
+        </div>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="externalBillingUrl">External billing tool link</Label>
+          <Input
+            id="externalBillingUrl"
+            name="externalBillingUrl"
+            placeholder="https://"
+            defaultValue={org.externalBillingUrl ?? ""}
+            disabled={readOnly}
+          />
+          <p className="text-xs text-muted-foreground">
+            A quick link to your accounting or payments platform for teams that generate invoices
+            outside Consultainer.
+          </p>
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="slackWebhookUrl">Slack webhook URL</Label>

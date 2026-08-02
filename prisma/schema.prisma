@@ -69,6 +69,8 @@ model Organization {
   externalBillingLabel String?
   slackWebhookUrl      String?
   logoUrl              String?
+  logoData             Bytes?
+  logoContentType      String?
   brandColor           String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

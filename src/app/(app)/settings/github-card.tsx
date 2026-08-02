@@ -58,7 +58,7 @@ export function GithubCard({
             </form>
           ) : (
             <Button size="sm" asChild>
-              <Link href="/api/integrations/github/connect">Connect</Link>
+              <Link href="/api/integrations/github/connect" prefetch={false}>Connect</Link>
             </Button>
           )}
         </div>

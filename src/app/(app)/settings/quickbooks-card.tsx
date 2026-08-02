@@ -58,7 +58,7 @@ export function QuickBooksCard({
             </form>
           ) : (
             <Button size="sm" asChild>
-              <Link href="/api/integrations/quickbooks/connect">Connect</Link>
+              <Link href="/api/integrations/quickbooks/connect" prefetch={false}>Connect</Link>
             </Button>
           )}
         </div>

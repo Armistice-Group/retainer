@@ -50,7 +50,7 @@ export async function connectLaurelAction(
     },
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/settings/integrations");
   return null;
 }
 
@@ -59,7 +59,7 @@ export async function disconnectLaurelAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.laurelConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/integrations");
 }
 
 export async function testLaurelConnectionAction(): Promise<{ ok: boolean; error: string | null }> {

@@ -8,7 +8,7 @@ import { getOrigin } from "@/lib/url";
 export async function GET(req: Request) {
   const origin = await getOrigin();
   const settingsUrl = (status: "connected" | "error") =>
-    NextResponse.redirect(`${origin}/settings?quickbooks=${status}`);
+    NextResponse.redirect(`${origin}/settings/integrations?quickbooks=${status}`);
 
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");

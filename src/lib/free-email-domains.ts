@@ -24,6 +24,18 @@ const FREE_EMAIL_DOMAINS = new Set([
   "163.com",
 ]);
 
+// RFC 2606 reserved domains and common testing placeholders — never eligible
+// either, or every test/demo signup using one collides into the same org.
+const RESERVED_DOMAINS = new Set([
+  "example.com",
+  "example.net",
+  "example.org",
+  "example.edu",
+  "test.com",
+  "localhost",
+]);
+
 export function isPublicEmailDomain(domain: string) {
-  return FREE_EMAIL_DOMAINS.has(domain.toLowerCase());
+  const lower = domain.toLowerCase();
+  return FREE_EMAIL_DOMAINS.has(lower) || RESERVED_DOMAINS.has(lower);
 }

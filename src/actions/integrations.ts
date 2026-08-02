@@ -9,7 +9,7 @@ export async function disconnectQuickBooksAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.quickBooksConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/integrations");
 }
 
 export async function disconnectGithubAction() {
@@ -17,7 +17,7 @@ export async function disconnectGithubAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.githubConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/integrations");
 }
 
 export async function disconnectLinearAction() {
@@ -25,5 +25,5 @@ export async function disconnectLinearAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.linearConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/integrations");
 }

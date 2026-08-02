@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole, ACTIVE_ORG_COOKIE } from "@/lib/org-context";
-import { orgSettingsSchema } from "@/lib/validations/invoice";
+import { orgGeneralSchema, orgSecuritySchema } from "@/lib/validations/invoice";
 import { emailDomain, isClaimableDomain } from "@/lib/org";
 import { sendEmail } from "@/lib/email";
 import { InviteEmail } from "@/emails/invite-email";
@@ -26,14 +26,14 @@ export async function switchOrgAction(orgId: string) {
   revalidatePath("/", "layout");
 }
 
-export async function updateOrgSettingsAction(
+export async function updateOrgGeneralAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org, role, user } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  const parsed = orgSettingsSchema.safeParse({
+  const parsed = orgGeneralSchema.safeParse({
     name: formData.get("name"),
     invoicePrefix: formData.get("invoicePrefix"),
     defaultCurrency: formData.get("defaultCurrency"),
@@ -41,10 +41,83 @@ export async function updateOrgSettingsAction(
     externalBillingLabel: formData.get("externalBillingLabel"),
     externalBillingUrl: formData.get("externalBillingUrl"),
     slackWebhookUrl: formData.get("slackWebhookUrl"),
+    brandColor: formData.get("brandColor"),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: {
+      name: parsed.data.name,
+      invoicePrefix: parsed.data.invoicePrefix,
+      defaultCurrency: parsed.data.defaultCurrency,
+      defaultTaxRate: parsed.data.defaultTaxRate,
+      externalBillingLabel: parsed.data.externalBillingLabel || null,
+      externalBillingUrl: parsed.data.externalBillingUrl || null,
+      slackWebhookUrl: parsed.data.slackWebhookUrl || null,
+      brandColor: parsed.data.brandColor || null,
+    },
+  });
+
+  revalidatePath("/settings");
+  return null;
+}
+
+const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
+
+export async function uploadOrgLogoAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image file." };
+  }
+  if (!ALLOWED_LOGO_TYPES.has(file.type)) {
+    return { error: "Logo must be a PNG, JPEG, WebP, or SVG image." };
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    return { error: "Logo must be under 2MB." };
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { logoData: bytes, logoContentType: file.type },
+  });
+
+  revalidatePath("/settings");
+  return null;
+}
+
+export async function removeOrgLogoAction() {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { logoData: null, logoContentType: null, logoUrl: null },
+  });
+  revalidatePath("/settings");
+}
+
+export async function updateOrgSecurityAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, role, user } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  const parsed = orgSecuritySchema.safeParse({
     domain: formData.get("domain"),
     autoJoinDomain: formData.get("autoJoinDomain") === "on",
-    logoUrl: formData.get("logoUrl"),
-    brandColor: formData.get("brandColor"),
   });
 
   if (!parsed.success) {
@@ -77,21 +150,12 @@ export async function updateOrgSettingsAction(
   await prisma.organization.update({
     where: { id: org.id },
     data: {
-      name: parsed.data.name,
-      invoicePrefix: parsed.data.invoicePrefix,
-      defaultCurrency: parsed.data.defaultCurrency,
-      defaultTaxRate: parsed.data.defaultTaxRate,
-      externalBillingLabel: parsed.data.externalBillingLabel || null,
-      externalBillingUrl: parsed.data.externalBillingUrl || null,
-      slackWebhookUrl: parsed.data.slackWebhookUrl || null,
       domain: newDomain,
       autoJoinDomain: parsed.data.autoJoinDomain,
-      logoUrl: parsed.data.logoUrl || null,
-      brandColor: parsed.data.brandColor || null,
     },
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/settings/security");
   return null;
 }
 

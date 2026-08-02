@@ -58,7 +58,7 @@ export function LinearCard({
             </form>
           ) : (
             <Button size="sm" asChild>
-              <Link href="/api/integrations/linear/connect">Connect</Link>
+              <Link href="/api/integrations/linear/connect" prefetch={false}>Connect</Link>
             </Button>
           )}
         </div>

@@ -69,15 +69,18 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
   const billEmail = invoice.client.billingEmail || invoice.client.email;
   const billAddress = invoice.client.billingAddress || invoice.client.address;
+  const logoSrc = invoice.org.logoData
+    ? `data:${invoice.org.logoContentType};base64,${Buffer.from(invoice.org.logoData).toString("base64")}`
+    : invoice.org.logoUrl;
 
   return (
     <Document title={`Invoice ${invoice.number}`}>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
-            {invoice.org.logoUrl ? (
+            {logoSrc ? (
               // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop
-              <Image src={invoice.org.logoUrl} style={styles.logo} />
+              <Image src={logoSrc} style={styles.logo} />
             ) : (
               <Text style={styles.orgName}>{invoice.org.name}</Text>
             )}

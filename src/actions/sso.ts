@@ -71,7 +71,7 @@ export async function connectSsoAction(
     },
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/settings/security");
   return null;
 }
 
@@ -80,7 +80,7 @@ export async function disconnectSsoAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.ssoConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/security");
 }
 
 export async function setSsoEnabledAction(enabled: boolean) {
@@ -88,7 +88,7 @@ export async function setSsoEnabledAction(enabled: boolean) {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.ssoConnection.updateMany({ where: { orgId: org.id }, data: { enabled } });
-  revalidatePath("/settings");
+  revalidatePath("/settings/security");
 }
 
 export async function startSsoLoginAction(
