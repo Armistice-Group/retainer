@@ -2,7 +2,7 @@ FROM node:22-alpine AS base
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY prisma.config.ts ./prisma.config.ts
 COPY prisma ./prisma
 RUN npm ci
