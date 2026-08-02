@@ -70,7 +70,7 @@ function Header({ isAuthenticated }: { isAuthenticated: boolean }) {
     <header className="border-b border-border">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
         <Link href="/" className="text-lg font-semibold tracking-tight">
-          <span className="text-primary">Retainer</span>
+          <span className="text-primary">Consultainer</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground sm:flex">
           <a href="#features" className="hover:text-foreground">
@@ -251,7 +251,7 @@ function McpSpotlight() {
             Talk to your time tracker.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Retainer ships with a real MCP server. Connect it to Claude Desktop or
+            Consultainer ships with a real MCP server. Connect it to Claude Desktop or
             Claude Code and log hours, check what&apos;s unbilled, or generate an
             invoice — without opening a browser tab.
           </p>
@@ -283,7 +283,7 @@ function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
           Start free, upgrade when you outgrow it — not before.
         </p>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:max-w-3xl">
+      <div className="grid gap-6 sm:grid-cols-2 lg:mx-auto lg:max-w-3xl">
         <Card className="gap-6 p-8">
           <div>
             <h3 className="font-medium">Free</h3>
@@ -309,7 +309,7 @@ function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
 
         <Card className="gap-6 border-primary/40 p-8">
           <div>
-            <h3 className="font-medium">Retainer</h3>
+            <h3 className="font-medium">Consultainer</h3>
             <p className="mt-2 text-3xl font-semibold tabular-figures">
               ${PRICE_PER_MONTH}
               <span className="text-base font-normal text-muted-foreground">/mo</span>
@@ -366,7 +366,7 @@ function Footer({ isAuthenticated }: { isAuthenticated: boolean }) {
     <footer className="border-t border-border">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
         <span>
-          <span className="text-primary">Retainer</span> — client, project, and billing
+          <span className="text-primary">Consultainer</span> — client, project, and billing
           management for consultants.
         </span>
         <Link href={isAuthenticated ? "/dashboard" : "/login"} className="hover:text-foreground">

@@ -1,4 +1,4 @@
-# Retainer
+# Consultainer
 
 Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — self-hosted, with a clear path to the cloud later.
 
@@ -104,7 +104,7 @@ Setup:
 2. Register a GitHub OAuth App at Settings → Developer settings → OAuth Apps → New OAuth App. Set the callback URL to `<your-domain>/api/integrations/github/callback`. Set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` from the app's credentials.
 3. Click Connect under AI Code Health in Settings, authorize, then open a project and click "Connect a repo".
 
-**Scope note:** GitHub OAuth Apps don't offer a read-only repo scope — the `repo` scope needed to read private repos also grants write access. Retainer only ever calls read endpoints with it, but the token itself is as powerful as any other `repo`-scoped token, so treat the connected GitHub account accordingly (a bot/service account with least-privilege repo access is a reasonable choice if that matters for your org). Access tokens are assumed non-expiring, which is the GitHub OAuth App default; if your app has "token expiration" enabled, you'll need to reconnect periodically since there's no refresh flow here.
+**Scope note:** GitHub OAuth Apps don't offer a read-only repo scope — the `repo` scope needed to read private repos also grants write access. Consultainer only ever calls read endpoints with it, but the token itself is as powerful as any other `repo`-scoped token, so treat the connected GitHub account accordingly (a bot/service account with least-privilege repo access is a reasonable choice if that matters for your org). Access tokens are assumed non-expiring, which is the GitHub OAuth App default; if your app has "token expiration" enabled, you'll need to reconnect periodically since there's no refresh flow here.
 
 ## What's intentionally not built yet
 

@@ -21,7 +21,7 @@ export function InviteEmail({
   return (
     <Html>
       <Head />
-      <Preview>{inviterName} invited you to join {orgName} on Retainer</Preview>
+      <Preview>{inviterName} invited you to join {orgName} on Consultainer</Preview>
       <Body style={{ fontFamily: "sans-serif", backgroundColor: "#f9f8fc", padding: "40px 0" }}>
         <Container
           style={{
@@ -32,11 +32,11 @@ export function InviteEmail({
           }}
         >
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>
-            Join {orgName} on Retainer
+            Join {orgName} on Consultainer
           </Heading>
           <Text style={{ fontSize: 14, color: "#3f3a52", lineHeight: 1.6 }}>
             {inviterName} invited you to collaborate on clients, projects, and time tracking in{" "}
-            {orgName}&apos;s Retainer workspace.
+            {orgName}&apos;s Consultainer workspace.
           </Text>
           <Button
             href={inviteUrl}

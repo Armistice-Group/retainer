@@ -1,7 +1,8 @@
 import "server-only";
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { decrypt } from "@/lib/crypto";
 import type { GithubConnection } from "@/generated/prisma/client";
+
+export { signOAuthState, verifyOAuthState } from "@/lib/integrations/oauth-state";
 
 const AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
@@ -9,49 +10,9 @@ const API_BASE = "https://api.github.com";
 // GitHub OAuth Apps have no read-only repo scope — "repo" grants read/write on
 // private repos. We only ever call read endpoints with it.
 const SCOPE = "read:user repo";
-const STATE_TTL_MS = 10 * 60 * 1000;
-const USER_AGENT = "Retainer-AI-Code-Health";
+const USER_AGENT = "Consultainer-AI-Code-Health";
 
 export class GithubError extends Error {}
-
-/** Signs a short-lived { orgId, nonce, exp } payload so the OAuth callback can
- * trust which org initiated the connection without relying solely on the
- * session cookie (defense in depth against CSRF / cross-tenant mixups). */
-export function signOAuthState(orgId: string) {
-  const payload = JSON.stringify({
-    orgId,
-    nonce: randomBytes(8).toString("hex"),
-    exp: Date.now() + STATE_TTL_MS,
-  });
-  const encoded = Buffer.from(payload, "utf8").toString("base64url");
-  const signature = createHmac("sha256", authSecret()).update(encoded).digest("base64url");
-  return `${encoded}.${signature}`;
-}
-
-export function verifyOAuthState(state: string): { orgId: string } | null {
-  const [encoded, signature] = state.split(".");
-  if (!encoded || !signature) return null;
-
-  const expected = createHmac("sha256", authSecret()).update(encoded).digest("base64url");
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-
-  try {
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
-    if (typeof payload.orgId !== "string" || typeof payload.exp !== "number") return null;
-    if (payload.exp < Date.now()) return null;
-    return { orgId: payload.orgId };
-  } catch {
-    return null;
-  }
-}
-
-function authSecret() {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) throw new GithubError("AUTH_SECRET is not configured.");
-  return secret;
-}
 
 function env(name: string) {
   const value = process.env[name];

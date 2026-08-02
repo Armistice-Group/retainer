@@ -1,10 +1,11 @@
 import { z } from "zod";
+import { strongPasswordSchema } from "@/lib/validations/password";
 
 export const signupSchema = z.object({
   orgName: z.string().trim().min(2, "Organization name is required").max(120),
   name: z.string().trim().min(2, "Your name is required").max(120),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  password: strongPasswordSchema,
 });
 
 export const loginSchema = z.object({
@@ -13,7 +14,6 @@ export const loginSchema = z.object({
 });
 
 export const acceptInviteSchema = z.object({
-  token: z.string().min(1),
   name: z.string().trim().min(2, "Your name is required").max(120),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  password: strongPasswordSchema,
 });

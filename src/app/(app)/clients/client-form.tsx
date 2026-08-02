@@ -21,6 +21,8 @@ type ClientFormValues = {
   email: string | null;
   phone: string | null;
   address: string | null;
+  billingEmail: string | null;
+  billingAddress: string | null;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -78,6 +80,30 @@ export function ClientForm({
             rows={4}
             defaultValue={initialValues?.description ?? ""}
             placeholder="What does this client do? Any context worth remembering."
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="billingEmail">Billing email</Label>
+          <Input
+            id="billingEmail"
+            name="billingEmail"
+            type="email"
+            defaultValue={initialValues?.billingEmail ?? ""}
+            placeholder="Defaults to email above if left blank"
+          />
+          {state?.fieldErrors?.billingEmail ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.billingEmail[0]}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="billingAddress">Billing address</Label>
+          <Input
+            id="billingAddress"
+            name="billingAddress"
+            defaultValue={initialValues?.billingAddress ?? ""}
+            placeholder="Defaults to address above if left blank"
           />
         </div>
 

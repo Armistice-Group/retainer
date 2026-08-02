@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Retainer",
+  title: "Consultainer",
   description: "Client, project, and billing management for consultants and contractors.",
 };
 

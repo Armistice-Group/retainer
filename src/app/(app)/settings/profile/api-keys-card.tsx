@@ -40,7 +40,7 @@ export function ApiKeysCard({ apiKeys }: { apiKeys: ApiKeyItem[] }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Use an API key to call the Retainer REST API or connect it as an MCP server for
+          Use an API key to call the Consultainer REST API or connect it as an MCP server for
           Claude. A key acts as you, in this organization.
         </p>
 

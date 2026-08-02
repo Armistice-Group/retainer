@@ -38,6 +38,8 @@ export default async function EditClientPage({
               email: client.email,
               phone: client.phone,
               address: client.address,
+              billingEmail: client.billingEmail,
+              billingAddress: client.billingAddress,
               status: client.status,
             }}
           />

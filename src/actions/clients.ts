@@ -19,6 +19,8 @@ export async function createClientAction(
     email: formData.get("email"),
     phone: formData.get("phone"),
     address: formData.get("address"),
+    billingEmail: formData.get("billingEmail"),
+    billingAddress: formData.get("billingAddress"),
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -34,6 +36,8 @@ export async function createClientAction(
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
+      billingEmail: parsed.data.billingEmail || null,
+      billingAddress: parsed.data.billingAddress || null,
       status: parsed.data.status,
     },
   });
@@ -55,6 +59,8 @@ export async function updateClientAction(
     email: formData.get("email"),
     phone: formData.get("phone"),
     address: formData.get("address"),
+    billingEmail: formData.get("billingEmail"),
+    billingAddress: formData.get("billingAddress"),
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -70,6 +76,8 @@ export async function updateClientAction(
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
+      billingEmail: parsed.data.billingEmail || null,
+      billingAddress: parsed.data.billingAddress || null,
       status: parsed.data.status,
     },
   });
@@ -98,7 +106,9 @@ export async function createContactAction(
     email: formData.get("email"),
     phone: formData.get("phone"),
     title: formData.get("title"),
+    contactRole: formData.get("contactRole"),
     isPrimary: formData.get("isPrimary") === "on",
+    receivesInvoices: formData.get("receivesInvoices") === "on",
   });
 
   if (!parsed.success) {
@@ -122,7 +132,63 @@ export async function createContactAction(
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       title: parsed.data.title || null,
+      contactRole: parsed.data.contactRole || null,
       isPrimary: parsed.data.isPrimary,
+      receivesInvoices: parsed.data.receivesInvoices,
+    },
+  });
+
+  revalidatePath(`/clients/${parsed.data.clientId}`);
+  return null;
+}
+
+export async function updateContactAction(
+  contactId: string,
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org } = await requireOrgContext();
+
+  const parsed = contactSchema.safeParse({
+    clientId: formData.get("clientId"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    title: formData.get("title"),
+    contactRole: formData.get("contactRole"),
+    isPrimary: formData.get("isPrimary") === "on",
+    receivesInvoices: formData.get("receivesInvoices") === "on",
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
+  if (!client || client.orgId !== org.id) return { error: "Client not found." };
+
+  const contact = await prisma.contact.findUnique({ where: { id: contactId } });
+  if (!contact || contact.clientId !== parsed.data.clientId) {
+    return { error: "Contact not found." };
+  }
+
+  if (parsed.data.isPrimary) {
+    await prisma.contact.updateMany({
+      where: { clientId: parsed.data.clientId, id: { not: contactId } },
+      data: { isPrimary: false },
+    });
+  }
+
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      name: parsed.data.name,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      title: parsed.data.title || null,
+      contactRole: parsed.data.contactRole || null,
+      isPrimary: parsed.data.isPrimary,
+      receivesInvoices: parsed.data.receivesInvoices,
     },
   });
 

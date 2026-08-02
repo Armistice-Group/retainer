@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { GoogleSignInButton } from "@/components/auth/google-signin-button";
 
-export function SignupForm() {
+export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
   const [state, formAction] = useActionState<ActionState, FormData>(signupAction, null);
 
   return (
@@ -19,6 +20,19 @@ export function SignupForm() {
         <CardDescription>Set up your organization in under a minute.</CardDescription>
       </CardHeader>
       <CardContent>
+        {googleEnabled ? (
+          <div className="mb-6 flex flex-col gap-4">
+            <GoogleSignInButton callbackUrl="/dashboard" />
+            <p className="text-center text-xs text-muted-foreground">
+              Signing up with Google creates a new organization for you automatically.
+            </p>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              OR
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+        ) : null}
         <form action={formAction} className="flex flex-col gap-4">
           {state?.error ? (
             <Alert variant="destructive">
@@ -57,7 +71,11 @@ export function SignupForm() {
             />
             {state?.fieldErrors?.password ? (
               <p className="text-sm text-destructive">{state.fieldErrors.password[0]}</p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                At least 10 characters, with a letter and a number.
+              </p>
+            )}
           </div>
           <SubmitButton className="mt-2 w-full" pendingText="Creating workspace...">
             Create workspace

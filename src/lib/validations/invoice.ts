@@ -25,6 +25,8 @@ export const updateInvoiceSchema = z.object({
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
 });
 
+const domainPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
+
 export const orgSettingsSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   invoicePrefix: z.string().trim().min(1).max(20),
@@ -33,4 +35,20 @@ export const orgSettingsSchema = z.object({
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
+  domain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(255)
+    .regex(domainPattern, "Enter a valid domain, e.g. acme.com")
+    .optional()
+    .or(z.literal("")),
+  autoJoinDomain: z.boolean().default(true),
+  logoUrl: z.string().trim().url("Enter a valid image URL").optional().or(z.literal("")),
+  brandColor: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Enter a hex color, e.g. #7c5cf4")
+    .optional()
+    .or(z.literal("")),
 });

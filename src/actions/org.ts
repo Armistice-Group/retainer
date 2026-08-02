@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole, ACTIVE_ORG_COOKIE } from "@/lib/org-context";
 import { orgSettingsSchema } from "@/lib/validations/invoice";
+import { emailDomain, isClaimableDomain } from "@/lib/org";
 import { sendEmail } from "@/lib/email";
 import { InviteEmail } from "@/emails/invite-email";
 import { getOrigin } from "@/lib/url";
@@ -29,7 +30,7 @@ export async function updateOrgSettingsAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org, role } = await requireOrgContext();
+  const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
   const parsed = orgSettingsSchema.safeParse({
@@ -40,10 +41,37 @@ export async function updateOrgSettingsAction(
     externalBillingLabel: formData.get("externalBillingLabel"),
     externalBillingUrl: formData.get("externalBillingUrl"),
     slackWebhookUrl: formData.get("slackWebhookUrl"),
+    domain: formData.get("domain"),
+    autoJoinDomain: formData.get("autoJoinDomain") === "on",
+    logoUrl: formData.get("logoUrl"),
+    brandColor: formData.get("brandColor"),
   });
 
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const newDomain = parsed.data.domain || null;
+  if (newDomain && newDomain !== org.domain) {
+    // Only allow claiming a domain you can actually prove ownership of —
+    // otherwise anyone could type in another company's domain and start
+    // auto-joining their teammates into this org.
+    if (!user.email || emailDomain(user.email) !== newDomain) {
+      return {
+        fieldErrors: {
+          domain: ["You can only set a domain that matches your own email address."],
+        },
+      };
+    }
+    if (!isClaimableDomain(newDomain)) {
+      return {
+        fieldErrors: { domain: ["Free email providers can't be used as an org domain."] },
+      };
+    }
+    const taken = await prisma.organization.findUnique({ where: { domain: newDomain } });
+    if (taken && taken.id !== org.id) {
+      return { fieldErrors: { domain: ["This domain is already claimed by another organization."] } };
+    }
   }
 
   await prisma.organization.update({
@@ -56,6 +84,10 @@ export async function updateOrgSettingsAction(
       externalBillingLabel: parsed.data.externalBillingLabel || null,
       externalBillingUrl: parsed.data.externalBillingUrl || null,
       slackWebhookUrl: parsed.data.slackWebhookUrl || null,
+      domain: newDomain,
+      autoJoinDomain: parsed.data.autoJoinDomain,
+      logoUrl: parsed.data.logoUrl || null,
+      brandColor: parsed.data.brandColor || null,
     },
   });
 
@@ -97,7 +129,7 @@ export async function createInviteAction(
   const origin = await getOrigin();
   await sendEmail({
     to: email,
-    subject: `You're invited to join ${org.name} on Retainer`,
+    subject: `You're invited to join ${org.name} on Consultainer`,
     react: InviteEmail({
       orgName: org.name,
       inviterName: user.name ?? "A teammate",

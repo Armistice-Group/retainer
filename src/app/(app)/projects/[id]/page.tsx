@@ -17,6 +17,7 @@ import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CodeHealthCard } from "./code-health-card";
+import { LinearSyncCard } from "./linear-sync-card";
 import type { Finding } from "@/lib/codeHealth/checks";
 
 export default async function ProjectDetailPage({
@@ -45,6 +46,7 @@ export default async function ProjectDetailPage({
           scans: { orderBy: { createdAt: "desc" }, take: 1 },
         },
       },
+      externalLink: true,
     },
   });
 
@@ -140,6 +142,14 @@ export default async function ProjectDetailPage({
             repo={project.repo ? { githubOwner: project.repo.githubOwner, githubName: project.repo.githubName } : null}
             latestScan={latestScan}
             gateEnabled={project.codeHealthGateEnabled}
+            canManage={canManage}
+          />
+
+          <LinearSyncCard
+            projectId={project.id}
+            externalName={
+              project.externalLink?.source === "linear" ? project.externalLink.externalName : null
+            }
             canManage={canManage}
           />
         </div>

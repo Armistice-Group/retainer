@@ -59,7 +59,11 @@ export function InviteForm({
                 />
                 {state?.fieldErrors?.password ? (
                   <p className="text-sm text-destructive">{state.fieldErrors.password[0]}</p>
-                ) : null}
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    At least 10 characters, with a letter and a number.
+                  </p>
+                )}
               </div>
             </>
           ) : (

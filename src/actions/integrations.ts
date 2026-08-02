@@ -19,3 +19,11 @@ export async function disconnectGithubAction() {
   await prisma.githubConnection.deleteMany({ where: { orgId: org.id } });
   revalidatePath("/settings");
 }
+
+export async function disconnectLinearAction() {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  await prisma.linearConnection.deleteMany({ where: { orgId: org.id } });
+  revalidatePath("/settings");
+}

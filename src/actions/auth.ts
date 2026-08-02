@@ -1,26 +1,56 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { slugify, randomSuffix } from "@/lib/slug";
+import { uniqueOrgSlug, findAutoJoinOrg, emailDomain, isClaimableDomain } from "@/lib/org";
 import { signupSchema, loginSchema, acceptInviteSchema } from "@/lib/validations/auth";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
+import { TwoFactorRequiredError, InvalidTwoFactorCodeError } from "@/lib/two-factor";
+import { sendEmail } from "@/lib/email";
+import { MagicLinkEmail } from "@/emails/magic-link-email";
+import { getOrigin } from "@/lib/url";
 
 export type ActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
+  requiresTwoFactor?: boolean;
+  magicLinkSent?: boolean;
 } | null;
 
-async function uniqueOrgSlug(name: string) {
-  const base = slugify(name) || "org";
-  let slug = base;
-  while (await prisma.organization.findUnique({ where: { slug } })) {
-    slug = `${base}-${randomSuffix()}`;
+export async function signInWithGoogleAction(callbackUrl: string) {
+  await signIn("google", { redirectTo: callbackUrl || "/dashboard" });
+}
+
+export async function requestMagicLinkAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const email = ((formData.get("email") as string) || "").toLowerCase().trim();
+  if (!email || !email.includes("@")) {
+    return { fieldErrors: { email: ["Enter a valid email"] } };
   }
-  return slug;
+
+  // Always report success regardless of whether the account exists, so this
+  // can't be used to enumerate registered emails.
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user) {
+    const token = randomUUID();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await prisma.magicLinkToken.create({ data: { token, email, expiresAt } });
+
+    const origin = await getOrigin();
+    await sendEmail({
+      to: email,
+      subject: "Your Consultainer login link",
+      react: MagicLinkEmail({ loginUrl: `${origin}/login/magic/${token}` }),
+    });
+  }
+
+  return { magicLinkSent: true };
 }
 
 export async function signupAction(
@@ -46,15 +76,52 @@ export async function signupAction(
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const slug = await uniqueOrgSlug(orgName);
+  const autoJoinOrg = await findAutoJoinOrg(email);
 
-  await prisma.$transaction(async (tx) => {
-    const org = await tx.organization.create({ data: { name: orgName, slug } });
-    const user = await tx.user.create({ data: { name, email, passwordHash } });
-    await tx.membership.create({
-      data: { userId: user.id, orgId: org.id, role: "OWNER" },
+  if (autoJoinOrg) {
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({ data: { name, email, passwordHash } });
+      await tx.membership.create({
+        data: { userId: created.id, orgId: autoJoinOrg.id, role: "MEMBER" },
+      });
+      return created;
     });
-  });
+    const adminIds = await getOrgAdminUserIds(prisma, autoJoinOrg.id);
+    await notify(prisma, {
+      orgId: autoJoinOrg.id,
+      userIds: adminIds,
+      type: "MEMBER_JOINED",
+      message: `${user.name} joined your organization (matched ${autoJoinOrg.domain} domain).`,
+      link: "/settings/members",
+    });
+  } else {
+    const slug = await uniqueOrgSlug(orgName);
+    const domain = emailDomain(email);
+    const claimableDomain = domain && isClaimableDomain(domain) ? domain : null;
+    try {
+      await prisma.$transaction(async (tx) => {
+        const org = await tx.organization.create({
+          data: { name: orgName, slug, domain: claimableDomain },
+        });
+        const user = await tx.user.create({ data: { name, email, passwordHash } });
+        await tx.membership.create({
+          data: { userId: user.id, orgId: org.id, role: "OWNER" },
+        });
+      });
+    } catch (err) {
+      if (claimableDomain && (err as { code?: string }).code === "P2002") {
+        await prisma.$transaction(async (tx) => {
+          const org = await tx.organization.create({ data: { name: orgName, slug } });
+          const user = await tx.user.create({ data: { name, email, passwordHash } });
+          await tx.membership.create({
+            data: { userId: user.id, orgId: org.id, role: "OWNER" },
+          });
+        });
+      } else {
+        throw err;
+      }
+    }
+  }
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });
@@ -82,14 +149,25 @@ export async function loginAction(
   }
 
   const callbackUrl = (formData.get("callbackUrl") as string) || "/dashboard";
+  const code = (formData.get("code") as string) || undefined;
 
   try {
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
+      code,
       redirectTo: callbackUrl,
     });
   } catch (err) {
+    if (err instanceof TwoFactorRequiredError) {
+      return { requiresTwoFactor: true };
+    }
+    if (err instanceof InvalidTwoFactorCodeError) {
+      return {
+        requiresTwoFactor: true,
+        fieldErrors: { code: ["Invalid code. Try again."] },
+      };
+    }
     if (err instanceof AuthError) {
       return { error: "Invalid email or password." };
     }
@@ -103,17 +181,8 @@ export async function acceptInviteAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const parsed = acceptInviteSchema.safeParse({
-    token: formData.get("token"),
-    name: formData.get("name"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return { fieldErrors: parsed.error.flatten().fieldErrors };
-  }
-
-  const { token, name, password } = parsed.data;
+  const token = formData.get("token") as string | null;
+  if (!token) return { error: "This invite link is invalid or has expired." };
 
   const invite = await prisma.invite.findUnique({ where: { token } });
   if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
@@ -127,6 +196,22 @@ export async function acceptInviteAction(
   let user = await prisma.user.findUnique({ where: { email } });
   let joined = false;
 
+  // An existing account just accepts the invite — no new credentials needed,
+  // so the stricter password schema only applies to genuinely new accounts.
+  const parsed = user
+    ? acceptInviteSchema.pick({ name: true }).safeParse({ name: formData.get("name") })
+    : acceptInviteSchema.safeParse({
+        name: formData.get("name"),
+        password: formData.get("password"),
+      });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { name } = parsed.data;
+  let password: string | undefined;
+
   if (user) {
     const alreadyMember = await prisma.membership.findUnique({
       where: { userId_orgId: { userId: user.id, orgId: invite.orgId } },
@@ -138,6 +223,7 @@ export async function acceptInviteAction(
       joined = true;
     }
   } else {
+    password = (parsed.data as unknown as { password: string }).password;
     const passwordHash = await bcrypt.hash(password, 12);
     user = await prisma.user.create({
       data: { email, name, passwordHash },
@@ -165,7 +251,7 @@ export async function acceptInviteAction(
   }
 
   try {
-    await signIn("credentials", { email, password, redirectTo: "/dashboard" });
+    await signIn("credentials", { email, password: password ?? "", redirectTo: "/dashboard" });
   } catch (err) {
     if (err instanceof AuthError) {
       return { error: "Invite accepted. Please log in." };

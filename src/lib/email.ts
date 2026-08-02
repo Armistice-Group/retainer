@@ -28,7 +28,7 @@ export async function sendEmail({
     return;
   }
 
-  const from = process.env.RESEND_FROM_EMAIL || "Retainer <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL || "Consultainer <onboarding@resend.dev>";
   const html = await render(react);
 
   try {

@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
           <Link href="/dashboard" className="text-base font-semibold tracking-tight">
-            <span className="text-primary">Retainer</span>
+            <span className="text-primary">Consultainer</span>
           </Link>
         </div>
         <div className="border-b border-sidebar-border py-2">

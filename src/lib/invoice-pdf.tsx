@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { Prisma } from "@/generated/prisma/client";
 
 export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
@@ -11,7 +11,8 @@ export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#1a1a1a", fontFamily: "Helvetica" },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 },
+  logo: { maxWidth: 160, maxHeight: 60, marginBottom: 4, objectFit: "contain" },
   orgName: { fontSize: 16, fontWeight: 700, marginBottom: 4 },
   invoiceTitle: { fontSize: 20, fontWeight: 700, textAlign: "right" },
   invoiceMeta: { fontSize: 10, textAlign: "right", color: "#555", marginTop: 4 },
@@ -65,15 +66,24 @@ function formatDate(date: Date) {
 }
 
 export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
+  const accentColor = invoice.org.brandColor || "#1a1a1a";
+  const billEmail = invoice.client.billingEmail || invoice.client.email;
+  const billAddress = invoice.client.billingAddress || invoice.client.address;
+
   return (
     <Document title={`Invoice ${invoice.number}`}>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.orgName}>{invoice.org.name}</Text>
+            {invoice.org.logoUrl ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop
+              <Image src={invoice.org.logoUrl} style={styles.logo} />
+            ) : (
+              <Text style={styles.orgName}>{invoice.org.name}</Text>
+            )}
           </View>
           <View>
-            <Text style={styles.invoiceTitle}>INVOICE</Text>
+            <Text style={[styles.invoiceTitle, { color: accentColor }]}>INVOICE</Text>
             <Text style={styles.invoiceMeta}>{invoice.number}</Text>
           </View>
         </View>
@@ -82,8 +92,8 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
           <View>
             <Text style={styles.label}>Bill To</Text>
             <Text>{invoice.client.name}</Text>
-            {invoice.client.email ? <Text>{invoice.client.email}</Text> : null}
-            {invoice.client.address ? <Text>{invoice.client.address}</Text> : null}
+            {billEmail ? <Text>{billEmail}</Text> : null}
+            {billAddress ? <Text>{billAddress}</Text> : null}
           </View>
           <View>
             <Text style={styles.label}>Issue Date</Text>
@@ -95,7 +105,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
         </View>
 
         <View style={styles.table}>
-          <View style={styles.tableHeader}>
+          <View style={[styles.tableHeader, { borderBottomColor: accentColor }]}>
             <Text style={[styles.colDesc, styles.headerText]}>Description</Text>
             <Text style={[styles.colQty, styles.headerText]}>Qty</Text>
             <Text style={[styles.colRate, styles.headerText]}>Rate</Text>
@@ -120,9 +130,11 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
             <Text style={styles.totalsLabel}>Tax ({Number(invoice.taxRate)}%)</Text>
             <Text>{formatCurrency(invoice.taxAmount, invoice.currency)}</Text>
           </View>
-          <View style={styles.grandTotalRow}>
+          <View style={[styles.grandTotalRow, { borderTopColor: accentColor }]}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>{formatCurrency(invoice.total, invoice.currency)}</Text>
+            <Text style={[styles.grandTotalValue, { color: accentColor }]}>
+              {formatCurrency(invoice.total, invoice.currency)}
+            </Text>
           </View>
         </View>
 

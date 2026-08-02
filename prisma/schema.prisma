@@ -59,6 +59,8 @@ model Organization {
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
+  domain               String?  @unique
+  autoJoinDomain       Boolean  @default(true)
   invoicePrefix        String   @default("INV")
   nextInvoiceNumber    Int      @default(1)
   defaultCurrency      String   @default("USD")
@@ -66,6 +68,8 @@ model Organization {
   externalBillingUrl   String?
   externalBillingLabel String?
   slackWebhookUrl      String?
+  logoUrl              String?
+  brandColor           String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -79,15 +83,21 @@ model Organization {
   apiKeys              ApiKey[]
   quickBooksConnection QuickBooksConnection?
   githubConnection     GithubConnection?
+  linearConnection     LinearConnection?
+  laurelConnection     LaurelConnection?
+  ssoConnection        SsoConnection?
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  email                  String   @unique
+  passwordHash           String?
+  name                   String
+  twoFactorSecret        String?
+  twoFactorEnabled       Boolean  @default(false)
+  twoFactorRecoveryCodes String[] @default([])
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   memberships                 Membership[]
   projectMembers              ProjectMember[]
@@ -98,6 +108,12 @@ model User {
   apiKeys                     ApiKey[]
   connectedQuickBooksAccounts QuickBooksConnection[]
   connectedGithubAccounts     GithubConnection[]
+  connectedLinearAccounts     LinearConnection[]
+  connectedLaurelAccounts     LaurelConnection[]
+  authenticators              Authenticator[]
+  webAuthnChallenges          WebAuthnChallenge[]
+  connectedSsoAccounts        SsoConnection[]
+  ssoLoginTickets             SsoLoginTicket[]
 }
 
 model Membership {
@@ -135,15 +151,17 @@ model Invite {
 }
 
 model Client {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  email       String?
-  phone       String?
-  address     String?
-  status      ClientStatus @default(ACTIVE)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  email          String?
+  phone          String?
+  address        String?
+  billingEmail   String?
+  billingAddress String?
+  status         ClientStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -159,18 +177,31 @@ model Client {
 }
 
 model Contact {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  title     String?
-  isPrimary Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  title            String?
+  contactRole      String?
+  isPrimary        Boolean  @default(false)
+  receivesInvoices Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+model MagicLinkToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
 }
 
 model Link {
@@ -214,6 +245,7 @@ model Project {
   timeEntries      TimeEntry[]
   invoiceLineItems InvoiceLineItem[]
   repo             Repo?
+  externalLink     ExternalProjectLink?
 
   @@index([orgId])
   @@index([clientId])
@@ -233,7 +265,8 @@ model Task {
   assigneeId String?
   assignee   User?   @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  timeEntries TimeEntry[]
+  timeEntries  TimeEntry[]
+  externalLink ExternalTaskLink?
 
   @@index([projectId])
   @@index([assigneeId])
@@ -280,6 +313,8 @@ model TimeEntry {
 
   invoiceLineItemId String?
   invoiceLineItem   InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
+
+  externalLink ExternalTimeEntryLink?
 
   @@index([orgId])
   @@index([projectId])
@@ -435,4 +470,151 @@ model Scan {
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
 
   @@index([repoId, createdAt])
+}
+
+// ── Task tracker / time tracker integrations ─────────────────────────────────
+// Generic mapping layer: any external source (Linear, Rize, Laurel, ...) links
+// into Retainer's own Project/Task/TimeEntry rows via these tables, tagged by
+// a `source` string, rather than each integration needing its own schema.
+
+model LinearConnection {
+  id            String   @id @default(cuid())
+  workspaceName String?
+  accessToken   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orgId String       @unique
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  connectedById String?
+  connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+}
+
+model ExternalProjectLink {
+  id           String   @id @default(cuid())
+  source       String
+  externalId   String
+  externalName String?
+  createdAt    DateTime @default(now())
+
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+}
+
+model ExternalTaskLink {
+  id           String    @id @default(cuid())
+  source       String
+  externalId   String
+  externalUrl  String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  taskId String @unique
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+}
+
+model ExternalTimeEntryLink {
+  id         String   @id @default(cuid())
+  source     String
+  externalId String
+  createdAt  DateTime @default(now())
+
+  timeEntryId String    @unique
+  timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([source, externalId])
+}
+
+// Laurel's data-sync endpoints (pending time entries, client/matter push) are
+// provisioned per-customer by Laurel's solutions team and aren't in public
+// docs — this connection stores the OAuth2 client_credentials, which is
+// enough to authenticate; the actual sync endpoints are a follow-up
+// (see Linear ARM-63) once a real customer/client ID pair exists.
+model LaurelConnection {
+  id           String    @id @default(cuid())
+  customerId   String
+  clientId     String
+  clientSecret String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  orgId String       @unique
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  connectedById String?
+  connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+}
+
+// ── Passkeys (WebAuthn) ───────────────────────────────────────────────────────
+
+model Authenticator {
+  id           String    @id @default(cuid())
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      BigInt
+  transports   String?
+  deviceName   String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Short-lived challenge for an in-progress registration or login ceremony.
+// userId is set for registration (we know who); null for a discoverable
+// (usernameless) login ceremony, resolved to a user only after verification.
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── SSO (OIDC) ─────────────────────────────────────────────────────────────
+// Per-org OIDC identity provider (Okta, Authentik, etc.) — not gated behind a
+// billing tier yet since no billing enforcement exists in the app (see
+// pricing page discussion); wire that gate in when it does.
+
+model SsoConnection {
+  id                    String   @id @default(cuid())
+  issuer                String
+  clientId              String
+  clientSecret          String
+  authorizationEndpoint String
+  tokenEndpoint         String
+  jwksUri               String
+  enabled               Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  orgId String       @unique
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  connectedById String?
+  connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+}
+
+// Single-use, short-lived ticket bridging the OIDC callback (a plain Route
+// Handler, where next-auth's signIn()/redirect() can't be called directly)
+// to the "sso" Credentials provider, consumed via a Server Component page —
+// same shape/reasoning as the passkey login ticket.
+model SsoLoginTicket {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

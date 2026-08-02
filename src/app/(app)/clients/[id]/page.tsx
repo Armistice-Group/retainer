@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Mail, Phone, MapPin, Pencil, Star, Trash2, Plus, FolderKanban } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Pencil,
+  Star,
+  Trash2,
+  Plus,
+  FolderKanban,
+  Receipt,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
-import { AddContactDialog } from "./add-contact-dialog";
+import { ContactDialog } from "./contact-dialog";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -98,9 +109,56 @@ export default async function ClientDetailPage({
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Billing</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Mail className="size-4 shrink-0 text-muted-foreground" />
+                <a
+                  href={`mailto:${client.billingEmail || client.email || ""}`}
+                  className="hover:underline"
+                >
+                  {client.billingEmail || client.email || "No billing email on file"}
+                </a>
+                {!client.billingEmail && client.email ? (
+                  <span className="text-xs text-muted-foreground">(default)</span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="size-4 shrink-0 text-muted-foreground" />
+                <span>
+                  {client.billingAddress || client.address || "No billing address on file"}
+                </span>
+                {!client.billingAddress && client.address ? (
+                  <span className="text-xs text-muted-foreground">(default)</span>
+                ) : null}
+              </div>
+              {client.contacts.some((c) => c.receivesInvoices) ? (
+                <div>
+                  <p className="mb-1.5 text-xs text-muted-foreground">On invoice emails</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {client.contacts
+                      .filter((c) => c.receivesInvoices)
+                      .map((c) => (
+                        <Badge key={c.id} variant="secondary">
+                          {c.name}
+                        </Badge>
+                      ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No contacts marked to receive invoice emails.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Points of contact</CardTitle>
-              <AddContactDialog clientId={client.id} />
+              <ContactDialog clientId={client.id} />
             </CardHeader>
             <CardContent>
               {client.contacts.length === 0 ? (
@@ -110,14 +168,19 @@ export default async function ClientDetailPage({
                   {client.contacts.map((contact) => (
                     <li key={contact.id} className="flex items-start justify-between gap-2 py-2.5">
                       <div className="text-sm">
-                        <div className="flex items-center gap-1.5 font-medium">
+                        <div className="flex flex-wrap items-center gap-1.5 font-medium">
                           {contact.name}
                           {contact.isPrimary ? (
                             <Star className="size-3.5 fill-primary text-primary" />
                           ) : null}
+                          {contact.receivesInvoices ? (
+                            <Receipt className="size-3.5 text-muted-foreground" />
+                          ) : null}
                         </div>
-                        {contact.title ? (
-                          <p className="text-muted-foreground">{contact.title}</p>
+                        {contact.title || contact.contactRole ? (
+                          <p className="text-muted-foreground">
+                            {[contact.title, contact.contactRole].filter(Boolean).join(" · ")}
+                          </p>
                         ) : null}
                         {contact.email ? (
                           <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:underline">
@@ -128,13 +191,16 @@ export default async function ClientDetailPage({
                           <p className="text-muted-foreground">{contact.phone}</p>
                         ) : null}
                       </div>
-                      <form
-                        action={deleteContactAction.bind(null, contact.id, client.id)}
-                      >
-                        <Button variant="ghost" size="icon" className="size-7" type="submit">
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </form>
+                      <div className="flex items-center gap-1">
+                        <ContactDialog clientId={client.id} contact={contact} />
+                        <form
+                          action={deleteContactAction.bind(null, contact.id, client.id)}
+                        >
+                          <Button variant="ghost" size="icon" className="size-7" type="submit">
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </form>
+                      </div>
                     </li>
                   ))}
                 </ul>
