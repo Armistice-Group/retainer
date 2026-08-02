@@ -1,0 +1,38 @@
+# ── Copy to terraform.tfvars and fill in all values ───────────────────────────
+# NEVER commit terraform.tfvars — it contains secrets.
+# Run: cp terraform.tfvars.example terraform.tfvars
+
+environment = "prod"
+aws_region  = "us-east-1"
+name_prefix = "retainer-prod"
+
+# ── Domain ────────────────────────────────────────────────────────────────────
+# Must be managed in Route 53 (or delegated to it) before running apply.
+root_domain = "consultainer.app"
+
+# ── Networking ────────────────────────────────────────────────────────────────
+vpc_cidr = "10.0.0.0/16"
+
+# ── Database (containerized Postgres on the instance) ─────────────────────────
+db_name     = "consulthub"
+db_username = "app"
+db_password = "REPLACE_ME_strong_db_password" # min 8 chars, no @/space
+
+# ── Application image ─────────────────────────────────────────────────────────
+app_version = "latest"
+
+# ── EC2 ───────────────────────────────────────────────────────────────────────
+# Cost guide: t3.small ~$15/mo
+ec2_instance_type  = "t3.small"
+ec2_root_volume_gb = 30
+
+# Generate with: ssh-keygen -t ed25519 -f ~/.ssh/retainer-deploy -C deploy@retainer
+# Then paste the contents of ~/.ssh/retainer-deploy.pub here.
+ec2_ssh_public_key = "ssh-ed25519 AAAA... deploy@retainer"
+
+# '0.0.0.0/0' works from anywhere. Restrict to a specific CIDR once you have one.
+ec2_ssh_allowed_cidr = "0.0.0.0/0"
+
+# ── Safety ────────────────────────────────────────────────────────────────────
+# Set true once real users are on it.
+deletion_protection = false

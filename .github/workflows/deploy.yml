@@ -1,0 +1,105 @@
+name: Deploy to AWS
+
+# Triggered after CI succeeds on main, or manually for a specific commit/tag.
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Commit SHA to deploy (defaults to latest main)'
+        required: false
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  build-and-push:
+    name: Build & push image to ECR
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, x64]
+    outputs:
+      ecr_registry: ${{ steps.ecr.outputs.registry }}
+    steps:
+      - name: Fix workspace permissions
+        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.IMAGE_TAG }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+        run: |
+          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          docker tag "$IMAGE" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+  # Deploys via SSM instead of SSH — the EC2 instance's IAM role already has
+  # AmazonSSMManagedInstanceCore, so no SSH key needs to be managed as a
+  # GitHub secret. Commands run as root on the instance through the SSM agent.
+  deploy:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: self-hosted
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy over SSM
+        env:
+          INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
+        run: |
+          # ECR auth tokens expire after 12h, so the instance re-logs-in on every
+          # deploy rather than relying on the login it did at boot.
+          # Built with jq (not hand-escaped shell quoting) since the commands
+          # themselves contain quotes, pipes, and `&&`.
+          PARAMS=$(jq -n \
+            --arg region "$AWS_REGION" \
+            --arg registry "$ECR_REGISTRY" \
+            '{commands: [
+              "set -e",
+              ("aws ecr get-login-password --region " + $region + " | docker login --username AWS --password-stdin " + $registry),
+              "cd /opt/retainer && docker compose pull && docker compose up -d --remove-orphans"
+            ]}')
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "$PARAMS" \
+            --query 'Command.CommandId' --output text)
+
+          echo "SSM command: $COMMAND_ID"
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"
+
+          aws ssm get-command-invocation \
+            --command-id "$COMMAND_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query '[Status,StandardOutputContent,StandardErrorContent]' \
+            --output text
