@@ -4,8 +4,13 @@ output "app_url" {
 }
 
 output "alb_dns" {
-  description = "ALB DNS name (for debugging / manual CNAME)"
+  description = "ALB DNS name — add manually at the registrar: ALIAS/ANAME @ -> this, CNAME www -> this"
   value       = module.ec2.alb_dns
+}
+
+output "dns_validation_records" {
+  description = "ACM validation records — add manually at the registrar before the cert can validate"
+  value       = module.dns.validation_records
 }
 
 output "instance_public_ip" {

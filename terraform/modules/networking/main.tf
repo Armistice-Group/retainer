@@ -54,7 +54,7 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_security_group" "alb" {
   name        = "${var.name_prefix}-alb"
-  description = "ALB — inbound HTTP/S from internet"
+  description = "ALB - inbound HTTP/S from internet"
   vpc_id      = aws_vpc.main.id
 
   ingress {

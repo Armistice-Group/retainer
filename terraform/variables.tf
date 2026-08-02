@@ -9,7 +9,7 @@ variable "environment" {
 variable "aws_region" {
   description = "Primary AWS region"
   type        = string
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "name_prefix" {
@@ -72,12 +72,10 @@ variable "ec2_root_volume_gb" {
   default     = 30
 }
 
-variable "ec2_ssh_public_key" {
-  description = <<-EOT
-    Public SSH key placed on the EC2 instance.
-    Generate with: ssh-keygen -t ed25519 -f ~/.ssh/retainer-deploy -C deploy@retainer
-  EOT
+variable "ec2_ssh_key_name" {
+  description = "Name of an existing AWS EC2 key pair to use for SSH access"
   type        = string
+  default     = "ag-dev-pair"
 }
 
 variable "ec2_ssh_allowed_cidr" {

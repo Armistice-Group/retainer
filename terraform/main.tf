@@ -45,17 +45,14 @@ module "ecr" {
 }
 
 # ── DNS + ACM ─────────────────────────────────────────────────────────────────
-# Creates the ACM cert + Route 53 A records pointing at the ALB. The cert ARN
-# goes to the EC2 module; the ALB DNS/zone come back from it — this is not a
-# real cycle, since aws_lb.main itself has no dependency on the cert (only the
-# HTTPS listener does), so Terraform can order the resource graph correctly.
+# Creates the ACM cert only — root_domain's DNS stays on the registrar
+# (Namecheap), so validation and the app records (root/www → ALB) are added
+# there by hand. See `validation_records` / `alb_dns` outputs.
 
 module "dns" {
   source = "./modules/dns"
 
   root_domain = var.root_domain
-  alb_dns     = module.ec2.alb_dns
-  alb_zone_id = module.ec2.alb_zone_id
 }
 
 # ── EC2 (single instance + ALB) ────────────────────────────────────────────────
@@ -90,7 +87,7 @@ module "ec2" {
   # EC2 config
   instance_type       = var.ec2_instance_type
   root_volume_size_gb = var.ec2_root_volume_gb
-  ssh_public_key      = var.ec2_ssh_public_key
+  ssh_key_name        = var.ec2_ssh_key_name
   ssh_allowed_cidr    = var.ec2_ssh_allowed_cidr
   deletion_protection = var.deletion_protection
 }

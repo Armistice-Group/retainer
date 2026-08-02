@@ -31,8 +31,8 @@ variable "instance_type" {
   default = "t3.small"
 }
 
-variable "ssh_public_key" {
-  description = "Public SSH key for EC2 access (generate with ssh-keygen -t ed25519)"
+variable "ssh_key_name" {
+  description = "Name of an existing AWS EC2 key pair to use for SSH access"
   type        = string
 }
 

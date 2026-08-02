@@ -3,7 +3,7 @@
 # Run: cp terraform.tfvars.example terraform.tfvars
 
 environment = "prod"
-aws_region  = "us-east-1"
+aws_region  = "us-east-2"
 name_prefix = "retainer-prod"
 
 # ── Domain ────────────────────────────────────────────────────────────────────
@@ -26,9 +26,8 @@ app_version = "latest"
 ec2_instance_type  = "t3.small"
 ec2_root_volume_gb = 30
 
-# Generate with: ssh-keygen -t ed25519 -f ~/.ssh/retainer-deploy -C deploy@retainer
-# Then paste the contents of ~/.ssh/retainer-deploy.pub here.
-ec2_ssh_public_key = "ssh-ed25519 AAAA... deploy@retainer"
+# Name of an existing AWS EC2 key pair (must already exist in this region).
+ec2_ssh_key_name = "ag-dev-pair"
 
 # '0.0.0.0/0' works from anywhere. Restrict to a specific CIDR once you have one.
 ec2_ssh_allowed_cidr = "0.0.0.0/0"

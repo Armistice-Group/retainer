@@ -9,5 +9,5 @@ output "instance_id" { value = aws_instance.app.id }
 output "instance_public_ip" { value = aws_instance.app.public_ip }
 
 # ── Key pair / security group ────────────────────────────────────────────────
-output "key_pair_name" { value = aws_key_pair.deploy.key_name }
+output "key_pair_name" { value = var.ssh_key_name }
 output "sg_ec2_id" { value = aws_security_group.ec2.id }

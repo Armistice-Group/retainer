@@ -18,14 +18,6 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# ── SSH key pair ──────────────────────────────────────────────────────────────
-
-resource "aws_key_pair" "deploy" {
-  key_name   = "${var.name_prefix}-deploy"
-  public_key = var.ssh_public_key
-  tags       = { Name = "${var.name_prefix}-deploy-key" }
-}
-
 # ── IAM role for the EC2 instance ─────────────────────────────────────────────
 # Grants Secrets Manager read (bootstrap .env), ECR pull (image), and SSM
 # access (shell without opening SSH to the world).
@@ -99,7 +91,7 @@ resource "aws_iam_instance_profile" "ec2" {
 
 resource "aws_security_group" "ec2" {
   name        = "${var.name_prefix}-ec2"
-  description = "Retainer EC2 — SSH and HTTP from ALB"
+  description = "Retainer EC2 - SSH and HTTP from ALB"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -133,7 +125,7 @@ resource "aws_instance" "app" {
   subnet_id                   = var.public_subnet_ids[0]
   vpc_security_group_ids      = [aws_security_group.ec2.id]
   iam_instance_profile        = aws_iam_instance_profile.ec2.name
-  key_name                    = aws_key_pair.deploy.key_name
+  key_name                    = var.ssh_key_name
   associate_public_ip_address = true
 
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
