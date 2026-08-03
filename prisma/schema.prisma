@@ -131,6 +131,7 @@ model User {
   connectedSsoAccounts        SsoConnection[]
   ssoLoginTickets             SsoLoginTicket[]
   pendingEmailChanges         PendingEmailChange[]
+  completedMilestones         Milestone[]
 }
 
 model Membership {
@@ -276,11 +277,49 @@ model Project {
   tasks            Task[]
   timeEntries      TimeEntry[]
   invoiceLineItems InvoiceLineItem[]
+  milestones       Milestone[]
   repo             Repo?
   externalLink     ExternalProjectLink?
 
   @@index([orgId])
   @@index([clientId])
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  amount      Decimal  @db.Decimal(12, 2)
+  dueDate     DateTime? @db.Date
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Evidence of completion — required note plus an optional file or link,
+  // captured atomically in the same action that marks the milestone done.
+  // No separate evidence table: one completion event, one evidence bundle.
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?   @relation(fields: [completedById], references: [id], onDelete: SetNull)
+  completionNote String?
+  completionUrl  String?
+
+  completionFileName        String?
+  completionFileData        Bytes?
+  completionFileContentType String?
+
+  // Milestone-based invoicing: a completed milestone becomes its own line
+  // item (quantity 1, rate = amount) when included on a generated invoice —
+  // mirrors TimeEntry's invoiceLineItemId, but @unique since a milestone
+  // always maps to exactly one line item rather than being grouped.
+  invoiceLineItemId String?          @unique
+  invoiceLineItem   InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
+  invoicedAt        DateTime?
+
+  @@index([projectId])
 }
 
 model Task {
@@ -401,6 +440,7 @@ model InvoiceLineItem {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   timeEntries TimeEntry[]
+  milestone   Milestone?
 
   @@index([invoiceId])
 }

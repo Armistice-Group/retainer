@@ -31,6 +31,7 @@ export async function generateInvoiceAction(
   const parsed = generateInvoiceSchema.safeParse({
     clientId: formData.get("clientId"),
     timeEntryIds: formData.getAll("timeEntryIds"),
+    milestoneIds: formData.getAll("milestoneIds"),
     issueDate: formData.get("issueDate"),
     dueDate: formData.get("dueDate"),
     taxRate: formData.get("taxRate") || org.defaultTaxRate.toString(),
@@ -158,6 +159,10 @@ export async function removeLineItemAction(lineItemId: string, invoiceId: string
       where: { invoiceLineItemId: lineItemId },
       data: { invoiceLineItemId: null },
     });
+    await tx.milestone.updateMany({
+      where: { invoiceLineItemId: lineItemId },
+      data: { invoiceLineItemId: null, invoicedAt: null },
+    });
     await tx.invoiceLineItem.delete({ where: { id: lineItemId, invoiceId } });
     await recomputeInvoiceTotals(tx, invoiceId);
   });
@@ -278,6 +283,10 @@ export async function deleteInvoiceAction(invoiceId: string) {
     await tx.timeEntry.updateMany({
       where: { invoiceLineItem: { invoiceId } },
       data: { invoiceLineItemId: null },
+    });
+    await tx.milestone.updateMany({
+      where: { invoiceLineItem: { invoiceId } },
+      data: { invoiceLineItemId: null, invoicedAt: null },
     });
     await tx.invoice.delete({ where: { id: invoiceId } });
   });

@@ -20,7 +20,7 @@ export default async function IntegrationsPage({
   const laurelConnection = await prisma.laurelConnection.findUnique({ where: { orgId: org.id } });
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="grid items-start gap-6 lg:grid-cols-2">
       <QuickBooksCard
         connected={!!connection}
         realmId={connection?.realmId ?? null}

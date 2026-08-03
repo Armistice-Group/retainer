@@ -30,6 +30,7 @@ export type GenerateInvoiceContext = { orgId: string; defaultCurrency: string };
 export type GenerateInvoiceInput = {
   clientId: string;
   timeEntryIds: string[];
+  milestoneIds: string[];
   issueDate: string;
   dueDate: string;
   taxRate: number;
@@ -51,8 +52,18 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
     include: { project: true, user: true },
   });
 
-  if (entries.length === 0) {
-    throw new InvoiceError("No eligible unbilled time entries were selected.");
+  const milestones = await prisma.milestone.findMany({
+    where: {
+      id: { in: input.milestoneIds },
+      invoiceLineItemId: null,
+      completedAt: { not: null },
+      project: { clientId: client.id, orgId: ctx.orgId },
+    },
+    include: { project: true },
+  });
+
+  if (entries.length === 0 && milestones.length === 0) {
+    throw new InvoiceError("No eligible unbilled time entries or milestones were selected.");
   }
 
   const projectMembers = await prisma.projectMember.findMany({
@@ -143,6 +154,26 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       await tx.timeEntry.updateMany({
         where: { id: { in: groupEntryIds } },
         data: { invoiceLineItemId: lineItem.id },
+      });
+    }
+
+    for (const milestone of milestones) {
+      const amount = round2(Number(milestone.amount));
+      const lineItem = await tx.invoiceLineItem.create({
+        data: {
+          invoiceId: created.id,
+          projectId: milestone.projectId,
+          description: `${milestone.project.name} — Milestone: ${milestone.name}`,
+          quantity: 1,
+          rate: amount,
+          amount,
+          sortOrder: sortOrder++,
+        },
+      });
+
+      await tx.milestone.update({
+        where: { id: milestone.id },
+        data: { invoiceLineItemId: lineItem.id, invoicedAt: new Date() },
       });
     }
 

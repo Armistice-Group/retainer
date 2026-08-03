@@ -11,7 +11,7 @@ export default async function OrgSecurityPage() {
   const ssoConnection = await prisma.ssoConnection.findUnique({ where: { orgId: org.id } });
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="grid items-start gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Domain</CardTitle>

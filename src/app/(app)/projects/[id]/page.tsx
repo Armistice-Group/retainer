@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { CodeHealthCard } from "./code-health-card";
 import { LinearSyncCard } from "./linear-sync-card";
+import { MilestonesCard, type MilestoneItem } from "./milestones-card";
 import type { Finding } from "@/lib/codeHealth/checks";
 
 export default async function ProjectDetailPage({
@@ -47,6 +48,10 @@ export default async function ProjectDetailPage({
         },
       },
       externalLink: true,
+      milestones: {
+        include: { completedBy: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
     },
   });
 
@@ -77,6 +82,20 @@ export default async function ProjectDetailPage({
     status: t.status,
     assigneeId: t.assigneeId,
     assigneeName: t.assignee?.name ?? null,
+  }));
+
+  const milestoneItems: MilestoneItem[] = project.milestones.map((m) => ({
+    id: m.id,
+    name: m.name,
+    description: m.description,
+    amount: Number(m.amount),
+    dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+    completedAt: m.completedAt ? m.completedAt.toISOString() : null,
+    completedByName: m.completedBy?.name ?? null,
+    completionNote: m.completionNote,
+    completionUrl: m.completionUrl,
+    hasEvidenceFile: !!m.completionFileData,
+    invoicedAt: m.invoicedAt ? m.invoicedAt.toISOString() : null,
   }));
 
   return (
@@ -221,6 +240,13 @@ export default async function ProjectDetailPage({
               )}
             </CardContent>
           </Card>
+
+          <MilestonesCard
+            projectId={project.id}
+            milestones={milestoneItems}
+            currency={org.defaultCurrency}
+            canManage={canManage}
+          />
 
           <Card>
             <CardHeader>

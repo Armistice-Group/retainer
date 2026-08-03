@@ -14,6 +14,8 @@ const STYLES: Record<string, string> = {
   TODO: "bg-muted text-muted-foreground border-border",
   IN_PROGRESS: "bg-chart-2/15 text-chart-2 border-chart-2/30",
   DONE: "bg-chart-3/15 text-chart-3 border-chart-3/30",
+  PENDING: "bg-muted text-muted-foreground border-border",
+  INVOICED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
 };
 
 const LABELS: Record<string, string> = {
@@ -29,6 +31,8 @@ const LABELS: Record<string, string> = {
   TODO: "To do",
   IN_PROGRESS: "In progress",
   DONE: "Done",
+  PENDING: "Pending",
+  INVOICED: "Invoiced",
 };
 
 export function StatusBadge({ status }: { status: string }) {

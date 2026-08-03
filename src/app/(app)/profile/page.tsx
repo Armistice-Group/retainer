@@ -29,46 +29,50 @@ export default async function ProfilePage() {
   return (
     <div>
       <PageHeader title="Profile" />
-      <div className="flex max-w-2xl flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Your profile</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProfileNameForm name={user.name ?? ""} />
-          </CardContent>
-        </Card>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Your profile</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ProfileNameForm name={user.name ?? ""} />
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Email</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChangeEmailForm currentEmail={dbUser.email} hasPassword={!!dbUser.passwordHash} />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Email</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChangeEmailForm currentEmail={dbUser.email} hasPassword={!!dbUser.passwordHash} />
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Password</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChangePasswordForm />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Password</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordForm />
+            </CardContent>
+          </Card>
+        </div>
 
-        <PasskeysCard
-          passkeys={passkeys.map((p) => ({
-            id: p.id,
-            deviceName: p.deviceName,
-            createdAt: p.createdAt.toISOString(),
-            lastUsedAt: p.lastUsedAt?.toISOString() ?? null,
-          }))}
-        />
+        <div className="flex flex-col gap-6">
+          <PasskeysCard
+            passkeys={passkeys.map((p) => ({
+              id: p.id,
+              deviceName: p.deviceName,
+              createdAt: p.createdAt.toISOString(),
+              lastUsedAt: p.lastUsedAt?.toISOString() ?? null,
+            }))}
+          />
 
-        <TwoFactorCard enabled={dbUser.twoFactorEnabled} />
+          <TwoFactorCard enabled={dbUser.twoFactorEnabled} />
 
-        <ApiKeysCard apiKeys={apiKeys} />
+          <ApiKeysCard apiKeys={apiKeys} />
+        </div>
       </div>
     </div>
   );

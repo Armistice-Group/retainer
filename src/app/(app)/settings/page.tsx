@@ -12,7 +12,7 @@ export default async function OrgSettingsPage() {
     : org.logoUrl;
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="grid items-start gap-6 lg:grid-cols-[2fr_1fr]">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Organization</CardTitle>

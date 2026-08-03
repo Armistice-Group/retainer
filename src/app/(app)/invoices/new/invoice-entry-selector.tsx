@@ -24,30 +24,50 @@ type EligibleEntry = {
   amount: number;
 };
 
+type EligibleMilestone = {
+  id: string;
+  name: string;
+  projectName: string;
+  amount: number;
+  completedAt: string;
+};
+
 export function InvoiceEntrySelector({
   clientId,
   entries,
+  milestones,
   currency,
   defaultTaxRate,
 }: {
   clientId: string;
   entries: EligibleEntry[];
+  milestones: EligibleMilestone[];
   currency: string;
   defaultTaxRate: number;
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(entries.map((e) => e.id)));
+  const [selectedEntries, setSelectedEntries] = useState<Set<string>>(
+    new Set(entries.map((e) => e.id))
+  );
+  const [selectedMilestones, setSelectedMilestones] = useState<Set<string>>(
+    new Set(milestones.map((m) => m.id))
+  );
   const [taxRate, setTaxRate] = useState(defaultTaxRate);
   const [state, formAction] = useActionState<ActionState, FormData>(generateInvoiceAction, null);
 
-  const subtotal = useMemo(
-    () => entries.filter((e) => selected.has(e.id)).reduce((sum, e) => sum + e.amount, 0),
-    [entries, selected]
-  );
+  const subtotal = useMemo(() => {
+    const entriesTotal = entries
+      .filter((e) => selectedEntries.has(e.id))
+      .reduce((sum, e) => sum + e.amount, 0);
+    const milestonesTotal = milestones
+      .filter((m) => selectedMilestones.has(m.id))
+      .reduce((sum, m) => sum + m.amount, 0);
+    return entriesTotal + milestonesTotal;
+  }, [entries, selectedEntries, milestones, selectedMilestones]);
   const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
   const total = subtotal + taxAmount;
 
-  function toggle(id: string) {
-    setSelected((prev) => {
+  function toggleEntry(id: string) {
+    setSelectedEntries((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -55,8 +75,25 @@ export function InvoiceEntrySelector({
     });
   }
 
-  function toggleAll() {
-    setSelected((prev) => (prev.size === entries.length ? new Set() : new Set(entries.map((e) => e.id))));
+  function toggleAllEntries() {
+    setSelectedEntries((prev) =>
+      prev.size === entries.length ? new Set() : new Set(entries.map((e) => e.id))
+    );
+  }
+
+  function toggleMilestone(id: string) {
+    setSelectedMilestones((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllMilestones() {
+    setSelectedMilestones((prev) =>
+      prev.size === milestones.length ? new Set() : new Set(milestones.map((m) => m.id))
+    );
   }
 
   const [today] = useState(() => toISODate(new Date()));
@@ -71,43 +108,81 @@ export function InvoiceEntrySelector({
         </Alert>
       ) : null}
 
-      <Card className="p-0">
-        <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
-          <Checkbox
-            checked={selected.size === entries.length}
-            onCheckedChange={toggleAll}
-            aria-label="Select all"
-          />
-          <span className="text-sm font-medium">
-            {selected.size} of {entries.length} entries selected
-          </span>
-        </div>
-        <ul className="divide-y divide-border">
-          {entries.map((entry) => (
-            <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
-              <Checkbox
-                checked={selected.has(entry.id)}
-                onCheckedChange={() => toggle(entry.id)}
-                name="timeEntryIds"
-                value={entry.id}
-              />
-              <div className="min-w-0 flex-1 text-sm">
-                <p className="truncate font-medium">{entry.projectName}</p>
-                <p className="truncate text-muted-foreground">
-                  {entry.userName} · {formatDate(entry.date)}
-                  {entry.description ? ` · ${entry.description}` : ""}
-                </p>
-              </div>
-              <span className="tabular-figures shrink-0 text-sm text-muted-foreground">
-                {entry.hours.toFixed(2)}h × {formatCurrency(entry.rate, currency)}
-              </span>
-              <span className="tabular-figures w-24 shrink-0 text-right text-sm font-medium">
-                {formatCurrency(entry.amount, currency)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      {entries.length > 0 ? (
+        <Card className="p-0">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+            <Checkbox
+              checked={selectedEntries.size === entries.length}
+              onCheckedChange={toggleAllEntries}
+              aria-label="Select all time entries"
+            />
+            <span className="text-sm font-medium">
+              {selectedEntries.size} of {entries.length} time entries selected
+            </span>
+          </div>
+          <ul className="divide-y divide-border">
+            {entries.map((entry) => (
+              <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
+                <Checkbox
+                  checked={selectedEntries.has(entry.id)}
+                  onCheckedChange={() => toggleEntry(entry.id)}
+                  name="timeEntryIds"
+                  value={entry.id}
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate font-medium">{entry.projectName}</p>
+                  <p className="truncate text-muted-foreground">
+                    {entry.userName} · {formatDate(entry.date)}
+                    {entry.description ? ` · ${entry.description}` : ""}
+                  </p>
+                </div>
+                <span className="tabular-figures shrink-0 text-sm text-muted-foreground">
+                  {entry.hours.toFixed(2)}h × {formatCurrency(entry.rate, currency)}
+                </span>
+                <span className="tabular-figures w-24 shrink-0 text-right text-sm font-medium">
+                  {formatCurrency(entry.amount, currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {milestones.length > 0 ? (
+        <Card className="p-0">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+            <Checkbox
+              checked={selectedMilestones.size === milestones.length}
+              onCheckedChange={toggleAllMilestones}
+              aria-label="Select all milestones"
+            />
+            <span className="text-sm font-medium">
+              {selectedMilestones.size} of {milestones.length} completed milestones selected
+            </span>
+          </div>
+          <ul className="divide-y divide-border">
+            {milestones.map((milestone) => (
+              <li key={milestone.id} className="flex items-center gap-3 px-4 py-3">
+                <Checkbox
+                  checked={selectedMilestones.has(milestone.id)}
+                  onCheckedChange={() => toggleMilestone(milestone.id)}
+                  name="milestoneIds"
+                  value={milestone.id}
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate font-medium">{milestone.name}</p>
+                  <p className="truncate text-muted-foreground">
+                    {milestone.projectName} · Completed {formatDate(milestone.completedAt)}
+                  </p>
+                </div>
+                <span className="tabular-figures w-24 shrink-0 text-right text-sm font-medium">
+                  {formatCurrency(milestone.amount, currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
@@ -154,7 +229,7 @@ export function InvoiceEntrySelector({
       <SubmitButton
         className="self-end"
         pendingText="Generating..."
-        disabled={selected.size === 0}
+        disabled={selectedEntries.size === 0 && selectedMilestones.size === 0}
       >
         Generate invoice
       </SubmitButton>

@@ -1,13 +1,19 @@
 import { z } from "zod";
 
-export const generateInvoiceSchema = z.object({
-  clientId: z.string().min(1, "Client is required"),
-  timeEntryIds: z.array(z.string()).min(1, "Select at least one time entry"),
-  issueDate: z.string().min(1),
-  dueDate: z.string().min(1),
-  taxRate: z.coerce.number().min(0).max(100).default(0),
-  notes: z.string().trim().max(2000).optional().or(z.literal("")),
-});
+export const generateInvoiceSchema = z
+  .object({
+    clientId: z.string().min(1, "Client is required"),
+    timeEntryIds: z.array(z.string()).default([]),
+    milestoneIds: z.array(z.string()).default([]),
+    issueDate: z.string().min(1),
+    dueDate: z.string().min(1),
+    taxRate: z.coerce.number().min(0).max(100).default(0),
+    notes: z.string().trim().max(2000).optional().or(z.literal("")),
+  })
+  .refine((data) => data.timeEntryIds.length > 0 || data.milestoneIds.length > 0, {
+    message: "Select at least one time entry or milestone",
+    path: ["timeEntryIds"],
+  });
 
 export const lineItemSchema = z.object({
   id: z.string().optional(),

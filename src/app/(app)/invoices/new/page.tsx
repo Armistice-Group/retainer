@@ -65,17 +65,36 @@ export default async function NewInvoicePage({
         };
       });
 
+      const eligibleMilestones = await prisma.milestone.findMany({
+        where: {
+          invoiceLineItemId: null,
+          completedAt: { not: null },
+          project: { clientId, orgId: org.id },
+        },
+        include: { project: true },
+        orderBy: { completedAt: "asc" },
+      });
+
+      const milestones = eligibleMilestones.map((m) => ({
+        id: m.id,
+        name: m.name,
+        projectName: m.project.name,
+        amount: Number(m.amount),
+        completedAt: m.completedAt ? toISODate(new Date(m.completedAt)) : "",
+      }));
+
       eligibleSection =
-        eligible.length === 0 ? (
+        eligible.length === 0 && milestones.length === 0 ? (
           <EmptyState
             icon={FileText}
             title="Nothing to invoice"
-            description="This client has no unbilled, billable time entries yet."
+            description="This client has no unbilled, billable time entries or completed milestones yet."
           />
         ) : (
           <InvoiceEntrySelector
             clientId={client.id}
             entries={eligible}
+            milestones={milestones}
             currency={org.defaultCurrency}
             defaultTaxRate={Number(org.defaultTaxRate)}
           />
@@ -87,7 +106,7 @@ export default async function NewInvoicePage({
     <div>
       <PageHeader
         title="New invoice"
-        description="Pick a client, then select the unbilled time to include."
+        description="Pick a client, then select the unbilled time and milestones to include."
       />
 
       <Card className="mb-6 p-5">

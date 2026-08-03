@@ -192,10 +192,11 @@ const handler = createMcpHandler(
 
     server.tool(
       "generate_invoice",
-      "Generate a draft invoice from unbilled, billable time entries. Owner/admin only.",
+      "Generate a draft invoice from unbilled, billable time entries and/or completed, unbilled milestones. Owner/admin only.",
       {
         clientId: z.string(),
-        timeEntryIds: z.array(z.string()).min(1),
+        timeEntryIds: z.array(z.string()).default([]),
+        milestoneIds: z.array(z.string()).default([]),
         issueDate: z.string(),
         dueDate: z.string(),
         taxRate: z.number().min(0).max(100).default(0),
@@ -205,6 +206,9 @@ const handler = createMcpHandler(
         const ctx = ctxFrom(extra);
         if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
           return errorResult("Only owners and admins can generate invoices.");
+        }
+        if (args.timeEntryIds.length === 0 && args.milestoneIds.length === 0) {
+          return errorResult("Provide at least one timeEntryId or milestoneId.");
         }
         try {
           const invoice = await generateInvoice(
