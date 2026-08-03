@@ -1,13 +1,16 @@
 import { Body, Button, Container, Head, Heading, Html, Preview, Text } from "@react-email/components";
+import { EmailLogo } from "./email-logo";
 
 export function VerifySignupEmail({
   verifyUrl,
   orgName,
   joiningExisting,
+  origin,
 }: {
   verifyUrl: string;
   orgName: string;
   joiningExisting: boolean;
+  origin: string;
 }) {
   return (
     <Html>
@@ -22,6 +25,7 @@ export function VerifySignupEmail({
             maxWidth: 480,
           }}
         >
+          <EmailLogo origin={origin} />
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>Confirm your email</Heading>
           <Text style={{ fontSize: 14, color: "#3f3a52", lineHeight: 1.6 }}>
             {joiningExisting

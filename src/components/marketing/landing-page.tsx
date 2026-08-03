@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MONTHLY_PRICE_USD, YEARLY_PRICE_USD, YEARLY_DISCOUNT_PERCENT } from "@/lib/pricing";
 
 const FEATURES = [
   {
@@ -45,8 +46,6 @@ const FEATURES = [
     body: "A REST API and a real MCP server, so Claude — or your own scripts — can log time and check what's unbilled for you.",
   },
 ] as const;
-
-const PRICE_PER_MONTH = 12;
 
 export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
@@ -311,10 +310,13 @@ function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
           <div>
             <h3 className="font-medium">Consultainer</h3>
             <p className="mt-2 text-3xl font-semibold tabular-figures">
-              ${PRICE_PER_MONTH}
+              ${MONTHLY_PRICE_USD.toFixed(2)}
               <span className="text-base font-normal text-muted-foreground">/mo</span>
             </p>
-            <p className="text-sm text-muted-foreground">flat, per organization</p>
+            <p className="text-sm text-muted-foreground">
+              flat, per organization — or ${YEARLY_PRICE_USD.toFixed(2)}/yr, save{" "}
+              {YEARLY_DISCOUNT_PERCENT}%
+            </p>
           </div>
           <ul className="flex flex-col gap-2.5 text-sm">
             {[

@@ -8,15 +8,18 @@ import {
   Preview,
   Text,
 } from "@react-email/components";
+import { EmailLogo } from "./email-logo";
 
 export function InviteEmail({
   orgName,
   inviterName,
   inviteUrl,
+  origin,
 }: {
   orgName: string;
   inviterName: string;
   inviteUrl: string;
+  origin: string;
 }) {
   return (
     <Html>
@@ -31,6 +34,7 @@ export function InviteEmail({
             maxWidth: 480,
           }}
         >
+          <EmailLogo origin={origin} />
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>
             Join {orgName} on Consultainer
           </Heading>

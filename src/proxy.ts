@@ -31,5 +31,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // icon/apple-icon/opengraph-image are the generated favicon, home-screen
+  // icon, and social-card image (src/app/icon.tsx etc.) — email clients and
+  // logged-out browsers fetch these with no session cookie at all, so they
+  // must never hit the auth redirect below.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image).*)"],
 };

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { clientSchema, contactSchema, linkSchema } from "@/lib/validations/client";
+import { canAddClient, UPGRADE_MESSAGE_CLIENTS } from "@/lib/plan-limits";
 import type { ActionState } from "@/actions/auth";
 
 export async function createClientAction(
@@ -12,6 +13,10 @@ export async function createClientAction(
   formData: FormData
 ): Promise<ActionState> {
   const { org } = await requireOrgContext();
+
+  if (!(await canAddClient(org.id, org.plan))) {
+    return { error: UPGRADE_MESSAGE_CLIENTS };
+  }
 
   const parsed = clientSchema.safeParse({
     name: formData.get("name"),

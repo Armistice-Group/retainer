@@ -16,8 +16,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
   title: "Consultainer",
   description: "Client, project, and billing management for consultants and contractors.",
+  openGraph: {
+    title: "Consultainer",
+    description: "Client, project, and billing management for consultants and contractors.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Consultainer",
+    description: "Client, project, and billing management for consultants and contractors.",
+  },
 };
 
 export default function RootLayout({

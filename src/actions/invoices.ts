@@ -205,6 +205,7 @@ async function notifyInvoiceStatusChange(
         total,
         status: status === "PAID" ? "paid" : "sent",
         invoiceUrl,
+        origin,
       }),
     });
   }

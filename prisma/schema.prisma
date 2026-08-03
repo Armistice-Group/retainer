@@ -55,6 +55,11 @@ enum NotificationType {
   TIME_LOGGED
 }
 
+enum Plan {
+  FREE
+  PAID
+}
+
 model Organization {
   id                   String   @id @default(cuid())
   name                 String
@@ -72,6 +77,15 @@ model Organization {
   logoData             Bytes?
   logoContentType      String?
   brandColor           String?
+
+  // Billing (Stripe) — plan is the source of truth for feature gating;
+  // kept in sync with Stripe via webhook, never set directly from client
+  // input. stripeSubscriptionStatus is for display/debugging only.
+  plan                     Plan     @default(FREE)
+  stripeCustomerId         String?  @unique
+  stripeSubscriptionId     String?  @unique
+  stripeSubscriptionStatus String?
+
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

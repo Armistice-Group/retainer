@@ -1,6 +1,13 @@
 import { Body, Button, Container, Head, Heading, Html, Preview, Text } from "@react-email/components";
+import { EmailLogo } from "./email-logo";
 
-export function ConfirmEmailChangeEmail({ confirmUrl }: { confirmUrl: string }) {
+export function ConfirmEmailChangeEmail({
+  confirmUrl,
+  origin,
+}: {
+  confirmUrl: string;
+  origin: string;
+}) {
   return (
     <Html>
       <Head />
@@ -14,6 +21,7 @@ export function ConfirmEmailChangeEmail({ confirmUrl }: { confirmUrl: string }) 
             maxWidth: 480,
           }}
         >
+          <EmailLogo origin={origin} />
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>Confirm your new email</Heading>
           <Text style={{ fontSize: 14, color: "#3f3a52", lineHeight: 1.6 }}>
             Click below to confirm this is your email and switch your Consultainer account to it.

@@ -104,7 +104,11 @@ SECRETS=$(aws secretsmanager get-secret-value \
 for key in AUTH_SECRET INTEGRATION_ENCRYPTION_KEY \
            RESEND_API_KEY RESEND_FROM_EMAIL \
            QUICKBOOKS_CLIENT_ID QUICKBOOKS_CLIENT_SECRET \
-           GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET; do
+           GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET \
+           AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET \
+           LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET \
+           STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
+           STRIPE_PRICE_ID_MONTHLY STRIPE_PRICE_ID_YEARLY; do
   value=$(echo "$SECRETS" | jq -r --arg k "$key" '.[$k] // empty')
   [ -n "$value" ] && echo "$key=$value" >> /opt/retainer/.env
 done

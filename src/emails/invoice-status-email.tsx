@@ -8,6 +8,7 @@ import {
   Preview,
   Text,
 } from "@react-email/components";
+import { EmailLogo } from "./email-logo";
 
 export function InvoiceStatusEmail({
   orgName,
@@ -16,6 +17,7 @@ export function InvoiceStatusEmail({
   total,
   status,
   invoiceUrl,
+  origin,
 }: {
   orgName: string;
   invoiceNumber: string;
@@ -23,6 +25,7 @@ export function InvoiceStatusEmail({
   total: string;
   status: "sent" | "paid";
   invoiceUrl: string;
+  origin: string;
 }) {
   const headline = status === "paid" ? "Invoice paid" : "Invoice sent";
   const body =
@@ -45,6 +48,7 @@ export function InvoiceStatusEmail({
             maxWidth: 480,
           }}
         >
+          <EmailLogo origin={origin} />
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>{headline}</Heading>
           <Text style={{ fontSize: 14, color: "#3f3a52", lineHeight: 1.6 }}>{body}</Text>
           <Button

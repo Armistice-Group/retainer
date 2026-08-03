@@ -48,7 +48,7 @@ export async function requestMagicLinkAction(
     await sendEmail({
       to: email,
       subject: "Your Consultainer login link",
-      react: MagicLinkEmail({ loginUrl: `${origin}/login/magic/${token}` }),
+      react: MagicLinkEmail({ loginUrl: `${origin}/login/magic/${token}`, origin }),
     });
   }
 
@@ -111,6 +111,7 @@ export async function signupAction(
         verifyUrl: `${origin}/signup/verify/${token}`,
         orgName: autoJoinOrg?.name ?? orgName,
         joiningExisting: !!autoJoinOrg,
+        origin,
       }),
     });
 

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole, ACTIVE_ORG_COOKIE } from "@/lib/org-context";
 import { orgGeneralSchema, orgSecuritySchema } from "@/lib/validations/invoice";
 import { emailDomain, isClaimableDomain } from "@/lib/org";
+import { canAddMember, UPGRADE_MESSAGE_MEMBERS } from "@/lib/plan-limits";
 import { sendEmail } from "@/lib/email";
 import { InviteEmail } from "@/emails/invite-email";
 import { getOrigin } from "@/lib/url";
@@ -166,6 +167,10 @@ export async function createInviteAction(
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
+  if (!(await canAddMember(org.id, org.plan))) {
+    return { error: UPGRADE_MESSAGE_MEMBERS };
+  }
+
   const email = (formData.get("email") as string)?.toLowerCase().trim();
   const inviteRole = (formData.get("role") as string) || "MEMBER";
 
@@ -198,6 +203,7 @@ export async function createInviteAction(
       orgName: org.name,
       inviterName: user.name ?? "A teammate",
       inviteUrl: `${origin}/invite/${invite.token}`,
+      origin,
     }),
   });
 

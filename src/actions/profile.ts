@@ -86,7 +86,7 @@ export async function changeEmailAction(
   await sendEmail({
     to: parsed.data.newEmail,
     subject: "Confirm your new email for Consultainer",
-    react: ConfirmEmailChangeEmail({ confirmUrl: `${origin}/verify-email/${token}` }),
+    react: ConfirmEmailChangeEmail({ confirmUrl: `${origin}/verify-email/${token}`, origin }),
   });
 
   return { emailChangePending: true };

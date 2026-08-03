@@ -1,6 +1,7 @@
 import { Body, Button, Container, Head, Heading, Html, Preview, Text } from "@react-email/components";
+import { EmailLogo } from "./email-logo";
 
-export function MagicLinkEmail({ loginUrl }: { loginUrl: string }) {
+export function MagicLinkEmail({ loginUrl, origin }: { loginUrl: string; origin: string }) {
   return (
     <Html>
       <Head />
@@ -14,6 +15,7 @@ export function MagicLinkEmail({ loginUrl }: { loginUrl: string }) {
             maxWidth: 480,
           }}
         >
+          <EmailLogo origin={origin} />
           <Heading style={{ fontSize: 20, margin: "0 0 16px" }}>Log in to Consultainer</Heading>
           <Text style={{ fontSize: 14, color: "#3f3a52", lineHeight: 1.6 }}>
             Click the button below to log in. This link expires in 15 minutes and can only be
