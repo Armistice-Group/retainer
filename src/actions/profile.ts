@@ -1,15 +1,18 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   updateProfileSchema,
   changePasswordSchema,
   changeEmailSchema,
 } from "@/lib/validations/profile";
+import { sendEmail } from "@/lib/email";
+import { ConfirmEmailChangeEmail } from "@/emails/confirm-email-change-email";
+import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
 
 export async function updateProfileAction(
@@ -66,15 +69,27 @@ export async function changeEmailAction(
     return { fieldErrors: { newEmail: ["That email is already in use."] } };
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { email: parsed.data.newEmail },
+  // Don't apply the change yet — confirm the new address is actually yours
+  // first, or a compromised session could pivot into someone else's real
+  // email (and from there, claim their company's domain in org Security).
+  const token = randomUUID();
+  await prisma.pendingEmailChange.create({
+    data: {
+      token,
+      userId: user.id,
+      newEmail: parsed.data.newEmail,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
   });
 
-  // The session JWT caches the old email, so sign out and require a fresh
-  // login rather than leaving a stale email cached until the token expires.
-  await signOut({ redirectTo: "/login" });
-  redirect("/login");
+  const origin = await getOrigin();
+  await sendEmail({
+    to: parsed.data.newEmail,
+    subject: "Confirm your new email for Consultainer",
+    react: ConfirmEmailChangeEmail({ confirmUrl: `${origin}/verify-email/${token}` }),
+  });
+
+  return { emailChangePending: true };
 }
 
 export async function changePasswordAction(

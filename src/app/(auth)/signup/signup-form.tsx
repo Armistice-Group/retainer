@@ -10,8 +10,28 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
 
-export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function SignupForm({
+  googleEnabled,
+  initialError,
+}: {
+  googleEnabled: boolean;
+  initialError?: string;
+}) {
   const [state, formAction] = useActionState<ActionState, FormData>(signupAction, null);
+
+  if (state?.pendingVerification) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Check your email</CardTitle>
+          <CardDescription>
+            We sent a confirmation link — click it to finish setting up your account. It expires
+            in 24 hours.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -34,6 +54,11 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
           </div>
         ) : null}
         <form action={formAction} className="flex flex-col gap-4">
+          {initialError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{initialError}</AlertDescription>
+            </Alert>
+          ) : null}
           {state?.error ? (
             <Alert variant="destructive">
               <AlertDescription>{state.error}</AlertDescription>

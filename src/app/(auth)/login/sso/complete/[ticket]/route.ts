@@ -2,11 +2,13 @@ import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 
-export default async function SsoCompletePage({
-  params,
-}: {
-  params: Promise<{ ticket: string }>;
-}) {
+// A Route Handler, not a page — signIn() needs to set the session cookie,
+// and cookies() can only be written from a Server Action or Route Handler,
+// never a plain Server Component.
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ ticket: string }> }
+) {
   const { ticket } = await params;
 
   try {

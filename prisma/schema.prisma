@@ -116,6 +116,7 @@ model User {
   webAuthnChallenges          WebAuthnChallenge[]
   connectedSsoAccounts        SsoConnection[]
   ssoLoginTickets             SsoLoginTicket[]
+  pendingEmailChanges         PendingEmailChange[]
 }
 
 model Membership {
@@ -193,6 +194,21 @@ model Contact {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
+}
+
+// A user can type any new email into "Change email" — this holds the change
+// until they prove they control that inbox, so a compromised session can't
+// be used to pivot into someone else's real address (and, downstream, claim
+// their company's domain via org Security settings).
+model PendingEmailChange {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  newEmail  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model MagicLinkToken {
@@ -619,4 +635,24 @@ model SsoLoginTicket {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Holds a credentials signup that would otherwise link to a domain — join an
+// existing org via auto-join, or claim a domain for a brand-new org — until
+// the email is confirmed. Nothing is created (no User, no Membership, no
+// domain claim) until the link is clicked; typing someone else's email at
+// signup must not be enough to get into their org or squat their domain.
+model PendingSignup {
+  id                   String   @id @default(cuid())
+  token                String   @unique
+  email                String
+  name                 String
+  passwordHash         String
+  orgName              String
+  autoJoinOrgId        String?
+  claimableDomain      String?
+  expiresAt            DateTime
+  createdAt            DateTime @default(now())
+
+  @@index([email])
 }

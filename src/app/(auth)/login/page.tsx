@@ -9,6 +9,9 @@ export default async function LoginPage({
   const errorMessages: Record<string, string> = {
     "invalid-magic-link": "That login link is invalid or has expired.",
     "sso-failed": "SSO sign-in failed. Try again or contact your admin.",
+    "account-exists": "An account with that email already exists. Log in instead.",
+    "email-verification-expired": "That email confirmation link is invalid or has expired.",
+    "email-already-taken": "That email is now used by another account.",
   };
   return (
     <LoginForm

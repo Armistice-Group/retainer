@@ -5,12 +5,17 @@ import { authConfig } from "@/lib/auth.config";
 const { auth } = NextAuth(authConfig);
 
 const PUBLIC_PATHS = ["/", "/login", "/signup"];
+// Multi-step flows (magic link, SSO completion, signup/email confirmation)
+// live under these as sub-paths and must be reachable while logged out —
+// an exact-match check on PUBLIC_PATHS alone would bounce them to /login
+// before the page ever gets a chance to sign the user in.
+const PUBLIC_PREFIXES = ["/login/", "/signup/", "/invite/", "/verify-email/"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   const isPublic =
-    PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/invite/");
+    PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!req.auth && !isPublic) {
     const loginUrl = new URL("/login", req.nextUrl.origin);

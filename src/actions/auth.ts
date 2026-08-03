@@ -12,13 +12,17 @@ import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { TwoFactorRequiredError, InvalidTwoFactorCodeError } from "@/lib/two-factor";
 import { sendEmail } from "@/lib/email";
 import { MagicLinkEmail } from "@/emails/magic-link-email";
+import { VerifySignupEmail } from "@/emails/verify-signup-email";
 import { getOrigin } from "@/lib/url";
+import { issueMagicLinkToken } from "@/lib/magic-link";
 
 export type ActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   requiresTwoFactor?: boolean;
   magicLinkSent?: boolean;
+  pendingVerification?: boolean;
+  emailChangePending?: boolean;
 } | null;
 
 export async function signInWithGoogleAction(callbackUrl: string) {
@@ -38,9 +42,7 @@ export async function requestMagicLinkAction(
   // can't be used to enumerate registered emails.
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
-    const token = randomUUID();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    await prisma.magicLinkToken.create({ data: { token, email, expiresAt } });
+    const token = await issueMagicLinkToken(email, 15 * 60 * 1000);
 
     const origin = await getOrigin();
     await sendEmail({
@@ -77,51 +79,52 @@ export async function signupAction(
 
   const passwordHash = await bcrypt.hash(password, 12);
   const autoJoinOrg = await findAutoJoinOrg(email);
+  const domain = emailDomain(email);
+  const claimableDomain = !autoJoinOrg && domain && isClaimableDomain(domain) ? domain : null;
 
-  if (autoJoinOrg) {
-    const user = await prisma.$transaction(async (tx) => {
-      const created = await tx.user.create({ data: { name, email, passwordHash } });
-      await tx.membership.create({
-        data: { userId: created.id, orgId: autoJoinOrg.id, role: "MEMBER" },
-      });
-      return created;
+  if (autoJoinOrg || claimableDomain) {
+    // Typing an email doesn't prove you own it — without this, anyone could
+    // join an existing org (or squat a domain for a fake one) just by
+    // entering someone else's address here. Gate behind a confirmation
+    // click before anything (user, org, membership) is actually created.
+    const token = randomUUID();
+    await prisma.pendingSignup.create({
+      data: {
+        token,
+        email,
+        name,
+        passwordHash,
+        orgName,
+        autoJoinOrgId: autoJoinOrg?.id ?? null,
+        claimableDomain,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
     });
-    const adminIds = await getOrgAdminUserIds(prisma, autoJoinOrg.id);
-    await notify(prisma, {
-      orgId: autoJoinOrg.id,
-      userIds: adminIds,
-      type: "MEMBER_JOINED",
-      message: `${user.name} joined your organization (matched ${autoJoinOrg.domain} domain).`,
-      link: "/settings/members",
+
+    const origin = await getOrigin();
+    await sendEmail({
+      to: email,
+      subject: autoJoinOrg
+        ? `Confirm your email to join ${autoJoinOrg.name} on Consultainer`
+        : `Confirm your email to create ${orgName} on Consultainer`,
+      react: VerifySignupEmail({
+        verifyUrl: `${origin}/signup/verify/${token}`,
+        orgName: autoJoinOrg?.name ?? orgName,
+        joiningExisting: !!autoJoinOrg,
+      }),
     });
-  } else {
-    const slug = await uniqueOrgSlug(orgName);
-    const domain = emailDomain(email);
-    const claimableDomain = domain && isClaimableDomain(domain) ? domain : null;
-    try {
-      await prisma.$transaction(async (tx) => {
-        const org = await tx.organization.create({
-          data: { name: orgName, slug, domain: claimableDomain },
-        });
-        const user = await tx.user.create({ data: { name, email, passwordHash } });
-        await tx.membership.create({
-          data: { userId: user.id, orgId: org.id, role: "OWNER" },
-        });
-      });
-    } catch (err) {
-      if (claimableDomain && (err as { code?: string }).code === "P2002") {
-        await prisma.$transaction(async (tx) => {
-          const org = await tx.organization.create({ data: { name: orgName, slug } });
-          const user = await tx.user.create({ data: { name, email, passwordHash } });
-          await tx.membership.create({
-            data: { userId: user.id, orgId: org.id, role: "OWNER" },
-          });
-        });
-      } else {
-        throw err;
-      }
-    }
+
+    return { pendingVerification: true };
   }
+
+  const slug = await uniqueOrgSlug(orgName);
+  await prisma.$transaction(async (tx) => {
+    const org = await tx.organization.create({ data: { name: orgName, slug } });
+    const user = await tx.user.create({ data: { name, email, passwordHash } });
+    await tx.membership.create({
+      data: { userId: user.id, orgId: org.id, role: "OWNER" },
+    });
+  });
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/dashboard" });

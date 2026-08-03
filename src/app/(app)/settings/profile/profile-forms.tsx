@@ -41,6 +41,17 @@ export function ChangeEmailForm({
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(changeEmailAction, null);
 
+  if (state?.emailChangePending) {
+    return (
+      <Alert>
+        <AlertDescription>
+          We sent a confirmation link to your new address — click it to finish changing your
+          email. It expires in 24 hours, and nothing changes until then.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {state?.error ? (
@@ -69,10 +80,10 @@ export function ChangeEmailForm({
         </div>
       ) : null}
       <p className="text-xs text-muted-foreground">
-        You&apos;ll be signed out and need to log in again with the new email.
+        We&apos;ll email a confirmation link to the new address before anything changes.
       </p>
       <div>
-        <SubmitButton pendingText="Updating...">Update email</SubmitButton>
+        <SubmitButton pendingText="Sending...">Update email</SubmitButton>
       </div>
     </form>
   );
