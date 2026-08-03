@@ -38,7 +38,7 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <a href="/settings/profile" className="flex items-center gap-2">
+          <a href="/profile" className="flex items-center gap-2">
             <UserIcon className="size-4" />
             Profile
           </a>

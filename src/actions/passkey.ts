@@ -46,14 +46,14 @@ export async function finishPasskeyRegistrationAction(
     return { error: err instanceof Error ? err.message : "Couldn't add this passkey." };
   }
 
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
   return { error: null };
 }
 
 export async function deletePasskeyAction(id: string) {
   const userId = await requireUserId();
   await prisma.authenticator.deleteMany({ where: { id, userId } });
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
 }
 
 export async function startPasskeyLoginAction() {

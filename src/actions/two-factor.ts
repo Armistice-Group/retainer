@@ -55,7 +55,7 @@ export async function confirmTwoFactorSetupAction(
     data: { twoFactorEnabled: true, twoFactorRecoveryCodes: hashed },
   });
 
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
   return { recoveryCodes };
 }
 
@@ -65,7 +65,7 @@ export async function cancelTwoFactorSetupAction() {
     where: { id: userId },
     data: { twoFactorSecret: null, twoFactorEnabled: false, twoFactorRecoveryCodes: [] },
   });
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
 }
 
 export async function disableTwoFactorAction(
@@ -86,6 +86,6 @@ export async function disableTwoFactorAction(
     data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryCodes: [] },
   });
 
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
   return null;
 }

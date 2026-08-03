@@ -32,7 +32,7 @@ export async function updateProfileAction(
     data: { name: parsed.data.name },
   });
 
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
   return null;
 }
 

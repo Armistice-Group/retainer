@@ -22,7 +22,7 @@ export async function createApiKeyAction(name: string) {
     },
   });
 
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
   return raw;
 }
 
@@ -32,5 +32,5 @@ export async function revokeApiKeyAction(keyId: string) {
     where: { id: keyId, userId: user.id, revokedAt: null },
     data: { revokedAt: new Date() },
   });
-  revalidatePath("/settings/profile");
+  revalidatePath("/profile");
 }
