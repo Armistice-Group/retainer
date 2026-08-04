@@ -257,6 +257,11 @@ export async function sendInvoiceAction(
   if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
   if (invoice.status !== "DRAFT") return { error: "Only draft invoices can be sent." };
 
+  const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
+  if (lineItemCount === 0) {
+    return { error: "Add at least one line item before sending." };
+  }
+
   const override = formData.get("override") === "true";
   if (!override) {
     const blockers = await getInvoiceGateBlockers(invoiceId);

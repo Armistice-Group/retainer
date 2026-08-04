@@ -31,10 +31,13 @@ export function formatWeekLabel(weekStart: Date) {
   const startFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
     weekStart
   );
-  const endFmt = new Intl.DateTimeFormat("en-US", {
-    month: sameMonth ? undefined : "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(weekEnd);
+  // Intl.DateTimeFormat has no sane skeleton for "day + year" without a
+  // month — it falls back to a garbled "2026 (day: 9)" string — so the
+  // same-month case is built by hand instead of omitting `month`.
+  const endFmt = sameMonth
+    ? `${weekEnd.getDate()}, ${weekEnd.getFullYear()}`
+    : new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(
+        weekEnd
+      );
   return `${startFmt} – ${endFmt}`;
 }
