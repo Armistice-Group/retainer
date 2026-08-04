@@ -20,6 +20,7 @@ export async function createClientAction(
 
   const parsed = clientSchema.safeParse({
     name: formData.get("name"),
+    website: formData.get("website"),
     description: formData.get("description"),
     email: formData.get("email"),
     phone: formData.get("phone"),
@@ -37,6 +38,7 @@ export async function createClientAction(
     data: {
       orgId: org.id,
       name: parsed.data.name,
+      website: parsed.data.website || null,
       description: parsed.data.description || null,
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
@@ -48,7 +50,7 @@ export async function createClientAction(
   });
 
   revalidatePath("/clients");
-  redirect(`/clients/${client.id}`);
+  redirect(`/clients/${client.id}?new=1`);
 }
 
 export async function updateClientAction(
@@ -60,6 +62,7 @@ export async function updateClientAction(
 
   const parsed = clientSchema.safeParse({
     name: formData.get("name"),
+    website: formData.get("website"),
     description: formData.get("description"),
     email: formData.get("email"),
     phone: formData.get("phone"),
@@ -77,6 +80,7 @@ export async function updateClientAction(
     where: { id: clientId, orgId: org.id },
     data: {
       name: parsed.data.name,
+      website: parsed.data.website || null,
       description: parsed.data.description || null,
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,

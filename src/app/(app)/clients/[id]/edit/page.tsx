@@ -34,6 +34,7 @@ export default async function EditClientPage({
             submitLabel="Save changes"
             initialValues={{
               name: client.name,
+              website: client.website,
               description: client.description,
               email: client.email,
               phone: client.phone,

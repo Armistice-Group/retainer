@@ -17,6 +17,7 @@ import type { ActionState } from "@/actions/auth";
 
 type ClientFormValues = {
   name: string;
+  website: string | null;
   description: string | null;
   email: string | null;
   phone: string | null;
@@ -47,40 +48,41 @@ export function ClientForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="name">Client name</Label>
+          <Label htmlFor="name">Company name</Label>
           <Input id="name" name="name" defaultValue={initialValues?.name} required />
           {state?.fieldErrors?.name ? (
             <p className="text-sm text-destructive">{state.fieldErrors.name[0]}</p>
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" defaultValue={initialValues?.email ?? ""} />
-          {state?.fieldErrors?.email ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.email[0]}</p>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="website">Website / domain</Label>
+          <Input
+            id="website"
+            name="website"
+            defaultValue={initialValues?.website ?? ""}
+            placeholder="acme.com"
+          />
+          {state?.fieldErrors?.website ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.website[0]}</p>
           ) : null}
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" name="phone" defaultValue={initialValues?.phone ?? ""} />
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="address">Address</Label>
-          <Input id="address" name="address" defaultValue={initialValues?.address ?? ""} />
+          <Input id="address" name="address" defaultValue={initialValues?.address ?? ""} placeholder="Optional" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input id="phone" name="phone" defaultValue={initialValues?.phone ?? ""} placeholder="Optional" />
         </div>
 
         <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={4}
-            defaultValue={initialValues?.description ?? ""}
-            placeholder="What does this client do? Any context worth remembering."
-          />
+          <div className="mt-1 mb-0.5 border-t border-border pt-4">
+            <p className="text-sm font-medium">Billing / Accounts Payable</p>
+            <p className="text-xs text-muted-foreground">Optional — where invoices should go, if different.</p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -90,7 +92,7 @@ export function ClientForm({
             name="billingEmail"
             type="email"
             defaultValue={initialValues?.billingEmail ?? ""}
-            placeholder="Defaults to email above if left blank"
+            placeholder="Defaults to email below if left blank"
           />
           {state?.fieldErrors?.billingEmail ? (
             <p className="text-sm text-destructive">{state.fieldErrors.billingEmail[0]}</p>
@@ -104,6 +106,25 @@ export function ClientForm({
             name="billingAddress"
             defaultValue={initialValues?.billingAddress ?? ""}
             placeholder="Defaults to address above if left blank"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 sm:col-span-2 border-t border-border pt-4">
+          <Label htmlFor="email">General email</Label>
+          <Input id="email" name="email" type="email" defaultValue={initialValues?.email ?? ""} placeholder="Optional" />
+          {state?.fieldErrors?.email ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.email[0]}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            name="description"
+            rows={4}
+            defaultValue={initialValues?.description ?? ""}
+            placeholder="What does this client do? Any context worth remembering."
           />
         </div>
 

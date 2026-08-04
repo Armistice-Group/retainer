@@ -18,6 +18,13 @@ enum ClientStatus {
   INACTIVE
 }
 
+enum ClientDocumentType {
+  W9
+  FORM_1099
+  CONTRACT
+  OTHER
+}
+
 enum ProjectStatus {
   ACTIVE
   ON_HOLD
@@ -132,6 +139,7 @@ model User {
   ssoLoginTickets             SsoLoginTicket[]
   pendingEmailChanges         PendingEmailChange[]
   completedMilestones         Milestone[]
+  uploadedClientDocuments     ClientDocument[]
 }
 
 model Membership {
@@ -171,6 +179,7 @@ model Invite {
 model Client {
   id             String       @id @default(cuid())
   name           String
+  website        String?
   description    String?
   email          String?
   phone          String?
@@ -186,12 +195,31 @@ model Client {
 
   quickbooksCustomerId String?
 
-  contacts Contact[]
-  links    Link[]
-  projects Project[]
-  invoices Invoice[]
+  contacts  Contact[]
+  links     Link[]
+  projects  Project[]
+  invoices  Invoice[]
+  documents ClientDocument[]
 
   @@index([orgId])
+}
+
+model ClientDocument {
+  id          String             @id @default(cuid())
+  type        ClientDocumentType @default(OTHER)
+  label       String?
+  fileName    String
+  fileData    Bytes
+  contentType String
+  uploadedAt  DateTime           @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
 }
 
 model Contact {

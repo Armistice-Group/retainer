@@ -22,3 +22,7 @@ export function toDateInputValue(date: Date | string) {
   const d = new Date(date);
   return d.toISOString().slice(0, 10);
 }
+
+export function websiteHref(website: string) {
+  return /^https?:\/\//i.test(website) ? website : `https://${website}`;
+}

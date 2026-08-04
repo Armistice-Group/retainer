@@ -4,6 +4,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Globe,
   Pencil,
   Star,
   Trash2,
@@ -16,21 +17,27 @@ import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
+import { ClientDocumentsCard } from "./client-documents-card";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
+import { websiteHref } from "@/lib/format";
 
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ new?: string }>;
 }) {
   const { id } = await params;
+  const { new: justCreated } = await searchParams;
   const { org } = await requireOrgContext();
 
   const client = await prisma.client.findUnique({
@@ -39,10 +46,19 @@ export default async function ClientDetailPage({
       contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       links: { orderBy: { createdAt: "asc" } },
       projects: { orderBy: { createdAt: "desc" } },
+      documents: { orderBy: { uploadedAt: "desc" } },
     },
   });
 
   if (!client || client.orgId !== org.id) notFound();
+
+  const documentItems = client.documents.map((d) => ({
+    id: d.id,
+    type: d.type,
+    label: d.label,
+    fileName: d.fileName,
+    uploadedAt: d.uploadedAt.toISOString(),
+  }));
 
   return (
     <div>
@@ -72,6 +88,24 @@ export default async function ClientDetailPage({
         <StatusBadge status={client.status} />
       </div>
 
+      {justCreated && client.contacts.length === 0 ? (
+        <Alert className="mb-4">
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              <strong>{client.name}</strong>{" "}
+              was created. Add the people you&apos;ll be working with here — a manager, VP,
+              marketing lead, whoever&apos;s relevant — or skip for now.
+            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <ContactDialog clientId={client.id} />
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/clients/${client.id}`}>Skip for now</Link>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-1">
           <Card>
@@ -81,6 +115,19 @@ export default async function ClientDetailPage({
             <CardContent className="flex flex-col gap-3 text-sm">
               {client.description ? (
                 <p className="text-muted-foreground">{client.description}</p>
+              ) : null}
+              {client.website ? (
+                <div className="flex items-center gap-2">
+                  <Globe className="size-4 shrink-0 text-muted-foreground" />
+                  <a
+                    href={websiteHref(client.website)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                  >
+                    {client.website}
+                  </a>
+                </div>
               ) : null}
               {client.email ? (
                 <div className="flex items-center gap-2">
@@ -102,7 +149,11 @@ export default async function ClientDetailPage({
                   <span>{client.address}</span>
                 </div>
               ) : null}
-              {!client.description && !client.email && !client.phone && !client.address ? (
+              {!client.description &&
+              !client.website &&
+              !client.email &&
+              !client.phone &&
+              !client.address ? (
                 <p className="text-muted-foreground">No contact details on file.</p>
               ) : null}
             </CardContent>
@@ -217,6 +268,8 @@ export default async function ClientDetailPage({
               <LinkList links={client.links} redirectPath={`/clients/${client.id}`} />
             </CardContent>
           </Card>
+
+          <ClientDocumentsCard clientId={client.id} documents={documentItems} />
         </div>
 
         <div className="lg:col-span-2">
