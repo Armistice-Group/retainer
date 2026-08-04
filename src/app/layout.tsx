@@ -21,13 +21,13 @@ export const metadata: Metadata = {
   description: "Client, project, and billing management for consultants and contractors.",
   openGraph: {
     title: "Consultainer",
-    description: "Client, project, and billing management for consultants and contractors.",
+    description: "Client, project, and billing management for software consultants and dev shops.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Consultainer",
-    description: "Client, project, and billing management for consultants and contractors.",
+    description: "Client, project, and billing management for software consultants and dev shops.",
   },
 };
 

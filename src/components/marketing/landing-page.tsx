@@ -1,10 +1,10 @@
 import Link from "next/link";
 import {
   Building2,
-  FolderKanban,
+  GitBranch,
+  ShieldCheck,
   Clock,
   FileText,
-  Bell,
   Bot,
   Check,
   ArrowRight,
@@ -17,13 +17,18 @@ import { MONTHLY_PRICE_USD, YEARLY_PRICE_USD, YEARLY_DISCOUNT_PERCENT } from "@/
 const FEATURES = [
   {
     icon: Building2,
-    title: "Clients & contacts",
-    body: "Every client's contacts, login URLs, and Drive folders live on their page — not scattered across a doc you have to hunt for.",
+    title: "Clients & engagements",
+    body: "Every engagement's contacts, staging URLs, and Drive folders live on its page — not scattered across a doc you have to hunt for.",
   },
   {
-    icon: FolderKanban,
-    title: "Projects & tasks",
-    body: "Projects carry their own team, a per-person bill rate, and a task list — assign real work, not just a bucket for hours.",
+    icon: GitBranch,
+    title: "Projects, tasks & Linear",
+    body: "Projects carry their own team and bill rate, and pull real issues in from Linear — assign actual backlog items, not a bucket for hours.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "AI Code Health",
+    body: "Scan a client's repo for the security issues AI-generated code tends to leave behind, and gate invoices on a clean pass before they go out.",
   },
   {
     icon: Clock,
@@ -32,18 +37,13 @@ const FEATURES = [
   },
   {
     icon: FileText,
-    title: "Invoicing + QuickBooks",
-    body: "Generate an invoice straight from unbilled time, download a PDF, or push it to QuickBooks in one click.",
-  },
-  {
-    icon: Bell,
-    title: "Notifications",
-    body: "In-app, Slack, or email — know when an invoice gets paid or a teammate logs time, without checking five tabs.",
+    title: "Milestones, invoicing & QuickBooks",
+    body: "Bill hourly from unbilled time or fixed-price by milestone with evidence attached, then download a PDF or push straight to QuickBooks.",
   },
   {
     icon: Bot,
-    title: "API & MCP",
-    body: "A REST API and a real MCP server, so Claude — or your own scripts — can log time and check what's unbilled for you.",
+    title: "API & MCP for Claude Code",
+    body: "A REST API and a real MCP server — log hours, check what's unbilled, or generate an invoice straight from Claude Code without opening a browser tab.",
   },
 ] as const;
 
@@ -105,12 +105,12 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Everything client work needs. Nothing it doesn&apos;t.
+          Everything a software consultancy needs. Nothing it doesn&apos;t.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Clients, projects, time, and invoices in one place — built for consultants
-          tired of stitching together a timer, an invoicing tool, and a doc full of
-          client logins.
+          Clients, projects, time, and invoices in one place — built for software
+          consultants and dev shops tired of stitching together a timer, an invoicing
+          tool, a repo scanner, and a doc full of client logins.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -146,9 +146,9 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
 
 function LedgerPreview() {
   const rows = [
-    { label: "Onboarding calls", hours: "4.00", rate: "175.00", amount: "700.00" },
-    { label: "Warehouse walkthrough", hours: "3.00", rate: "175.00", amount: "525.00" },
-    { label: "Process analysis", hours: "5.00", rate: "175.00", amount: "875.00" },
+    { label: "API integration — payments service", hours: "4.00", rate: "175.00", amount: "700.00" },
+    { label: "Code review — checkout flow", hours: "3.00", rate: "175.00", amount: "525.00" },
+    { label: "Staging deploy & QA", hours: "5.00", rate: "175.00", amount: "875.00" },
   ];
 
   return (
@@ -156,7 +156,7 @@ function LedgerPreview() {
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
           <p className="text-sm font-medium">INV-0004</p>
-          <p className="text-xs text-muted-foreground">Globex Corporation</p>
+          <p className="text-xs text-muted-foreground">Fintra Labs</p>
         </div>
         <Badge variant="outline" className="font-normal">
           Draft
@@ -189,7 +189,12 @@ function LedgerPreview() {
 }
 
 function ReplacesRow() {
-  const items = ["A timer app", "A separate invoicing tool", "A doc of client logins"];
+  const items = [
+    "A timer app",
+    "A separate invoicing tool",
+    "A doc of client logins",
+    "A repo security scanner",
+  ];
   return (
     <section className="border-y border-border bg-card/40">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-center sm:gap-6 sm:text-left">
@@ -216,7 +221,7 @@ function Features() {
     <section id="features" className="mx-auto w-full max-w-6xl px-6 py-20">
       <div className="mb-12 max-w-xl">
         <h2 className="text-3xl font-semibold tracking-tight">
-          Built for how consulting work actually runs
+          Built for how software consulting actually runs
         </h2>
         <p className="mt-3 text-muted-foreground">
           Not a generic timer with an invoice bolted on — the parts of the job that
@@ -257,11 +262,11 @@ function McpSpotlight() {
         </div>
         <Card className="gap-3 p-5 font-mono text-sm">
           <p className="text-muted-foreground">
-            &gt; Log 3.5 hours to Acme Corp for the onboarding call
+            &gt; Log 3.5 hours to Fintra Labs for the API migration
           </p>
           <p className="flex items-center gap-2 text-foreground">
             <Check className="size-4 shrink-0 text-chart-3" />
-            Logged 3.50h to Acme Corp — Onboarding call
+            Logged 3.50h to Fintra Labs — API migration
           </p>
           <p className="mt-2 text-muted-foreground">&gt; What&apos;s still unbilled this month?</p>
           <p className="text-foreground">14.25h across 2 clients, ~$2,493.75</p>
@@ -323,8 +328,8 @@ function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
               "Unlimited clients & projects",
               "Unlimited team members",
               "Rate overrides & team time view",
-              "QuickBooks push",
-              "Slack & email notifications",
+              "Milestones & QuickBooks push",
+              "GitHub Code Health & Linear sync",
               "REST API & MCP access",
             ].map((item) => (
               <li key={item} className="flex items-center gap-2">
@@ -369,7 +374,7 @@ function Footer({ isAuthenticated }: { isAuthenticated: boolean }) {
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
         <span>
           <span className="text-primary">Consultainer</span> — client, project, and billing
-          management for consultants.
+          management for software consultants.
         </span>
         <Link href={isAuthenticated ? "/dashboard" : "/login"} className="hover:text-foreground">
           {isAuthenticated ? "Dashboard" : "Log in"}
