@@ -47,33 +47,12 @@ chown -R ubuntu:ubuntu /opt/retainer
 # at runtime by reading /opt/retainer/.env (interpolation, not container env).
 cat > /opt/retainer/docker-compose.yml << 'COMPOSE_EOF'
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: $${POSTGRES_USER}
-      POSTGRES_PASSWORD: $${POSTGRES_PASSWORD}
-      POSTGRES_DB: $${POSTGRES_DB}
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   app:
     image: $${APP_IMAGE}
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     env_file: .env
     ports:
       - "80:3000"
-
-volumes:
-  db_data:
 COMPOSE_EOF
 
 echo "docker-compose.yml written"
@@ -82,11 +61,8 @@ echo "docker-compose.yml written"
 # Doubles as both the docker-compose interpolation file (project-root .env is
 # read automatically) and the app container's env_file.
 cat > /opt/retainer/.env << INFRA_EOF
-POSTGRES_USER=${db_username}
-POSTGRES_PASSWORD=${db_password}
-POSTGRES_DB=${db_name}
 APP_IMAGE=${ecr_repository_url}:${app_version}
-DATABASE_URL=postgresql://${db_username}:${db_password}@db:5432/${db_name}?schema=public
+DATABASE_URL=postgresql://${db_username}:${db_password}@${db_host}:5432/${db_name}?schema=public
 AUTH_URL=https://${app_domain}
 AUTH_TRUST_HOST=true
 APP_URL=https://${app_domain}

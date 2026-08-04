@@ -55,6 +55,25 @@ module "dns" {
   root_domain = var.root_domain
 }
 
+# ── RDS (Postgres, replaces the containerized db on the EC2 instance) ─────────
+
+module "rds" {
+  source      = "./modules/rds"
+  name_prefix = var.name_prefix
+
+  vpc_id     = module.networking.vpc_id
+  subnet_ids = module.networking.public_subnet_ids
+  sg_ec2_id  = module.ec2.sg_ec2_id
+
+  instance_class       = var.rds_instance_class
+  allocated_storage_gb = var.rds_allocated_storage_gb
+  db_name              = var.db_name
+  db_username          = var.db_username
+  db_password          = var.rds_master_password
+
+  deletion_protection = var.deletion_protection
+}
+
 # ── EC2 (single instance + ALB) ────────────────────────────────────────────────
 # Image is pulled from ECR using the instance's IAM role. Deploys are done by
 # pushing a new image tag and restarting the compose stack (see DEPLOYMENT.md).
@@ -78,11 +97,13 @@ module "ec2" {
   # Secrets
   secrets_arn = aws_secretsmanager_secret.app.arn
 
-  # Application config
+  # Application config — points at the RDS instance (module.rds), not a
+  # containerized db on the instance itself.
   app_domain  = var.root_domain
+  db_host     = module.rds.endpoint
   db_name     = var.db_name
   db_username = var.db_username
-  db_password = var.db_password
+  db_password = var.rds_master_password
 
   # EC2 config
   instance_type       = var.ec2_instance_type

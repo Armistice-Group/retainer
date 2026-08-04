@@ -32,7 +32,11 @@ variable "vpc_cidr" {
   default = "10.0.0.0/16"
 }
 
-# ── Database (containerized Postgres on the EC2 instance) ────────────────────
+# ── Database ──────────────────────────────────────────────────────────────────
+# db_name/db_username are shared with the RDS instance below. db_password is
+# no longer used (it was the containerized-Postgres password, retired when
+# the database moved to RDS) — kept only so existing tfvars files don't need
+# an edit; see rds_master_password for the credential that's actually live.
 
 variable "db_name" {
   type    = string
@@ -45,7 +49,26 @@ variable "db_username" {
 }
 
 variable "db_password" {
-  description = "Postgres password for the containerized db (min 8 chars, no @, /, or spaces)"
+  description = "Unused since the RDS migration — retained for tfvars compatibility."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# ── Database (RDS) ────────────────────────────────────────────────────────────
+
+variable "rds_instance_class" {
+  type    = string
+  default = "db.t4g.micro"
+}
+
+variable "rds_allocated_storage_gb" {
+  type    = number
+  default = 20
+}
+
+variable "rds_master_password" {
+  description = "Master password for the RDS Postgres instance (min 8 chars, no @, /, or spaces)"
   type        = string
   sensitive   = true
 }

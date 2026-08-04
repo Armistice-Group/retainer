@@ -131,6 +131,7 @@ resource "aws_instance" "app" {
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
     aws_region         = var.aws_region
     app_domain         = var.app_domain
+    db_host            = var.db_host
     db_name            = var.db_name
     db_username        = var.db_username
     db_password        = var.db_password
