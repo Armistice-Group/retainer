@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,8 @@ type ProjectFormValues = {
   endDate: Date | null;
   confidential: boolean;
   budgetHours: number | null;
+  billingType: "HOURLY" | "FLAT_FEE" | "MILESTONE";
+  flatFeeAmount: number | null;
 };
 
 export function ProjectForm({
@@ -42,6 +44,7 @@ export function ProjectForm({
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, null);
+  const [billingType, setBillingType] = useState(initialValues?.billingType ?? "HOURLY");
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -93,6 +96,42 @@ export function ProjectForm({
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="billingType">Billing</Label>
+          <Select
+            name="billingType"
+            defaultValue={billingType}
+            onValueChange={(value) => setBillingType(value as typeof billingType)}
+          >
+            <SelectTrigger id="billingType" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="HOURLY">Hourly</SelectItem>
+              <SelectItem value="FLAT_FEE">Flat fee</SelectItem>
+              <SelectItem value="MILESTONE">Milestone-based</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {billingType === "FLAT_FEE" ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="flatFeeAmount">Flat fee amount</Label>
+            <Input
+              id="flatFeeAmount"
+              name="flatFeeAmount"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={initialValues?.flatFeeAmount ?? ""}
+              required
+            />
+            {state?.fieldErrors?.flatFeeAmount ? (
+              <p className="text-sm text-destructive">{state.fieldErrors.flatFeeAmount[0]}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="startDate">Start date</Label>

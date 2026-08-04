@@ -24,6 +24,8 @@ export async function createProjectAction(
     endDate: formData.get("endDate"),
     confidential: formData.get("confidential") === "on",
     budgetHours: formData.get("budgetHours") || undefined,
+    billingType: formData.get("billingType") || "HOURLY",
+    flatFeeAmount: formData.get("flatFeeAmount") || undefined,
   });
 
   if (!parsed.success) {
@@ -44,6 +46,8 @@ export async function createProjectAction(
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
       confidential: parsed.data.confidential,
       budgetHours: parsed.data.budgetHours ?? null,
+      billingType: parsed.data.billingType,
+      flatFeeAmount: parsed.data.billingType === "FLAT_FEE" ? (parsed.data.flatFeeAmount ?? null) : null,
     },
   });
 
@@ -81,6 +85,8 @@ export async function updateProjectAction(
     endDate: formData.get("endDate"),
     confidential: formData.get("confidential") === "on",
     budgetHours: formData.get("budgetHours") || undefined,
+    billingType: formData.get("billingType") || "HOURLY",
+    flatFeeAmount: formData.get("flatFeeAmount") || undefined,
   });
 
   if (!parsed.success) {
@@ -101,6 +107,8 @@ export async function updateProjectAction(
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
       confidential: parsed.data.confidential,
       budgetHours: parsed.data.budgetHours ?? null,
+      billingType: parsed.data.billingType,
+      flatFeeAmount: parsed.data.billingType === "FLAT_FEE" ? (parsed.data.flatFeeAmount ?? null) : null,
     },
   });
 

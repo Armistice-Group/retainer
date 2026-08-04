@@ -61,17 +61,23 @@ export default async function ProjectDetailPage({
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
 
-  const loggedHours = project.budgetHours
-    ? await prisma.timeEntry.aggregate({
-        where: { projectId: project.id },
+  const [loggedHours, taskHoursByTask, githubConnection, linearConnection, orgMembers] =
+    await Promise.all([
+      project.budgetHours
+        ? prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } })
+        : Promise.resolve(null),
+      prisma.timeEntry.groupBy({
+        by: ["taskId"],
+        where: { projectId: project.id, taskId: { not: null } },
         _sum: { hours: true },
-      })
-    : null;
-
-  const orgMembers = await prisma.membership.findMany({
-    where: { orgId: org.id },
-    include: { user: true },
-  });
+      }),
+      prisma.githubConnection.findUnique({ where: { orgId: org.id } }),
+      prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
+      prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
+    ]);
+  const actualHoursByTask = new Map(
+    taskHoursByTask.map((t) => [t.taskId as string, Number(t._sum.hours ?? 0)])
+  );
   const availableMembers = orgMembers
     .filter((m) => !project.members.some((pm) => pm.userId === m.userId))
     .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }));
@@ -90,9 +96,12 @@ export default async function ProjectDetailPage({
   const taskItems = project.tasks.map((t) => ({
     id: t.id,
     title: t.title,
+    description: t.description,
     status: t.status,
     assigneeId: t.assigneeId,
     assigneeName: t.assignee?.name ?? null,
+    estimatedHours: t.estimatedHours ? Number(t.estimatedHours) : null,
+    actualHours: actualHoursByTask.get(t.id) ?? 0,
   }));
 
   const milestoneItems: MilestoneItem[] = project.milestones.map((m) => ({
@@ -169,6 +178,22 @@ export default async function ProjectDetailPage({
             />
           ) : null}
 
+          {project.billingType === "FLAT_FEE" && project.flatFeeAmount ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Flat fee</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold tabular-figures">
+                  {formatCurrency(project.flatFeeAmount, org.defaultCurrency)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add this as a line item when you generate this client&apos;s invoice.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Links</CardTitle>
@@ -179,21 +204,25 @@ export default async function ProjectDetailPage({
             </CardContent>
           </Card>
 
-          <CodeHealthCard
-            projectId={project.id}
-            repo={project.repo ? { githubOwner: project.repo.githubOwner, githubName: project.repo.githubName } : null}
-            latestScan={latestScan}
-            gateEnabled={project.codeHealthGateEnabled}
-            canManage={canManage}
-          />
+          {githubConnection ? (
+            <CodeHealthCard
+              projectId={project.id}
+              repo={project.repo ? { githubOwner: project.repo.githubOwner, githubName: project.repo.githubName } : null}
+              latestScan={latestScan}
+              gateEnabled={project.codeHealthGateEnabled}
+              canManage={canManage}
+            />
+          ) : null}
 
-          <LinearSyncCard
-            projectId={project.id}
-            externalName={
-              project.externalLink?.source === "linear" ? project.externalLink.externalName : null
-            }
-            canManage={canManage}
-          />
+          {linearConnection ? (
+            <LinearSyncCard
+              projectId={project.id}
+              externalName={
+                project.externalLink?.source === "linear" ? project.externalLink.externalName : null
+              }
+              canManage={canManage}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -272,12 +301,14 @@ export default async function ProjectDetailPage({
             </CardContent>
           </Card>
 
-          <MilestonesCard
-            projectId={project.id}
-            milestones={milestoneItems}
-            currency={org.defaultCurrency}
-            canManage={canManage}
-          />
+          {project.billingType === "MILESTONE" ? (
+            <MilestonesCard
+              projectId={project.id}
+              milestones={milestoneItems}
+              currency={org.defaultCurrency}
+              canManage={canManage}
+            />
+          ) : null}
 
           <Card>
             <CardHeader>

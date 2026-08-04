@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
-import { taskSchema, taskStatusValues } from "@/lib/validations/task";
+import { taskSchema, taskUpdateSchema, taskStatusValues } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 
@@ -19,6 +19,7 @@ export async function createTaskAction(
     title: formData.get("title"),
     description: formData.get("description"),
     assigneeId: formData.get("assigneeId"),
+    estimatedHours: formData.get("estimatedHours") || undefined,
   });
 
   if (!parsed.success) {
@@ -35,6 +36,7 @@ export async function createTaskAction(
       title: parsed.data.title,
       description: parsed.data.description || null,
       assigneeId: parsed.data.assigneeId || null,
+      estimatedHours: parsed.data.estimatedHours ?? null,
     },
   });
 
@@ -50,6 +52,42 @@ export async function createTaskAction(
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/dashboard");
+  return null;
+}
+
+export async function updateTaskAction(
+  taskId: string,
+  projectId: string,
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, user, role } = await requireOrgContext();
+
+  const parsed = taskUpdateSchema.safeParse({
+    projectId,
+    title: formData.get("title"),
+    description: formData.get("description"),
+    estimatedHours: formData.get("estimatedHours") || undefined,
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
+
+  await prisma.task.update({
+    where: { id: taskId, projectId },
+    data: {
+      title: parsed.data.title,
+      description: parsed.data.description || null,
+      estimatedHours: parsed.data.estimatedHours ?? null,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
   return null;
 }
 

@@ -9,6 +9,8 @@ export const projectSchema = z.object({
   endDate: z.string().optional().or(z.literal("")),
   confidential: z.boolean().default(false),
   budgetHours: z.coerce.number().positive("Budget must be greater than zero").optional(),
+  billingType: z.enum(["HOURLY", "FLAT_FEE", "MILESTONE"]).default("HOURLY"),
+  flatFeeAmount: z.coerce.number().positive("Flat fee must be greater than zero").optional(),
 });
 
 export const projectMemberSchema = z.object({

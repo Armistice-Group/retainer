@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,30 +13,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { createTaskAction } from "@/actions/tasks";
+import { updateTaskAction } from "@/actions/tasks";
 import type { ActionState } from "@/actions/auth";
 
-export function AddTaskDialog({
+export function EditTaskDialog({
   projectId,
-  members,
+  task,
 }: {
   projectId: string;
-  members: { id: string; name: string }[];
+  task: { id: string; title: string; description: string | null; estimatedHours: number | null };
 }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
-    createTaskAction,
-    null
-  );
+  const action = updateTaskAction.bind(null, task.id, projectId);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(action, null);
   const wasPending = useRef(false);
 
   useEffect(() => {
@@ -49,62 +40,52 @@ export function AddTaskDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Plus className="size-3.5" /> Add task
+        <Button variant="ghost" size="icon" className="size-7">
+          <Pencil className="size-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a task</DialogTitle>
+          <DialogTitle>Edit task</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
-          <input type="hidden" name="projectId" value={projectId} />
           {state?.error ? (
             <Alert variant="destructive">
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           ) : null}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="task-title">Title</Label>
-            <Input id="task-title" name="title" required />
+            <Label htmlFor="edit-task-title">Title</Label>
+            <Input id="edit-task-title" name="title" defaultValue={task.title} required />
             {state?.fieldErrors?.title ? (
               <p className="text-sm text-destructive">{state.fieldErrors.title[0]}</p>
             ) : null}
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="task-description">Description</Label>
-            <Textarea id="task-description" name="description" rows={3} />
+            <Label htmlFor="edit-task-description">Description</Label>
+            <Textarea
+              id="edit-task-description"
+              name="description"
+              rows={3}
+              defaultValue={task.description ?? ""}
+            />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="task-estimate">Estimated hours (optional)</Label>
+            <Label htmlFor="edit-task-estimate">Estimated hours (optional)</Label>
             <Input
-              id="task-estimate"
+              id="edit-task-estimate"
               name="estimatedHours"
               type="number"
               step="0.25"
               min="0"
+              defaultValue={task.estimatedHours ?? ""}
               placeholder="For estimate vs. actual"
             />
             {state?.fieldErrors?.estimatedHours ? (
               <p className="text-sm text-destructive">{state.fieldErrors.estimatedHours[0]}</p>
             ) : null}
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="task-assignee">Assignee (optional)</Label>
-            <Select name="assigneeId">
-              <SelectTrigger id="task-assignee" className="w-full">
-                <SelectValue placeholder="Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <SubmitButton pendingText="Adding...">Add task</SubmitButton>
+          <SubmitButton pendingText="Saving...">Save changes</SubmitButton>
         </form>
       </DialogContent>
     </Dialog>

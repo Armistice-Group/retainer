@@ -18,6 +18,12 @@ enum ClientStatus {
   INACTIVE
 }
 
+enum BillingType {
+  HOURLY
+  FLAT_FEE
+  MILESTONE
+}
+
 enum ClientDocumentType {
   W9
   FORM_1099
@@ -293,6 +299,8 @@ model Project {
   codeHealthGateEnabled  Boolean       @default(false)
   confidential           Boolean       @default(false)
   budgetHours            Decimal?      @db.Decimal(7, 2)
+  billingType            BillingType   @default(HOURLY)
+  flatFeeAmount          Decimal?      @db.Decimal(12, 2)
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
@@ -353,12 +361,13 @@ model Milestone {
 }
 
 model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(TODO)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  title          String
+  description    String?
+  status         TaskStatus @default(TODO)
+  estimatedHours Decimal?   @db.Decimal(6, 2)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -583,6 +592,7 @@ model LinearConnection {
   id            String   @id @default(cuid())
   workspaceName String?
   accessToken   String
+  scope         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

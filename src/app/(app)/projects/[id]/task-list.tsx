@@ -11,15 +11,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { updateTaskStatusAction, assignTaskAction, deleteTaskAction } from "@/actions/tasks";
+import { EditTaskDialog } from "./edit-task-dialog";
 
 const STATUS_ORDER = ["TODO", "IN_PROGRESS", "DONE"] as const;
 
 export type TaskItem = {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   assigneeId: string | null;
   assigneeName: string | null;
+  estimatedHours: number | null;
+  actualHours: number;
 };
 
 export function TaskList({
@@ -56,7 +60,15 @@ export function TaskList({
           >
             <StatusBadge status={task.status} />
           </button>
-          <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm">{task.title}</p>
+            {task.estimatedHours ? (
+              <p className="tabular-figures text-xs text-muted-foreground">
+                {task.actualHours.toFixed(2)}h of {task.estimatedHours.toFixed(2)}h est.
+              </p>
+            ) : null}
+          </div>
+          <EditTaskDialog projectId={projectId} task={task} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs" disabled={isPending}>

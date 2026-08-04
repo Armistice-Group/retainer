@@ -52,6 +52,8 @@ export default async function EditProjectPage({
               endDate: project.endDate,
               confidential: project.confidential,
               budgetHours: project.budgetHours ? Number(project.budgetHours) : null,
+              billingType: project.billingType,
+              flatFeeAmount: project.flatFeeAmount ? Number(project.flatFeeAmount) : null,
             }}
           />
         </CardContent>
