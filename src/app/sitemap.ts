@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 
+// Same reasoning as robots.ts — AUTH_URL is a runtime secret, not a build-time one.
+export const dynamic = "force-dynamic";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.AUTH_URL || "http://localhost:3000";
   return [
