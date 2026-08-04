@@ -15,6 +15,7 @@ import { MagicLinkEmail } from "@/emails/magic-link-email";
 import { VerifySignupEmail } from "@/emails/verify-signup-email";
 import { getOrigin } from "@/lib/url";
 import { issueMagicLinkToken } from "@/lib/magic-link";
+import { syncAttioSignup } from "@/lib/attio";
 
 export type ActionState = {
   error?: string;
@@ -119,12 +120,20 @@ export async function signupAction(
   }
 
   const slug = await uniqueOrgSlug(orgName);
-  await prisma.$transaction(async (tx) => {
+  const { org: newOrg, user: newUser } = await prisma.$transaction(async (tx) => {
     const org = await tx.organization.create({ data: { name: orgName, slug } });
     const user = await tx.user.create({ data: { name, email, passwordHash } });
     await tx.membership.create({
       data: { userId: user.id, orgId: org.id, role: "OWNER" },
     });
+    return { org, user };
+  });
+
+  await syncAttioSignup({
+    orgName: newOrg.name,
+    orgDomain: newOrg.domain,
+    userName: newUser.name,
+    userEmail: newUser.email,
   });
 
   try {

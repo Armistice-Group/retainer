@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { bootstrapOrgForUser, findAutoJoinOrg } from "@/lib/org";
+import { syncAttioSignup } from "@/lib/attio";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import {
   TwoFactorRequiredError,
@@ -138,7 +139,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             link: "/settings/members",
           });
         } else {
-          await bootstrapOrgForUser(dbUser.id, `${dbUser.name}'s Organization`, email);
+          const newOrg = await bootstrapOrgForUser(dbUser.id, `${dbUser.name}'s Organization`, email);
+          await syncAttioSignup({
+            orgName: newOrg.name,
+            orgDomain: newOrg.domain,
+            userName: dbUser.name,
+            userEmail: dbUser.email,
+          });
         }
       }
 

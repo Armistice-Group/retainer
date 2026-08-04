@@ -4,6 +4,7 @@ import { uniqueOrgSlug } from "@/lib/org";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { issueMagicLinkToken } from "@/lib/magic-link";
 import { getOrigin } from "@/lib/url";
+import { syncAttioSignup } from "@/lib/attio";
 
 // A Route Handler, not a page — this does account/org-creating DB writes
 // and redirects into the sign-in flow; keeping mutations out of a plain
@@ -83,20 +84,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
         await tx.membership.create({
           data: { userId: created.id, orgId: org.id, role: "OWNER" },
         });
-        return created;
+        return { org, user: created };
       });
 
+    let createdOrg;
     try {
-      await createOrg(pending.claimableDomain);
+      createdOrg = await createOrg(pending.claimableDomain);
     } catch (err) {
       // Genuinely concurrent confirmation raced us for the same domain —
       // fall back to an unclaimed org rather than failing signup outright.
       if (pending.claimableDomain && (err as { code?: string }).code === "P2002") {
-        await createOrg(null);
+        createdOrg = await createOrg(null);
       } else {
         throw err;
       }
     }
+
+    await syncAttioSignup({
+      orgName: createdOrg.org.name,
+      orgDomain: createdOrg.org.domain,
+      userName: createdOrg.user.name,
+      userEmail: createdOrg.user.email,
+    });
   }
 
   await prisma.pendingSignup.delete({ where: { id: pending.id } });
