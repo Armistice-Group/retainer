@@ -30,7 +30,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: "AI Code Health",
-    body: "Scan a client's repo for the security issues AI-generated code tends to leave behind, and gate invoices on a clean pass before they go out.",
+    body: "Run a security review on a client's repo — scan for the issues AI-generated code tends to leave behind — and gate invoices on a clean pass before they go out.",
   },
   {
     icon: Clock,
@@ -72,12 +72,13 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Everything a software consultancy needs. Nothing it doesn&apos;t.
+          Everything an engineering consultancy needs. Nothing it doesn&apos;t.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Clients, projects, time, and invoices in one place — built for software
-          consultants and dev shops tired of stitching together a timer, an invoicing
-          tool, a repo scanner, and a doc full of client logins.
+          Clients, projects, time, and invoices in one place — built for engineering
+          consultancies of every kind, from software and security to UI/UX, tired of
+          stitching together a timer, an invoicing tool, a repo scanner, and a doc full
+          of client logins.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -114,7 +115,7 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
 function LedgerPreview() {
   const rows = [
     { label: "API integration — payments service", hours: "4.00", rate: "175.00", amount: "700.00" },
-    { label: "Code review — checkout flow", hours: "3.00", rate: "175.00", amount: "525.00" },
+    { label: "Security review — auth flow", hours: "3.00", rate: "175.00", amount: "525.00" },
     { label: "Staging deploy & QA", hours: "5.00", rate: "175.00", amount: "875.00" },
   ];
 
@@ -188,7 +189,7 @@ function Features() {
     <section id="features" className="mx-auto w-full max-w-6xl px-6 py-20">
       <div className="mb-12 max-w-xl">
         <h2 className="text-3xl font-semibold tracking-tight">
-          Built for how software consulting actually runs
+          Built for how engineering consulting actually runs
         </h2>
         <p className="mt-3 text-muted-foreground">
           Not a generic timer with an invoice bolted on — the parts of the job that

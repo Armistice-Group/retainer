@@ -39,7 +39,7 @@ export default function OpengraphImage() {
           Consultainer
         </div>
         <div style={{ display: "flex", fontSize: 28, color: "#a79fc2", marginTop: 16 }}>
-          Client, project, and billing management for software consultants
+          Client, project, and billing management for engineering consultants
         </div>
       </div>
     ),

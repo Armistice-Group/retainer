@@ -18,17 +18,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
   title: "Consultainer",
-  description: "Client, project, and billing management for software consultants and dev shops.",
+  description: "Client, project, and billing management for engineering consultancies — software, security, and design.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Consultainer",
-    description: "Client, project, and billing management for software consultants and dev shops.",
+    description: "Client, project, and billing management for engineering consultancies — software, security, and design.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Consultainer",
-    description: "Client, project, and billing management for software consultants and dev shops.",
+    description: "Client, project, and billing management for engineering consultancies — software, security, and design.",
   },
 };
 

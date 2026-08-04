@@ -52,7 +52,7 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
         <div>
           <p>
             <span className="text-primary">Consultainer</span> — client, project, and billing
-            management for software consultants.
+            management for engineering consultants.
           </p>
           <p className="mt-1 text-xs">
             Made by{" "}
