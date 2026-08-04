@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,8 @@ type ProjectFormValues = {
   status: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "ARCHIVED";
   startDate: Date | null;
   endDate: Date | null;
+  confidential: boolean;
+  budgetHours: number | null;
 };
 
 export function ProjectForm({
@@ -120,6 +123,35 @@ export function ProjectForm({
             defaultValue={initialValues?.description ?? ""}
             placeholder="Scope, goals, or anything worth remembering about this project."
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="budgetHours">Budget (hours)</Label>
+          <Input
+            id="budgetHours"
+            name="budgetHours"
+            type="number"
+            step="0.25"
+            min="0"
+            defaultValue={initialValues?.budgetHours ?? ""}
+            placeholder="Optional — not-to-exceed cap"
+          />
+          {state?.fieldErrors?.budgetHours ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.budgetHours[0]}</p>
+          ) : null}
+        </div>
+
+        <div className="flex items-end pb-2.5">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="confidential"
+              name="confidential"
+              defaultChecked={initialValues?.confidential}
+            />
+            <Label htmlFor="confidential" className="font-normal">
+              Confidential — only assigned team members (and owners/admins) can see it
+            </Label>
+          </div>
         </div>
       </div>
 

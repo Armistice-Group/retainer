@@ -7,6 +7,8 @@ export const projectSchema = z.object({
   status: z.enum(["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"]).default("ACTIVE"),
   startDate: z.string().optional().or(z.literal("")),
   endDate: z.string().optional().or(z.literal("")),
+  confidential: z.boolean().default(false),
+  budgetHours: z.coerce.number().positive("Budget must be greater than zero").optional(),
 });
 
 export const projectMemberSchema = z.object({

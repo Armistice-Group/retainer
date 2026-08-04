@@ -3,6 +3,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { authenticateApiRequest, type ApiAuthContext } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { projectVisibilityWhere } from "@/lib/project-access";
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -58,7 +59,11 @@ const handler = createMcpHandler(
       async ({ clientId }, extra) => {
         const ctx = ctxFrom(extra);
         const projects = await prisma.project.findMany({
-          where: { orgId: ctx.orgId, ...(clientId ? { clientId } : {}) },
+          where: {
+            orgId: ctx.orgId,
+            ...(clientId ? { clientId } : {}),
+            ...projectVisibilityWhere(ctx.actorId, ctx.role),
+          },
           include: { client: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
         });
@@ -212,7 +217,7 @@ const handler = createMcpHandler(
         }
         try {
           const invoice = await generateInvoice(
-            { orgId: ctx.orgId, defaultCurrency: ctx.defaultCurrency },
+            { orgId: ctx.orgId, defaultCurrency: ctx.defaultCurrency, actorId: ctx.actorId, role: ctx.role },
             args
           );
           return text(invoice);

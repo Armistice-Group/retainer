@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
+import { canViewProject } from "@/lib/project-access";
 import { taskSchema } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 
@@ -13,6 +14,9 @@ export async function GET(
 
   const project = await prisma.project.findUnique({ where: { id } });
   if (!project || project.orgId !== ctx.orgId) {
+    return Response.json({ error: "Project not found." }, { status: 404 });
+  }
+  if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
     return Response.json({ error: "Project not found." }, { status: 404 });
   }
 
@@ -35,6 +39,9 @@ export async function POST(
 
   const project = await prisma.project.findUnique({ where: { id } });
   if (!project || project.orgId !== ctx.orgId) {
+    return Response.json({ error: "Project not found." }, { status: 404 });
+  }
+  if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
     return Response.json({ error: "Project not found." }, { status: 404 });
   }
 

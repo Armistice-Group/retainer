@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { ProjectForm } from "../../project-form";
 import { updateProjectAction } from "@/actions/projects";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,7 +14,7 @@ export default async function EditProjectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const [project, clients] = await Promise.all([
     prisma.project.findUnique({ where: { id } }),
@@ -25,6 +26,7 @@ export default async function EditProjectPage({
   ]);
 
   if (!project || project.orgId !== org.id) notFound();
+  if (!(await canViewProject(project, user.id, role))) notFound();
 
   const boundAction = async (prevState: ActionState, formData: FormData) =>
     updateProjectAction(id, prevState, formData);
@@ -48,6 +50,8 @@ export default async function EditProjectPage({
               status: project.status,
               startDate: project.startDate,
               endDate: project.endDate,
+              confidential: project.confidential,
+              budgetHours: project.budgetHours ? Number(project.budgetHours) : null,
             }}
           />
         </CardContent>

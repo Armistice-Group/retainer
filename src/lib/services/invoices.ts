@@ -1,6 +1,7 @@
 import "server-only";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type Role } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import { projectVisibilityWhere } from "@/lib/project-access";
 
 export class InvoiceError extends Error {}
 
@@ -25,7 +26,12 @@ export async function recomputeInvoiceTotals(tx: Prisma.TransactionClient, invoi
   });
 }
 
-export type GenerateInvoiceContext = { orgId: string; defaultCurrency: string };
+export type GenerateInvoiceContext = {
+  orgId: string;
+  defaultCurrency: string;
+  actorId: string;
+  role: Role;
+};
 
 export type GenerateInvoiceInput = {
   clientId: string;
@@ -47,7 +53,7 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       orgId: ctx.orgId,
       billable: true,
       invoiceLineItemId: null,
-      project: { clientId: client.id },
+      project: { clientId: client.id, ...projectVisibilityWhere(ctx.actorId, ctx.role) },
     },
     include: { project: true, user: true },
   });
@@ -57,7 +63,11 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       id: { in: input.milestoneIds },
       invoiceLineItemId: null,
       completedAt: { not: null },
-      project: { clientId: client.id, orgId: ctx.orgId },
+      project: {
+        clientId: client.id,
+        orgId: ctx.orgId,
+        ...projectVisibilityWhere(ctx.actorId, ctx.role),
+      },
     },
     include: { project: true },
   });

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { taskSchema, taskStatusValues } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
@@ -11,7 +12,7 @@ export async function createTaskAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const parsed = taskSchema.safeParse({
     projectId: formData.get("projectId"),
@@ -26,6 +27,7 @@ export async function createTaskAction(
 
   const project = await prisma.project.findUnique({ where: { id: parsed.data.projectId } });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
   const task = await prisma.task.create({
     data: {
@@ -52,9 +54,10 @@ export async function createTaskAction(
 }
 
 export async function updateTaskStatusAction(taskId: string, projectId: string, status: string) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
   if (!taskStatusValues.includes(status as (typeof taskStatusValues)[number])) {
     throw new Error("Invalid status.");
   }
@@ -69,9 +72,10 @@ export async function updateTaskStatusAction(taskId: string, projectId: string, 
 }
 
 export async function assignTaskAction(taskId: string, projectId: string, assigneeId: string) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
 
   const task = await prisma.task.update({
     where: { id: taskId, projectId },
@@ -93,9 +97,10 @@ export async function assignTaskAction(taskId: string, projectId: string, assign
 }
 
 export async function deleteTaskAction(taskId: string, projectId: string) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
 
   await prisma.task.delete({ where: { id: taskId, projectId } });
   revalidatePath(`/projects/${projectId}`);

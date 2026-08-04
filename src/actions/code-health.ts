@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { accessTokenFor, listAccessibleRepos, type GithubRepoOption } from "@/lib/integrations/github";
 import type { ActionState } from "@/actions/auth";
 
@@ -28,10 +29,11 @@ export async function connectRepoAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
   const connection = await prisma.githubConnection.findUnique({ where: { orgId: org.id } });
   if (!connection) return { error: "Connect GitHub in Settings first." };

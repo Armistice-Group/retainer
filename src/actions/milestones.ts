@@ -3,12 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { milestoneSchema, completeMilestoneSchema } from "@/lib/validations/milestone";
 import type { ActionState } from "@/actions/auth";
+import type { Role } from "@/generated/prisma/client";
 
-async function requireProject(projectId: string, orgId: string) {
+async function requireProject(projectId: string, orgId: string, userId: string, role: Role) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== orgId) throw new Error("Project not found.");
+  if (!(await canViewProject(project, userId, role))) throw new Error("Project not found.");
   return project;
 }
 
@@ -17,8 +20,8 @@ export async function createMilestoneAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
-  await requireProject(projectId, org.id);
+  const { org, user, role } = await requireOrgContext();
+  await requireProject(projectId, org.id, user.id, role);
 
   const parsed = milestoneSchema.safeParse({
     projectId,
@@ -54,8 +57,8 @@ export async function updateMilestoneAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
-  await requireProject(projectId, org.id);
+  const { org, user, role } = await requireOrgContext();
+  await requireProject(projectId, org.id, user.id, role);
 
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
   if (!milestone || milestone.projectId !== projectId) return { error: "Milestone not found." };
@@ -89,8 +92,8 @@ export async function updateMilestoneAction(
 }
 
 export async function deleteMilestoneAction(milestoneId: string, projectId: string) {
-  const { org } = await requireOrgContext();
-  await requireProject(projectId, org.id);
+  const { org, user, role } = await requireOrgContext();
+  await requireProject(projectId, org.id, user.id, role);
 
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
   if (!milestone || milestone.projectId !== projectId) throw new Error("Milestone not found.");
@@ -108,8 +111,8 @@ export async function completeMilestoneAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org, user } = await requireOrgContext();
-  await requireProject(projectId, org.id);
+  const { org, user, role } = await requireOrgContext();
+  await requireProject(projectId, org.id, user.id, role);
 
   const parsed = completeMilestoneSchema.safeParse({
     milestoneId: formData.get("milestoneId"),
@@ -160,8 +163,8 @@ export async function completeMilestoneAction(
 }
 
 export async function reopenMilestoneAction(milestoneId: string, projectId: string) {
-  const { org } = await requireOrgContext();
-  await requireProject(projectId, org.id);
+  const { org, user, role } = await requireOrgContext();
+  await requireProject(projectId, org.id, user.id, role);
 
   const milestone = await prisma.milestone.findUnique({ where: { id: milestoneId } });
   if (!milestone || milestone.projectId !== projectId) throw new Error("Milestone not found.");

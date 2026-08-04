@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { projectVisibilityWhere } from "@/lib/project-access";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Card } from "@/components/ui/card";
@@ -13,7 +14,7 @@ export default async function NewInvoicePage({
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const { clientId } = await searchParams;
 
   const clients = await prisma.client.findMany({
@@ -32,7 +33,7 @@ export default async function NewInvoicePage({
           orgId: org.id,
           billable: true,
           invoiceLineItemId: null,
-          project: { clientId },
+          project: { clientId, ...projectVisibilityWhere(user.id, role) },
         },
         include: { project: true, user: true },
         orderBy: { date: "asc" },
@@ -69,7 +70,7 @@ export default async function NewInvoicePage({
         where: {
           invoiceLineItemId: null,
           completedAt: { not: null },
-          project: { clientId, orgId: org.id },
+          project: { clientId, orgId: org.id, ...projectVisibilityWhere(user.id, role) },
         },
         include: { project: true },
         orderBy: { completedAt: "asc" },

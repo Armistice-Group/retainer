@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import {
   accessTokenFor,
   listTeams,
@@ -34,10 +35,11 @@ export async function linkProjectToLinearTeamAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
   const connection = await prisma.linearConnection.findUnique({ where: { orgId: org.id } });
   if (!connection) return { error: "Connect Linear in Settings first." };
@@ -72,10 +74,13 @@ export async function unlinkLinearProjectAction(projectId: string) {
 export async function syncLinearTasksAction(
   projectId: string
 ): Promise<{ synced: number; error: string | null }> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) return { synced: 0, error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) {
+    return { synced: 0, error: "Project not found." };
+  }
 
   const link = await prisma.externalProjectLink.findUnique({ where: { projectId } });
   if (!link || link.source !== "linear") {

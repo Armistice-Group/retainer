@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clock, FolderKanban, FileWarning, Building2, ArrowRight, ListTodo } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { projectVisibilityWhere } from "@/lib/project-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
@@ -18,7 +19,7 @@ function startOfWeek(date: Date) {
 }
 
 export default async function DashboardPage() {
-  const { org, user } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const weekStart = startOfWeek(new Date());
 
   const [weekHours, activeProjects, outstandingInvoices, recentEntries, myTasks] =
@@ -27,7 +28,9 @@ export default async function DashboardPage() {
         where: { orgId: org.id, userId: user.id, date: { gte: weekStart } },
         _sum: { hours: true },
       }),
-      prisma.project.count({ where: { orgId: org.id, status: "ACTIVE" } }),
+      prisma.project.count({
+        where: { orgId: org.id, status: "ACTIVE", ...projectVisibilityWhere(user.id, role) },
+      }),
       prisma.invoice.findMany({
         where: { orgId: org.id, status: { in: ["SENT", "DRAFT"] } },
         select: { total: true, status: true },

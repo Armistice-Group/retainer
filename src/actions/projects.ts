@@ -6,13 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { projectSchema, projectMemberSchema } from "@/lib/validations/project";
 import { notify } from "@/lib/notifications";
+import { canViewProject } from "@/lib/project-access";
 import type { ActionState } from "@/actions/auth";
 
 export async function createProjectAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const parsed = projectSchema.safeParse({
     clientId: formData.get("clientId"),
@@ -21,6 +22,8 @@ export async function createProjectAction(
     status: formData.get("status") || "ACTIVE",
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
+    confidential: formData.get("confidential") === "on",
+    budgetHours: formData.get("budgetHours") || undefined,
   });
 
   if (!parsed.success) {
@@ -39,8 +42,19 @@ export async function createProjectAction(
       status: parsed.data.status,
       startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+      confidential: parsed.data.confidential,
+      budgetHours: parsed.data.budgetHours ?? null,
     },
   });
+
+  // A non-admin creator of a confidential project must stay able to see it —
+  // visibility is need-to-know via ProjectMember, so without this they'd
+  // immediately lose access to the project they just made.
+  if (parsed.data.confidential && role !== "OWNER" && role !== "ADMIN") {
+    await prisma.projectMember.create({
+      data: { projectId: project.id, userId: user.id, billRate: 0, currency: org.defaultCurrency },
+    });
+  }
 
   revalidatePath("/projects");
   revalidatePath(`/clients/${parsed.data.clientId}`);
@@ -52,7 +66,11 @@ export async function updateProjectAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
+
+  const existing = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!existing || existing.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(existing, user.id, role))) return { error: "Project not found." };
 
   const parsed = projectSchema.safeParse({
     clientId: formData.get("clientId"),
@@ -61,6 +79,8 @@ export async function updateProjectAction(
     status: formData.get("status") || "ACTIVE",
     startDate: formData.get("startDate"),
     endDate: formData.get("endDate"),
+    confidential: formData.get("confidential") === "on",
+    budgetHours: formData.get("budgetHours") || undefined,
   });
 
   if (!parsed.success) {
@@ -79,8 +99,18 @@ export async function updateProjectAction(
       status: parsed.data.status,
       startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
       endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
+      confidential: parsed.data.confidential,
+      budgetHours: parsed.data.budgetHours ?? null,
     },
   });
+
+  if (parsed.data.confidential && role !== "OWNER" && role !== "ADMIN") {
+    await prisma.projectMember.upsert({
+      where: { projectId_userId: { projectId, userId: user.id } },
+      create: { projectId, userId: user.id, billRate: 0, currency: org.defaultCurrency },
+      update: {},
+    });
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
@@ -88,7 +118,11 @@ export async function updateProjectAction(
 }
 
 export async function deleteProjectAction(projectId: string, clientId: string) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
+
   await prisma.project.delete({ where: { id: projectId, orgId: org.id } });
   revalidatePath("/projects");
   revalidatePath(`/clients/${clientId}`);
@@ -99,7 +133,7 @@ export async function addProjectMemberAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const parsed = projectMemberSchema.safeParse({
     projectId: formData.get("projectId"),
@@ -114,6 +148,7 @@ export async function addProjectMemberAction(
 
   const project = await prisma.project.findUnique({ where: { id: parsed.data.projectId } });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
   const membership = await prisma.membership.findUnique({
     where: { userId_orgId: { userId: parsed.data.userId, orgId: org.id } },
@@ -157,9 +192,10 @@ export async function addProjectMemberAction(
 }
 
 export async function removeProjectMemberAction(projectMemberId: string, projectId: string) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
 
   await prisma.projectMember.delete({ where: { id: projectMemberId } });
   revalidatePath(`/projects/${projectId}`);

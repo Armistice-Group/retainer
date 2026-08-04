@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
+import { projectVisibilityWhere } from "@/lib/project-access";
 
 export async function GET(req: Request) {
   const ctx = await authenticateApiRequest(req);
@@ -9,7 +10,11 @@ export async function GET(req: Request) {
   const clientId = searchParams.get("clientId") ?? undefined;
 
   const projects = await prisma.project.findMany({
-    where: { orgId: ctx.orgId, ...(clientId ? { clientId } : {}) },
+    where: {
+      orgId: ctx.orgId,
+      ...(clientId ? { clientId } : {}),
+      ...projectVisibilityWhere(ctx.actorId, ctx.role),
+    },
     include: { client: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });

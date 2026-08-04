@@ -11,6 +11,7 @@ import {
   Plus,
   FolderKanban,
   Receipt,
+  Lock,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -28,6 +29,7 @@ import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { websiteHref } from "@/lib/format";
+import { projectVisibilityWhere } from "@/lib/project-access";
 
 export default async function ClientDetailPage({
   params,
@@ -38,14 +40,14 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
   const { new: justCreated } = await searchParams;
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const client = await prisma.client.findUnique({
     where: { id },
     include: {
       contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       links: { orderBy: { createdAt: "asc" } },
-      projects: { orderBy: { createdAt: "desc" } },
+      projects: { where: projectVisibilityWhere(user.id, role), orderBy: { createdAt: "desc" } },
       documents: { orderBy: { uploadedAt: "desc" } },
     },
   });
@@ -297,7 +299,12 @@ export default async function ClientDetailPage({
                         href={`/projects/${project.id}`}
                         className="flex items-center justify-between gap-2 py-3 text-sm hover:underline"
                       >
-                        <span className="font-medium">{project.name}</span>
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {project.confidential ? (
+                            <Lock className="size-3.5 shrink-0 text-chart-4" />
+                          ) : null}
+                          {project.name}
+                        </span>
                         <StatusBadge status={project.status} />
                       </Link>
                     </li>

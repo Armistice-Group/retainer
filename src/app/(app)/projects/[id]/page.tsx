@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Pencil, Trash2, Users, ListTodo } from "lucide-react";
+import { Pencil, Trash2, Users, ListTodo, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
@@ -12,6 +14,7 @@ import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { AddTaskDialog } from "./add-task-dialog";
 import { TaskList } from "./task-list";
+import { BudgetCard } from "./budget-card";
 import { deleteProjectAction, removeProjectMemberAction } from "@/actions/projects";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -27,7 +30,7 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { org, role } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const canManage = role === "OWNER" || role === "ADMIN";
 
   const project = await prisma.project.findUnique({
@@ -56,6 +59,14 @@ export default async function ProjectDetailPage({
   });
 
   if (!project || project.orgId !== org.id) notFound();
+  if (!(await canViewProject(project, user.id, role))) notFound();
+
+  const loggedHours = project.budgetHours
+    ? await prisma.timeEntry.aggregate({
+        where: { projectId: project.id },
+        _sum: { hours: true },
+      })
+    : null;
 
   const orgMembers = await prisma.membership.findMany({
     where: { orgId: org.id },
@@ -129,8 +140,13 @@ export default async function ProjectDetailPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-2">
         <StatusBadge status={project.status} />
+        {project.confidential ? (
+          <Badge variant="outline" className="gap-1 border-chart-4/40 text-chart-4">
+            <Lock className="size-3" /> Confidential
+          </Badge>
+        ) : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -144,6 +160,13 @@ export default async function ProjectDetailPage({
                 <p className="text-sm text-muted-foreground">{project.description}</p>
               </CardContent>
             </Card>
+          ) : null}
+
+          {project.budgetHours ? (
+            <BudgetCard
+              budgetHours={Number(project.budgetHours)}
+              loggedHours={Number(loggedHours?._sum.hours ?? 0)}
+            />
           ) : null}
 
           <Card>
@@ -176,7 +199,15 @@ export default async function ProjectDetailPage({
         <div className="flex flex-col gap-4 lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Team &amp; bill rates</CardTitle>
+              <div>
+                <CardTitle className="text-base">Team &amp; bill rates</CardTitle>
+                {project.confidential ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This project is confidential — only people listed here (and owners/admins)
+                    can see it.
+                  </p>
+                ) : null}
+              </div>
               {availableMembers.length > 0 ? (
                 <AddMemberDialog
                   projectId={project.id}

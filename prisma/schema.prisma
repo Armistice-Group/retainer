@@ -291,6 +291,8 @@ model Project {
   startDate              DateTime?
   endDate                DateTime?
   codeHealthGateEnabled  Boolean       @default(false)
+  confidential           Boolean       @default(false)
+  budgetHours            Decimal?      @db.Decimal(7, 2)
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 

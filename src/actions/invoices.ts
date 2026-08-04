@@ -26,7 +26,7 @@ export async function generateInvoiceAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const parsed = generateInvoiceSchema.safeParse({
     clientId: formData.get("clientId"),
@@ -45,7 +45,7 @@ export async function generateInvoiceAction(
   let invoice;
   try {
     invoice = await generateInvoice(
-      { orgId: org.id, defaultCurrency: org.defaultCurrency },
+      { orgId: org.id, defaultCurrency: org.defaultCurrency, actorId: user.id, role },
       parsed.data
     );
   } catch (err) {

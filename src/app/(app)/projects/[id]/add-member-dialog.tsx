@@ -86,7 +86,15 @@ export function AddMemberDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="member-rate">Hourly rate</Label>
-              <Input id="member-rate" name="billRate" type="number" step="0.01" min="0" required />
+              <Input
+                id="member-rate"
+                name="billRate"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue="0"
+                required
+              />
               {state?.fieldErrors?.billRate ? (
                 <p className="text-sm text-destructive">{state.fieldErrors.billRate[0]}</p>
               ) : null}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Clock, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { projectVisibilityWhere } from "@/lib/project-access";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -37,12 +38,12 @@ export default async function TimePage({
 
   const [projects, tasks, entries, teamMembers] = await Promise.all([
     prisma.project.findMany({
-      where: { orgId: org.id },
+      where: { orgId: org.id, ...projectVisibilityWhere(user.id, role) },
       include: { client: true },
       orderBy: [{ client: { name: "asc" } }, { name: "asc" }],
     }),
     prisma.task.findMany({
-      where: { project: { orgId: org.id } },
+      where: { project: { orgId: org.id, ...projectVisibilityWhere(user.id, role) } },
       select: { id: true, title: true, projectId: true },
     }),
     prisma.timeEntry.findMany({

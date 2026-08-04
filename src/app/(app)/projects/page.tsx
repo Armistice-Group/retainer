@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Building2, ChevronRight, FolderKanban, Plus } from "lucide-react";
+import { Building2, ChevronRight, FolderKanban, Plus, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { projectVisibilityWhere } from "@/lib/project-access";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
@@ -9,10 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export default async function ProjectsPage() {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const projects = await prisma.project.findMany({
-    where: { orgId: org.id },
+    where: { orgId: org.id, ...projectVisibilityWhere(user.id, role) },
     include: { client: true, _count: { select: { members: true } } },
     orderBy: [{ client: { name: "asc" } }, { createdAt: "desc" }],
   });
@@ -71,7 +72,12 @@ export default async function ProjectsPage() {
                   <Link key={project.id} href={`/projects/${project.id}`}>
                     <Card className="h-full gap-2 p-5 transition-colors hover:border-primary/40">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="font-medium">{project.name}</p>
+                        <p className="flex items-center gap-1.5 font-medium">
+                          {project.confidential ? (
+                            <Lock className="size-3.5 shrink-0 text-chart-4" />
+                          ) : null}
+                          {project.name}
+                        </p>
                         <StatusBadge status={project.status} />
                       </div>
                       <p className="text-xs text-muted-foreground">

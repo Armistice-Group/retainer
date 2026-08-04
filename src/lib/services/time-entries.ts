@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
+import { canViewProject } from "@/lib/project-access";
 import type { Role } from "@/generated/prisma/client";
 
 export class TimeEntryError extends Error {}
@@ -38,6 +39,9 @@ async function assertTask(taskId: string | null | undefined, projectId: string) 
 export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInput) {
   const project = await prisma.project.findUnique({ where: { id: input.projectId } });
   if (!project || project.orgId !== ctx.orgId) throw new TimeEntryError("Project not found.");
+  if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
+    throw new TimeEntryError("Project not found.");
+  }
 
   await assertTask(input.taskId, input.projectId);
 

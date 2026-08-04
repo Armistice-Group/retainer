@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   try {
     const invoice = await generateInvoice(
-      { orgId: ctx.orgId, defaultCurrency: ctx.defaultCurrency },
+      { orgId: ctx.orgId, defaultCurrency: ctx.defaultCurrency, actorId: ctx.actorId, role: ctx.role },
       parsed.data
     );
     return Response.json({ invoice }, { status: 201 });

@@ -1,16 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { canViewProject } from "@/lib/project-access";
 import { runRepoScan, CodeHealthError } from "@/lib/services/code-health";
 
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   const { id } = await params;
 
   const project = await prisma.project.findUnique({ where: { id }, include: { repo: true } });
   if (!project || project.orgId !== org.id) {
+    return Response.json({ error: "Project not found." }, { status: 404 });
+  }
+  if (!(await canViewProject(project, user.id, role))) {
     return Response.json({ error: "Project not found." }, { status: 404 });
   }
   if (!project.repo) {
