@@ -106,7 +106,18 @@ export function SignupForm({
             Create workspace
           </SubmitButton>
         </form>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          By creating a workspace, you agree to the{" "}
+          <Link href="/terms" className="hover:text-foreground hover:underline">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="hover:text-foreground hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-primary hover:underline">
             Log in

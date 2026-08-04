@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MONTHLY_PRICE_USD, YEARLY_PRICE_USD, YEARLY_DISCOUNT_PERCENT } from "@/lib/pricing";
+import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { CookieNotice } from "@/components/cookie-notice";
 
 const FEATURES = [
   {
@@ -50,7 +52,7 @@ const FEATURES = [
 export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Header isAuthenticated={isAuthenticated} />
+      <SiteHeader isAuthenticated={isAuthenticated} />
       <main className="flex-1">
         <Hero isAuthenticated={isAuthenticated} />
         <ReplacesRow />
@@ -59,44 +61,9 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
         <Pricing isAuthenticated={isAuthenticated} />
         <FinalCta isAuthenticated={isAuthenticated} />
       </main>
-      <Footer isAuthenticated={isAuthenticated} />
+      <SiteFooter isAuthenticated={isAuthenticated} />
+      <CookieNotice />
     </div>
-  );
-}
-
-function Header({ isAuthenticated }: { isAuthenticated: boolean }) {
-  return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          <span className="text-primary">Consultainer</span>
-        </Link>
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground sm:flex">
-          <a href="#features" className="hover:text-foreground">
-            Features
-          </a>
-          <a href="#pricing" className="hover:text-foreground">
-            Pricing
-          </a>
-        </nav>
-        <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <Button size="sm" asChild>
-              <Link href="/dashboard">Go to dashboard</Link>
-            </Button>
-          ) : (
-            <>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/login">Log in</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/signup">Start free</Link>
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -368,18 +335,3 @@ function FinalCta({ isAuthenticated }: { isAuthenticated: boolean }) {
   );
 }
 
-function Footer({ isAuthenticated }: { isAuthenticated: boolean }) {
-  return (
-    <footer className="border-t border-border">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row">
-        <span>
-          <span className="text-primary">Consultainer</span> — client, project, and billing
-          management for software consultants.
-        </span>
-        <Link href={isAuthenticated ? "/dashboard" : "/login"} className="hover:text-foreground">
-          {isAuthenticated ? "Dashboard" : "Log in"}
-        </Link>
-      </div>
-    </footer>
-  );
-}

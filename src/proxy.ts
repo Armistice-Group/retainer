@@ -4,7 +4,7 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/", "/login", "/signup"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/terms", "/privacy"];
 // Multi-step flows (magic link, SSO completion, signup/email confirmation)
 // live under these as sub-paths and must be reachable while logged out —
 // an exact-match check on PUBLIC_PATHS alone would bounce them to /login
@@ -32,8 +32,11 @@ export default auth((req) => {
 
 export const config = {
   // icon/apple-icon/opengraph-image are the generated favicon, home-screen
-  // icon, and social-card image (src/app/icon.tsx etc.) — email clients and
-  // logged-out browsers fetch these with no session cookie at all, so they
-  // must never hit the auth redirect below.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image).*)"],
+  // icon, and social-card image (src/app/icon.tsx etc.); robots.txt/sitemap.xml
+  // are the generated crawler files (src/app/robots.ts, sitemap.ts) — all of
+  // these are fetched by crawlers and email clients with no session cookie at
+  // all, so they must never hit the auth redirect below.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|robots.txt|sitemap.xml).*)",
+  ],
 };
