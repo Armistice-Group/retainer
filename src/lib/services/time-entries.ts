@@ -30,6 +30,26 @@ function canManageTeam(role: Role) {
   return role === "OWNER" || role === "ADMIN";
 }
 
+export function timeEntryWhere(params: {
+  orgId: string;
+  actorId: string;
+  role: Role;
+  teamView: boolean;
+  weekStart: Date;
+  weekEnd: Date;
+  filterUserId?: string;
+}) {
+  const { orgId, actorId, role, teamView, weekStart, weekEnd, filterUserId } = params;
+  const useTeamScope = canManageTeam(role) && teamView;
+  return useTeamScope
+    ? {
+        orgId,
+        date: { gte: weekStart, lt: weekEnd },
+        ...(filterUserId ? { userId: filterUserId } : {}),
+      }
+    : { orgId, userId: actorId, date: { gte: weekStart, lt: weekEnd } };
+}
+
 async function assertTask(taskId: string | null | undefined, projectId: string) {
   if (!taskId) return;
   const task = await prisma.task.findUnique({ where: { id: taskId } });

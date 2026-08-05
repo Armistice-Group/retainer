@@ -61,8 +61,16 @@ function formatCurrency(amount: number | string | { toString(): string }, curren
   );
 }
 
+// timeZone: "UTC" — issueDate/dueDate are date-only columns stored as
+// UTC midnight; formatting in the server's local zone can roll the
+// printed date back a day on any server west of UTC.
 function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 const PAYMENT_TERMS_LABELS: Record<string, string> = {

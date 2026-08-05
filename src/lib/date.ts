@@ -1,3 +1,10 @@
+// `new Date("2026-08-03")` parses as UTC midnight, which rolls back to the
+// previous local calendar day on any server west of UTC — this constructs
+// local midnight instead, so a "YYYY-MM-DD" string round-trips correctly.
+export function parseLocalDate(dateStr: string) {
+  return new Date(`${dateStr}T00:00:00`);
+}
+
 export function startOfWeek(date: Date) {
   const d = new Date(date);
   const day = d.getDay();

@@ -311,6 +311,7 @@ model Project {
   budgetHours            Decimal?      @db.Decimal(7, 2)
   billingType            BillingType   @default(HOURLY)
   flatFeeAmount          Decimal?      @db.Decimal(12, 2)
+  shareToken             String?       @unique
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 

@@ -21,6 +21,8 @@ import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { LinearSyncCard } from "./linear-sync-card";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
+import { ShareLinkCard } from "./share-link-card";
+import { getOrigin } from "@/lib/url";
 
 export default async function ProjectDetailPage({
   params,
@@ -30,6 +32,7 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const { org, user, role } = await requireOrgContext();
   const canManage = role === "OWNER" || role === "ADMIN";
+  const origin = canManage ? await getOrigin() : "";
 
   const project = await prisma.project.findUnique({
     where: { id },
@@ -194,6 +197,13 @@ export default async function ProjectDetailPage({
                 project.externalLink?.source === "linear" ? project.externalLink.externalName : null
               }
               canManage={canManage}
+            />
+          ) : null}
+
+          {canManage ? (
+            <ShareLinkCard
+              projectId={project.id}
+              shareUrl={project.shareToken ? `${origin}/share/${project.shareToken}` : null}
             />
           ) : null}
         </div>

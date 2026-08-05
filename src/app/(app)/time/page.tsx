@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Clock, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Download, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { projectVisibilityWhere } from "@/lib/project-access";
+import { timeEntryWhere } from "@/lib/services/time-entries";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { TimeEntryDialog } from "./time-entry-dialog";
 import { PersonFilter } from "./person-filter";
 import { deleteTimeEntryAction } from "@/actions/time-entries";
-import { addDays, formatWeekLabel, isSameDay, startOfWeek, toISODate } from "@/lib/date";
+import {
+  addDays,
+  formatWeekLabel,
+  isSameDay,
+  parseLocalDate,
+  startOfWeek,
+  toISODate,
+} from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 export default async function TimePage({
@@ -25,16 +33,18 @@ export default async function TimePage({
   const canManageTeam = role === "OWNER" || role === "ADMIN";
   const teamView = canManageTeam && view === "team";
 
-  const weekStart = startOfWeek(week ? new Date(week) : new Date());
+  const weekStart = startOfWeek(week ? parseLocalDate(week) : new Date());
   const weekEnd = addDays(weekStart, 7);
 
-  const entryWhere = teamView
-    ? {
-        orgId: org.id,
-        date: { gte: weekStart, lt: weekEnd },
-        ...(filterUserId ? { userId: filterUserId } : {}),
-      }
-    : { orgId: org.id, userId: user.id, date: { gte: weekStart, lt: weekEnd } };
+  const entryWhere = timeEntryWhere({
+    orgId: org.id,
+    actorId: user.id,
+    role,
+    teamView,
+    weekStart,
+    weekEnd,
+    filterUserId,
+  });
 
   const [projects, tasks, entries, teamMembers] = await Promise.all([
     prisma.project.findMany({
@@ -143,6 +153,17 @@ export default async function TimePage({
           <span className="tabular-figures text-sm text-muted-foreground">
             {weekTotal.toFixed(2)}h logged
           </span>
+          {entries.length > 0 ? (
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`/api/time-entries/export?week=${toISODate(weekStart)}${viewQuery}${
+                  filterUserId ? `&userId=${filterUserId}` : ""
+                }`}
+              >
+                <Download className="size-3.5" /> Export CSV
+              </a>
+            </Button>
+          ) : null}
         </div>
       </div>
 
