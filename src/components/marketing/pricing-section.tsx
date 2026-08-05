@@ -66,7 +66,7 @@ export function PricingSection({ isAuthenticated }: { isAuthenticated: boolean }
         </button>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:mx-auto lg:max-w-3xl">
+      <div className="grid gap-6 sm:grid-cols-2 lg:max-w-3xl">
         <Card className="gap-6 p-8">
           <div>
             <h3 className="font-medium">Free</h3>
