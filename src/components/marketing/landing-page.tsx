@@ -39,7 +39,7 @@ const FEATURES = [
   {
     icon: Bot,
     title: "API & MCP for Claude Code",
-    body: "A REST API and a real MCP server — log hours, check what's unbilled, or generate an invoice straight from Claude Code without opening a browser tab.",
+    body: "A REST API and a real MCP server — see your tasks, log hours against them, or generate an invoice straight from Claude Code without opening a browser tab.",
   },
 ] as const;
 
@@ -209,24 +209,25 @@ function McpSpotlight() {
             <Bot className="size-3.5" /> MCP server included
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight text-balance">
-            Talk to your time tracker.
+            Run the engagement from Claude Code.
           </h2>
           <p className="mt-4 text-muted-foreground">
             Consultainer ships with a real MCP server. Connect it to Claude Desktop or
-            Claude Code and log hours, check what&apos;s unbilled, or generate an
-            invoice — without opening a browser tab.
+            Claude Code to see what&apos;s on your plate, log hours against it, and
+            generate an invoice from what actually shipped — without opening a
+            browser tab.
           </p>
         </div>
         <Card className="gap-3 p-5 font-mono text-sm">
           <p className="text-muted-foreground">
-            &gt; Log 3.5 hours to Fintra Labs for the API migration
+            &gt; What am I working on for Fintra Labs?
           </p>
+          <p className="text-foreground">Auth flow security review, API migration (2 open tasks)</p>
+          <p className="mt-2 text-muted-foreground">&gt; Log 3.5 hours on the API migration</p>
           <p className="flex items-center gap-2 text-foreground">
             <Check className="size-4 shrink-0 text-chart-3" />
             Logged 3.50h to Fintra Labs — API migration
           </p>
-          <p className="mt-2 text-muted-foreground">&gt; What&apos;s still unbilled this month?</p>
-          <p className="text-foreground">14.25h across 2 clients, ~$2,493.75</p>
         </Card>
       </div>
     </section>

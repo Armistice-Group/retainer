@@ -51,8 +51,8 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p>
-            <span className="text-primary">Consultainer</span> — client, project, and billing
-            management for engineering consultants.
+            <span className="text-primary">Consultainer</span> — run engineering engagements
+            from the tools you already build in.
           </p>
           <p className="mt-1 text-xs">
             Made by{" "}
