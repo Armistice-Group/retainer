@@ -54,6 +54,7 @@ export const orgGeneralSchema = z.object({
   invoicePrefix: z.string().trim().min(1).max(20),
   defaultCurrency: z.string().trim().min(1).max(10),
   defaultTaxRate: z.coerce.number().min(0).max(100),
+  overheadPercent: z.coerce.number().min(0).max(500),
   expenseApprovalThreshold: z.coerce.number().min(0),
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),

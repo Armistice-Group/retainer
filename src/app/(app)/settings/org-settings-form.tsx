@@ -13,6 +13,7 @@ type Org = {
   invoicePrefix: string;
   defaultCurrency: string;
   defaultTaxRate: string;
+  overheadPercent: string;
   expenseApprovalThreshold: string;
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
@@ -74,6 +75,23 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             disabled={readOnly}
             required
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="overheadPercent">Overhead (%)</Label>
+          <Input
+            id="overheadPercent"
+            name="overheadPercent"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={org.overheadPercent}
+            disabled={readOnly}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            Added to the billed rate on every hourly line item when an invoice is generated —
+            baked into the rate shown, never broken out as its own line.
+          </p>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="expenseApprovalThreshold">Expense approval threshold</Label>

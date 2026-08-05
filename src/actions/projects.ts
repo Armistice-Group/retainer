@@ -53,8 +53,14 @@ export async function createProjectAction(
 
   // A non-admin creator of a confidential project must stay able to see it —
   // visibility is need-to-know via ProjectMember, so without this they'd
-  // immediately lose access to the project they just made.
-  if (parsed.data.confidential && role !== "OWNER" && role !== "ADMIN") {
+  // immediately lose access to the project they just made. Separately, a
+  // solo org has no one to pick from an "add team member" dialog anyway,
+  // so the sole member goes on every project automatically.
+  const memberCount = await prisma.membership.count({ where: { orgId: org.id } });
+  const soloOrg = memberCount === 1;
+  const nonAdminConfidentialCreator =
+    parsed.data.confidential && role !== "OWNER" && role !== "ADMIN";
+  if (soloOrg || nonAdminConfidentialCreator) {
     await prisma.projectMember.create({
       data: { projectId: project.id, userId: user.id, billRate: 0, currency: org.defaultCurrency },
     });

@@ -93,6 +93,11 @@ model Organization {
   nextInvoiceNumber    Int      @default(1)
   defaultCurrency      String   @default("USD")
   defaultTaxRate       Decimal  @default(0) @db.Decimal(5, 2)
+  // Applied to the billed rate on hourly line items at invoice-generation
+  // time — a straight multiplier baked into the rate shown on the invoice,
+  // never broken out as its own line. Distinct from defaultTaxRate, which
+  // is a visible, itemized "Tax" line.
+  overheadPercent      Decimal  @default(0) @db.Decimal(5, 2)
   externalBillingUrl   String?
   externalBillingLabel String?
   slackWebhookUrl      String?

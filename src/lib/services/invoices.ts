@@ -155,16 +155,19 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       data: { nextInvoiceNumber: { increment: 1 } },
     });
 
+    const overheadMultiplier = 1 + Number(orgRow.overheadPercent) / 100;
+
     let sortOrder = 0;
     for (const group of groups.values()) {
-      const amount = round2(group.hours * group.rate);
+      const billedRate = round2(group.rate * overheadMultiplier);
+      const amount = round2(group.hours * billedRate);
       const lineItem = await tx.invoiceLineItem.create({
         data: {
           invoiceId: created.id,
           projectId: group.projectId,
           description: group.label,
           quantity: round2(group.hours),
-          rate: group.rate,
+          rate: billedRate,
           amount,
           sortOrder: sortOrder++,
         },
