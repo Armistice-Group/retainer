@@ -67,7 +67,7 @@ export function ApiKeysCard({ apiKeys }: { apiKeys: ApiKeyItem[] }) {
               id="key-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Claude Desktop"
+              placeholder="e.g. Claude Desktop, Cursor"
             />
           </div>
           <Button onClick={handleCreate} disabled={isPending || !name.trim()}>

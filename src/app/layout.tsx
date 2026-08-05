@@ -18,17 +18,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
   title: { default: "Consultainer", template: "%s — Consultainer" },
-  description: "Run client engagements — tasks, time, and invoices — from Claude Code and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
+  description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Consultainer",
-    description: "Run client engagements — tasks, time, and invoices — from Claude Code and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
+    description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Consultainer",
-    description: "Run client engagements — tasks, time, and invoices — from Claude Code and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
+    description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
   },
 };
 

@@ -38,8 +38,8 @@ const FEATURES = [
   },
   {
     icon: Bot,
-    title: "API & MCP for Claude Code",
-    body: "A REST API and a real MCP server — see your tasks, log hours against them, or generate an invoice straight from Claude Code without opening a browser tab.",
+    title: "API & MCP for your AI agent",
+    body: "A REST API and a real MCP server — see your tasks, log hours against them, or generate an invoice straight from Claude Code, Cursor, or any MCP-compatible agent, without opening a browser tab.",
   },
 ] as const;
 
@@ -69,10 +69,10 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
           Built to ship engagements, not manage them.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Tasks synced from Linear, hours logged from Claude Code, invoices built
-          from what actually shipped. Consultainer runs the engagement from the
-          tools you already build in — not a separate app you have to remember to
-          update.
+          Tasks synced from Linear, hours logged from your AI coding agent,
+          invoices built from what actually shipped. Consultainer runs the
+          engagement from the tools you already build in — not a separate app you
+          have to remember to update.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -209,13 +209,13 @@ function McpSpotlight() {
             <Bot className="size-3.5" /> MCP server included
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight text-balance">
-            Run the engagement from Claude Code.
+            Run the engagement from your AI agent.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Consultainer ships with a real MCP server. Connect it to Claude Desktop or
-            Claude Code to see what&apos;s on your plate, log hours against it, and
-            generate an invoice from what actually shipped — without opening a
-            browser tab.
+            Consultainer ships with a real MCP server — connect Claude Code, Cursor,
+            Codex, Gemini, or any MCP-compatible agent to see what&apos;s on your
+            plate, log hours against it, and generate an invoice from what actually
+            shipped, without opening a browser tab.
           </p>
         </div>
         <Card className="gap-3 p-5 font-mono text-sm">

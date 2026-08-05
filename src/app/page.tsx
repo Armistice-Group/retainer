@@ -9,7 +9,7 @@ const JSON_LD = {
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
-    "Client, project, time, and invoice management for engineering consultancies, built with a REST API and MCP server for Claude Code.",
+    "Client, project, time, and invoice management for engineering consultancies, built with a REST API and MCP server for AI coding agents like Claude Code, Cursor, and Codex.",
   offers: {
     "@type": "Offer",
     price: MONTHLY_PRICE_USD.toFixed(2),
