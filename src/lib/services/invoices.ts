@@ -37,6 +37,7 @@ export type GenerateInvoiceInput = {
   clientId: string;
   timeEntryIds: string[];
   milestoneIds: string[];
+  expenseIds: string[];
   issueDate: string;
   dueDate: string;
   paymentTerms?: "DUE_ON_RECEIPT" | "NET15" | "NET30" | "NET45" | "NET60" | "NET90" | "CUSTOM";
@@ -74,8 +75,24 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
     include: { project: true },
   });
 
-  if (entries.length === 0 && milestones.length === 0) {
-    throw new InvoiceError("No eligible unbilled time entries or milestones were selected.");
+  const expenses = await prisma.expense.findMany({
+    where: {
+      id: { in: input.expenseIds },
+      invoiceLineItemId: null,
+      status: "APPROVED",
+      project: {
+        clientId: client.id,
+        orgId: ctx.orgId,
+        ...projectVisibilityWhere(ctx.actorId, ctx.role),
+      },
+    },
+    include: { project: true },
+  });
+
+  if (entries.length === 0 && milestones.length === 0 && expenses.length === 0) {
+    throw new InvoiceError(
+      "No eligible unbilled time entries, milestones, or expenses were selected."
+    );
   }
 
   const projectMembers = await prisma.projectMember.findMany({
@@ -187,6 +204,26 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
 
       await tx.milestone.update({
         where: { id: milestone.id },
+        data: { invoiceLineItemId: lineItem.id, invoicedAt: new Date() },
+      });
+    }
+
+    for (const expense of expenses) {
+      const amount = round2(Number(expense.amount));
+      const lineItem = await tx.invoiceLineItem.create({
+        data: {
+          invoiceId: created.id,
+          projectId: expense.projectId,
+          description: `${expense.project.name} — Expense: ${expense.description}`,
+          quantity: 1,
+          rate: amount,
+          amount,
+          sortOrder: sortOrder++,
+        },
+      });
+
+      await tx.expense.update({
+        where: { id: expense.id },
         data: { invoiceLineItemId: lineItem.id, invoicedAt: new Date() },
       });
     }

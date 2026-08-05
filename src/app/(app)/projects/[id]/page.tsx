@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { LinearSyncCard } from "./linear-sync-card";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
+import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
 import { getOrigin } from "@/lib/url";
 
@@ -50,6 +51,10 @@ export default async function ProjectDetailPage({
       milestones: {
         include: { completedBy: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      },
+      expenses: {
+        include: { submittedBy: true },
+        orderBy: { incurredAt: "desc" },
       },
     },
   });
@@ -102,6 +107,19 @@ export default async function ProjectDetailPage({
     completionUrl: m.completionUrl,
     hasEvidenceFile: !!m.completionFileData,
     invoicedAt: m.invoicedAt ? m.invoicedAt.toISOString() : null,
+  }));
+
+  const expenseItems: ExpenseItem[] = project.expenses.map((e) => ({
+    id: e.id,
+    description: e.description,
+    category: e.category,
+    amount: Number(e.amount),
+    incurredAt: e.incurredAt.toISOString(),
+    status: e.status,
+    submittedByName: e.submittedBy.name,
+    hasReceipt: !!e.receiptFileData,
+    invoicedAt: e.invoicedAt ? e.invoicedAt.toISOString() : null,
+    canDelete: !e.invoiceLineItemId && (e.submittedById === user.id || canManage),
   }));
 
   return (
@@ -292,6 +310,13 @@ export default async function ProjectDetailPage({
               canManage={canManage}
             />
           ) : null}
+
+          <ExpensesCard
+            projectId={project.id}
+            expenses={expenseItems}
+            currency={org.defaultCurrency}
+            canManage={canManage}
+          />
 
           <Card>
             <CardHeader>

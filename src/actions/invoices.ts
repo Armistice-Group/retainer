@@ -35,6 +35,7 @@ export async function generateInvoiceAction(
     clientId: formData.get("clientId"),
     timeEntryIds: formData.getAll("timeEntryIds"),
     milestoneIds: formData.getAll("milestoneIds"),
+    expenseIds: formData.getAll("expenseIds"),
     issueDate: formData.get("issueDate"),
     dueDate: formData.get("dueDate"),
     paymentTerms: formData.get("paymentTerms") || "NET30",

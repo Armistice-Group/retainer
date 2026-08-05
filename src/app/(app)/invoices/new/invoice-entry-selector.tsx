@@ -43,16 +43,26 @@ type EligibleMilestone = {
   completedAt: string;
 };
 
+type EligibleExpense = {
+  id: string;
+  description: string;
+  projectName: string;
+  amount: number;
+  incurredAt: string;
+};
+
 export function InvoiceEntrySelector({
   clientId,
   entries,
   milestones,
+  expenses,
   currency,
   defaultTaxRate,
 }: {
   clientId: string;
   entries: EligibleEntry[];
   milestones: EligibleMilestone[];
+  expenses: EligibleExpense[];
   currency: string;
   defaultTaxRate: number;
 }) {
@@ -61,6 +71,9 @@ export function InvoiceEntrySelector({
   );
   const [selectedMilestones, setSelectedMilestones] = useState<Set<string>>(
     new Set(milestones.map((m) => m.id))
+  );
+  const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(
+    new Set(expenses.map((e) => e.id))
   );
   const [taxRate, setTaxRate] = useState(defaultTaxRate);
   const [state, formAction] = useActionState<ActionState, FormData>(generateInvoiceAction, null);
@@ -72,8 +85,11 @@ export function InvoiceEntrySelector({
     const milestonesTotal = milestones
       .filter((m) => selectedMilestones.has(m.id))
       .reduce((sum, m) => sum + m.amount, 0);
-    return entriesTotal + milestonesTotal;
-  }, [entries, selectedEntries, milestones, selectedMilestones]);
+    const expensesTotal = expenses
+      .filter((e) => selectedExpenses.has(e.id))
+      .reduce((sum, e) => sum + e.amount, 0);
+    return entriesTotal + milestonesTotal + expensesTotal;
+  }, [entries, selectedEntries, milestones, selectedMilestones, expenses, selectedExpenses]);
   const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
   const total = subtotal + taxAmount;
 
@@ -104,6 +120,21 @@ export function InvoiceEntrySelector({
   function toggleAllMilestones() {
     setSelectedMilestones((prev) =>
       prev.size === milestones.length ? new Set() : new Set(milestones.map((m) => m.id))
+    );
+  }
+
+  function toggleExpense(id: string) {
+    setSelectedExpenses((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllExpenses() {
+    setSelectedExpenses((prev) =>
+      prev.size === expenses.length ? new Set() : new Set(expenses.map((e) => e.id))
     );
   }
 
@@ -217,6 +248,42 @@ export function InvoiceEntrySelector({
         </Card>
       ) : null}
 
+      {expenses.length > 0 ? (
+        <Card className="p-0">
+          <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
+            <Checkbox
+              checked={selectedExpenses.size === expenses.length}
+              onCheckedChange={toggleAllExpenses}
+              aria-label="Select all expenses"
+            />
+            <span className="text-sm font-medium">
+              {selectedExpenses.size} of {expenses.length} approved expenses selected
+            </span>
+          </div>
+          <ul className="divide-y divide-border">
+            {expenses.map((expense) => (
+              <li key={expense.id} className="flex items-center gap-3 px-4 py-3">
+                <Checkbox
+                  checked={selectedExpenses.has(expense.id)}
+                  onCheckedChange={() => toggleExpense(expense.id)}
+                  name="expenseIds"
+                  value={expense.id}
+                />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate font-medium">{expense.description}</p>
+                  <p className="truncate text-muted-foreground">
+                    {expense.projectName} · {formatDate(expense.incurredAt)}
+                  </p>
+                </div>
+                <span className="tabular-figures w-24 shrink-0 text-right text-sm font-medium">
+                  {formatCurrency(expense.amount, currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="issueDate">Issue date</Label>
@@ -295,7 +362,9 @@ export function InvoiceEntrySelector({
       <SubmitButton
         className="self-end"
         pendingText="Generating..."
-        disabled={selectedEntries.size === 0 && selectedMilestones.size === 0}
+        disabled={
+          selectedEntries.size === 0 && selectedMilestones.size === 0 && selectedExpenses.size === 0
+        }
       >
         Generate invoice
       </SubmitButton>

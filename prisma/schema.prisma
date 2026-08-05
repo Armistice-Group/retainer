@@ -101,6 +101,11 @@ model Organization {
   logoContentType      String?
   brandColor           String?
 
+  // A non-admin's logged expense above this amount needs OWNER/ADMIN
+  // approval before it can be pulled onto an invoice; admins' own expenses
+  // are always auto-approved regardless of amount.
+  expenseApprovalThreshold Decimal @default(100) @db.Decimal(12, 2)
+
   // Billing (Stripe) — plan is the source of truth for feature gating;
   // kept in sync with Stripe via webhook, never set directly from client
   // input. stripeSubscriptionStatus is for display/debugging only.
@@ -125,6 +130,7 @@ model Organization {
   linearConnection     LinearConnection?
   laurelConnection     LaurelConnection?
   ssoConnection        SsoConnection?
+  expenses             Expense[]
 }
 
 model User {
@@ -156,6 +162,8 @@ model User {
   pendingEmailChanges         PendingEmailChange[]
   completedMilestones         Milestone[]
   uploadedClientDocuments     ClientDocument[]
+  expensesSubmitted           Expense[]              @relation("ExpenseSubmittedBy")
+  expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
 }
 
 model Membership {
@@ -327,6 +335,7 @@ model Project {
   timeEntries      TimeEntry[]
   invoiceLineItems InvoiceLineItem[]
   milestones       Milestone[]
+  expenses         Expense[]
   repo             Repo?
   externalLink     ExternalProjectLink?
 
@@ -408,6 +417,49 @@ model ProjectMember {
 
   @@unique([projectId, userId])
   @@index([userId])
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Expense {
+  id          String        @id @default(cuid())
+  description String
+  category    String?
+  amount      Decimal       @db.Decimal(12, 2)
+  incurredAt  DateTime      @db.Date
+  status      ExpenseStatus @default(APPROVED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  submittedById String
+  submittedBy   User   @relation("ExpenseSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
+
+  approvedById String?
+  approvedBy   User?     @relation("ExpenseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+
+  receiptFileName    String?
+  receiptFileData    Bytes?
+  receiptContentType String?
+
+  // Mirrors Milestone: an approved, unbilled expense becomes its own line
+  // item (quantity 1, rate = amount) when pulled onto a generated invoice.
+  invoiceLineItemId String?          @unique
+  invoiceLineItem   InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
+  invoicedAt        DateTime?
+
+  @@index([orgId])
+  @@index([projectId])
 }
 
 model TimeEntry {
@@ -494,6 +546,7 @@ model InvoiceLineItem {
 
   timeEntries TimeEntry[]
   milestone   Milestone?
+  expense     Expense?
 
   @@index([invoiceId])
 }

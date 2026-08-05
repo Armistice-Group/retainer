@@ -13,6 +13,7 @@ type Org = {
   invoicePrefix: string;
   defaultCurrency: string;
   defaultTaxRate: string;
+  expenseApprovalThreshold: string;
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
@@ -73,6 +74,23 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             disabled={readOnly}
             required
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="expenseApprovalThreshold">Expense approval threshold</Label>
+          <Input
+            id="expenseApprovalThreshold"
+            name="expenseApprovalThreshold"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={org.expenseApprovalThreshold}
+            disabled={readOnly}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            A team member&apos;s logged expense above this amount needs admin approval before it
+            can be invoiced. Admins&apos; own expenses are always auto-approved.
+          </p>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="brandColor">Brand color</Label>

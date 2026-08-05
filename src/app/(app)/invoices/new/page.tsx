@@ -84,18 +84,37 @@ export default async function NewInvoicePage({
         completedAt: m.completedAt ? toISODate(new Date(m.completedAt)) : "",
       }));
 
+      const eligibleExpenses = await prisma.expense.findMany({
+        where: {
+          invoiceLineItemId: null,
+          status: "APPROVED",
+          project: { clientId, orgId: org.id, ...projectVisibilityWhere(user.id, role) },
+        },
+        include: { project: true },
+        orderBy: { incurredAt: "asc" },
+      });
+
+      const expenses = eligibleExpenses.map((e) => ({
+        id: e.id,
+        description: e.description,
+        projectName: e.project.name,
+        amount: Number(e.amount),
+        incurredAt: toISODate(new Date(e.incurredAt)),
+      }));
+
       eligibleSection =
-        eligible.length === 0 && milestones.length === 0 ? (
+        eligible.length === 0 && milestones.length === 0 && expenses.length === 0 ? (
           <EmptyState
             icon={FileText}
             title="Nothing to invoice"
-            description="This client has no unbilled, billable time entries or completed milestones yet."
+            description="This client has no unbilled, billable time entries, completed milestones, or approved expenses yet."
           />
         ) : (
           <InvoiceEntrySelector
             clientId={client.id}
             entries={eligible}
             milestones={milestones}
+            expenses={expenses}
             currency={org.defaultCurrency}
             defaultTaxRate={Number(org.defaultTaxRate)}
           />
@@ -107,7 +126,7 @@ export default async function NewInvoicePage({
     <div>
       <PageHeader
         title="New invoice"
-        description="Pick a client, then select the unbilled time and milestones to include."
+        description="Pick a client, then select the unbilled time, milestones, and expenses to include."
       />
 
       <Card className="mb-6 p-5">

@@ -16,6 +16,8 @@ const STYLES: Record<string, string> = {
   DONE: "bg-chart-3/15 text-chart-3 border-chart-3/30",
   PENDING: "bg-muted text-muted-foreground border-border",
   INVOICED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
+  APPROVED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
+  REJECTED: "bg-destructive/10 text-destructive border-destructive/30",
 };
 
 const LABELS: Record<string, string> = {
@@ -33,6 +35,8 @@ const LABELS: Record<string, string> = {
   DONE: "Done",
   PENDING: "Pending",
   INVOICED: "Invoiced",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
 };
 
 export function StatusBadge({ status }: { status: string }) {

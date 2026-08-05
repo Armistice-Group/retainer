@@ -15,6 +15,7 @@ export const generateInvoiceSchema = z
     clientId: z.string().min(1, "Client is required"),
     timeEntryIds: z.array(z.string()).default([]),
     milestoneIds: z.array(z.string()).default([]),
+    expenseIds: z.array(z.string()).default([]),
     issueDate: z.string().min(1),
     dueDate: z.string().min(1),
     paymentTerms: z.enum(paymentTermsValues).default("NET30"),
@@ -22,10 +23,13 @@ export const generateInvoiceSchema = z
     taxRate: z.coerce.number().min(0).max(100).default(0),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
   })
-  .refine((data) => data.timeEntryIds.length > 0 || data.milestoneIds.length > 0, {
-    message: "Select at least one time entry or milestone",
-    path: ["timeEntryIds"],
-  });
+  .refine(
+    (data) => data.timeEntryIds.length > 0 || data.milestoneIds.length > 0 || data.expenseIds.length > 0,
+    {
+      message: "Select at least one time entry, milestone, or expense",
+      path: ["timeEntryIds"],
+    }
+  );
 
 export const lineItemSchema = z.object({
   id: z.string().optional(),
@@ -50,6 +54,7 @@ export const orgGeneralSchema = z.object({
   invoicePrefix: z.string().trim().min(1).max(20),
   defaultCurrency: z.string().trim().min(1).max(10),
   defaultTaxRate: z.coerce.number().min(0).max(100),
+  expenseApprovalThreshold: z.coerce.number().min(0),
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),

@@ -24,6 +24,7 @@ export default async function OrgSettingsPage() {
               invoicePrefix: org.invoicePrefix,
               defaultCurrency: org.defaultCurrency,
               defaultTaxRate: org.defaultTaxRate.toString(),
+              expenseApprovalThreshold: org.expenseApprovalThreshold.toString(),
               externalBillingLabel: org.externalBillingLabel,
               externalBillingUrl: org.externalBillingUrl,
               slackWebhookUrl: org.slackWebhookUrl,
