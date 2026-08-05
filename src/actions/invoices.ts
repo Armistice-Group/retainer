@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
-import { generateInvoiceSchema } from "@/lib/validations/invoice";
+import { generateInvoiceSchema, paymentTermsValues } from "@/lib/validations/invoice";
 import { notify, getOrgAdminUserIds, getOrgOwnerEmail } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
 import { sendEmail } from "@/lib/email";
@@ -18,7 +18,11 @@ import {
   round2,
   InvoiceError,
 } from "@/lib/services/invoices";
-import { pushInvoiceToQuickBooks, QuickBooksError } from "@/lib/services/quickbooks-sync";
+import {
+  pushInvoiceToQuickBooks,
+  syncInvoiceStatusFromQuickBooks,
+  QuickBooksError,
+} from "@/lib/services/quickbooks-sync";
 import { getInvoiceGateBlockers, type InvoiceGateBlocker } from "@/lib/services/code-health";
 import type { ActionState } from "@/actions/auth";
 
@@ -34,6 +38,8 @@ export async function generateInvoiceAction(
     milestoneIds: formData.getAll("milestoneIds"),
     issueDate: formData.get("issueDate"),
     dueDate: formData.get("dueDate"),
+    paymentTerms: formData.get("paymentTerms") || "NET30",
+    poNumber: formData.get("poNumber"),
     taxRate: formData.get("taxRate") || org.defaultTaxRate.toString(),
     notes: formData.get("notes"),
   });
@@ -69,6 +75,13 @@ export async function updateInvoiceMetaAction(invoiceId: string, formData: FormD
   const dueDate = formData.get("dueDate") as string;
   const taxRate = Number(formData.get("taxRate"));
   const notes = (formData.get("notes") as string) || null;
+  const paymentTermsRaw = formData.get("paymentTerms") as string;
+  const paymentTerms = paymentTermsValues.includes(
+    paymentTermsRaw as (typeof paymentTermsValues)[number]
+  )
+    ? (paymentTermsRaw as (typeof paymentTermsValues)[number])
+    : "NET30";
+  const poNumber = (formData.get("poNumber") as string) || null;
 
   if (!issueDate || !dueDate || Number.isNaN(taxRate)) {
     throw new Error("Please fill in all required fields.");
@@ -77,7 +90,14 @@ export async function updateInvoiceMetaAction(invoiceId: string, formData: FormD
   await prisma.$transaction(async (tx) => {
     await tx.invoice.update({
       where: { id: invoiceId },
-      data: { issueDate: new Date(issueDate), dueDate: new Date(dueDate), taxRate, notes },
+      data: {
+        issueDate: new Date(issueDate),
+        dueDate: new Date(dueDate),
+        taxRate,
+        notes,
+        paymentTerms,
+        poNumber,
+      },
     });
     await recomputeInvoiceTotals(tx, invoiceId);
   });
@@ -218,7 +238,8 @@ async function notifyInvoiceStatusChange(
 
 export async function setInvoiceStatusAction(
   invoiceId: string,
-  status: "DRAFT" | "SENT" | "PAID" | "VOID"
+  status: "DRAFT" | "SENT" | "PAID" | "VOID",
+  formData?: FormData
 ) {
   const { org } = await requireOrgContext();
   const invoice = await prisma.invoice.findUnique({
@@ -227,7 +248,13 @@ export async function setInvoiceStatusAction(
   });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
 
-  await prisma.invoice.update({ where: { id: invoiceId }, data: { status } });
+  const paymentMethod =
+    status === "PAID" ? (formData?.get("paymentMethod") as string) || null : undefined;
+
+  await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: { status, ...(paymentMethod !== undefined ? { paymentMethod } : {}) },
+  });
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
 
@@ -310,6 +337,25 @@ export async function pushToQuickBooksAction(
 
   try {
     await pushInvoiceToQuickBooks(org.id, invoiceId);
+  } catch (err) {
+    if (err instanceof QuickBooksError) return { error: err.message };
+    throw err;
+  }
+
+  revalidatePath(`/invoices/${invoiceId}`);
+  return null;
+}
+
+// Signature matches useActionState's (prevState, formData) contract even though this action ignores both.
+export async function syncQuickBooksStatusAction(
+  invoiceId: string,
+  _prevState: ActionState, // eslint-disable-line @typescript-eslint/no-unused-vars
+  _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
+): Promise<ActionState> {
+  const { org } = await requireOrgContext();
+
+  try {
+    await syncInvoiceStatusFromQuickBooks(org.id, invoiceId);
   } catch (err) {
     if (err instanceof QuickBooksError) return { error: err.message };
     throw err;

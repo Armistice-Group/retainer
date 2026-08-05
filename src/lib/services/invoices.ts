@@ -39,6 +39,8 @@ export type GenerateInvoiceInput = {
   milestoneIds: string[];
   issueDate: string;
   dueDate: string;
+  paymentTerms?: "DUE_ON_RECEIPT" | "NET15" | "NET30" | "NET45" | "NET60" | "NET90" | "CUSTOM";
+  poNumber?: string | null;
   taxRate: number;
   notes?: string | null;
 };
@@ -123,6 +125,8 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
         status: "DRAFT",
         issueDate: new Date(input.issueDate),
         dueDate: new Date(input.dueDate),
+        paymentTerms: input.paymentTerms ?? "NET30",
+        poNumber: input.poNumber || null,
         taxRate: input.taxRate,
         currency: ctx.defaultCurrency,
         notes: input.notes || null,

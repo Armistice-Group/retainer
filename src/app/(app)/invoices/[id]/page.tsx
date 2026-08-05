@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import {
   updateInvoiceMetaAction,
@@ -23,6 +30,18 @@ import { formatCurrency } from "@/lib/format";
 import { toISODate } from "@/lib/date";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
 import { SendInvoiceButton } from "./send-invoice-button";
+import { MarkPaidDialog } from "./mark-paid-dialog";
+import { SyncQuickBooksStatusButton } from "./sync-quickbooks-status-button";
+
+const PAYMENT_TERMS_LABELS: Record<string, string> = {
+  DUE_ON_RECEIPT: "Due on receipt",
+  NET15: "Net 15",
+  NET30: "Net 30",
+  NET45: "Net 45",
+  NET60: "Net 60",
+  NET90: "Net 90",
+  CUSTOM: "Custom",
+};
 
 export default async function InvoiceDetailPage({
   params,
@@ -61,11 +80,7 @@ export default async function InvoiceDetailPage({
             {isDraft ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
             {invoice.status === "SENT" ? (
               <>
-                <form action={setInvoiceStatusAction.bind(null, invoice.id, "PAID")}>
-                  <Button size="sm" type="submit">
-                    Mark as paid
-                  </Button>
-                </form>
+                <MarkPaidDialog invoiceId={invoice.id} />
                 <form action={setInvoiceStatusAction.bind(null, invoice.id, "VOID")}>
                   <ConfirmSubmitButton
                     variant="outline"
@@ -215,6 +230,30 @@ export default async function InvoiceDetailPage({
                     />
                   </div>
                   <div className="flex flex-col gap-2">
+                    <Label htmlFor="paymentTerms">Payment terms</Label>
+                    <Select name="paymentTerms" defaultValue={invoice.paymentTerms}>
+                      <SelectTrigger id="paymentTerms" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PAYMENT_TERMS_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="poNumber">PO number</Label>
+                    <Input
+                      id="poNumber"
+                      name="poNumber"
+                      placeholder="e.g. PO-4821"
+                      defaultValue={invoice.poNumber ?? ""}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
                     <Label htmlFor="taxRate">Tax rate (%)</Label>
                     <Input
                       id="taxRate"
@@ -242,16 +281,36 @@ export default async function InvoiceDetailPage({
                 </form>
               </CardContent>
             </Card>
-          ) : invoice.notes ? (
+          ) : (
             <Card className="mt-4">
               <CardHeader>
-                <CardTitle className="text-base">Notes</CardTitle>
+                <CardTitle className="text-base">Billing details</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{invoice.notes}</p>
+              <CardContent className="flex flex-col gap-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Payment terms</span>
+                  <span>{PAYMENT_TERMS_LABELS[invoice.paymentTerms]}</span>
+                </div>
+                {invoice.poNumber ? (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">PO number</span>
+                    <span>{invoice.poNumber}</span>
+                  </div>
+                ) : null}
+                {invoice.paymentMethod ? (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Payment method</span>
+                    <span>{invoice.paymentMethod}</span>
+                  </div>
+                ) : null}
+                {invoice.notes ? (
+                  <p className="border-t border-border pt-3 text-muted-foreground">
+                    {invoice.notes}
+                  </p>
+                ) : null}
               </CardContent>
             </Card>
-          ) : null}
+          )}
         </div>
 
         <div>
@@ -307,6 +366,9 @@ export default async function InvoiceDetailPage({
                   invoiceId={invoice.id}
                   alreadySynced={!!invoice.quickbooksSyncedAt}
                 />
+                {invoice.quickbooksInvoiceId ? (
+                  <SyncQuickBooksStatusButton invoiceId={invoice.id} />
+                ) : null}
               </CardContent>
             </Card>
           ) : null}

@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+export const paymentTermsValues = [
+  "DUE_ON_RECEIPT",
+  "NET15",
+  "NET30",
+  "NET45",
+  "NET60",
+  "NET90",
+  "CUSTOM",
+] as const;
+
 export const generateInvoiceSchema = z
   .object({
     clientId: z.string().min(1, "Client is required"),
@@ -7,6 +17,8 @@ export const generateInvoiceSchema = z
     milestoneIds: z.array(z.string()).default([]),
     issueDate: z.string().min(1),
     dueDate: z.string().min(1),
+    paymentTerms: z.enum(paymentTermsValues).default("NET30"),
+    poNumber: z.string().trim().max(100).optional().or(z.literal("")),
     taxRate: z.coerce.number().min(0).max(100).default(0),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
   })

@@ -65,6 +65,16 @@ function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(date);
 }
 
+const PAYMENT_TERMS_LABELS: Record<string, string> = {
+  DUE_ON_RECEIPT: "Due on receipt",
+  NET15: "Net 15",
+  NET30: "Net 30",
+  NET45: "Net 45",
+  NET60: "Net 60",
+  NET90: "Net 90",
+  CUSTOM: "Custom",
+};
+
 export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
   const billEmail = invoice.client.billingEmail || invoice.client.email;
@@ -88,6 +98,9 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
           <View>
             <Text style={[styles.invoiceTitle, { color: accentColor }]}>INVOICE</Text>
             <Text style={styles.invoiceMeta}>{invoice.number}</Text>
+            {invoice.poNumber ? (
+              <Text style={styles.invoiceMeta}>PO {invoice.poNumber}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -104,6 +117,9 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
             <View style={{ height: 8 }} />
             <Text style={styles.label}>Due Date</Text>
             <Text>{formatDate(invoice.dueDate)}</Text>
+            <View style={{ height: 8 }} />
+            <Text style={styles.label}>Terms</Text>
+            <Text>{PAYMENT_TERMS_LABELS[invoice.paymentTerms]}</Text>
           </View>
         </View>
 

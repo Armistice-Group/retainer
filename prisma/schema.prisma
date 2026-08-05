@@ -53,6 +53,16 @@ enum InvoiceStatus {
   VOID
 }
 
+enum PaymentTerms {
+  DUE_ON_RECEIPT
+  NET15
+  NET30
+  NET45
+  NET60
+  NET90
+  CUSTOM
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -434,19 +444,22 @@ model TimeEntry {
 }
 
 model Invoice {
-  id        String        @id @default(cuid())
-  number    String
-  status    InvoiceStatus @default(DRAFT)
-  issueDate DateTime      @db.Date
-  dueDate   DateTime      @db.Date
-  subtotal  Decimal       @default(0) @db.Decimal(12, 2)
-  taxRate   Decimal       @default(0) @db.Decimal(5, 2)
-  taxAmount Decimal       @default(0) @db.Decimal(12, 2)
-  total     Decimal       @default(0) @db.Decimal(12, 2)
-  currency  String        @default("USD")
-  notes     String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @db.Date
+  dueDate       DateTime      @db.Date
+  paymentTerms  PaymentTerms  @default(NET30)
+  poNumber      String?
+  paymentMethod String?
+  subtotal      Decimal       @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal       @default(0) @db.Decimal(12, 2)
+  total         Decimal       @default(0) @db.Decimal(12, 2)
+  currency      String        @default("USD")
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)

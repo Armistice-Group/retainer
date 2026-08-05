@@ -253,6 +253,24 @@ export type QboInvoiceLineItem = {
   rate: number;
 };
 
+export type QboInvoiceStatus = {
+  balance: number;
+  totalAmt: number;
+  emailStatus: string;
+};
+
+export async function fetchInvoiceStatus(
+  connection: QuickBooksConnection,
+  quickbooksInvoiceId: string
+): Promise<QboInvoiceStatus> {
+  const data = await qboFetch(connection, `/invoice/${quickbooksInvoiceId}`);
+  return {
+    balance: Number(data.Invoice.Balance ?? 0),
+    totalAmt: Number(data.Invoice.TotalAmt ?? 0),
+    emailStatus: String(data.Invoice.EmailStatus ?? "NotSet"),
+  };
+}
+
 export async function createInvoice(
   connection: QuickBooksConnection,
   params: {

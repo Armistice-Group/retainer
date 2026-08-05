@@ -6,12 +6,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { generateInvoiceAction } from "@/actions/invoices";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { toISODate } from "@/lib/date";
+import { addDays, toISODate } from "@/lib/date";
 import type { ActionState } from "@/actions/auth";
+
+const PAYMENT_TERMS_OPTIONS = [
+  { value: "DUE_ON_RECEIPT", label: "Due on receipt", days: 0 },
+  { value: "NET15", label: "Net 15", days: 15 },
+  { value: "NET30", label: "Net 30", days: 30 },
+  { value: "NET45", label: "Net 45", days: 45 },
+  { value: "NET60", label: "Net 60", days: 60 },
+  { value: "NET90", label: "Net 90", days: 90 },
+  { value: "CUSTOM", label: "Custom", days: null },
+] as const;
 
 type EligibleEntry = {
   id: string;
@@ -98,6 +109,28 @@ export function InvoiceEntrySelector({
 
   const [today] = useState(() => toISODate(new Date()));
   const [in30] = useState(() => toISODate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)));
+  const [issueDate, setIssueDate] = useState(today);
+  const [paymentTerms, setPaymentTerms] =
+    useState<(typeof PAYMENT_TERMS_OPTIONS)[number]["value"]>("NET30");
+  const [dueDate, setDueDate] = useState(in30);
+
+  function computeDueDate(issue: string, terms: (typeof PAYMENT_TERMS_OPTIONS)[number]["value"]) {
+    const days = PAYMENT_TERMS_OPTIONS.find((t) => t.value === terms)?.days;
+    if (days == null || !issue) return null;
+    return toISODate(addDays(new Date(`${issue}T00:00:00`), days));
+  }
+
+  function handleIssueDateChange(value: string) {
+    setIssueDate(value);
+    const computed = computeDueDate(value, paymentTerms);
+    if (computed) setDueDate(computed);
+  }
+
+  function handlePaymentTermsChange(value: (typeof PAYMENT_TERMS_OPTIONS)[number]["value"]) {
+    setPaymentTerms(value);
+    const computed = computeDueDate(issueDate, value);
+    if (computed) setDueDate(computed);
+  }
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -187,11 +220,44 @@ export function InvoiceEntrySelector({
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="issueDate">Issue date</Label>
-          <Input id="issueDate" name="issueDate" type="date" defaultValue={today} required />
+          <Input
+            id="issueDate"
+            name="issueDate"
+            type="date"
+            value={issueDate}
+            onChange={(e) => handleIssueDateChange(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="paymentTerms">Payment terms</Label>
+          <Select name="paymentTerms" value={paymentTerms} onValueChange={handlePaymentTermsChange}>
+            <SelectTrigger id="paymentTerms" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_TERMS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="dueDate">Due date</Label>
-          <Input id="dueDate" name="dueDate" type="date" defaultValue={in30} required />
+          <Input
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="poNumber">PO number (optional)</Label>
+          <Input id="poNumber" name="poNumber" placeholder="e.g. PO-4821" />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="taxRate">Tax rate (%)</Label>
@@ -207,7 +273,7 @@ export function InvoiceEntrySelector({
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="notes">Notes</Label>
-          <Textarea id="notes" name="notes" rows={3} placeholder="Payment terms, thank-you note, etc." />
+          <Textarea id="notes" name="notes" rows={3} placeholder="Thank-you note, remittance info, etc." />
         </div>
       </div>
 
