@@ -238,6 +238,21 @@ export async function updateMemberRoleAction(membershipId: string, newRole: "ADM
   revalidatePath("/settings/members");
 }
 
+export async function updateMemberEmploymentTypeAction(
+  membershipId: string,
+  employmentType: "EMPLOYEE" | "CONTRACTOR"
+) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  await prisma.membership.update({
+    where: { id: membershipId, orgId: org.id },
+    data: { employmentType },
+  });
+
+  revalidatePath("/settings/members");
+}
+
 export async function removeMemberAction(membershipId: string) {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);

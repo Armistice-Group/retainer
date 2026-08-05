@@ -9,14 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { updateMemberRoleAction, removeMemberAction } from "@/actions/org";
+import {
+  updateMemberRoleAction,
+  removeMemberAction,
+  updateMemberEmploymentTypeAction,
+} from "@/actions/org";
 
 export function MemberRowActions({
   membershipId,
   role,
+  employmentType,
 }: {
   membershipId: string;
   role: "ADMIN" | "MEMBER";
+  employmentType: "EMPLOYEE" | "CONTRACTOR";
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -39,6 +45,23 @@ export function MemberRowActions({
             onSelect={() => startTransition(() => updateMemberRoleAction(membershipId, "MEMBER"))}
           >
             Make member
+          </DropdownMenuItem>
+        )}
+        {employmentType === "EMPLOYEE" ? (
+          <DropdownMenuItem
+            onSelect={() =>
+              startTransition(() => updateMemberEmploymentTypeAction(membershipId, "CONTRACTOR"))
+            }
+          >
+            Mark as contractor
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            onSelect={() =>
+              startTransition(() => updateMemberEmploymentTypeAction(membershipId, "EMPLOYEE"))
+            }
+          >
+            Mark as employee
           </DropdownMenuItem>
         )}
         <DropdownMenuItem

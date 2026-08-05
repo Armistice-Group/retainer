@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -30,15 +31,17 @@ export function AddMemberDialog({
   currency,
 }: {
   projectId: string;
-  members: { id: string; name: string; email: string }[];
+  members: { id: string; name: string; email: string; isContractor: boolean }[];
   currency: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined);
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     addProjectMemberAction,
     null
   );
   const wasPending = useRef(false);
+  const selectedIsContractor = members.find((m) => m.id === selectedUserId)?.isContractor ?? false;
 
   useEffect(() => {
     if (wasPending.current && !isPending && !state?.error && !state?.fieldErrors) {
@@ -67,7 +70,7 @@ export function AddMemberDialog({
           ) : null}
           <div className="flex flex-col gap-2">
             <Label htmlFor="member-user">Team member</Label>
-            <Select name="userId">
+            <Select name="userId" onValueChange={setSelectedUserId}>
               <SelectTrigger id="member-user" className="w-full">
                 <SelectValue placeholder="Select a person" />
               </SelectTrigger>
@@ -75,6 +78,7 @@ export function AddMemberDialog({
                 {members.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     {m.name} · {m.email}
+                    {m.isContractor ? " (Contractor)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -104,6 +108,14 @@ export function AddMemberDialog({
               <Input id="member-currency" name="currency" defaultValue={currency} required />
             </div>
           </div>
+          {selectedIsContractor ? (
+            <div className="flex items-start gap-2">
+              <Checkbox id="member-requires-approval" name="requiresApproval" className="mt-0.5" />
+              <Label htmlFor="member-requires-approval" className="text-sm font-normal">
+                Email the client to approve this contractor before they start
+              </Label>
+            </div>
+          ) : null}
           <SubmitButton pendingText="Adding...">Add to project</SubmitButton>
         </form>
       </DialogContent>

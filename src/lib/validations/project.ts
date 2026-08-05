@@ -18,4 +18,5 @@ export const projectMemberSchema = z.object({
   userId: z.string().min(1, "Team member is required"),
   billRate: z.coerce.number().min(0, "Rate must be zero or more"),
   currency: z.string().trim().min(1).max(10).default("USD"),
+  requiresApproval: z.coerce.boolean().default(false),
 });

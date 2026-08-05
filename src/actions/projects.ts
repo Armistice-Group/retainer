@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -7,6 +8,9 @@ import { requireOrgContext } from "@/lib/org-context";
 import { projectSchema, projectMemberSchema } from "@/lib/validations/project";
 import { notify } from "@/lib/notifications";
 import { canViewProject } from "@/lib/project-access";
+import { sendEmail } from "@/lib/email";
+import { ContractorReviewEmail } from "@/emails/contractor-review-email";
+import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
 
 export async function createProjectAction(
@@ -154,18 +158,23 @@ export async function addProjectMemberAction(
     userId: formData.get("userId"),
     billRate: formData.get("billRate"),
     currency: formData.get("currency") || "USD",
+    requiresApproval: formData.get("requiresApproval") === "on",
   });
 
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const project = await prisma.project.findUnique({ where: { id: parsed.data.projectId } });
+  const project = await prisma.project.findUnique({
+    where: { id: parsed.data.projectId },
+    include: { client: { include: { contacts: true } } },
+  });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
   if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
   const membership = await prisma.membership.findUnique({
     where: { userId_orgId: { userId: parsed.data.userId, orgId: org.id } },
+    include: { user: true },
   });
   if (!membership) return { error: "That person is not a member of this organization." };
 
@@ -174,6 +183,12 @@ export async function addProjectMemberAction(
       projectId_userId: { projectId: parsed.data.projectId, userId: parsed.data.userId },
     },
   });
+
+  const requestApproval =
+    parsed.data.requiresApproval &&
+    membership.employmentType === "CONTRACTOR" &&
+    (!existing || existing.approvalStatus === "NOT_REQUIRED");
+  const approvalToken = requestApproval ? randomBytes(24).toString("base64url") : undefined;
 
   await prisma.projectMember.upsert({
     where: {
@@ -184,10 +199,24 @@ export async function addProjectMemberAction(
       userId: parsed.data.userId,
       billRate: parsed.data.billRate,
       currency: parsed.data.currency,
+      ...(requestApproval
+        ? {
+            approvalStatus: "PENDING",
+            approvalToken,
+            approvalRequestedAt: new Date(),
+          }
+        : {}),
     },
     update: {
       billRate: parsed.data.billRate,
       currency: parsed.data.currency,
+      ...(requestApproval
+        ? {
+            approvalStatus: "PENDING",
+            approvalToken,
+            approvalRequestedAt: new Date(),
+          }
+        : {}),
     },
   });
 
@@ -199,6 +228,27 @@ export async function addProjectMemberAction(
       message: `You were added to ${project.name}.`,
       link: `/projects/${project.id}`,
     });
+  }
+
+  if (requestApproval && approvalToken) {
+    const primaryContact =
+      project.client.contacts.find((c) => c.isPrimary && c.email) ??
+      project.client.contacts.find((c) => c.email);
+    if (primaryContact?.email) {
+      const origin = await getOrigin();
+      await sendEmail({
+        to: primaryContact.email,
+        subject: `Review ${membership.user.name} for ${project.name}`,
+        react: ContractorReviewEmail({
+          orgName: org.name,
+          clientName: project.client.name,
+          contractorName: membership.user.name,
+          projectName: project.name,
+          reviewUrl: `${origin}/review/${approvalToken}`,
+          origin,
+        }),
+      });
+    }
   }
 
   revalidatePath(`/projects/${parsed.data.projectId}`);

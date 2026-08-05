@@ -171,9 +171,23 @@ model User {
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
 }
 
+enum MembershipType {
+  EMPLOYEE
+  CONTRACTOR
+}
+
 model Membership {
-  id   String @id @default(cuid())
-  role Role   @default(MEMBER)
+  id             String         @id @default(cuid())
+  role           Role           @default(MEMBER)
+  employmentType MembershipType @default(EMPLOYEE)
+
+  // Contractor profile — self-edited from Profile, shown to clients on a
+  // per-project approval review when requested for a CONTRACTOR.
+  title              String?
+  bio                String?
+  resumeFileName     String?
+  resumeFileData     Bytes?
+  resumeContentType  String?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -407,10 +421,26 @@ model Task {
   @@index([assigneeId])
 }
 
+enum ProjectMemberApprovalStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model ProjectMember {
   id       String  @id @default(cuid())
   billRate Decimal @default(0) @db.Decimal(10, 2)
   currency String  @default("USD")
+
+  // Client review of a contractor's staffing on this project — optional,
+  // requested by an admin when adding a CONTRACTOR. NOT_REQUIRED (the
+  // default) means no review was ever asked for; approvalToken is only set
+  // while a review is pending or has been responded to.
+  approvalStatus      ProjectMemberApprovalStatus @default(NOT_REQUIRED)
+  approvalToken       String?                      @unique
+  approvalRequestedAt DateTime?
+  approvalRespondedAt DateTime?
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

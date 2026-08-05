@@ -79,7 +79,12 @@ export default async function ProjectDetailPage({
   );
   const availableMembers = orgMembers
     .filter((m) => !project.members.some((pm) => pm.userId === m.userId))
-    .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }));
+    .map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      isContractor: m.employmentType === "CONTRACTOR",
+    }));
   const projectMemberOptions = project.members.map((m) => ({
     id: m.user.id,
     name: m.user.name,
@@ -258,7 +263,12 @@ export default async function ProjectDetailPage({
                   {project.members.map((member) => (
                     <li key={member.id} className="flex items-center justify-between gap-2 py-2.5">
                       <div className="text-sm">
-                        <p className="font-medium">{member.user.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{member.user.name}</p>
+                          {member.approvalStatus !== "NOT_REQUIRED" ? (
+                            <StatusBadge status={member.approvalStatus} />
+                          ) : null}
+                        </div>
                         <p className="text-muted-foreground">{member.user.email}</p>
                       </div>
                       <div className="flex items-center gap-3">

@@ -51,11 +51,20 @@ export default async function MembersPage() {
                   <p className="text-muted-foreground">{m.user.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {m.employmentType === "CONTRACTOR" ? (
+                    <Badge variant="outline" className="font-normal">
+                      Contractor
+                    </Badge>
+                  ) : null}
                   <Badge variant="outline" className="font-normal">
                     {m.role === "OWNER" ? "Owner" : m.role === "ADMIN" ? "Admin" : "Member"}
                   </Badge>
                   {canManage && m.role !== "OWNER" ? (
-                    <MemberRowActions membershipId={m.id} role={m.role} />
+                    <MemberRowActions
+                      membershipId={m.id}
+                      role={m.role}
+                      employmentType={m.employmentType}
+                    />
                   ) : null}
                 </div>
               </li>

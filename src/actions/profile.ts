@@ -5,15 +5,65 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireOrgContext } from "@/lib/org-context";
 import {
   updateProfileSchema,
   changePasswordSchema,
   changeEmailSchema,
 } from "@/lib/validations/profile";
+import { contractorProfileSchema } from "@/lib/validations/contractor";
 import { sendEmail } from "@/lib/email";
 import { ConfirmEmailChangeEmail } from "@/emails/confirm-email-change-email";
 import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
+
+const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+const ALLOWED_RESUME_TYPES = new Set(["application/pdf", "image/png", "image/jpeg"]);
+
+export async function updateContractorProfileAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { user, org } = await requireOrgContext();
+
+  const parsed = contractorProfileSchema.safeParse({
+    title: formData.get("title"),
+    bio: formData.get("bio"),
+  });
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const file = formData.get("resumeFile");
+  let resumeFileName: string | undefined;
+  let resumeFileData: Buffer<ArrayBuffer> | undefined;
+  let resumeContentType: string | undefined;
+  if (file instanceof File && file.size > 0) {
+    if (!ALLOWED_RESUME_TYPES.has(file.type)) {
+      return { error: "Resume must be a PDF, PNG, or JPEG." };
+    }
+    if (file.size > MAX_RESUME_BYTES) {
+      return { error: "Resume must be under 5MB." };
+    }
+    resumeFileName = file.name;
+    resumeFileData = Buffer.from(await file.arrayBuffer());
+    resumeContentType = file.type;
+  }
+
+  await prisma.membership.update({
+    where: { userId_orgId: { userId: user.id, orgId: org.id } },
+    data: {
+      title: parsed.data.title || null,
+      bio: parsed.data.bio || null,
+      ...(resumeFileData
+        ? { resumeFileName, resumeFileData, resumeContentType }
+        : {}),
+    },
+  });
+
+  revalidatePath("/profile");
+  return null;
+}
 
 export async function updateProfileAction(
   _prevState: ActionState,

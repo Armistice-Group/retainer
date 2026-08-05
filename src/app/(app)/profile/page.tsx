@@ -6,13 +6,20 @@ import { ProfileNameForm, ChangePasswordForm, ChangeEmailForm } from "./profile-
 import { ApiKeysCard } from "./api-keys-card";
 import { TwoFactorCard } from "./two-factor-card";
 import { PasskeysCard } from "./passkeys-card";
+import { ContractorProfileCard } from "./contractor-profile-card";
 
 export default async function ProfilePage() {
   const { user, org } = await requireOrgContext();
-  const dbUser = await prisma.user.findUniqueOrThrow({
-    where: { id: user.id },
-    select: { twoFactorEnabled: true, email: true, passwordHash: true },
-  });
+  const [dbUser, membership] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { twoFactorEnabled: true, email: true, passwordHash: true },
+    }),
+    prisma.membership.findUnique({
+      where: { userId_orgId: { userId: user.id, orgId: org.id } },
+      select: { id: true, employmentType: true, title: true, bio: true, resumeFileData: true },
+    }),
+  ]);
 
   const passkeys = await prisma.authenticator.findMany({
     where: { userId: user.id },
@@ -57,6 +64,15 @@ export default async function ProfilePage() {
               <ChangePasswordForm />
             </CardContent>
           </Card>
+
+          {membership?.employmentType === "CONTRACTOR" ? (
+            <ContractorProfileCard
+              membershipId={membership.id}
+              title={membership.title}
+              bio={membership.bio}
+              hasResume={!!membership.resumeFileData}
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-6">
