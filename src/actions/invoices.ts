@@ -23,7 +23,6 @@ import {
   syncInvoiceStatusFromQuickBooks,
   QuickBooksError,
 } from "@/lib/services/quickbooks-sync";
-import { getInvoiceGateBlockers, type InvoiceGateBlocker } from "@/lib/services/code-health";
 import type { ActionState } from "@/actions/auth";
 
 export async function generateInvoiceAction(
@@ -265,16 +264,13 @@ export async function setInvoiceStatusAction(
 
 export type SendInvoiceState = {
   error?: string;
-  blockers?: InvoiceGateBlocker[];
 } | null;
 
-/** Same as setInvoiceStatusAction(id, "SENT"), but checks each gated
- * project's latest AI Code Health scan first. A blocked send isn't silently
- * refused — the caller can resubmit with `override=true` to send anyway. */
+// Signature matches useActionState's (prevState, formData) contract even though this action ignores both.
 export async function sendInvoiceAction(
   invoiceId: string,
-  _prevState: SendInvoiceState,
-  formData: FormData
+  _prevState: SendInvoiceState, // eslint-disable-line @typescript-eslint/no-unused-vars
+  _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<SendInvoiceState> {
   const { org } = await requireOrgContext();
   const invoice = await prisma.invoice.findUnique({
@@ -287,12 +283,6 @@ export async function sendInvoiceAction(
   const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
   if (lineItemCount === 0) {
     return { error: "Add at least one line item before sending." };
-  }
-
-  const override = formData.get("override") === "true";
-  if (!override) {
-    const blockers = await getInvoiceGateBlockers(invoiceId);
-    if (blockers.length > 0) return { blockers };
   }
 
   await prisma.invoice.update({ where: { id: invoiceId }, data: { status: "SENT" } });

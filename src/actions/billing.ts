@@ -36,6 +36,7 @@ export async function startCheckoutAction(interval: BillingInterval) {
     customer: customerId,
     client_reference_id: org.id,
     line_items: [{ price: stripePriceId(interval), quantity: 1 }],
+    allow_promotion_codes: true,
     success_url: `${origin}/settings/billing?checkout=success`,
     cancel_url: `${origin}/settings/billing?checkout=cancelled`,
     metadata: { orgId: org.id, interval },

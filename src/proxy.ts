@@ -4,7 +4,7 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/terms", "/privacy"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/terms", "/privacy", "/pricing", "/security"];
 // Multi-step flows (magic link, SSO completion, signup/email confirmation)
 // live under these as sub-paths and must be reachable while logged out —
 // an exact-match check on PUBLIC_PATHS alone would bounce them to /login

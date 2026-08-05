@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   Building2,
   GitBranch,
-  ShieldCheck,
   Clock,
   FileText,
   Bot,
@@ -12,9 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MONTHLY_PRICE_USD, YEARLY_PRICE_USD, YEARLY_DISCOUNT_PERCENT } from "@/lib/pricing";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
+import { PricingSection } from "@/components/marketing/pricing-section";
 
 const FEATURES = [
   {
@@ -26,11 +25,6 @@ const FEATURES = [
     icon: GitBranch,
     title: "Projects, tasks & Linear",
     body: "Projects carry their own team and bill rate, and pull real issues in from Linear — assign actual backlog items, not a bucket for hours.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "AI Code Health",
-    body: "Run a security review on a client's repo — scan for the issues AI-generated code tends to leave behind — and gate invoices on a clean pass before they go out.",
   },
   {
     icon: Clock,
@@ -77,8 +71,8 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
           Clients, projects, time, and invoices in one place — built for engineering
           consultancies of every kind, from software and security to UI/UX, tired of
-          stitching together a timer, an invoicing tool, a repo scanner, and a doc full
-          of client logins.
+          stitching together a timer, an invoicing tool, and a doc full of client
+          logins.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -157,12 +151,7 @@ function LedgerPreview() {
 }
 
 function ReplacesRow() {
-  const items = [
-    "A timer app",
-    "A separate invoicing tool",
-    "A doc of client logins",
-    "A repo security scanner",
-  ];
+  const items = ["A timer app", "A separate invoicing tool", "A doc of client logins"];
   return (
     <section className="border-y border-border bg-card/40">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-center sm:gap-6 sm:text-left">
@@ -246,74 +235,14 @@ function McpSpotlight() {
 
 function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
-    <section id="pricing" className="mx-auto w-full max-w-6xl px-6 py-20">
-      <div className="mb-12 max-w-xl">
-        <h2 className="text-3xl font-semibold tracking-tight">
-          One plan. One price. No seat math.
-        </h2>
-        <p className="mt-3 text-muted-foreground">
-          Start free, upgrade when you outgrow it — not before.
-        </p>
+    <div className="border-t border-border">
+      <PricingSection isAuthenticated={isAuthenticated} />
+      <div className="mx-auto w-full max-w-6xl px-6 pb-16">
+        <Link href="/pricing" className="text-sm text-primary hover:underline">
+          Full pricing details &amp; FAQ →
+        </Link>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:mx-auto lg:max-w-3xl">
-        <Card className="gap-6 p-8">
-          <div>
-            <h3 className="font-medium">Free</h3>
-            <p className="mt-2 text-3xl font-semibold tabular-figures">$0</p>
-            <p className="text-sm text-muted-foreground">forever</p>
-          </div>
-          <ul className="flex flex-col gap-2.5 text-sm">
-            {["Up to 2 clients", "1 user", "Time tracking & invoicing", "PDF invoices"].map(
-              (item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <Check className="size-4 shrink-0 text-muted-foreground" />
-                  {item}
-                </li>
-              )
-            )}
-          </ul>
-          <Button variant="outline" asChild>
-            <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
-              {isAuthenticated ? "Go to dashboard" : "Start free"}
-            </Link>
-          </Button>
-        </Card>
-
-        <Card className="gap-6 border-primary/40 p-8">
-          <div>
-            <h3 className="font-medium">Consultainer</h3>
-            <p className="mt-2 text-3xl font-semibold tabular-figures">
-              ${MONTHLY_PRICE_USD.toFixed(2)}
-              <span className="text-base font-normal text-muted-foreground">/mo</span>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              flat, per organization — or ${YEARLY_PRICE_USD.toFixed(2)}/yr, save{" "}
-              {YEARLY_DISCOUNT_PERCENT}%
-            </p>
-          </div>
-          <ul className="flex flex-col gap-2.5 text-sm">
-            {[
-              "Unlimited clients & projects",
-              "Unlimited team members",
-              "Rate overrides & team time view",
-              "Milestones & QuickBooks push",
-              "GitHub Code Health & Linear sync",
-              "REST API & MCP access",
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <Check className="size-4 shrink-0 text-primary" />
-                {item}
-              </li>
-            ))}
-          </ul>
-          <Button asChild>
-            <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
-              {isAuthenticated ? "Go to dashboard" : "Start free"}
-            </Link>
-          </Button>
-        </Card>
-      </div>
-    </section>
+    </div>
   );
 }
 

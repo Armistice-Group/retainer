@@ -19,7 +19,7 @@ export function SiteHeader({
             <Link href="/#features" className="hover:text-foreground">
               Features
             </Link>
-            <Link href="/#pricing" className="hover:text-foreground">
+            <Link href="/pricing" className="hover:text-foreground">
               Pricing
             </Link>
           </nav>
@@ -67,6 +67,12 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
           </p>
         </div>
         <div className="flex items-center gap-5">
+          <Link href="/pricing" className="hover:text-foreground">
+            Pricing
+          </Link>
+          <Link href="/security" className="hover:text-foreground">
+            Security
+          </Link>
           <Link href="/terms" className="hover:text-foreground">
             Terms
           </Link>

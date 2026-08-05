@@ -19,10 +19,8 @@ import { deleteProjectAction, removeProjectMemberAction } from "@/actions/projec
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { CodeHealthCard } from "./code-health-card";
 import { LinearSyncCard } from "./linear-sync-card";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
-import type { Finding } from "@/lib/codeHealth/checks";
 
 export default async function ProjectDetailPage({
   params,
@@ -45,11 +43,6 @@ export default async function ProjectDetailPage({
         orderBy: { date: "desc" },
         take: 8,
       },
-      repo: {
-        include: {
-          scans: { orderBy: { createdAt: "desc" }, take: 1 },
-        },
-      },
       externalLink: true,
       milestones: {
         include: { completedBy: true },
@@ -61,20 +54,18 @@ export default async function ProjectDetailPage({
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
 
-  const [loggedHours, taskHoursByTask, githubConnection, linearConnection, orgMembers] =
-    await Promise.all([
-      project.budgetHours
-        ? prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } })
-        : Promise.resolve(null),
-      prisma.timeEntry.groupBy({
-        by: ["taskId"],
-        where: { projectId: project.id, taskId: { not: null } },
-        _sum: { hours: true },
-      }),
-      prisma.githubConnection.findUnique({ where: { orgId: org.id } }),
-      prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
-      prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
-    ]);
+  const [loggedHours, taskHoursByTask, linearConnection, orgMembers] = await Promise.all([
+    project.budgetHours
+      ? prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } })
+      : Promise.resolve(null),
+    prisma.timeEntry.groupBy({
+      by: ["taskId"],
+      where: { projectId: project.id, taskId: { not: null } },
+      _sum: { hours: true },
+    }),
+    prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
+    prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
+  ]);
   const actualHoursByTask = new Map(
     taskHoursByTask.map((t) => [t.taskId as string, Number(t._sum.hours ?? 0)])
   );
@@ -85,14 +76,6 @@ export default async function ProjectDetailPage({
     id: m.user.id,
     name: m.user.name,
   }));
-  const latestScan = project.repo?.scans[0]
-    ? {
-        score: project.repo.scans[0].score,
-        findings: project.repo.scans[0].findings as unknown as Finding[],
-        createdAt: project.repo.scans[0].createdAt.toISOString(),
-      }
-    : null;
-
   const taskItems = project.tasks.map((t) => ({
     id: t.id,
     title: t.title,
@@ -203,16 +186,6 @@ export default async function ProjectDetailPage({
               <LinkList links={project.links} redirectPath={`/projects/${project.id}`} />
             </CardContent>
           </Card>
-
-          {githubConnection ? (
-            <CodeHealthCard
-              projectId={project.id}
-              repo={project.repo ? { githubOwner: project.repo.githubOwner, githubName: project.repo.githubName } : null}
-              latestScan={latestScan}
-              gateEnabled={project.codeHealthGateEnabled}
-              canManage={canManage}
-            />
-          ) : null}
 
           {linearConnection ? (
             <LinearSyncCard
