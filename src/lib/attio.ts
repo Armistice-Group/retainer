@@ -74,3 +74,48 @@ export async function syncAttioSignup({
     console.warn("[attio] Failed to sync signup", err);
   }
 }
+
+/**
+ * Best-effort push of a contact-form submission into Attio as a Person
+ * (and Company, if given). Never throws — a CRM sync failure must never
+ * block the contact form from succeeding for the person submitting it.
+ */
+export async function syncAttioContact({
+  name,
+  email,
+  company,
+}: {
+  name: string;
+  email: string;
+  company: string | null;
+}) {
+  if (!isAttioConfigured()) return;
+
+  // Isolated from the person upsert below — company matching on "name"
+  // (rather than the "domains" attribute the signup sync uses) is less
+  // certain to be configured as a unique/matchable attribute in Attio, and
+  // a failure here shouldn't also drop the person record.
+  let companyRecordId: string | null = null;
+  if (company) {
+    try {
+      const companyRecord = await attioUpsert("companies", "name", {
+        name: [{ value: company }],
+      });
+      companyRecordId = companyRecord.data?.id?.record_id ?? null;
+    } catch (err) {
+      console.warn("[attio] Failed to sync contact form company", err);
+    }
+  }
+
+  try {
+    await attioUpsert("people", "email_addresses", {
+      email_addresses: [{ email_address: email }],
+      name: [splitName(name)],
+      ...(companyRecordId
+        ? { company: [{ target_object: "companies", target_record_id: companyRecordId }] }
+        : {}),
+    });
+  } catch (err) {
+    console.warn("[attio] Failed to sync contact form person", err);
+  }
+}

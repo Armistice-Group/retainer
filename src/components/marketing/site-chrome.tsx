@@ -79,6 +79,9 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
           <Link href="/privacy" className="hover:text-foreground">
             Privacy
           </Link>
+          <Link href="/contact" className="hover:text-foreground">
+            Contact
+          </Link>
           <Link href={isAuthenticated ? "/dashboard" : "/login"} className="hover:text-foreground">
             {isAuthenticated ? "Dashboard" : "Log in"}
           </Link>
