@@ -73,7 +73,7 @@ export function PricingSection({ isAuthenticated }: { isAuthenticated: boolean }
             <p className="mt-2 text-3xl font-semibold tabular-figures">$0</p>
             <p className="text-sm text-muted-foreground">forever</p>
           </div>
-          <ul className="flex flex-col gap-2.5 text-sm">
+          <ul className="flex flex-1 flex-col gap-2.5 text-sm">
             {FREE_FEATURES.map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <Check className="size-4 shrink-0 text-muted-foreground" />
@@ -101,7 +101,7 @@ export function PricingSection({ isAuthenticated }: { isAuthenticated: boolean }
                 : `flat, per organization — or ${YEARLY_PRICE_USD.toFixed(2)}/yr, save ${YEARLY_DISCOUNT_PERCENT}%`}
             </p>
           </div>
-          <ul className="flex flex-col gap-2.5 text-sm">
+          <ul className="flex flex-1 flex-col gap-2.5 text-sm">
             {PAID_FEATURES.map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <Check className="size-4 shrink-0 text-primary" />
