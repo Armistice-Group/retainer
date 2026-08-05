@@ -5,10 +5,15 @@ import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 import { Card } from "@/components/ui/card";
 
+const TITLE = "Security";
+const DESCRIPTION = "How Consultainer protects your organization's data.";
+
 export const metadata: Metadata = {
-  title: "Security — Consultainer",
-  description: "How Consultainer protects your organization's data.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/security" },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", url: "/security" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 const CONTACT_EMAIL = "support@consultainer.app";

@@ -11,8 +11,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/terms", "/privacy"],
-        disallow: ["/dashboard", "/clients", "/projects", "/time", "/invoices", "/settings", "/profile", "/api/"],
+        allow: ["/", "/pricing", "/security", "/terms", "/privacy"],
+        disallow: [
+          "/dashboard",
+          "/clients",
+          "/projects",
+          "/time",
+          "/invoices",
+          "/settings",
+          "/profile",
+          "/onboarding",
+          "/share/",
+          "/review/",
+          "/api/",
+        ],
       },
     ],
     sitemap: `${base}/sitemap.xml`,

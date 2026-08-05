@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
-  title: "Consultainer",
+  title: { default: "Consultainer", template: "%s — Consultainer" },
   description: "Client, project, and billing management for engineering consultancies — software, security, and design.",
   alternates: { canonical: "/" },
   openGraph: {

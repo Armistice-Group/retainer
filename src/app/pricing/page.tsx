@@ -5,10 +5,15 @@ import { CookieNotice } from "@/components/cookie-notice";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FaqSection } from "@/components/marketing/faq-section";
 
+const TITLE = "Pricing";
+const DESCRIPTION = "One flat price per organization, unlimited team members. Start free.";
+
 export const metadata: Metadata = {
-  title: "Pricing — Consultainer",
-  description: "One flat price per organization, unlimited team members. Start free.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/pricing" },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", url: "/pricing" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export default async function PricingPage() {

@@ -45,9 +45,36 @@ const FAQS = [
   },
 ] as const;
 
+// Schema.org requires plain-text answers — the "data stored" FAQ renders a
+// <Link> in the UI, so it gets a plain-text equivalent here instead of the
+// JSX one used for display.
+const FAQ_PLAIN_TEXT_OVERRIDES: Record<string, string> = {
+  "Where is my data stored, and is it secure?":
+    "In a dedicated PostgreSQL database with encryption in transit and at rest. See our security page at /security for details.",
+};
+
+function faqJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: FAQ_PLAIN_TEXT_OVERRIDES[item.q] ?? (item.a as string),
+      },
+    })),
+  };
+}
+
 export function FaqSection() {
   return (
     <section id="faq" className="mx-auto w-full max-w-6xl px-6 py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd()) }}
+      />
       <div className="mb-12 max-w-xl">
         <h2 className="text-3xl font-semibold tracking-tight">Frequently asked questions</h2>
         <p className="mt-3 text-muted-foreground">

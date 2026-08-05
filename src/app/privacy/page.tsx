@@ -3,10 +3,15 @@ import { auth } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 
+const TITLE = "Privacy Policy";
+const DESCRIPTION = "How Consultainer collects, uses, and protects your data.";
+
 export const metadata: Metadata = {
-  title: "Privacy Policy — Consultainer",
-  description: "How Consultainer collects, uses, and protects your data.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/privacy" },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", url: "/privacy" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 const EFFECTIVE_DATE = "August 4, 2026";

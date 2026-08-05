@@ -3,10 +3,15 @@ import { auth } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 
+const TITLE = "Terms of Service";
+const DESCRIPTION = "The terms that govern use of Consultainer.";
+
 export const metadata: Metadata = {
-  title: "Terms of Service — Consultainer",
-  description: "The terms that govern use of Consultainer.",
+  title: TITLE,
+  description: DESCRIPTION,
   alternates: { canonical: "/terms" },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", url: "/terms" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 const EFFECTIVE_DATE = "August 4, 2026";
