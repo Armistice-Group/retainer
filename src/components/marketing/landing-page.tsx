@@ -66,14 +66,14 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Log the hour. Invoice it the same day.
+          Spend more time working. Less time on timesheets.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Tracked time turns straight into a client-ready invoice — no retyping hours
-          into a separate billing tool, no hunting at month-end for what&apos;s still
-          unbilled. Built for engineering consultancies of every kind, from software
-          and security to UI/UX, tired of stitching a timer, an invoicing tool, and a
-          doc full of client logins together by hand.
+          Time tracking that lives where you&apos;re already working — log hours from
+          Claude Code or Claude Desktop instead of switching to a separate app.
+          Consultainer turns what you log straight into invoices and client reports.
+          Built for engineering consultancies of every kind, from software and
+          security to UI/UX.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
