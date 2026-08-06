@@ -45,14 +45,34 @@ some accept it inline in the URL config, others need it passed as a header.
 | Tool | What it does |
 | --- | --- |
 | `list_clients` | List all clients in the organization. |
+| `create_client` | Create a new client. |
+| `update_client` | Update an existing client's details. |
 | `list_projects` | List projects, optionally filtered by client. |
-| `list_my_tasks` | List your open (not-done) tasks. |
+| `create_project` | Create a new project for a client. |
+| `update_project` | Update an existing project's details. |
+| `list_my_tasks` | List your open (not-done) tasks, optionally filtered to one project. |
+| `create_task` | Create a new task on a project. |
+| `update_task` | Update a task's title, description, or hour estimate. |
+| `update_task_status` | Update a task's status (TODO / IN_PROGRESS / DONE). |
 | `log_time` | Log time against a project for yourself. |
 | `list_time_entries` | List your logged time entries, optionally filtered. |
 | `update_time_entry` | Update one of your time entries (if not yet invoiced). |
 | `delete_time_entry` | Delete one of your time entries (if not yet invoiced). |
+| `list_milestones` | List fixed-price milestones for a project. |
+| `create_milestone` | Create a fixed-price milestone. |
+| `update_milestone` | Update a milestone (if not yet invoiced). |
+| `complete_milestone` | Mark a milestone complete with a note. Evidence file uploads aren't supported over MCP. |
+| `reopen_milestone` | Clear a milestone's completion (if not yet invoiced). |
+| `list_expenses` | List expenses, optionally filtered by project or status. |
+| `log_expense` | Submit an expense against a project. Receipt file uploads aren't supported over MCP. |
+| `approve_expense` | Approve a pending expense. Owner/admin only. |
+| `reject_expense` | Reject a pending expense. Owner/admin only. |
 | `list_invoices` | List invoices in the organization, optionally by status. |
 | `generate_invoice` | Generate a draft invoice from unbilled time, milestones, and/or expenses. Owner/admin only. |
+| `mark_invoice_sent` | Mark a draft invoice as sent. |
+| `mark_invoice_paid` | Mark an invoice as paid, optionally with a payment method. |
+| `void_invoice` | Void an invoice. |
+| `list_members` | List the organization's team members and their roles. |
 
 ## Example
 
