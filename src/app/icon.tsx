@@ -13,12 +13,12 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #8b6cf7, #6c3ff2)",
+          background: "#7c5cf4",
           borderRadius: 7,
           color: "#ffffff",
-          fontSize: 21,
+          fontSize: 20,
           fontWeight: 700,
-          fontFamily: "sans-serif",
+          fontFamily: "monospace",
         }}
       >
         C

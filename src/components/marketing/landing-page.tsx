@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 import { PricingSection } from "@/components/marketing/pricing-section";
+import { AgentDemo } from "@/components/marketing/agent-demo";
 
 const FEATURES = [
   {
@@ -52,6 +53,7 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
         <ReplacesRow />
         <Features />
         <McpSpotlight />
+        <Comparison />
         <Pricing isAuthenticated={isAuthenticated} />
         <FinalCta isAuthenticated={isAuthenticated} />
       </main>
@@ -101,50 +103,43 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
         ) : null}
       </div>
 
-      <LedgerPreview />
+      <AgentDemo />
     </section>
   );
 }
 
-function LedgerPreview() {
-  const rows = [
-    { label: "API integration — payments service", hours: "4.00", rate: "175.00", amount: "700.00" },
-    { label: "Security review — auth flow", hours: "3.00", rate: "175.00", amount: "525.00" },
-    { label: "Staging deploy & QA", hours: "5.00", rate: "175.00", amount: "875.00" },
-  ];
+function TaskPreview() {
+  const tasks = [
+    { title: "Rate limiting on /webhooks", status: "Done" },
+    { title: "Fix invoice PDF pagination", status: "In progress" },
+    { title: "Add SSO metadata endpoint", status: "In progress" },
+    { title: "Write migration for org roles", status: "To do" },
+  ] as const;
+
+  const statusStyle: Record<(typeof tasks)[number]["status"], string> = {
+    Done: "border-primary/30 bg-primary/10 text-primary",
+    "In progress": "border-border bg-muted text-foreground",
+    "To do": "border-border text-muted-foreground",
+  };
 
   return (
     <Card className="gap-0 overflow-hidden p-0 shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
-          <p className="text-sm font-medium">INV-0004</p>
-          <p className="text-xs text-muted-foreground">Fintra Labs</p>
+          <p className="text-sm font-medium">Fintra Labs — API v2</p>
+          <p className="text-xs text-muted-foreground">Synced from Linear</p>
         </div>
-        <Badge variant="outline" className="font-normal">
-          Draft
-        </Badge>
+        <GitBranch className="size-4 text-muted-foreground" strokeWidth={1.75} />
       </div>
       <div className="flex flex-col divide-y divide-border px-5">
-        {rows.map((row) => (
-          <div
-            key={row.label}
-            className="flex flex-col gap-0.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2"
-          >
-            <span className="text-muted-foreground">{row.label}</span>
-            <span className="flex items-center justify-between gap-2 sm:contents">
-              <span className="tabular-figures text-muted-foreground sm:text-foreground">
-                {row.hours}h × ${row.rate}
-              </span>
-              <span className="tabular-figures w-20 text-right font-medium">
-                ${row.amount}
-              </span>
-            </span>
+        {tasks.map((task) => (
+          <div key={task.title} className="flex items-center justify-between gap-3 py-3 text-sm">
+            <span className="text-muted-foreground">{task.title}</span>
+            <Badge variant="outline" className={`shrink-0 font-mono font-normal ${statusStyle[task.status]}`}>
+              {task.status}
+            </Badge>
           </div>
         ))}
-      </div>
-      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-4">
-        <span className="text-sm font-semibold">Total</span>
-        <span className="tabular-figures text-lg font-semibold">$2,100.00</span>
       </div>
     </Card>
   );
@@ -155,11 +150,13 @@ function ReplacesRow() {
   return (
     <section className="border-y border-border bg-card/40">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-center sm:gap-6 sm:text-left">
-        <p className="text-sm font-medium text-muted-foreground">Replaces:</p>
+        <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
+          Replaces:
+        </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {items.map((item, i) => (
             <span key={item} className="flex items-center gap-2">
-              <Badge variant="outline" className="font-normal">
+              <Badge variant="outline" className="font-mono font-normal">
                 {item}
               </Badge>
               {i < items.length - 1 ? (
@@ -185,16 +182,30 @@ function Features() {
           actually take time to organize.
         </p>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((feature) => (
-          <Card key={feature.title} className="gap-3 p-6">
-            <feature.icon className="size-5 text-primary" strokeWidth={1.75} />
-            <h3 className="font-medium">{feature.title}</h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              {feature.body}
-            </p>
-          </Card>
-        ))}
+      <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:items-start">
+        <div className="flex flex-col divide-y divide-border border-t border-border">
+          {FEATURES.map((feature, i) => (
+            <div
+              key={feature.title}
+              className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-5 gap-y-2 py-6 sm:grid-cols-[3rem_auto_1fr] sm:items-start"
+            >
+              <span className="font-mono text-sm text-primary/60">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <feature.icon
+                className="hidden size-4 self-start text-primary sm:mt-1 sm:block"
+                strokeWidth={1.75}
+              />
+              <div className="col-span-2 sm:col-span-1">
+                <h3 className="font-medium">{feature.title}</h3>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  {feature.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <TaskPreview />
       </div>
     </section>
   );
@@ -205,7 +216,7 @@ function McpSpotlight() {
     <section className="border-y border-border bg-card/40">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
         <div>
-          <Badge variant="outline" className="mb-4 font-normal">
+          <Badge variant="outline" className="mb-4 font-mono font-normal">
             <Bot className="size-3.5" /> MCP server included
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight text-balance">
@@ -229,6 +240,89 @@ function McpSpotlight() {
             Logged 3.50h to Fintra Labs — API migration
           </p>
         </Card>
+      </div>
+    </section>
+  );
+}
+
+const COMPARISON = [
+  { label: "Pricing", consultainer: "Flat per org", harvest: "Per user", toggl: "Per user" },
+  {
+    label: "Client & engagement context",
+    consultainer: "Built in",
+    harvest: "Not built for this",
+    toggl: "Not built for this",
+  },
+  {
+    label: "Task sync (Linear, GitHub)",
+    consultainer: "Native",
+    harvest: "—",
+    toggl: "—",
+  },
+  {
+    label: "AI agent access (MCP)",
+    consultainer: "Native MCP server",
+    harvest: "—",
+    toggl: "—",
+  },
+  {
+    label: "Invoicing",
+    consultainer: "Built in + QuickBooks push",
+    harvest: "Built in",
+    toggl: "Time tracking only",
+  },
+  {
+    label: "Built for",
+    consultainer: "Engineering consultancies",
+    harvest: "Freelancers & agencies, general",
+    toggl: "Teams & freelancers, general",
+  },
+] as const;
+
+function Comparison() {
+  return (
+    <section className="border-y border-border bg-card/40">
+      <div className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mb-12 max-w-xl">
+          <h2 className="text-3xl font-semibold tracking-tight text-balance">
+            Not another timer with a client list bolted on
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            Harvest and Toggl Track are built for logging hours. Consultainer is built
+            around the engagement itself — the client, the tasks, and the invoice all
+            live in the same place.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="py-3 pr-4 text-left font-normal text-muted-foreground" />
+                <th className="border-x border-border bg-primary/5 px-4 py-3 text-left font-mono font-medium text-primary">
+                  Consultainer
+                </th>
+                <th className="px-4 py-3 text-left font-mono font-normal text-muted-foreground">
+                  Harvest
+                </th>
+                <th className="px-4 py-3 text-left font-mono font-normal text-muted-foreground">
+                  Toggl Track
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON.map((row) => (
+                <tr key={row.label} className="border-b border-border">
+                  <td className="py-3 pr-4 text-muted-foreground">{row.label}</td>
+                  <td className="border-x border-border bg-primary/5 px-4 py-3 font-medium text-foreground">
+                    {row.consultainer}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.harvest}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.toggl}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

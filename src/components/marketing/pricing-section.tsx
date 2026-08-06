@@ -57,7 +57,7 @@ export function PricingSection({ isAuthenticated }: { isAuthenticated: boolean }
           Yearly
           <span
             className={cn(
-              "rounded-full px-1.5 py-0.5 text-xs",
+              "rounded-full px-1.5 py-0.5 font-mono text-xs",
               isYearly ? "bg-primary-foreground/20" : "bg-chart-3/15 text-chart-3"
             )}
           >

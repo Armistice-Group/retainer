@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { ShieldCheck, Lock, KeyRound, Database, Server, Mail } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
-import { Card } from "@/components/ui/card";
 
 const TITLE = "Security";
 const DESCRIPTION = "How Consultainer protects your organization's data.";
@@ -18,28 +17,23 @@ export const metadata: Metadata = {
 
 const CONTACT_EMAIL = "support@consultainer.app";
 
-const PILLARS = [
-  {
-    icon: Lock,
-    title: "Encryption everywhere",
-    body: "All traffic to Consultainer is served over HTTPS. Your database is encrypted at rest, and OAuth tokens for connected integrations (QuickBooks, GitHub, Linear) are encrypted at rest separately from the data they access.",
-  },
-  {
-    icon: KeyRound,
-    title: "Account security options",
-    body: "Passwords are salted and hashed, never stored in plain text. You can additionally require a passkey, TOTP two-factor authentication, or your organization's own SSO provider (OIDC) for sign-in.",
-  },
-  {
-    icon: Database,
-    title: "Tenant isolation",
-    body: "Every record in Consultainer — clients, projects, time entries, invoices — is scoped to your organization at the database layer. Application code enforces that scope on every query; there's no cross-organization query path.",
-  },
-  {
-    icon: Server,
-    title: "Infrastructure",
-    body: "Consultainer runs on AWS, with a dedicated Postgres database (not shared infrastructure with any other Armistice Group product), automated encrypted backups, and secrets held in AWS Secrets Manager rather than in application config.",
-  },
-] as const;
+function Section({
+  tag,
+  title,
+  children,
+}: {
+  tag: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="py-6">
+      <p className="font-mono text-xs text-primary/70">{`// ${tag}`}</p>
+      <h2 className="mt-1 font-medium text-foreground">{title}</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{children}</p>
+    </div>
+  );
+}
 
 export default async function SecurityPage() {
   const session = await auth();
@@ -63,65 +57,66 @@ export default async function SecurityPage() {
             afterthought. Here&apos;s what that means concretely.
           </p>
 
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
-            {PILLARS.map((p) => (
-              <Card key={p.title} className="gap-3 p-6">
-                <p.icon className="size-5 text-primary" strokeWidth={1.75} />
-                <h2 className="font-medium">{p.title}</h2>
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-              </Card>
-            ))}
-          </div>
+          <div className="mt-8 flex flex-col divide-y divide-border border-t border-border">
+            <Section tag="encryption" title="Encryption everywhere">
+              All traffic to Consultainer is served over HTTPS. Your database is encrypted
+              at rest, and OAuth tokens for connected integrations (QuickBooks, GitHub,
+              Linear) are encrypted at rest separately from the data they access.
+            </Section>
 
-          <div className="mt-12 flex flex-col gap-8 text-sm leading-relaxed text-muted-foreground">
-            <section>
-              <h2 className="text-base font-medium text-foreground">Backups & availability</h2>
-              <p className="mt-2">
-                Our production database takes automated daily backups with point-in-time
-                recovery. We&apos;re a small, focused team running a single-region deployment
-                today — if your organization requires multi-region failover guarantees as
-                a condition of purchase, tell us and we&apos;ll talk through it directly.
-              </p>
-            </section>
+            <Section tag="auth" title="Account security options">
+              Passwords are salted and hashed, never stored in plain text. You can
+              additionally require a passkey, TOTP two-factor authentication, or your
+              organization&apos;s own SSO provider (OIDC) for sign-in.
+            </Section>
 
-            <section>
-              <h2 className="text-base font-medium text-foreground">Vendors we rely on</h2>
-              <p className="mt-2">
-                AWS for hosting and infrastructure, Stripe for payment processing (we
-                never see full card numbers), Resend for transactional email, and Rybbit
-                for privacy-focused aggregate analytics. Integrations with QuickBooks,
-                GitHub, and Linear are opt-in and only activate when you connect them.
-                See our{" "}
-                <a href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
-                </a>{" "}
-                for the full data-handling picture.
-              </p>
-            </section>
+            <Section tag="tenant-isolation" title="Tenant isolation">
+              Every record in Consultainer — clients, projects, time entries, invoices —
+              is scoped to your organization at the database layer. Application code
+              enforces that scope on every query; there&apos;s no cross-organization query
+              path.
+            </Section>
 
-            <section>
-              <h2 className="text-base font-medium text-foreground">Certifications</h2>
-              <p className="mt-2">
-                We don&apos;t currently hold formal certifications like SOC 2 or ISO 27001.
-                If you&apos;re evaluating Consultainer as part of a vendor security review,
-                email us — we&apos;re glad to walk through our architecture directly or fill
-                out a questionnaire.
-              </p>
-            </section>
+            <Section tag="infrastructure" title="Infrastructure">
+              Consultainer runs on AWS, with a dedicated Postgres database (not shared
+              infrastructure with any other Armistice Group product), automated encrypted
+              backups, and secrets held in AWS Secrets Manager rather than in application
+              config.
+            </Section>
 
-            <section>
-              <h2 className="flex items-center gap-2 text-base font-medium text-foreground">
-                <Mail className="size-4 shrink-0" />
-                Reporting a vulnerability
-              </h2>
-              <p className="mt-2">
-                Found a security issue? Email{" "}
-                <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
-                  {CONTACT_EMAIL}
-                </a>{" "}
-                with details — we&apos;ll respond promptly and credit responsible disclosure.
-              </p>
-            </section>
+            <Section tag="backups" title="Backups & availability">
+              Our production database takes automated daily backups with point-in-time
+              recovery. We&apos;re a small, focused team running a single-region
+              deployment today — if your organization requires multi-region failover
+              guarantees as a condition of purchase, tell us and we&apos;ll talk through it
+              directly.
+            </Section>
+
+            <Section tag="vendors" title="Vendors we rely on">
+              AWS for hosting and infrastructure, Stripe for payment processing (we never
+              see full card numbers), Resend for transactional email, and Rybbit for
+              privacy-focused aggregate analytics. Integrations with QuickBooks, GitHub,
+              and Linear are opt-in and only activate when you connect them. See our{" "}
+              <a href="/privacy" className="text-primary hover:underline">
+                Privacy Policy
+              </a>{" "}
+              for the full data-handling picture.
+            </Section>
+
+            <Section tag="certifications" title="Certifications">
+              We don&apos;t currently hold formal certifications like SOC 2 or ISO 27001.
+              If you&apos;re evaluating Consultainer as part of a vendor security review,
+              email us — we&apos;re glad to walk through our architecture directly or fill
+              out a questionnaire.
+            </Section>
+
+            <Section tag="disclosure" title="Reporting a vulnerability">
+              Found a security issue? Email{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary hover:underline">
+                {CONTACT_EMAIL}
+              </a>{" "}
+              with details — we&apos;ll respond promptly and credit responsible disclosure.
+            </Section>
           </div>
         </div>
       </main>

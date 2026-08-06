@@ -90,8 +90,9 @@ export function FaqSection() {
           <details key={item.q} className="group py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium marker:content-none">
               {item.q}
-              <span className="shrink-0 text-muted-foreground transition-transform group-open:rotate-45">
-                +
+              <span className="shrink-0 font-mono text-sm text-muted-foreground">
+                <span className="group-open:hidden">[+]</span>
+                <span className="hidden group-open:inline">[&minus;]</span>
               </span>
             </summary>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.a}</p>

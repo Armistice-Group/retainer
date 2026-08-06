@@ -36,12 +36,12 @@ export function CookieNotice() {
     <>
       {/* Reserves the fixed bar's height in normal flow so it never overlaps
           content sitting at the bottom of the page (e.g. the footer). */}
-      <div aria-hidden className="h-28 sm:h-16" />
+      <div aria-hidden className="h-20 sm:h-16" />
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-6 py-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-2 px-6 py-3 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:gap-3 sm:py-4 sm:text-sm">
           <p>
             We use a strictly-necessary cookie to keep you signed in, and privacy-focused
-            analytics to see which pages get used. See our{" "}
+            analytics to see which pages get used.{" "}
             <Link href="/privacy" className="text-primary hover:underline">
               Privacy Policy
             </Link>

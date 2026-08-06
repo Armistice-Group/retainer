@@ -23,23 +23,24 @@ export default function OpengraphImage() {
             display: "flex",
             width: 120,
             height: 120,
-            borderRadius: 28,
+            borderRadius: 20,
             alignItems: "center",
             justifyContent: "center",
-            background: "linear-gradient(135deg, #8b6cf7, #6c3ff2)",
+            background: "#7c5cf4",
             color: "#ffffff",
-            fontSize: 72,
+            fontSize: 68,
             fontWeight: 700,
+            fontFamily: "monospace",
             marginBottom: 36,
           }}
         >
           C
         </div>
-        <div style={{ display: "flex", fontSize: 64, fontWeight: 700, color: "#f4f2fb" }}>
+        <div style={{ display: "flex", fontSize: 64, fontWeight: 700, fontFamily: "monospace", color: "#f4f2fb" }}>
           Consultainer
         </div>
         <div style={{ display: "flex", fontSize: 28, color: "#a79fc2", marginTop: 16 }}>
-          Client, project, and billing management for engineering consultants
+          Built to ship engagements, not manage them
         </div>
       </div>
     ),
