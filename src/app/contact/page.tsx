@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { SiteHeader, SiteFooter, ClosingCta } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 import { ContactForm } from "./contact-form";
 
@@ -71,6 +71,7 @@ export default async function ContactPage() {
 
           <ContactForm />
         </div>
+        <ClosingCta isAuthenticated={isAuthenticated} />
       </main>
       <SiteFooter isAuthenticated={isAuthenticated} />
       <CookieNotice />

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { SiteHeader, SiteFooter, ClosingCta } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { AgentDemo } from "@/components/marketing/agent-demo";
@@ -55,7 +55,7 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
         <McpSpotlight />
         <Comparison />
         <Pricing isAuthenticated={isAuthenticated} />
-        <FinalCta isAuthenticated={isAuthenticated} />
+        <ClosingCta isAuthenticated={isAuthenticated} />
       </main>
       <SiteFooter isAuthenticated={isAuthenticated} />
       <CookieNotice />
@@ -224,20 +224,25 @@ function McpSpotlight() {
           </h2>
           <p className="mt-4 text-muted-foreground">
             Consultainer ships with a real MCP server — connect Claude Code, Cursor,
-            Codex, Gemini, or any MCP-compatible agent to see what&apos;s on your
-            plate, log hours against it, and generate an invoice from what actually
-            shipped, without opening a browser tab.
+            Codex, Gemini, or any MCP-compatible agent to manage clients and projects,
+            milestones and expenses, tasks and time, and invoices, without opening a
+            browser tab.
           </p>
         </div>
         <Card className="gap-3 p-5 font-mono text-sm">
           <p className="text-muted-foreground">
-            &gt; What am I working on for Fintra Labs?
+            &gt; Mark the design-system milestone complete for Fintra Labs
           </p>
-          <p className="text-foreground">Auth flow security review, API migration (2 open tasks)</p>
-          <p className="mt-2 text-muted-foreground">&gt; Log 3.5 hours on the API migration</p>
           <p className="flex items-center gap-2 text-foreground">
             <Check className="size-4 shrink-0 text-chart-3" />
-            Logged 3.50h to Fintra Labs — API migration
+            Design system marked complete — ready to invoice
+          </p>
+          <p className="mt-2 text-muted-foreground">
+            &gt; Log a $340 AWS expense on that project
+          </p>
+          <p className="flex items-center gap-2 text-foreground">
+            <Check className="size-4 shrink-0 text-chart-3" />
+            Expense submitted — auto-approved
           </p>
         </Card>
       </div>
@@ -338,25 +343,6 @@ function Pricing({ isAuthenticated }: { isAuthenticated: boolean }) {
         </Link>
       </div>
     </div>
-  );
-}
-
-function FinalCta({ isAuthenticated }: { isAuthenticated: boolean }) {
-  return (
-    <section className="border-t border-border">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-5 px-6 py-20 text-center">
-        <h2 className="text-3xl font-semibold tracking-tight">
-          {isAuthenticated
-            ? "Pick up where you left off."
-            : "Set up your workspace in under a minute."}
-        </h2>
-        <Button size="lg" asChild>
-          <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
-            {isAuthenticated ? "Go to dashboard" : "Start free"} <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-      </div>
-    </section>
   );
 }
 

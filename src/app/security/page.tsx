@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { SiteHeader, SiteFooter, ClosingCta } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 
 const TITLE = "Security";
@@ -119,6 +119,7 @@ export default async function SecurityPage() {
             </Section>
           </div>
         </div>
+        <ClosingCta isAuthenticated={isAuthenticated} />
       </main>
       <SiteFooter isAuthenticated={isAuthenticated} />
       <CookieNotice />

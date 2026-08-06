@@ -1,5 +1,12 @@
 import Link from "next/link";
+import { Menu, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export function SiteHeader({
   isAuthenticated,
@@ -25,6 +32,27 @@ export function SiteHeader({
           </nav>
         ) : null}
         <div className="flex items-center gap-2">
+          {showNav ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="sm:hidden" aria-label="Menu">
+                  <Menu className="size-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/#features" className="font-mono text-xs tracking-wide uppercase">
+                    Features
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/pricing" className="font-mono text-xs tracking-wide uppercase">
+                    Pricing
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
           {isAuthenticated ? (
             <Button size="sm" asChild>
               <Link href="/dashboard">Go to dashboard</Link>
@@ -66,7 +94,7 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
             </a>
           </p>
         </div>
-        <div className="flex items-center gap-5 font-mono text-xs tracking-wide uppercase">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-xs tracking-wide uppercase">
           <Link href="/pricing" className="hover:text-foreground">
             Pricing
           </Link>
@@ -88,5 +116,24 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
         </div>
       </div>
     </footer>
+  );
+}
+
+export function ClosingCta({ isAuthenticated }: { isAuthenticated: boolean }) {
+  return (
+    <section className="border-t border-border">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-5 px-6 py-20 text-center">
+        <h2 className="text-3xl font-semibold tracking-tight">
+          {isAuthenticated
+            ? "Pick up where you left off."
+            : "Set up your workspace in under a minute."}
+        </h2>
+        <Button size="lg" asChild>
+          <Link href={isAuthenticated ? "/dashboard" : "/signup"}>
+            {isAuthenticated ? "Go to dashboard" : "Start free"} <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      </div>
+    </section>
   );
 }

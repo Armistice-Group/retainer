@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
-import { SiteHeader, SiteFooter } from "@/components/marketing/site-chrome";
+import { SiteHeader, SiteFooter, ClosingCta } from "@/components/marketing/site-chrome";
 import { CookieNotice } from "@/components/cookie-notice";
 
 const TITLE = "Privacy Policy";
@@ -169,6 +169,7 @@ export default async function PrivacyPage() {
             </section>
           </div>
         </div>
+        <ClosingCta isAuthenticated={isAuthenticated} />
       </main>
       <SiteFooter isAuthenticated={isAuthenticated} />
       <CookieNotice />
