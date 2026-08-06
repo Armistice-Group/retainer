@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Upload } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { PageHeader } from "@/components/layout/page-header";
@@ -23,11 +23,18 @@ export default async function ClientsPage() {
         title="Clients"
         description="Everyone you do work for, with their contacts and projects."
         actions={
-          <Button asChild>
-            <Link href="/clients/new">
-              <Plus className="size-4" /> Add client
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" asChild>
+              <Link href="/clients/import">
+                <Upload className="size-4" /> Import
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/clients/new">
+                <Plus className="size-4" /> Add client
+              </Link>
+            </Button>
+          </>
         }
       />
 
