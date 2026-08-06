@@ -3,7 +3,8 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { authenticateApiRequest, type ApiAuthContext } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { projectVisibilityWhere } from "@/lib/project-access";
+import { projectVisibilityWhere, canViewProject } from "@/lib/project-access";
+import { taskStatusValues } from "@/lib/validations/task";
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -73,16 +74,44 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_my_tasks",
-      "List open (not-done) tasks assigned to the authenticated user.",
-      {},
-      async (_args, extra) => {
+      "List open (not-done) tasks assigned to the authenticated user, optionally filtered to one project.",
+      { projectId: z.string().optional() },
+      async ({ projectId }, extra) => {
         const ctx = ctxFrom(extra);
         const tasks = await prisma.task.findMany({
-          where: { assigneeId: ctx.actorId, status: { not: "DONE" }, project: { orgId: ctx.orgId } },
+          where: {
+            assigneeId: ctx.actorId,
+            status: { not: "DONE" },
+            project: { orgId: ctx.orgId },
+            ...(projectId ? { projectId } : {}),
+          },
           include: { project: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
         });
         return text(tasks);
+      }
+    );
+
+    server.tool(
+      "update_task_status",
+      "Update a task's status to TODO, IN_PROGRESS, or DONE.",
+      {
+        taskId: z.string(),
+        projectId: z.string(),
+        status: z.enum(taskStatusValues),
+      },
+      async ({ taskId, projectId, status }, extra) => {
+        const ctx = ctxFrom(extra);
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (!project || project.orgId !== ctx.orgId) return errorResult("Project not found.");
+        if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
+          return errorResult("Project not found.");
+        }
+        const task = await prisma.task.update({
+          where: { id: taskId, projectId },
+          data: { status },
+        });
+        return text(task);
       }
     );
 

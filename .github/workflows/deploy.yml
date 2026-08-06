@@ -64,6 +64,24 @@ jobs:
     needs: build-and-push
     runs-on: self-hosted
     steps:
+      # Unlike ubuntu-latest, this self-hosted runner doesn't ship the AWS
+      # CLI — build-and-push only uses aws-actions/amazon-ecr-login, which
+      # calls the AWS SDK directly and needs no CLI binary, but this job
+      # shells out to `aws ssm` directly. No sudo — the runner's NOPASSWD
+      # sudo is scoped to specific commands, not a blanket allow — so this
+      # installs to a user-writable dir instead; $GITHUB_PATH persists it
+      # for subsequent steps in this job.
+      - name: Install AWS CLI
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          if ! command -v aws &> /dev/null; then
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q awscliv2.zip
+            ./aws/install --install-dir "$HOME/.local/aws-cli" --bin-dir "$HOME/.local/bin" --update
+            rm -rf awscliv2.zip aws
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
