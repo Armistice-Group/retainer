@@ -1,0 +1,48 @@
+---
+title: Tasks
+description: List, create, update, and delete tasks on a project
+---
+
+## List a project's tasks
+
+```
+GET /api/v1/projects/{id}/tasks
+```
+
+## Create a task
+
+```
+POST /api/v1/projects/{id}/tasks
+```
+
+<ParamField body="title" type="string" required />
+<ParamField body="description" type="string" />
+<ParamField body="assigneeId" type="string">
+  A user ID to assign the task to. Notifies the assignee.
+</ParamField>
+
+```bash
+curl -X POST https://consultainer.app/api/v1/projects/proj_123/tasks \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Set up staging environment"}'
+```
+
+## Update a task
+
+```
+PATCH /api/v1/tasks/{id}
+```
+
+<ParamField body="status" type="string">
+  `TODO`, `IN_PROGRESS`, or `DONE`.
+</ParamField>
+<ParamField body="assigneeId" type="string">
+  Pass `null` to unassign.
+</ParamField>
+
+## Delete a task
+
+```
+DELETE /api/v1/tasks/{id}
+```

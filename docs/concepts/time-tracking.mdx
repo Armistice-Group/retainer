@@ -1,0 +1,40 @@
+---
+title: Time Tracking
+description: Logging hours against a project and task
+---
+
+## Logging time
+
+From **Time**, log an entry against a project and, optionally, a task. Each
+entry has:
+
+- **Date and hours** (up to 24 in a single entry)
+- **Description** (optional)
+- **Billable** — on by default; turn off for internal or non-billable work
+- **Rate override** — an owner or admin can set a specific rate for that
+  entry instead of the project member's standard rate
+
+## My time vs. team time
+
+Everyone sees their own week by default. Owners and admins can switch to a
+team view, see everyone's logged hours, and filter by person.
+
+## Editing and deleting entries
+
+A time entry can be edited or deleted by the person who logged it (or an
+owner/admin) — but only until it's been pulled onto an invoice. Once
+invoiced, an entry is locked to keep the invoice and the underlying hours in
+sync.
+
+## Exporting
+
+The Time page has an **Export CSV** button that respects whatever filters
+are active (week, team/person view) — it opens cleanly in Excel or Google
+Sheets.
+
+## Overhead
+
+An organization can set an overhead percentage (Settings → General, default
+0%). It's applied to the billed rate on hourly invoice line items at
+generation time — baked directly into the rate shown on the invoice, not
+broken out as a separate line.

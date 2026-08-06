@@ -1,0 +1,36 @@
+---
+title: Expenses
+description: Logging and billing reimbursable costs like software or hardware
+---
+
+Expenses let you track and bill reimbursable costs on a project — a software
+license, a piece of hardware, travel — the same way time and milestones are
+tracked and billed.
+
+## Logging an expense
+
+From a project's **Expenses** card, log a description, amount, date, an
+optional category, and an optional receipt (PDF, PNG, or JPEG).
+
+## Approval
+
+Expense approval is threshold-based, controlled by **Expense approval
+threshold** in Settings → General (defaults to $100):
+
+- An owner or admin's own logged expense is **always auto-approved**,
+  regardless of amount.
+- A regular member's expense is **auto-approved** if it's at or under the
+  threshold.
+- A regular member's expense **above** the threshold is held **Pending**
+  until an owner or admin approves or rejects it from the project page.
+
+## Billing an expense
+
+Only **Approved**, unbilled expenses are eligible to appear on a generated
+invoice — as their own line item, the same way a milestone is. Once
+invoiced, an expense is locked.
+
+## Deleting an expense
+
+The person who submitted an expense (or an owner/admin) can delete it, as
+long as it hasn't been invoiced yet.

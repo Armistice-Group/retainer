@@ -1,0 +1,54 @@
+---
+title: Clients & Projects
+description: How engagements, contacts, and projects fit together
+---
+
+## Clients
+
+A client represents the company or person you're consulting for. Each client
+can hold:
+
+- **Contacts** — people at the client, with an optional email, phone, title,
+  and role. Mark one as primary and/or set it to receive invoices.
+- **Links** — staging URLs, shared docs, or Drive folders relevant to the
+  engagement.
+- **Documents** — files like a signed contract, W-9, or 1099 attached
+  directly to the client record.
+
+## Projects
+
+A project belongs to a client and carries its own team, bill rates, and
+billing type.
+
+### Billing types
+
+| Type | How it bills |
+| --- | --- |
+| **Hourly** | From logged, billable time entries at each team member's rate. |
+| **Flat fee** | A single fixed amount for the whole project. |
+| **Milestone-based** | Per deliverable — each milestone has its own amount and is billed once marked complete. |
+
+### Team & bill rates
+
+Each person on a project has their own bill rate and currency, set
+independently of their rate on any other project. A time entry uses the
+project member's standard rate unless a rate override is set on that
+specific entry.
+
+### Confidential projects
+
+A project can be marked confidential, which restricts visibility to explicit
+project members plus organization owners/admins — useful for engagements
+under an NDA that shouldn't be visible to the whole team by default.
+
+### Budgets
+
+An hourly project can have a budget in hours. The project page shows hours
+logged against that budget, and flags when it's close to or over.
+
+## Client-facing report links
+
+From a project page, an owner or admin can generate a read-only, token-based
+link for the client — no login required. It shows project status, hours vs.
+budget, billing totals, and milestones, without exposing internal per-person
+bill rates. The link can be regenerated or revoked at any time.

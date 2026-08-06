@@ -1,0 +1,65 @@
+---
+title: MCP Server
+description: Connect an AI coding agent to your Consultainer data
+---
+
+Consultainer ships a real [MCP](https://modelcontextprotocol.io) server, so an
+AI coding agent can read and write your Consultainer data directly — check
+what's unbilled, log hours, or generate an invoice from what actually
+shipped, without opening a browser tab.
+
+## Endpoint
+
+```
+https://consultainer.app/api/mcp
+```
+
+Authenticated with a Bearer token — the same API key used for the
+[REST API](/api-reference/introduction). Generate one from **Settings →
+Profile → API Keys**.
+
+## Connecting a client
+
+For MCP clients that support HTTP transport directly (Claude Code, Cursor),
+add a server pointing at the endpoint above with your API key as a Bearer
+token in the `Authorization` header. For stdio-only clients (like Claude
+Desktop's local config), bridge through
+[`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+
+```json
+{
+  "mcpServers": {
+    "consultainer": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://consultainer.app/api/mcp"]
+    }
+  }
+}
+```
+
+Check your client's docs for exactly how it expects the Bearer token —
+some accept it inline in the URL config, others need it passed as a header.
+
+## Available tools
+
+| Tool | What it does |
+| --- | --- |
+| `list_clients` | List all clients in the organization. |
+| `list_projects` | List projects, optionally filtered by client. |
+| `list_my_tasks` | List your open (not-done) tasks. |
+| `log_time` | Log time against a project for yourself. |
+| `list_time_entries` | List your logged time entries, optionally filtered. |
+| `update_time_entry` | Update one of your time entries (if not yet invoiced). |
+| `delete_time_entry` | Delete one of your time entries (if not yet invoiced). |
+| `list_invoices` | List invoices in the organization, optionally by status. |
+| `generate_invoice` | Generate a draft invoice from unbilled time, milestones, and/or expenses. Owner/admin only. |
+
+## Example
+
+```
+> What am I working on for Fintra Labs?
+Auth flow security review, API migration (2 open tasks)
+
+> Log 3.5 hours on the API migration
+✓ Logged 3.50h to Fintra Labs — API migration
+```

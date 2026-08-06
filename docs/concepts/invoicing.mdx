@@ -1,0 +1,44 @@
+---
+title: Invoicing
+description: Generating, editing, and sending invoices
+---
+
+## Generating an invoice
+
+From **Invoices → New**, pick a client. Consultainer shows everything for
+that client currently eligible to bill:
+
+- Unbilled, billable time entries
+- Completed, unbilled milestones
+- Approved, unbilled expenses
+
+Select what to include, set the issue date, payment terms, tax rate, PO
+number, and notes, then generate. Consultainer groups hourly time by
+project and person into line items automatically; milestones and expenses
+each become their own line item.
+
+## Payment terms
+
+Due on receipt, Net 15/30/45/60/90, or Custom. Selecting a term on the
+new-invoice form auto-computes the due date from the issue date; Custom
+leaves the due date for you to set manually.
+
+## Editing a draft
+
+While an invoice is in **Draft**, its line items, issue date, due date, tax
+rate, payment terms, PO number, and notes are all editable. Once it's marked
+**Sent**, line items lock.
+
+## Statuses
+
+`Draft → Sent → Paid`, or `Void` at any point before Paid. Marking an
+invoice Paid can record a payment method (e.g. Wire, ACH, Check).
+
+## PDF and QuickBooks
+
+Every invoice can be downloaded as a PDF. If QuickBooks is connected, a
+draft or sent invoice can be pushed to QuickBooks directly, and its
+paid/sent status can be pulled back into Consultainer with a manual sync
+(QuickBooks doesn't push status changes to Consultainer automatically).
+
+See [QuickBooks integration](/integrations/quickbooks) for setup.

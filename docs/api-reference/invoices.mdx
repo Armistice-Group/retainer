@@ -1,0 +1,62 @@
+---
+title: Invoices
+description: List invoices and generate a draft
+---
+
+## List invoices
+
+```
+GET /api/v1/invoices
+```
+
+<ParamField query="status" type="string">
+  Filter by `DRAFT`, `SENT`, `PAID`, or `VOID`.
+</ParamField>
+
+## Generate an invoice
+
+```
+POST /api/v1/invoices/generate
+```
+
+Owner/admin only. Generates a draft from unbilled time entries, completed
+milestones, and/or approved expenses — the same as generating one from the
+UI.
+
+<ParamField body="clientId" type="string" required />
+<ParamField body="timeEntryIds" type="string[]">
+  Unbilled, billable time entry IDs to include.
+</ParamField>
+<ParamField body="milestoneIds" type="string[]">
+  Completed, unbilled milestone IDs to include.
+</ParamField>
+<ParamField body="expenseIds" type="string[]">
+  Approved, unbilled expense IDs to include.
+</ParamField>
+<ParamField body="issueDate" type="string" required>
+  `YYYY-MM-DD`.
+</ParamField>
+<ParamField body="dueDate" type="string" required>
+  `YYYY-MM-DD`.
+</ParamField>
+<ParamField body="paymentTerms" type="string" default="NET30">
+  `DUE_ON_RECEIPT`, `NET15`, `NET30`, `NET45`, `NET60`, `NET90`, or `CUSTOM`.
+</ParamField>
+<ParamField body="poNumber" type="string" />
+<ParamField body="taxRate" type="number" default="0" />
+<ParamField body="notes" type="string" />
+
+At least one of `timeEntryIds`, `milestoneIds`, or `expenseIds` is required.
+
+```bash
+curl -X POST https://consultainer.app/api/v1/invoices/generate \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "client_123",
+    "timeEntryIds": ["te_1", "te_2"],
+    "issueDate": "2026-08-01",
+    "dueDate": "2026-08-31",
+    "paymentTerms": "NET30"
+  }'
+```

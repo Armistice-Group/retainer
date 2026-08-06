@@ -1,0 +1,43 @@
+---
+title: Clients
+description: List and create clients
+---
+
+## List clients
+
+```
+GET /api/v1/clients
+```
+
+Returns every client in your organization.
+
+```bash
+curl https://consultainer.app/api/v1/clients \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+## Create a client
+
+```
+POST /api/v1/clients
+```
+
+<ParamField body="name" type="string" required>
+  Client name.
+</ParamField>
+<ParamField body="email" type="string">
+  General contact email.
+</ParamField>
+<ParamField body="phone" type="string" />
+<ParamField body="address" type="string" />
+<ParamField body="description" type="string" />
+<ParamField body="status" type="string" default="ACTIVE">
+  `ACTIVE` or `INACTIVE`.
+</ParamField>
+
+```bash
+curl -X POST https://consultainer.app/api/v1/clients \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Fintra Labs", "email": "hello@fintralabs.com"}'
+```

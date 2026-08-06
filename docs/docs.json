@@ -1,0 +1,86 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Consultainer",
+  "description": "Docs for Consultainer — client, project, time, and invoice management for engineering consultancies.",
+  "colors": {
+    "primary": "#7c5cf4",
+    "light": "#a78bfa",
+    "dark": "#6d28d9"
+  },
+  "favicon": "/logo/favicon.svg",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "https://consultainer.app"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/clients-and-projects",
+              "concepts/time-tracking",
+              "concepts/invoicing",
+              "concepts/milestones",
+              "concepts/expenses"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/quickbooks",
+              "integrations/linear"
+            ]
+          },
+          {
+            "group": "Build with Consultainer",
+            "pages": ["mcp-server"]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["api-reference/introduction"]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api-reference/clients",
+              "api-reference/projects",
+              "api-reference/tasks",
+              "api-reference/time-entries",
+              "api-reference/invoices"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Sign in",
+        "href": "https://consultainer.app/login"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Start free",
+      "href": "https://consultainer.app/signup"
+    }
+  },
+  "footer": {
+    "socials": {}
+  }
+}

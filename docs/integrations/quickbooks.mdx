@@ -1,0 +1,27 @@
+---
+title: QuickBooks
+description: Push invoices to QuickBooks and sync their status back
+---
+
+Connect QuickBooks from **Settings → Integrations**. An owner or admin
+authorizes access via OAuth; Consultainer requests the
+`com.intuit.quickbooks.accounting` scope.
+
+## Pushing an invoice
+
+From an invoice's detail page, **Push to QuickBooks** creates the invoice in
+QuickBooks from Consultainer's line items.
+
+## Syncing status back
+
+QuickBooks doesn't notify Consultainer when an invoice's status changes
+there, so status sync is manual: **Sync status from QuickBooks** on the
+invoice page checks the invoice's balance and email status in QuickBooks and
+advances Consultainer's status accordingly (Draft → Sent → Paid). Status
+only ever moves forward — a sync never downgrades an invoice that's already
+further along in Consultainer than what QuickBooks reports.
+
+## Disconnecting
+
+Disconnecting QuickBooks from Settings → Integrations stops future pushes
+and syncs; invoices already pushed aren't affected.

@@ -1,0 +1,51 @@
+---
+title: Getting Started
+description: Authentication and conventions for the Consultainer REST API
+---
+
+## Base URL
+
+```
+https://consultainer.app/api/v1
+```
+
+## Authentication
+
+Generate an API key from **Settings → Profile → API Keys**. Send it as a
+Bearer token on every request:
+
+```bash
+curl https://consultainer.app/api/v1/clients \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+A key acts as the person who created it — it sees what they see (respecting
+confidential-project visibility) and can only do what their role allows. A
+key with a `MEMBER` role, for example, can't generate invoices.
+
+## Responses
+
+Successful responses are JSON, wrapped under a key naming the resource:
+
+```json
+{ "clients": [ { "id": "...", "name": "Acme Co", "...": "..." } ] }
+```
+
+Validation errors return `422` with field-level messages:
+
+```json
+{ "error": { "name": ["Name is required"] } }
+```
+
+An invalid or missing key returns `401`. A request for something the key's
+role can't do returns `403`.
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Clients" href="/api-reference/clients" />
+  <Card title="Projects" href="/api-reference/projects" />
+  <Card title="Tasks" href="/api-reference/tasks" />
+  <Card title="Time Entries" href="/api-reference/time-entries" />
+  <Card title="Invoices" href="/api-reference/invoices" />
+</CardGroup>

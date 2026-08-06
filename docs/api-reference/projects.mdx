@@ -1,0 +1,22 @@
+---
+title: Projects
+description: List projects
+---
+
+## List projects
+
+```
+GET /api/v1/projects
+```
+
+Returns projects visible to the authenticated key — respecting confidential
+project visibility.
+
+<ParamField query="clientId" type="string">
+  Filter to a single client's projects.
+</ParamField>
+
+```bash
+curl "https://consultainer.app/api/v1/projects?clientId=..." \
+  -H "Authorization: Bearer ch_live_..."
+```

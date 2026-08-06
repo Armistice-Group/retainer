@@ -1,0 +1,65 @@
+---
+title: Time Entries
+description: List, log, update, and delete time entries
+---
+
+## List time entries
+
+```
+GET /api/v1/time-entries
+```
+
+Returns the authenticated key's own entries by default.
+
+<ParamField query="from" type="string">
+  `YYYY-MM-DD`, inclusive.
+</ParamField>
+<ParamField query="to" type="string">
+  `YYYY-MM-DD`, inclusive.
+</ParamField>
+<ParamField query="projectId" type="string" />
+<ParamField query="userId" type="string">
+  Owner/admin only — view another team member's entries.
+</ParamField>
+
+## Log time
+
+```
+POST /api/v1/time-entries
+```
+
+<ParamField body="projectId" type="string" required />
+<ParamField body="taskId" type="string" />
+<ParamField body="date" type="string" required>
+  `YYYY-MM-DD`.
+</ParamField>
+<ParamField body="hours" type="number" required>
+  Greater than 0, up to 24.
+</ParamField>
+<ParamField body="description" type="string" />
+<ParamField body="billable" type="boolean" default="true" />
+<ParamField body="userId" type="string">
+  Owner/admin only — log on another team member's behalf.
+</ParamField>
+<ParamField body="rateOverride" type="number">
+  Owner/admin only — override the project member's standard rate for this
+  entry.
+</ParamField>
+
+```bash
+curl -X POST https://consultainer.app/api/v1/time-entries \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"projectId": "proj_123", "date": "2026-08-05", "hours": 3.5, "description": "API migration"}'
+```
+
+## Update or delete a time entry
+
+```
+PATCH /api/v1/time-entries/{id}
+DELETE /api/v1/time-entries/{id}
+```
+
+Takes the same body as logging time. Only the person who logged the entry
+(or an owner/admin) can update or delete it, and only before it's been
+pulled onto an invoice.
