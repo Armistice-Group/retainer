@@ -5,7 +5,6 @@ import { requireOrgContext } from "@/lib/org-context";
 import { ClientForm } from "../../client-form";
 import { updateClientAction } from "@/actions/clients";
 import { PageHeader } from "@/components/layout/page-header";
-import type { ActionState } from "@/actions/auth";
 
 export default async function EditClientPage({
   params,
@@ -18,8 +17,7 @@ export default async function EditClientPage({
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client || client.orgId !== org.id) notFound();
 
-  const boundAction = async (prevState: ActionState, formData: FormData) =>
-    updateClientAction(id, prevState, formData);
+  const boundAction = updateClientAction.bind(null, id);
 
   return (
     <div>

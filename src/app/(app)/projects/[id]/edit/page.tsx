@@ -6,7 +6,6 @@ import { canViewProject } from "@/lib/project-access";
 import { ProjectForm } from "../../project-form";
 import { updateProjectAction } from "@/actions/projects";
 import { PageHeader } from "@/components/layout/page-header";
-import type { ActionState } from "@/actions/auth";
 
 export default async function EditProjectPage({
   params,
@@ -28,8 +27,7 @@ export default async function EditProjectPage({
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
 
-  const boundAction = async (prevState: ActionState, formData: FormData) =>
-    updateProjectAction(id, prevState, formData);
+  const boundAction = updateProjectAction.bind(null, id);
 
   return (
     <div>
