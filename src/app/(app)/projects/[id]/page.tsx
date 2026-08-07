@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
+import { EditRateDialog } from "./edit-rate-dialog";
 import { AddTaskDialog } from "./add-task-dialog";
 import { TaskList } from "./task-list";
 import { BudgetCard } from "./budget-card";
@@ -271,10 +272,17 @@ export default async function ProjectDetailPage({
                         </div>
                         <p className="text-muted-foreground">{member.user.email}</p>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
                         <span className="tabular-figures text-sm">
                           {formatCurrency(member.billRate, member.currency)}/hr
                         </span>
+                        <EditRateDialog
+                          projectId={project.id}
+                          userId={member.userId}
+                          name={member.user.name ?? member.user.email ?? ""}
+                          billRate={Number(member.billRate)}
+                          currency={member.currency}
+                        />
                         <form action={removeProjectMemberAction.bind(null, member.id, project.id)}>
                           <Button variant="ghost" size="icon" className="size-7" type="submit">
                             <Trash2 className="size-3.5" />
