@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 import { getProjectByShareToken } from "@/lib/services/project-share";
@@ -20,7 +21,7 @@ export default async function SharedProjectPage({
   const report = await getProjectByShareToken(token);
   if (!report) notFound();
 
-  const { project, loggedHours, totalBilled, totalPaid } = report;
+  const { project, loggedHours, totalBilled, totalPaid, invoices } = report;
   const org = project.org;
   const logoSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
@@ -148,6 +149,41 @@ export default async function SharedProjectPage({
                     {formatCurrency(Number(m.amount), "USD")}
                   </span>
                 </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {invoices.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Invoices</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-border p-0">
+              {invoices.map((inv) => (
+                <a
+                  key={inv.id}
+                  href={`/share/${token}/invoices/${inv.id}/pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-4 px-6 py-3 hover:bg-muted/40"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{inv.number}</p>
+                      <StatusBadge status={inv.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="tabular-figures text-sm font-medium">
+                      {formatCurrency(inv.total, inv.currency)}
+                    </span>
+                    <Download className="size-4 text-muted-foreground" />
+                  </div>
+                </a>
               ))}
             </CardContent>
           </Card>

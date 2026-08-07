@@ -25,11 +25,13 @@ import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
 import { ClientDocumentsCard } from "./client-documents-card";
+import { ClientShareLinkCard } from "./client-share-link-card";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { websiteHref } from "@/lib/format";
 import { projectVisibilityWhere } from "@/lib/project-access";
+import { getOrigin } from "@/lib/url";
 
 export default async function ClientDetailPage({
   params,
@@ -53,6 +55,9 @@ export default async function ClientDetailPage({
   });
 
   if (!client || client.orgId !== org.id) notFound();
+
+  const canManage = role === "OWNER" || role === "ADMIN";
+  const origin = canManage ? await getOrigin() : "";
 
   const documentItems = client.documents.map((d) => ({
     id: d.id,
@@ -272,6 +277,13 @@ export default async function ClientDetailPage({
           </Card>
 
           <ClientDocumentsCard clientId={client.id} documents={documentItems} />
+
+          {canManage ? (
+            <ClientShareLinkCard
+              clientId={client.id}
+              shareUrl={client.shareToken ? `${origin}/share/client/${client.shareToken}` : null}
+            />
+          ) : null}
         </div>
 
         <div className="lg:col-span-2">

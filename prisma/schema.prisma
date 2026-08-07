@@ -230,6 +230,7 @@ model Client {
   billingEmail   String?
   billingAddress String?
   status         ClientStatus @default(ACTIVE)
+  shareToken     String?      @unique
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
