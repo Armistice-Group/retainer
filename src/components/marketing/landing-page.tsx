@@ -5,7 +5,6 @@ import {
   Clock,
   FileText,
   Bot,
-  Check,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -71,10 +70,11 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
           Built to ship engagements, not manage them.
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Tasks synced from Linear, hours logged from your AI coding agent,
-          invoices built from what actually shipped. Consultainer runs the
-          engagement from the tools you already build in — not a separate app you
-          have to remember to update.
+          Client contacts, tasks, logged hours, and invoices end up scattered
+          across five different tools — so proving what shipped takes longer
+          than shipping it. Consultainer keeps the whole engagement in one
+          place, synced from Linear and billed from time your AI coding agent
+          already logged.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -103,8 +103,42 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
         ) : null}
       </div>
 
-      <AgentDemo />
+      <EngagementSnapshot />
     </section>
+  );
+}
+
+function EngagementSnapshot() {
+  return (
+    <Card className="gap-0 overflow-hidden p-0 shadow-sm">
+      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+        <div>
+          <p className="text-sm font-medium">Fintra Labs — API v2</p>
+          <p className="text-xs text-muted-foreground">Synced from Linear</p>
+        </div>
+        <Badge variant="outline" className="font-normal">
+          Active
+        </Badge>
+      </div>
+      <div className="flex flex-col divide-y divide-border px-5">
+        <div className="flex items-center justify-between py-3 text-sm">
+          <span className="text-muted-foreground">Hours this week</span>
+          <span className="tabular-figures font-medium">12.50h</span>
+        </div>
+        <div className="flex items-center justify-between py-3 text-sm">
+          <span className="text-muted-foreground">Open tasks</span>
+          <span className="tabular-figures font-medium">2</span>
+        </div>
+        <div className="flex items-center justify-between py-3 text-sm">
+          <span className="text-muted-foreground">Draft invoice</span>
+          <span className="tabular-figures font-medium">$2,100.00</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-5 py-4">
+        <span className="text-sm text-muted-foreground">Client, tasks, time, invoice</span>
+        <span className="text-sm font-semibold">One place</span>
+      </div>
+    </Card>
   );
 }
 
@@ -229,22 +263,7 @@ function McpSpotlight() {
             browser tab.
           </p>
         </div>
-        <Card className="gap-3 p-5 font-mono text-sm">
-          <p className="text-muted-foreground">
-            &gt; Mark the design-system milestone complete for Fintra Labs
-          </p>
-          <p className="flex items-center gap-2 text-foreground">
-            <Check className="size-4 shrink-0 text-chart-3" />
-            Design system marked complete — ready to invoice
-          </p>
-          <p className="mt-2 text-muted-foreground">
-            &gt; Log a $340 AWS expense on that project
-          </p>
-          <p className="flex items-center gap-2 text-foreground">
-            <Check className="size-4 shrink-0 text-chart-3" />
-            Expense submitted — auto-approved
-          </p>
-        </Card>
+        <AgentDemo />
       </div>
     </section>
   );
