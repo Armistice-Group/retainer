@@ -18,6 +18,10 @@ variable "app_version" {
 # ── Application ───────────────────────────────────────────────────────────────
 variable "secrets_arn" { type = string }
 variable "app_domain" { type = string }
+variable "cron_secret" {
+  type      = string
+  sensitive = true
+}
 variable "db_host" {
   description = "RDS endpoint address (Postgres, replaces the old containerized db service)"
   type        = string

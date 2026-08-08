@@ -26,6 +26,7 @@ import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
 import { ClientDocumentsCard } from "./client-documents-card";
 import { ClientShareLinkCard } from "./client-share-link-card";
+import { RecurringScheduleCard } from "./recurring-schedule-card";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -51,6 +52,7 @@ export default async function ClientDetailPage({
       links: { orderBy: { createdAt: "asc" } },
       projects: { where: projectVisibilityWhere(user.id, role), orderBy: { createdAt: "desc" } },
       documents: { orderBy: { uploadedAt: "desc" } },
+      recurringInvoiceSchedules: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -65,6 +67,18 @@ export default async function ClientDetailPage({
     label: d.label,
     fileName: d.fileName,
     uploadedAt: d.uploadedAt.toISOString(),
+  }));
+
+  const recurringScheduleItems = client.recurringInvoiceSchedules.map((s) => ({
+    id: s.id,
+    description: s.description,
+    amount: Number(s.amount),
+    currency: org.defaultCurrency,
+    interval: s.interval,
+    active: s.active,
+    autoSend: s.autoSend,
+    nextRunAt: s.nextRunAt.toISOString(),
+    lastRunAt: s.lastRunAt ? s.lastRunAt.toISOString() : null,
   }));
 
   return (
@@ -277,16 +291,9 @@ export default async function ClientDetailPage({
           </Card>
 
           <ClientDocumentsCard clientId={client.id} documents={documentItems} />
-
-          {canManage ? (
-            <ClientShareLinkCard
-              clientId={client.id}
-              shareUrl={client.shareToken ? `${origin}/share/client/${client.shareToken}` : null}
-            />
-          ) : null}
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-4 lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Projects</CardTitle>
@@ -325,6 +332,17 @@ export default async function ClientDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {canManage ? (
+            <ClientShareLinkCard
+              clientId={client.id}
+              shareUrl={client.shareToken ? `${origin}/share/client/${client.shareToken}` : null}
+            />
+          ) : null}
+
+          {canManage ? (
+            <RecurringScheduleCard clientId={client.id} schedules={recurringScheduleItems} />
+          ) : null}
         </div>
       </div>
     </div>

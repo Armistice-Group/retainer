@@ -20,6 +20,18 @@ export function addDays(date: Date, days: number) {
   return d;
 }
 
+// Clamps to the last day of the target month instead of overflowing (JS's
+// default setMonth behavior) — Jan 31 + 1 month lands on Feb 28/29, not Mar 3.
+export function addMonths(date: Date, months: number) {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDayOfTargetMonth));
+  return d;
+}
+
 export function isSameDay(a: Date, b: Date) {
   return (
     a.getFullYear() === b.getFullYear() &&

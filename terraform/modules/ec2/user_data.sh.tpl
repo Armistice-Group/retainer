@@ -68,6 +68,7 @@ AUTH_TRUST_HOST=true
 APP_URL=https://${app_domain}
 NODE_ENV=production
 QUICKBOOKS_ENVIRONMENT=sandbox
+CRON_SECRET=${cron_secret}
 INFRA_EOF
 
 # ── .env — secrets (fetched from Secrets Manager at boot) ────────────────────

@@ -78,6 +78,7 @@ enum NotificationType {
   INVOICE_SENT
   INVOICE_PAID
   TIME_LOGGED
+  RECURRING_INVOICE_GENERATED
 }
 
 enum Plan {
@@ -130,6 +131,7 @@ model Organization {
   projects             Project[]
   timeEntries          TimeEntry[]
   invoices             Invoice[]
+  recurringInvoiceSchedules RecurringInvoiceSchedule[]
   notifications        Notification[]
   apiKeys              ApiKey[]
   quickBooksConnection QuickBooksConnection?
@@ -241,11 +243,12 @@ model Client {
 
   quickbooksCustomerId String?
 
-  contacts  Contact[]
-  links     Link[]
-  projects  Project[]
-  invoices  Invoice[]
-  documents ClientDocument[]
+  contacts                  Contact[]
+  links                     Link[]
+  projects                  Project[]
+  invoices                  Invoice[]
+  documents                 ClientDocument[]
+  recurringInvoiceSchedules RecurringInvoiceSchedule[]
 
   @@index([orgId])
 }
@@ -563,9 +566,50 @@ model Invoice {
 
   lineItems InvoiceLineItem[]
 
+  recurringScheduleId String?
+  recurringSchedule   RecurringInvoiceSchedule? @relation(fields: [recurringScheduleId], references: [id], onDelete: SetNull)
+
   @@unique([orgId, number])
   @@index([orgId])
   @@index([clientId])
+}
+
+enum RecurringInterval {
+  WEEKLY
+  MONTHLY
+}
+
+// A retainer-style billing schedule: a flat amount charged to a client on a
+// recurring cadence. Deliberately separate from generateInvoice's time/
+// milestone/expense-driven flow — a retainer charge isn't "unbilled" work,
+// it's a standing fee, so each run creates one manual line item rather than
+// pulling in TimeEntry/Milestone/Expense records.
+model RecurringInvoiceSchedule {
+  id          String            @id @default(cuid())
+  description String
+  amount      Decimal           @db.Decimal(12, 2)
+  interval    RecurringInterval @default(MONTHLY)
+  dueInDays   Int               @default(30)
+  active      Boolean           @default(true)
+  // Draft by default so a human reviews before it goes out; an org that
+  // trusts the schedule can flip this on to skip that step.
+  autoSend    Boolean           @default(false)
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  generatedInvoices Invoice[]
+
+  @@index([orgId])
+  @@index([clientId])
+  @@index([nextRunAt])
 }
 
 model InvoiceLineItem {

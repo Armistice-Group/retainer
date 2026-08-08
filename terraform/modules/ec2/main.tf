@@ -139,6 +139,7 @@ resource "aws_instance" "app" {
     ecr_repository_url = var.ecr_repository_url
     ecr_registry       = element(split("/", var.ecr_repository_url), 0)
     app_version        = var.app_version
+    cron_secret        = var.cron_secret
   })
 
   # Replace the instance (rather than update in place) if user_data changes,

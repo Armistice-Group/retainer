@@ -104,6 +104,7 @@ module "ec2" {
   db_name     = var.db_name
   db_username = var.db_username
   db_password = var.rds_master_password
+  cron_secret = random_password.cron_secret.result
 
   # EC2 config
   instance_type       = var.ec2_instance_type
@@ -111,4 +112,80 @@ module "ec2" {
   ssh_key_name        = var.ec2_ssh_key_name
   ssh_allowed_cidr    = var.ec2_ssh_allowed_cidr
   deletion_protection = var.deletion_protection
+}
+
+# ── Recurring invoice cron ─────────────────────────────────────────────────────
+# Baked directly into the instance's .env at boot (like APP_IMAGE/DATABASE_URL)
+# rather than routed through Secrets Manager — it's Terraform-generated
+# infrastructure config, not a human-provided credential, so it doesn't need
+# the ignore_changes dance the app secret does.
+resource "random_password" "cron_secret" {
+  length  = 32
+  special = false
+}
+
+# EventBridge Scheduler can't hit a raw HTTPS endpoint directly — an API
+# destination + connection is the AWS-native way to call an external HTTP(S)
+# API on a schedule with an auth header attached.
+resource "aws_cloudwatch_event_connection" "cron" {
+  name               = "${var.name_prefix}-cron-connection"
+  authorization_type = "API_KEY"
+
+  auth_parameters {
+    api_key {
+      key   = "Authorization"
+      value = "Bearer ${random_password.cron_secret.result}"
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_api_destination" "recurring_invoices" {
+  name                             = "${var.name_prefix}-recurring-invoices"
+  invocation_endpoint              = "https://${var.root_domain}/api/cron/recurring-invoices"
+  http_method                      = "POST"
+  invocation_rate_limit_per_second = 1
+  connection_arn                   = aws_cloudwatch_event_connection.cron.arn
+}
+
+resource "aws_iam_role" "scheduler_cron" {
+  name = "${var.name_prefix}-scheduler-cron"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "scheduler.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler_cron_invoke" {
+  name = "invoke-api-destination"
+  role = aws_iam_role.scheduler_cron.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "events:InvokeApiDestination"
+      Resource = aws_cloudwatch_event_api_destination.recurring_invoices.arn
+    }]
+  })
+}
+
+# Daily at 13:00 UTC (9am ET) — late enough that overnight time entries from
+# US-hours teams are logged, early enough that a generated draft gets
+# reviewed same business day.
+resource "aws_scheduler_schedule" "recurring_invoices_daily" {
+  name                         = "${var.name_prefix}-recurring-invoices-daily"
+  schedule_expression          = "cron(0 13 * * ? *)"
+  schedule_expression_timezone = "UTC"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  target {
+    arn      = aws_cloudwatch_event_api_destination.recurring_invoices.arn
+    role_arn = aws_iam_role.scheduler_cron.arn
+  }
 }
