@@ -186,8 +186,8 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             >
               Incoming Webhook
             </a>{" "}
-            in Slack and paste the URL here. We&apos;ll post here when an invoice is sent or paid,
-            and when time is logged.
+            in Slack and paste the URL here. We&apos;ll post here when an invoice is sent, paid,
+            generated on a recurring schedule, or overdue, and when time is logged.
           </p>
         </div>
       </div>

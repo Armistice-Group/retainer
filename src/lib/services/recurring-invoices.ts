@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { addDays, addMonths } from "@/lib/date";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
+import { postToSlack } from "@/lib/slack";
 import type { RecurringInvoiceSchedule } from "@/generated/prisma/client";
 
 function advance(nextRunAt: Date, interval: "WEEKLY" | "MONTHLY") {
@@ -58,17 +59,25 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
   });
 
   const client = await prisma.client.findUniqueOrThrow({ where: { id: schedule.clientId } });
+  const verb = schedule.autoSend ? "generated and sent" : "generated as a draft — review and send";
+  const message = `Recurring invoice ${invoice.number} for ${client.name} was ${verb} ($${amount.toFixed(2)}).`;
+
   const adminIds = await getOrgAdminUserIds(prisma, schedule.orgId);
   if (adminIds.length > 0) {
-    const verb = schedule.autoSend ? "generated and sent" : "generated as a draft — review and send";
     await notify(prisma, {
       orgId: schedule.orgId,
       userIds: adminIds,
       type: "RECURRING_INVOICE_GENERATED",
-      message: `Recurring invoice ${invoice.number} for ${client.name} was ${verb} ($${amount.toFixed(2)}).`,
+      message,
       link: `/invoices/${invoice.id}`,
     });
   }
+
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: schedule.orgId },
+    select: { slackWebhookUrl: true },
+  });
+  await postToSlack(org.slackWebhookUrl, message);
 
   return invoice;
 }
