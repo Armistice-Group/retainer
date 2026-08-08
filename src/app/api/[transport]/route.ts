@@ -13,6 +13,7 @@ import {
   TimeEntryError,
 } from "@/lib/services/time-entries";
 import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/services/invoices";
+import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -711,7 +712,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_invoices",
-      "List invoices in the current organization, optionally filtered by status.",
+      "List invoices in the current organization, optionally filtered by status. Each invoice includes isOverdue/daysOverdue (true only for a SENT invoice past its due date).",
       { status: z.enum(["DRAFT", "SENT", "PAID", "VOID"]).optional() },
       async ({ status }, extra) => {
         const ctx = ctxFrom(extra);
@@ -720,7 +721,13 @@ const handler = createMcpHandler(
           include: { client: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
         });
-        return text(invoices);
+        return text(
+          invoices.map((inv) => ({
+            ...inv,
+            isOverdue: isOverdue(inv.status, inv.dueDate),
+            daysOverdue: daysOverdue(inv.dueDate),
+          }))
+        );
       }
     );
 

@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { getProjectByShareToken } from "@/lib/services/project-share";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 
 export const metadata: Metadata = {
   title: "Project report",
@@ -173,8 +174,18 @@ export default async function SharedProjectPage({
                       <p className="text-sm font-medium">{inv.number}</p>
                       <StatusBadge status={inv.status} />
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p
+                      className={cn(
+                        "text-xs",
+                        isOverdue(inv.status, inv.dueDate)
+                          ? "font-medium text-destructive"
+                          : "text-muted-foreground"
+                      )}
+                    >
                       Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
+                      {isOverdue(inv.status, inv.dueDate)
+                        ? ` · ${daysOverdue(inv.dueDate)}d overdue`
+                        : ""}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">

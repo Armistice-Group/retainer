@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { isOverdue } from "@/lib/invoice-aging";
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -33,7 +34,7 @@ export default async function DashboardPage() {
       }),
       prisma.invoice.findMany({
         where: { orgId: org.id, status: { in: ["SENT", "DRAFT"] } },
-        select: { total: true, status: true },
+        select: { total: true, status: true, dueDate: true },
       }),
       prisma.timeEntry.findMany({
         where: { orgId: org.id, userId: user.id },
@@ -53,6 +54,8 @@ export default async function DashboardPage() {
     .filter((i) => i.status === "SENT")
     .reduce((sum, i) => sum + Number(i.total), 0);
   const draftCount = outstandingInvoices.filter((i) => i.status === "DRAFT").length;
+  const overdueInvoices = outstandingInvoices.filter((i) => isOverdue(i.status, i.dueDate));
+  const overdueTotal = overdueInvoices.reduce((sum, i) => sum + Number(i.total), 0);
 
   return (
     <div>
@@ -98,6 +101,11 @@ export default async function DashboardPage() {
             </p>
             {draftCount > 0 ? (
               <p className="mt-1 text-xs text-muted-foreground">{draftCount} draft{draftCount === 1 ? "" : "s"} not yet sent</p>
+            ) : null}
+            {overdueInvoices.length > 0 ? (
+              <p className="mt-1 text-xs font-medium text-destructive">
+                {formatCurrency(overdueTotal, org.defaultCurrency)} overdue ({overdueInvoices.length})
+              </p>
             ) : null}
           </CardContent>
         </Card>
