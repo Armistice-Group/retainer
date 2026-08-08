@@ -62,7 +62,7 @@ echo "docker-compose.yml written"
 # read automatically) and the app container's env_file.
 cat > /opt/retainer/.env << INFRA_EOF
 APP_IMAGE=${ecr_repository_url}:${app_version}
-DATABASE_URL=postgresql://${db_username}:${db_password}@${db_host}:5432/${db_name}?schema=public&sslmode=no-verify
+DATABASE_URL=postgresql://${db_username}:${db_password}@${db_host}:5432/${db_name}?schema=public
 AUTH_URL=https://${app_domain}
 AUTH_TRUST_HOST=true
 APP_URL=https://${app_domain}
