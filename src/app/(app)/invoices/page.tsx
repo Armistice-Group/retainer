@@ -15,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
+import { cn } from "@/lib/utils";
 
 export default async function InvoicesPage() {
   const { org } = await requireOrgContext();
@@ -75,8 +77,20 @@ export default async function InvoicesPage() {
                 <TableCell>
                   <StatusBadge status={invoice.status} />
                 </TableCell>
-                <TableCell className="tabular-figures text-muted-foreground">
+                <TableCell
+                  className={cn(
+                    "tabular-figures",
+                    isOverdue(invoice.status, invoice.dueDate)
+                      ? "font-medium text-destructive"
+                      : "text-muted-foreground"
+                  )}
+                >
                   {formatDate(invoice.dueDate)}
+                  {isOverdue(invoice.status, invoice.dueDate) ? (
+                    <span className="ml-1.5 text-xs">
+                      ({daysOverdue(invoice.dueDate)}d overdue)
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell className="tabular-figures text-right font-medium">
                   {formatCurrency(invoice.total, invoice.currency)}

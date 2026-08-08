@@ -28,6 +28,7 @@ import {
 } from "@/actions/invoices";
 import { formatCurrency } from "@/lib/format";
 import { toISODate } from "@/lib/date";
+import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { MarkPaidDialog } from "./mark-paid-dialog";
@@ -107,8 +108,13 @@ export default async function InvoiceDetailPage({
         }
       />
 
-      <div className="mb-6">
+      <div className="mb-6 flex items-center gap-2">
         <StatusBadge status={invoice.status} />
+        {isOverdue(invoice.status, invoice.dueDate) ? (
+          <span className="text-sm font-medium text-destructive">
+            {daysOverdue(invoice.dueDate)} day{daysOverdue(invoice.dueDate) === 1 ? "" : "s"} overdue
+          </span>
+        ) : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
