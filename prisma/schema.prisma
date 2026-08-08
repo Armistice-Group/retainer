@@ -79,6 +79,7 @@ enum NotificationType {
   INVOICE_PAID
   TIME_LOGGED
   RECURRING_INVOICE_GENERATED
+  INVOICE_OVERDUE
 }
 
 enum Plan {
@@ -552,6 +553,10 @@ model Invoice {
   total         Decimal       @default(0) @db.Decimal(12, 2)
   currency      String        @default("USD")
   notes         String?
+  // Guards notifyNewlyOverdueInvoices against sending a duplicate ping if the
+  // daily cron ever fires more than once while an invoice is still exactly
+  // one day overdue (manual re-trigger, EventBridge retry, etc).
+  overdueNotifiedAt DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email";
 import { InvoiceStatusEmail } from "@/emails/invoice-status-email";
 import { formatCurrency } from "@/lib/format";
 import { getOrigin } from "@/lib/url";
+import { daysOverdue } from "@/lib/invoice-aging";
 
 export class InvoiceError extends Error {}
 
@@ -58,6 +59,50 @@ export async function notifyInvoiceStatusChange(
       }),
     });
   }
+}
+
+// Called once a day by the recurring-invoices cron job. overdueNotifiedAt is
+// the actual idempotency guard (so a cron that fires twice in one day, or
+// retries, never double-notifies); daysOverdue >= 1 just means "don't fire
+// before an invoice is actually overdue." That combination also correctly
+// catches invoices that were already overdue before this feature shipped —
+// they get one notification on the next run instead of never, since they'll
+// never again be "exactly" one day overdue.
+export async function notifyNewlyOverdueInvoices(now = new Date()) {
+  const sentInvoices = await prisma.invoice.findMany({
+    where: { status: "SENT", overdueNotifiedAt: null },
+    include: {
+      client: { select: { name: true } },
+      org: { select: { id: true, name: true, slackWebhookUrl: true } },
+    },
+  });
+
+  const newlyOverdue = sentInvoices.filter((inv) => daysOverdue(inv.dueDate, now) >= 1);
+
+  for (const invoice of newlyOverdue) {
+    const total = formatCurrency(invoice.total, invoice.currency);
+    const message = `Invoice ${invoice.number} for ${invoice.client.name} is now overdue (${total}).`;
+
+    const adminIds = await getOrgAdminUserIds(prisma, invoice.orgId);
+    if (adminIds.length > 0) {
+      await notify(prisma, {
+        orgId: invoice.orgId,
+        userIds: adminIds,
+        type: "INVOICE_OVERDUE",
+        message,
+        link: `/invoices/${invoice.id}`,
+      });
+    }
+
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { overdueNotifiedAt: now },
+    });
+
+    await postToSlack(invoice.org.slackWebhookUrl, message);
+  }
+
+  return newlyOverdue.length;
 }
 
 export function round2(n: number) {
