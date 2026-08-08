@@ -41,6 +41,8 @@ enum ProjectStatus {
 enum LinkType {
   LOGIN
   GDRIVE
+  ONEDRIVE
+  BOX
   DOC
   REPO
   OTHER

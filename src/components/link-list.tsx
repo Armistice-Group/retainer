@@ -1,10 +1,22 @@
-import { ExternalLink, KeyRound, FolderOpen, FileText, GitBranch, Link2, X } from "lucide-react";
+import {
+  ExternalLink,
+  KeyRound,
+  FolderOpen,
+  Cloud,
+  Archive,
+  FileText,
+  GitBranch,
+  Link2,
+  X,
+} from "lucide-react";
 import { deleteLinkAction } from "@/actions/clients";
 import { Button } from "@/components/ui/button";
 
 const ICONS: Record<string, typeof Link2> = {
   LOGIN: KeyRound,
   GDRIVE: FolderOpen,
+  ONEDRIVE: Cloud,
+  BOX: Archive,
   DOC: FileText,
   REPO: GitBranch,
   OTHER: Link2,

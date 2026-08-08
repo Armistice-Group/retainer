@@ -34,5 +34,5 @@ export const linkSchema = z.object({
   projectId: z.string().optional(),
   label: z.string().trim().min(1, "Label is required").max(150),
   url: z.string().trim().url("Enter a valid URL"),
-  type: z.enum(["LOGIN", "GDRIVE", "DOC", "REPO", "OTHER"]).default("OTHER"),
+  type: z.enum(["LOGIN", "GDRIVE", "ONEDRIVE", "BOX", "DOC", "REPO", "OTHER"]).default("OTHER"),
 });

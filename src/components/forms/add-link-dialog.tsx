@@ -87,6 +87,8 @@ export function AddLinkDialog({
               <SelectContent>
                 <SelectItem value="LOGIN">Login</SelectItem>
                 <SelectItem value="GDRIVE">Google Drive</SelectItem>
+                <SelectItem value="ONEDRIVE">OneDrive</SelectItem>
+                <SelectItem value="BOX">Box</SelectItem>
                 <SelectItem value="DOC">Document</SelectItem>
                 <SelectItem value="REPO">Repository</SelectItem>
                 <SelectItem value="OTHER">Other</SelectItem>

@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "LinkType" ADD VALUE 'ONEDRIVE';
+ALTER TYPE "LinkType" ADD VALUE 'BOX';
