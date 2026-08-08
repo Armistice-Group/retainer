@@ -1,7 +1,8 @@
 # Retainer — Deployment & Infrastructure
 
-This document covers standing up Retainer on AWS: a single EC2 instance running
-the app + a containerized Postgres, behind an ALB that terminates TLS.
+This document covers standing up Retainer on AWS: an EC2 instance running the
+app container, backed by a dedicated RDS Postgres instance, behind an ALB
+that terminates TLS.
 
 ---
 
@@ -11,17 +12,32 @@ the app + a containerized Postgres, behind an ALB that terminates TLS.
 Internet
   │
   └─ ALB  consultainer.app / www.consultainer.app  (HTTPS, ACM cert; HTTP→HTTPS redirect)
-       └─ EC2 (Ubuntu 22.04, single instance, public subnet)
-            └─ docker compose:
-                 - app   (Retainer image from ECR, port 3000 → instance port 80)
-                 - db    (postgres:16-alpine, data on the instance's EBS volume)
+       └─ EC2 (Ubuntu, single instance, public subnet)
+            └─ docker compose: app (Retainer image from ECR, port 3000 → instance port 80)
+                    │
+                    └─ RDS Postgres (private subnet, not publicly accessible,
+                                      encrypted at rest, automated backups)
 ```
+
+The app container is the only thing docker compose runs on the instance —
+Postgres is RDS, not a local container. (If `docker compose ps` on the
+instance still shows a `db` service, that's leftover from before the RDS
+migration; see "Known Limitations" below.)
 
 All infrastructure is defined in `terraform/`. CI/CD is in `.github/workflows/`
 — `ci.yml` lints/type-checks/builds on every push and PR, `deploy.yml` builds
 + pushes the image to ECR and redeploys the instance on every push to `main`.
 Both run on **self-hosted runners** (see below); everything can also be done
 manually with the commands in this doc.
+
+**RDS requires TLS.** The default parameter group sets `rds.force_ssl = 1`,
+but `pg` (via `@prisma/adapter-pg`, `src/lib/prisma.ts`) doesn't negotiate
+TLS by default the way `psql` does. `DATABASE_URL` must include
+`&sslmode=no-verify` (or better, real certificate verification — see
+`src/lib/prisma.ts` and the SSL section below) or every query fails with a
+Prisma P1010 "denied access" error the moment the app container restarts
+with a plain connection string. This took production down once; the fix is
+already baked into `terraform/modules/ec2/user_data.sh.tpl`.
 
 ---
 
@@ -301,10 +317,10 @@ ec2_instance_type = "t3.medium"
 ```bash
 terraform apply
 ```
-This replaces the instance (new `user_data` boot), so the Postgres data
-volume is re-created empty unless you've moved to a persistent EBS volume —
-for a real production cutover, migrate to RDS or attach a separate EBS volume
-that survives instance replacement.
+This replaces the instance (new `user_data` boot). Postgres data is
+unaffected — it lives in RDS, not on the instance — but this is still a
+brief-downtime event: the app is unreachable from instance termination until
+the new one finishes booting and passes the ALB health check.
 
 ### Apply Infrastructure Changes
 
@@ -324,11 +340,13 @@ terraform apply -var="deletion_protection=false"   # if not already false
 terraform destroy
 ```
 
-> Database data lives only on the instance's EBS root volume — it is deleted
-> with the instance. Take a manual backup first if needed:
+> `terraform destroy` deletes the RDS instance along with everything else.
+> RDS keeps automated backups per `backup_retention_days`, but take an
+> explicit final snapshot first if you want a durable, standalone copy:
 > ```bash
-> ssh ubuntu@"$(terraform output -raw instance_public_ip)" \
->   "cd /opt/retainer && docker compose exec -T db pg_dump -U app consulthub" > backup.sql
+> aws rds create-db-snapshot \
+>   --db-instance-identifier retainer-prod-postgres \
+>   --db-snapshot-identifier retainer-final-$(date +%Y%m%d)
 > ```
 
 ---
@@ -337,10 +355,23 @@ terraform destroy
 
 This is scoped for **initial users**, not long-term production:
 
-- **Single instance, no HA** — an instance failure takes the app down until
-  Terraform/systemd brings it back.
-- **Postgres on local disk** — no automated backups, no point-in-time
-  recovery. Move to RDS before this holds real customer data long-term.
+- **Single app instance, no HA** — an instance failure takes the app down
+  until Terraform/systemd brings it back. Postgres itself is RDS (managed,
+  automated backups, point-in-time recovery), so this limitation is scoped
+  to the app tier only, not the database.
+- **RDS TLS uses `sslmode=no-verify`** — encrypted in transit, but the
+  client doesn't validate RDS's certificate chain against a CA. Full
+  verification means vendoring Amazon's RDS CA bundle
+  (`https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem`) and
+  passing it via `ssl.ca` in `src/lib/prisma.ts` instead of relying on the
+  connection string alone.
+- **Self-hosted runner reliability** — `ci.yml`/`deploy.yml` depend on a
+  self-hosted runner (see "CI/CD Setup" above) that has intermittently shown
+  0 registered runners (`gh api repos/OWNER/REPO/actions/runners`) between
+  jobs, possibly ephemeral (spins up, runs one job, deregisters). Don't
+  assume a push auto-deployed — check `gh run list --branch main` after
+  pushing, and fall back to the manual "Deploy a New Version" steps above if
+  nothing picks the job up.
 - **No rolling deploys** — `deploy.yml` restarts the single instance in place,
   so there's a brief window of downtime on every deploy (a few seconds for
   the container to restart, longer if a migration runs). Fine for initial
