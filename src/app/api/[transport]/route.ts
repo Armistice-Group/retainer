@@ -12,7 +12,7 @@ import {
   deleteTimeEntry,
   TimeEntryError,
 } from "@/lib/services/time-entries";
-import { generateInvoice, InvoiceError } from "@/lib/services/invoices";
+import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/services/invoices";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -768,7 +768,10 @@ const handler = createMcpHandler(
       { invoiceId: z.string() },
       async ({ invoiceId }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+        const invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { client: { select: { name: true } } },
+        });
         if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
         if (invoice.status !== "DRAFT") return errorResult("Only draft invoices can be sent.");
 
@@ -779,6 +782,13 @@ const handler = createMcpHandler(
           where: { id: invoiceId },
           data: { status: "SENT" },
         });
+
+        const org = await prisma.organization.findUniqueOrThrow({
+          where: { id: ctx.orgId },
+          select: { id: true, name: true, slackWebhookUrl: true },
+        });
+        await notifyInvoiceStatusChange(org, { ...updated, client: invoice.client }, "SENT");
+
         return text(updated);
       }
     );
@@ -789,13 +799,23 @@ const handler = createMcpHandler(
       { invoiceId: z.string(), paymentMethod: z.string().max(100).optional() },
       async ({ invoiceId, paymentMethod }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+        const invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { client: { select: { name: true } } },
+        });
         if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
 
         const updated = await prisma.invoice.update({
           where: { id: invoiceId },
           data: { status: "PAID", ...(paymentMethod ? { paymentMethod } : {}) },
         });
+
+        const org = await prisma.organization.findUniqueOrThrow({
+          where: { id: ctx.orgId },
+          select: { id: true, name: true, slackWebhookUrl: true },
+        });
+        await notifyInvoiceStatusChange(org, { ...updated, client: invoice.client }, "PAID");
+
         return text(updated);
       }
     );

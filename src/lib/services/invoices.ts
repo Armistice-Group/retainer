@@ -2,8 +2,63 @@ import "server-only";
 import { Prisma, type Role } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
+import { notify, getOrgAdminUserIds, getOrgOwnerEmail } from "@/lib/notifications";
+import { postToSlack } from "@/lib/slack";
+import { sendEmail } from "@/lib/email";
+import { InvoiceStatusEmail } from "@/emails/invoice-status-email";
+import { formatCurrency } from "@/lib/format";
+import { getOrigin } from "@/lib/url";
 
 export class InvoiceError extends Error {}
+
+// Shared by the web UI (setInvoiceStatusAction) and the MCP
+// mark_invoice_sent/mark_invoice_paid tools — same notification behavior
+// (in-app, Slack, email) regardless of which surface changed the status.
+export async function notifyInvoiceStatusChange(
+  org: { id: string; name: string; slackWebhookUrl: string | null },
+  invoice: {
+    id: string;
+    number: string;
+    total: Prisma.Decimal;
+    currency: string;
+    client: { name: string };
+  },
+  status: "SENT" | "PAID"
+) {
+  const origin = await getOrigin();
+  const invoiceUrl = `${origin}/invoices/${invoice.id}`;
+  const total = formatCurrency(invoice.total, invoice.currency);
+  const verb = status === "PAID" ? "was paid" : "was sent";
+  const message = `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`;
+
+  const adminIds = await getOrgAdminUserIds(prisma, org.id);
+  await notify(prisma, {
+    orgId: org.id,
+    userIds: adminIds,
+    type: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
+    message,
+    link: `/invoices/${invoice.id}`,
+  });
+
+  await postToSlack(org.slackWebhookUrl, message);
+
+  const ownerEmail = await getOrgOwnerEmail(prisma, org.id);
+  if (ownerEmail) {
+    await sendEmail({
+      to: ownerEmail,
+      subject: `${status === "PAID" ? "Paid" : "Sent"}: invoice ${invoice.number}`,
+      react: InvoiceStatusEmail({
+        orgName: org.name,
+        invoiceNumber: invoice.number,
+        clientName: invoice.client.name,
+        total,
+        status: status === "PAID" ? "paid" : "sent",
+        invoiceUrl,
+        origin,
+      }),
+    });
+  }
+}
 
 export function round2(n: number) {
   return Math.round(n * 100) / 100;

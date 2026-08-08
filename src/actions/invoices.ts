@@ -2,21 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { generateInvoiceSchema, paymentTermsValues } from "@/lib/validations/invoice";
-import { notify, getOrgAdminUserIds, getOrgOwnerEmail } from "@/lib/notifications";
-import { postToSlack } from "@/lib/slack";
-import { sendEmail } from "@/lib/email";
-import { InvoiceStatusEmail } from "@/emails/invoice-status-email";
-import { formatCurrency } from "@/lib/format";
-import { getOrigin } from "@/lib/url";
 import {
   generateInvoice,
   recomputeInvoiceTotals,
   round2,
   InvoiceError,
+  notifyInvoiceStatusChange,
 } from "@/lib/services/invoices";
 import {
   pushInvoiceToQuickBooks,
@@ -188,52 +182,6 @@ export async function removeLineItemAction(lineItemId: string, invoiceId: string
   });
 
   revalidatePath(`/invoices/${invoiceId}`);
-}
-
-async function notifyInvoiceStatusChange(
-  org: { id: string; name: string; slackWebhookUrl: string | null },
-  invoice: {
-    id: string;
-    number: string;
-    total: Prisma.Decimal;
-    currency: string;
-    client: { name: string };
-  },
-  status: "SENT" | "PAID"
-) {
-  const origin = await getOrigin();
-  const invoiceUrl = `${origin}/invoices/${invoice.id}`;
-  const total = formatCurrency(invoice.total, invoice.currency);
-  const verb = status === "PAID" ? "was paid" : "was sent";
-  const message = `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`;
-
-  const adminIds = await getOrgAdminUserIds(prisma, org.id);
-  await notify(prisma, {
-    orgId: org.id,
-    userIds: adminIds,
-    type: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
-    message,
-    link: `/invoices/${invoice.id}`,
-  });
-
-  await postToSlack(org.slackWebhookUrl, message);
-
-  const ownerEmail = await getOrgOwnerEmail(prisma, org.id);
-  if (ownerEmail) {
-    await sendEmail({
-      to: ownerEmail,
-      subject: `${status === "PAID" ? "Paid" : "Sent"}: invoice ${invoice.number}`,
-      react: InvoiceStatusEmail({
-        orgName: org.name,
-        invoiceNumber: invoice.number,
-        clientName: invoice.client.name,
-        total,
-        status: status === "PAID" ? "paid" : "sent",
-        invoiceUrl,
-        origin,
-      }),
-    });
-  }
 }
 
 export async function setInvoiceStatusAction(
