@@ -68,32 +68,49 @@ export default async function InvoicesPage() {
           <TableBody>
             {invoices.map((invoice) => (
               <TableRow key={invoice.id} className="cursor-pointer">
-                <TableCell>
-                  <Link href={`/invoices/${invoice.id}`} className="font-medium hover:underline">
+                <TableCell className="p-0">
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className="block p-2 font-medium hover:underline"
+                  >
                     {invoice.number}
                   </Link>
                 </TableCell>
-                <TableCell>{invoice.client.name}</TableCell>
-                <TableCell>
-                  <StatusBadge status={invoice.status} />
+                <TableCell className="p-0">
+                  <Link href={`/invoices/${invoice.id}`} className="block p-2">
+                    {invoice.client.name}
+                  </Link>
                 </TableCell>
-                <TableCell
-                  className={cn(
-                    "tabular-figures",
-                    isOverdue(invoice.status, invoice.dueDate)
-                      ? "font-medium text-destructive"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {formatDate(invoice.dueDate)}
-                  {isOverdue(invoice.status, invoice.dueDate) ? (
-                    <span className="ml-1.5 text-xs">
-                      ({daysOverdue(invoice.dueDate)}d overdue)
-                    </span>
-                  ) : null}
+                <TableCell className="p-0">
+                  <Link href={`/invoices/${invoice.id}`} className="block p-2">
+                    <StatusBadge status={invoice.status} />
+                  </Link>
                 </TableCell>
-                <TableCell className="tabular-figures text-right font-medium">
-                  {formatCurrency(invoice.total, invoice.currency)}
+                <TableCell className="p-0">
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className={cn(
+                      "block p-2 tabular-figures",
+                      isOverdue(invoice.status, invoice.dueDate)
+                        ? "font-medium text-destructive"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {formatDate(invoice.dueDate)}
+                    {isOverdue(invoice.status, invoice.dueDate) ? (
+                      <span className="ml-1.5 text-xs">
+                        ({daysOverdue(invoice.dueDate)}d overdue)
+                      </span>
+                    ) : null}
+                  </Link>
+                </TableCell>
+                <TableCell className="p-0">
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className="block p-2 text-right tabular-figures font-medium"
+                  >
+                    {formatCurrency(invoice.total, invoice.currency)}
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}

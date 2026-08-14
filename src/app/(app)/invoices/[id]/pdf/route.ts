@@ -9,7 +9,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    include: { client: true, org: true, lineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      client: true,
+      org: true,
+      lineItems: {
+        orderBy: { sortOrder: "asc" },
+        include: { timeEntries: { select: { id: true } } },
+      },
+    },
   });
 
   if (!invoice || invoice.orgId !== org.id) {

@@ -26,6 +26,7 @@ import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
 import { ClientDocumentsCard } from "./client-documents-card";
 import { ClientShareLinkCard } from "./client-share-link-card";
+import { ClientInvoicesCard } from "./client-invoices-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -60,6 +61,33 @@ export default async function ClientDetailPage({
 
   const canManage = role === "OWNER" || role === "ADMIN";
   const origin = canManage ? await getOrigin() : "";
+
+  const [invoices, retainerAgg, loggedAgg] = await Promise.all([
+    prisma.invoice.findMany({ where: { clientId: client.id }, orderBy: { createdAt: "desc" } }),
+    prisma.invoice.aggregate({
+      where: { clientId: client.id, status: { not: "VOID" }, retainerHoursIncluded: { not: null } },
+      _sum: { retainerHoursIncluded: true },
+    }),
+    prisma.timeEntry.aggregate({
+      where: { project: { clientId: client.id } },
+      _sum: { hours: true },
+    }),
+  ]);
+
+  const invoiceItems = invoices.map((inv) => ({
+    id: inv.id,
+    number: inv.number,
+    status: inv.status,
+    dueDate: inv.dueDate.toISOString(),
+    total: Number(inv.total),
+    currency: inv.currency,
+  }));
+
+  const entitledHours = Number(retainerAgg._sum.retainerHoursIncluded ?? 0);
+  const retainerBalance =
+    entitledHours > 0
+      ? { entitledHours, loggedHours: Number(loggedAgg._sum.hours ?? 0) }
+      : null;
 
   const documentItems = client.documents.map((d) => ({
     id: d.id,
@@ -332,6 +360,12 @@ export default async function ClientDetailPage({
               )}
             </CardContent>
           </Card>
+
+          <ClientInvoicesCard
+            clientId={client.id}
+            invoices={invoiceItems}
+            retainerBalance={retainerBalance}
+          />
 
           {canManage ? (
             <ClientShareLinkCard

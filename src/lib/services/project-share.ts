@@ -11,7 +11,7 @@ export async function getProjectByShareToken(token: string) {
     where: { shareToken: token },
     include: {
       client: true,
-      org: true,
+      org: { include: { mercuryConnection: { select: { destinationAccountId: true } } } },
       milestones: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
     },
   });
@@ -67,7 +67,14 @@ export async function getShareTokenInvoiceIfAuthorized(token: string, invoiceId:
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: { client: true, org: true, lineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      client: true,
+      org: true,
+      lineItems: {
+        orderBy: { sortOrder: "asc" },
+        include: { timeEntries: { select: { id: true } } },
+      },
+    },
   });
   if (!invoice) return null;
   if (invoice.status !== "SENT" && invoice.status !== "PAID") return null;

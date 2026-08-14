@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, planForPriceId } from "@/lib/stripe";
+import { notifyInvoiceStatusChange } from "@/lib/services/invoices";
 
 // Stripe is the only source of truth for whether an org is actually paying —
 // this webhook is what flips Organization.plan, never anything client-driven.
@@ -31,17 +32,26 @@ export async function POST(req: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+
+      // Invoice "Pay now" checkout (Stripe Connect, destination charge on the
+      // platform account) — distinct from a subscription checkout below.
+      if (session.mode === "payment" && session.metadata?.invoiceId) {
+        await handleInvoicePaymentCompleted(session);
+        break;
+      }
+
       const orgId = session.client_reference_id ?? session.metadata?.orgId;
       const customerId =
         typeof session.customer === "string" ? session.customer : session.customer?.id;
       const subscriptionId =
         typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+      const tier = session.metadata?.tier === "growth" ? "GROWTH" : "PAID";
 
       if (orgId && customerId) {
         await prisma.organization.update({
           where: { id: orgId },
           data: {
-            plan: "PAID",
+            plan: tier,
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId ?? null,
             stripeSubscriptionStatus: "active",
@@ -59,10 +69,12 @@ export async function POST(req: Request) {
       });
       if (org) {
         const active = subscription.status === "active" || subscription.status === "trialing";
+        const priceId = subscription.items.data[0]?.price.id;
+        const tier = priceId ? planForPriceId(priceId) : null;
         await prisma.organization.update({
           where: { id: org.id },
           data: {
-            plan: active ? "PAID" : "FREE",
+            plan: active ? (tier ?? "PAID") : "FREE",
             stripeSubscriptionId: subscription.id,
             stripeSubscriptionStatus: subscription.status,
           },
@@ -83,6 +95,10 @@ export async function POST(req: Request) {
             plan: "FREE",
             stripeSubscriptionId: null,
             stripeSubscriptionStatus: "canceled",
+            // Stripe Connect is a Growth-plan perk — losing the subscription
+            // shouldn't leave a dangling "charges enabled" flag that lets
+            // invoices keep showing a Pay Now button nobody's paying for.
+            stripeConnectChargesEnabled: false,
           },
         });
       }
@@ -94,4 +110,31 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+async function handleInvoicePaymentCompleted(session: Stripe.Checkout.Session) {
+  const invoiceId = session.metadata?.invoiceId;
+  const paymentIntentId =
+    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  if (!invoiceId || !paymentIntentId) return;
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { client: true, org: true },
+  });
+  // Idempotency: a webhook can be retried/redelivered — if this invoice
+  // already recorded a (possibly different) payment intent, or is already
+  // paid, don't re-run the side effects a second time.
+  if (!invoice || invoice.status === "PAID" || invoice.stripePaymentIntentId) return;
+
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: "PAID",
+      stripeCheckoutSessionId: session.id,
+      stripePaymentIntentId: paymentIntentId,
+    },
+  });
+
+  await notifyInvoiceStatusChange(invoice.org, invoice, "PAID");
 }

@@ -3,10 +3,16 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
-import { getStripe, stripePriceId, isStripeConfigured, type BillingInterval } from "@/lib/stripe";
+import {
+  getStripe,
+  stripePriceId,
+  isStripeConfigured,
+  type BillingInterval,
+  type BillingTier,
+} from "@/lib/stripe";
 import { getOrigin } from "@/lib/url";
 
-export async function startCheckoutAction(interval: BillingInterval) {
+export async function startCheckoutAction(tier: BillingTier, interval: BillingInterval) {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
@@ -35,12 +41,12 @@ export async function startCheckoutAction(interval: BillingInterval) {
     mode: "subscription",
     customer: customerId,
     client_reference_id: org.id,
-    line_items: [{ price: stripePriceId(interval), quantity: 1 }],
+    line_items: [{ price: stripePriceId(tier, interval), quantity: 1 }],
     allow_promotion_codes: true,
     success_url: `${origin}/settings/billing?checkout=success`,
     cancel_url: `${origin}/settings/billing?checkout=cancelled`,
-    metadata: { orgId: org.id, interval },
-    subscription_data: { metadata: { orgId: org.id, interval } },
+    metadata: { orgId: org.id, interval, tier },
+    subscription_data: { metadata: { orgId: org.id, interval, tier } },
   });
 
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download } from "lucide-react";
+import { Download, Landmark, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
 import { getProjectByShareToken } from "@/lib/services/project-share";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -27,6 +28,7 @@ export default async function SharedProjectPage({
   const logoSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
+  const paymentInstructions = project.client.paymentInstructions ?? org.paymentInstructions;
 
   const budgetHours = project.budgetHours != null ? Number(project.budgetHours) : null;
   const budgetPercent =
@@ -161,41 +163,72 @@ export default async function SharedProjectPage({
               <CardTitle className="text-base">Invoices</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col divide-y divide-border p-0">
-              {invoices.map((inv) => (
-                <a
-                  key={inv.id}
-                  href={`/share/${token}/invoices/${inv.id}/pdf`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between gap-4 px-6 py-3 hover:bg-muted/40"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{inv.number}</p>
-                      <StatusBadge status={inv.status} />
-                    </div>
-                    <p
-                      className={cn(
-                        "text-xs",
-                        isOverdue(inv.status, inv.dueDate)
-                          ? "font-medium text-destructive"
-                          : "text-muted-foreground"
-                      )}
+              {invoices.map((inv) => {
+                const canPay =
+                  inv.status === "SENT" &&
+                  org.plan === "GROWTH" &&
+                  (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
+                return (
+                  <div
+                    key={inv.id}
+                    className="flex flex-col gap-3 px-6 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <a
+                      href={`/share/${token}/invoices/${inv.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-w-0 flex-1 items-center justify-between gap-4 hover:underline"
                     >
-                      Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
-                      {isOverdue(inv.status, inv.dueDate)
-                        ? ` · ${daysOverdue(inv.dueDate)}d overdue`
-                        : ""}
-                    </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{inv.number}</p>
+                          <StatusBadge status={inv.status} />
+                        </div>
+                        <p
+                          className={cn(
+                            "text-xs",
+                            isOverdue(inv.status, inv.dueDate)
+                              ? "font-medium text-destructive"
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
+                          {isOverdue(inv.status, inv.dueDate)
+                            ? ` · ${daysOverdue(inv.dueDate)}d overdue`
+                            : ""}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="tabular-figures text-sm font-medium">
+                          {formatCurrency(inv.total, inv.currency)}
+                        </span>
+                        <Download className="size-4 text-muted-foreground" />
+                      </div>
+                    </a>
+                    {canPay ? (
+                      <Button size="sm" asChild className="shrink-0">
+                        <a href={`/share/${token}/invoices/${inv.id}/pay`}>
+                          <CreditCard className="size-3.5" /> Pay now
+                        </a>
+                      </Button>
+                    ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className="tabular-figures text-sm font-medium">
-                      {formatCurrency(inv.total, inv.currency)}
-                    </span>
-                    <Download className="size-4 text-muted-foreground" />
-                  </div>
-                </a>
-              ))}
+                );
+              })}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {paymentInstructions ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-2">
+              <Landmark className="size-4 text-muted-foreground" />
+              <CardTitle className="text-base">Payment details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-line text-sm text-muted-foreground">
+                {paymentInstructions}
+              </p>
             </CardContent>
           </Card>
         ) : null}

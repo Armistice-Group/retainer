@@ -11,7 +11,7 @@ export async function getClientByShareToken(token: string) {
   const client = await prisma.client.findUnique({
     where: { shareToken: token },
     include: {
-      org: true,
+      org: { include: { mercuryConnection: { select: { destinationAccountId: true } } } },
       projects: {
         where: { confidential: false },
         orderBy: { createdAt: "desc" },
@@ -80,7 +80,14 @@ export async function getClientShareTokenInvoiceIfAuthorized(token: string, invo
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
-    include: { client: true, org: true, lineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      client: true,
+      org: true,
+      lineItems: {
+        orderBy: { sortOrder: "asc" },
+        include: { timeEntries: { select: { id: true } } },
+      },
+    },
   });
   if (!invoice || invoice.clientId !== client.id) return null;
   if (invoice.status !== "SENT" && invoice.status !== "PAID") return null;
