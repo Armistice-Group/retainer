@@ -89,7 +89,7 @@ export default async function TimePage({
     <TimeEntryDialog
       projects={projectOptions}
       tasks={tasks}
-      canManageTeam={teamView}
+      canManageTeam={canManageTeam}
       teamMembers={memberOptions}
     />
   );
@@ -240,7 +240,7 @@ export default async function TimePage({
                             <TimeEntryDialog
                               projects={projectOptions}
                               tasks={tasks}
-                              canManageTeam={teamView}
+                              canManageTeam={canManageTeam}
                               teamMembers={memberOptions}
                               editValues={{
                                 id: entry.id,
