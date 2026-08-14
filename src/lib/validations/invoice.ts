@@ -59,10 +59,12 @@ export const orgGeneralSchema = z.object({
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
+  paymentInstructions: z.string().trim().max(2000).optional().or(z.literal("")),
+  paymentInstructionsPrivate: z.boolean().default(false),
   brandColor: z
     .string()
     .trim()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Enter a hex color, e.g. #7c5cf4")
+    .regex(/^#[0-9a-fA-F]{6}$/, "Enter a hex color, e.g. #4f6df5")
     .optional()
     .or(z.literal("")),
 });

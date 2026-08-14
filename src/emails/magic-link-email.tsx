@@ -24,7 +24,7 @@ export function MagicLinkEmail({ loginUrl, origin }: { loginUrl: string; origin:
           <Button
             href={loginUrl}
             style={{
-              backgroundColor: "#7c5cf4",
+              backgroundColor: "#4f6df5",
               color: "#ffffff",
               padding: "10px 20px",
               borderRadius: 8,

@@ -40,6 +40,7 @@ export async function submitContactFormAction(
     await sendEmail({
       to: CONTACT_INBOX,
       subject: `Contact form: ${parsed.data.name}${parsed.data.company ? ` (${parsed.data.company})` : ""}`,
+      replyTo: parsed.data.email,
       react: ContactInquiryEmail({
         name: parsed.data.name,
         email: parsed.data.email,

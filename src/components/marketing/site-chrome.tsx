@@ -29,6 +29,9 @@ export function SiteHeader({
             <Link href="/pricing" className="hover:text-foreground">
               Pricing
             </Link>
+            <Link href="/compare" className="hover:text-foreground">
+              Compare
+            </Link>
           </nav>
         ) : null}
         <div className="flex items-center gap-2">
@@ -48,6 +51,11 @@ export function SiteHeader({
                 <DropdownMenuItem asChild>
                   <Link href="/pricing" className="font-mono text-xs tracking-wide uppercase">
                     Pricing
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/compare" className="font-mono text-xs tracking-wide uppercase">
+                    Compare
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -98,6 +106,9 @@ export function SiteFooter({ isAuthenticated }: { isAuthenticated: boolean }) {
           <Link href="/pricing" className="hover:text-foreground">
             Pricing
           </Link>
+          <Link href="/compare" className="hover:text-foreground">
+            Compare
+          </Link>
           <Link href="/security" className="hover:text-foreground">
             Security
           </Link>
@@ -133,6 +144,11 @@ export function ClosingCta({ isAuthenticated }: { isAuthenticated: boolean }) {
             {isAuthenticated ? "Go to dashboard" : "Start free"} <ArrowRight className="size-4" />
           </Link>
         </Button>
+        {!isAuthenticated ? (
+          <p className="text-sm text-muted-foreground">
+            Free for up to 2 clients. No credit card required.
+          </p>
+        ) : null}
       </div>
     </section>
   );

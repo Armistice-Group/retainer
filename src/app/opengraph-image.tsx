@@ -26,7 +26,7 @@ export default function OpengraphImage() {
             borderRadius: 20,
             alignItems: "center",
             justifyContent: "center",
-            background: "#7c5cf4",
+            background: "#4f6df5",
             color: "#ffffff",
             fontSize: 68,
             fontWeight: 700,

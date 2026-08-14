@@ -19,27 +19,22 @@ const FEATURES = [
   {
     icon: Building2,
     title: "Clients & engagements",
-    body: "Every engagement's contacts, staging URLs, and Drive folders live on its page — not scattered across a doc you have to hunt for.",
+    body: "Every client's contacts, links, and history in one place — not scattered across old email threads.",
   },
   {
     icon: GitBranch,
     title: "Projects, tasks & Linear",
-    body: "Projects carry their own team and bill rate, and pull real issues in from Linear — assign actual backlog items, not a bucket for hours.",
+    body: "Projects carry their own team and bill rate, synced straight from Linear, so hours never post at the wrong rate.",
   },
   {
     icon: Clock,
     title: "Time tracking",
-    body: "A weekly view for your own hours, a team view for owners — with rate overrides and reassignment when the standard rate doesn't apply.",
+    body: "Log hours as you go, override the rate when it's not standard — nothing billable slips through unlogged.",
   },
   {
     icon: FileText,
     title: "Milestones, invoicing & QuickBooks",
-    body: "Bill hourly from unbilled time or fixed-price by milestone with evidence attached, then download a PDF or push straight to QuickBooks.",
-  },
-  {
-    icon: Bot,
-    title: "API & MCP for your AI agent",
-    body: "A REST API and a real MCP server — see your tasks, log hours against them, or generate an invoice straight from Claude Code, Cursor, or any MCP-compatible agent, without opening a browser tab.",
+    body: "Bill hourly from logged time or fixed-price with evidence attached, then send a PDF or push to QuickBooks same-day.",
   },
 ] as const;
 
@@ -49,7 +44,7 @@ export function LandingPage({ isAuthenticated }: { isAuthenticated: boolean }) {
       <SiteHeader isAuthenticated={isAuthenticated} />
       <main className="flex-1">
         <Hero isAuthenticated={isAuthenticated} />
-        <ReplacesRow />
+        <PainPath />
         <Features />
         <McpSpotlight />
         <Comparison />
@@ -67,14 +62,11 @@ function Hero({ isAuthenticated }: { isAuthenticated: boolean }) {
     <section className="mx-auto grid w-full max-w-6xl gap-12 px-6 py-20 lg:grid-cols-2 lg:items-center lg:py-28">
       <div>
         <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Built to ship engagements, not manage them.
+          You did the work. Did you get paid for all of it?
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Client contacts, tasks, logged hours, and invoices end up scattered
-          across five different tools — so proving what shipped takes longer
-          than shipping it. Consultainer keeps the whole engagement in one
-          place, synced from Linear and billed from time your AI coding agent
-          already logged.
+          Every unlogged hour and late invoice is money walking out the door.
+          Consultainer closes the gap — automatically.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">
           {isAuthenticated ? (
@@ -179,26 +171,53 @@ function TaskPreview() {
   );
 }
 
-function ReplacesRow() {
-  const items = ["A timer app", "A separate invoicing tool", "A doc of client logins"];
+const PAIN_STEPS = [
+  {
+    who: "You (or Claude Code, Codex, Cursor)",
+    action: "ship the fix and close out the PR.",
+  },
+  {
+    who: "You, later",
+    action: "switch to Linear and mark the task done — if you remember to.",
+  },
+  {
+    who: "You, at invoice time",
+    action: "switch to a timer or spreadsheet and reconstruct the hours from memory.",
+  },
+  {
+    who: "You, again",
+    action: "switch to an invoicing tool and rebuild every line item by hand, hoping the rate's right.",
+  },
+] as const;
+
+function PainPath() {
   return (
     <section className="border-y border-border bg-card/40">
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:justify-center sm:gap-6 sm:text-left">
-        <p className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
-          Replaces:
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {items.map((item, i) => (
-            <span key={item} className="flex items-center gap-2">
-              <Badge variant="outline" className="font-mono font-normal">
-                {item}
-              </Badge>
-              {i < items.length - 1 ? (
-                <span className="text-muted-foreground">+</span>
-              ) : null}
-            </span>
+      <div className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mb-10 max-w-xl">
+          <p className="font-mono text-xs tracking-wide text-primary/70 uppercase">
+            The path we&apos;re replacing
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-balance">
+            Four tools, four context switches, one invoice built from memory
+          </h2>
+        </div>
+        <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4">
+          {PAIN_STEPS.map((step, i) => (
+            <div key={step.action} className="flex flex-col gap-2 bg-background p-5">
+              <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
+              <p className="text-sm leading-relaxed">
+                <span className="text-foreground">{step.who}</span>{" "}
+                <span className="text-muted-foreground">{step.action}</span>
+              </p>
+            </div>
           ))}
         </div>
+        <p className="mt-6 max-w-2xl text-muted-foreground">
+          Consultainer collapses this into one flow: the task syncs from Linear, the time your
+          agent logs (or you log) ties straight to it, and the invoice drafts itself from
+          what&apos;s actually unbilled — at the right rate, automatically.
+        </p>
       </div>
     </section>
   );
@@ -209,28 +228,19 @@ function Features() {
     <section id="features" className="mx-auto w-full max-w-6xl px-6 py-20">
       <div className="mb-12 max-w-xl">
         <h2 className="text-3xl font-semibold tracking-tight">
-          Built for how engineering consulting actually runs
+          The parts of consulting that actually cost you money when they slip
         </h2>
         <p className="mt-3 text-muted-foreground">
-          Not a generic timer with an invoice bolted on — the parts of the job that
-          actually take time to organize.
+          Not a generic timer with an invoice bolted on — every piece here exists
+          because skipping it is how work goes unbilled.
         </p>
       </div>
-      <div className="grid gap-10 lg:grid-cols-[1.3fr_1fr] lg:items-start">
+      <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div className="flex flex-col divide-y divide-border border-t border-border">
-          {FEATURES.map((feature, i) => (
-            <div
-              key={feature.title}
-              className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-5 gap-y-2 py-6 sm:grid-cols-[3rem_auto_1fr] sm:items-start"
-            >
-              <span className="font-mono text-sm text-primary/60">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <feature.icon
-                className="hidden size-4 self-start text-primary sm:mt-1 sm:block"
-                strokeWidth={1.75}
-              />
-              <div className="col-span-2 sm:col-span-1">
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="flex items-start gap-4 py-5">
+              <feature.icon className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={1.75} />
+              <div>
                 <h3 className="font-medium">{feature.title}</h3>
                 <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
                   {feature.body}
@@ -257,10 +267,9 @@ function McpSpotlight() {
             Run the engagement from your AI agent.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Consultainer ships with a real MCP server — connect Claude Code, Cursor,
-            Codex, Gemini, or any MCP-compatible agent to manage clients and projects,
-            milestones and expenses, tasks and time, and invoices, without opening a
-            browser tab.
+            Claude Code, Cursor, Codex, or any MCP-compatible agent can log the hours
+            it just spent and draft the invoice itself — so billable work doesn&apos;t
+            die in a terminal window nobody ever bills from.
           </p>
         </div>
         <AgentDemo />
@@ -272,13 +281,7 @@ function McpSpotlight() {
 const COMPARISON = [
   { label: "Pricing", consultainer: "Flat per org", harvest: "Per user", toggl: "Per user" },
   {
-    label: "Client & engagement context",
-    consultainer: "Built in",
-    harvest: "Not built for this",
-    toggl: "Not built for this",
-  },
-  {
-    label: "Task sync (Linear, GitHub)",
+    label: "Task sync (Linear)",
     consultainer: "Native",
     harvest: "—",
     toggl: "—",
@@ -305,7 +308,7 @@ const COMPARISON = [
 
 function Comparison() {
   return (
-    <section className="border-y border-border bg-card/40">
+    <section id="comparison" className="border-y border-border bg-card/40">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <div className="mb-12 max-w-xl">
           <h2 className="text-3xl font-semibold tracking-tight text-balance">
