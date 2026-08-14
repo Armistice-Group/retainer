@@ -89,6 +89,12 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
             ))}
           </div>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/notifications" className="justify-center text-sm text-primary">
+            View all
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

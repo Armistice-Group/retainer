@@ -29,6 +29,8 @@ export default async function OrgSettingsPage() {
               externalBillingLabel: org.externalBillingLabel,
               externalBillingUrl: org.externalBillingUrl,
               slackWebhookUrl: org.slackWebhookUrl,
+              paymentInstructions: org.paymentInstructions,
+              paymentInstructionsPrivate: org.paymentInstructionsPrivate,
               brandColor: org.brandColor,
             }}
             readOnly={readOnly}

@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { Clock, FolderKanban, FileWarning, Building2, ArrowRight, ListTodo } from "lucide-react";
+import {
+  Clock,
+  FolderKanban,
+  FileWarning,
+  Building2,
+  ArrowRight,
+  ListTodo,
+  Timer,
+  Send,
+} from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { projectVisibilityWhere } from "@/lib/project-access";
@@ -9,6 +18,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { isOverdue } from "@/lib/invoice-aging";
+import { MaximizeValueCard, type MaximizeValueItem } from "./maximize-value-card";
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -23,8 +33,19 @@ export default async function DashboardPage() {
   const { org, user, role } = await requireOrgContext();
   const weekStart = startOfWeek(new Date());
 
-  const [weekHours, activeProjects, outstandingInvoices, recentEntries, myTasks] =
-    await Promise.all([
+  const canManage = role === "OWNER" || role === "ADMIN";
+
+  const [
+    weekHours,
+    activeProjects,
+    outstandingInvoices,
+    recentEntries,
+    myTasks,
+    unbilledEntries,
+    quickbooksConnection,
+    linearConnection,
+    apiKeyCount,
+  ] = await Promise.all([
       prisma.timeEntry.aggregate({
         where: { orgId: org.id, userId: user.id, date: { gte: weekStart } },
         _sum: { hours: true },
@@ -48,20 +69,91 @@ export default async function DashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
+      prisma.timeEntry.findMany({
+        where: {
+          orgId: org.id,
+          billable: true,
+          invoiceLineItemId: null,
+          project: projectVisibilityWhere(user.id, role),
+        },
+        select: { hours: true, rateOverride: true, projectId: true, userId: true },
+      }),
+      prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }),
+      prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
+      prisma.apiKey.count({ where: { userId: user.id, revokedAt: null } }),
     ]);
 
   const outstandingTotal = outstandingInvoices
     .filter((i) => i.status === "SENT")
     .reduce((sum, i) => sum + Number(i.total), 0);
-  const draftCount = outstandingInvoices.filter((i) => i.status === "DRAFT").length;
+  const draftInvoices = outstandingInvoices.filter((i) => i.status === "DRAFT");
+  const draftCount = draftInvoices.length;
+  const draftTotal = draftInvoices.reduce((sum, i) => sum + Number(i.total), 0);
   const overdueInvoices = outstandingInvoices.filter((i) => isOverdue(i.status, i.dueDate));
   const overdueTotal = overdueInvoices.reduce((sum, i) => sum + Number(i.total), 0);
+
+  const unbilledHours = unbilledEntries.reduce((sum, e) => sum + Number(e.hours), 0);
+  const unbilledProjectMembers = await prisma.projectMember.findMany({
+    where: { projectId: { in: [...new Set(unbilledEntries.map((e) => e.projectId))] } },
+    select: { projectId: true, userId: true, billRate: true },
+  });
+  const unbilledValue = unbilledEntries.reduce((sum, e) => {
+    const rate =
+      e.rateOverride != null
+        ? Number(e.rateOverride)
+        : Number(
+            unbilledProjectMembers.find(
+              (pm) => pm.projectId === e.projectId && pm.userId === e.userId
+            )?.billRate ?? 0
+          );
+    return sum + Number(e.hours) * rate;
+  }, 0);
+
+  const maximizeValueItems: MaximizeValueItem[] = [
+    {
+      key: "quickbooks",
+      label: "Sync invoices to QuickBooks",
+      description: "Push sent invoices straight to your books instead of re-entering them.",
+      href: "/settings/integrations",
+      done: !!quickbooksConnection,
+    },
+    {
+      key: "linear",
+      label: "Pull tasks in from Linear",
+      description: "Assign real backlog items instead of a bucket of hours.",
+      href: "/settings/integrations",
+      done: !!linearConnection,
+    },
+    {
+      key: "slack",
+      label: "Get Slack alerts on invoices & time",
+      description: "Know the moment an invoice is sent, paid, or goes overdue.",
+      href: "/settings#slackWebhookUrl",
+      done: !!org.slackWebhookUrl,
+    },
+    {
+      key: "payment",
+      label: "Set default payment instructions",
+      description: "ACH, a Stripe link, or check details — clients can override this per client.",
+      href: "/settings#paymentInstructions",
+      done: !!org.paymentInstructions,
+    },
+    {
+      key: "mcp",
+      label: "Connect Claude or another AI agent",
+      description: "Log hours and draft invoices straight from the agent doing the work.",
+      href: "/profile",
+      done: apiKeyCount > 0,
+    },
+  ];
 
   return (
     <div>
       <PageHeader title={`Welcome back, ${user.name?.split(" ")[0] ?? ""}`} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {canManage ? <MaximizeValueCard items={maximizeValueItems} /> : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -91,6 +183,25 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
+              Unbilled hours
+            </CardTitle>
+            <Timer className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <p className="tabular-figures text-2xl font-semibold">{unbilledHours.toFixed(1)}</p>
+            {unbilledHours > 0 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                ~{formatCurrency(unbilledValue, org.defaultCurrency)} not yet invoiced
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">Everything billable is invoiced</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Outstanding invoices
             </CardTitle>
             <FileWarning className="size-4 text-muted-foreground" />
@@ -100,7 +211,10 @@ export default async function DashboardPage() {
               {formatCurrency(outstandingTotal, org.defaultCurrency)}
             </p>
             {draftCount > 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">{draftCount} draft{draftCount === 1 ? "" : "s"} not yet sent</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatCurrency(draftTotal, org.defaultCurrency)} in {draftCount} draft
+                {draftCount === 1 ? "" : "s"} not yet sent
+              </p>
             ) : null}
             {overdueInvoices.length > 0 ? (
               <p className="mt-1 text-xs font-medium text-destructive">
@@ -166,6 +280,11 @@ export default async function DashboardPage() {
             <Button variant="ghost" className="justify-start" asChild>
               <Link href="/time">
                 <Clock className="size-4" /> Log time
+              </Link>
+            </Button>
+            <Button variant="ghost" className="justify-start" asChild>
+              <Link href="/invoices/new">
+                <Send className="size-4" /> Send invoice
               </Link>
             </Button>
           </CardContent>
