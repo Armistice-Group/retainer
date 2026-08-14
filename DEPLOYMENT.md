@@ -101,9 +101,7 @@ aws secretsmanager put-secret-value \
   "RESEND_API_KEY":             "",
   "RESEND_FROM_EMAIL":          "",
   "QUICKBOOKS_CLIENT_ID":       "",
-  "QUICKBOOKS_CLIENT_SECRET":   "",
-  "GITHUB_CLIENT_ID":           "",
-  "GITHUB_CLIENT_SECRET":       ""
+  "QUICKBOOKS_CLIENT_SECRET":   ""
 }
 EOF
 )"

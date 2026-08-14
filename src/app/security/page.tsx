@@ -60,8 +60,8 @@ export default async function SecurityPage() {
           <div className="mt-8 flex flex-col divide-y divide-border border-t border-border">
             <Section tag="encryption" title="Encryption everywhere">
               All traffic to Consultainer is served over HTTPS. Your database is encrypted
-              at rest, and OAuth tokens for connected integrations (QuickBooks, GitHub,
-              Linear) are encrypted at rest separately from the data they access.
+              at rest, and OAuth tokens for connected integrations (QuickBooks, Linear)
+              are encrypted at rest separately from the data they access.
             </Section>
 
             <Section tag="auth" title="Account security options">
@@ -95,8 +95,8 @@ export default async function SecurityPage() {
             <Section tag="vendors" title="Vendors we rely on">
               AWS for hosting and infrastructure, Stripe for payment processing (we never
               see full card numbers), Resend for transactional email, and Rybbit for
-              privacy-focused aggregate analytics. Integrations with QuickBooks, GitHub,
-              and Linear are opt-in and only activate when you connect them. See our{" "}
+              privacy-focused aggregate analytics. Integrations with QuickBooks and
+              Linear are opt-in and only activate when you connect them. See our{" "}
               <a href="/privacy" className="text-primary hover:underline">
                 Privacy Policy
               </a>{" "}

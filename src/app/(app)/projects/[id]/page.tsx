@@ -15,7 +15,7 @@ import { AddMemberDialog } from "./add-member-dialog";
 import { EditRateDialog } from "./edit-rate-dialog";
 import { AddTaskDialog } from "./add-task-dialog";
 import { TaskList } from "./task-list";
-import { BudgetCard } from "./budget-card";
+import { ProjectBillingCard, type ProjectInvoiceItem } from "./project-billing-card";
 import { deleteProjectAction, removeProjectMemberAction } from "@/actions/projects";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -63,18 +63,43 @@ export default async function ProjectDetailPage({
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
 
-  const [loggedHours, taskHoursByTask, linearConnection, orgMembers] = await Promise.all([
-    project.budgetHours
-      ? prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } })
-      : Promise.resolve(null),
-    prisma.timeEntry.groupBy({
-      by: ["taskId"],
-      where: { projectId: project.id, taskId: { not: null } },
-      _sum: { hours: true },
-    }),
-    prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
-    prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
-  ]);
+  const [totalLoggedHours, taskHoursByTask, linearConnection, orgMembers, projectLineItems] =
+    await Promise.all([
+      prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
+      prisma.timeEntry.groupBy({
+        by: ["taskId"],
+        where: { projectId: project.id, taskId: { not: null } },
+        _sum: { hours: true },
+      }),
+      prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
+      prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
+      prisma.invoiceLineItem.findMany({
+        where: { projectId: project.id },
+        include: { invoice: true },
+        orderBy: { invoice: { createdAt: "desc" } },
+      }),
+    ]);
+
+  const invoiceMap = new Map<string, ProjectInvoiceItem>();
+  let invoicedTotal = 0;
+  for (const li of projectLineItems) {
+    const amount = Number(li.amount);
+    if (li.invoice.status !== "VOID") invoicedTotal += amount;
+    const existing = invoiceMap.get(li.invoiceId);
+    if (existing) {
+      existing.lineItemTotal += amount;
+    } else {
+      invoiceMap.set(li.invoiceId, {
+        id: li.invoice.id,
+        number: li.invoice.number,
+        status: li.invoice.status,
+        dueDate: li.invoice.dueDate.toISOString(),
+        lineItemTotal: amount,
+        currency: li.invoice.currency,
+      });
+    }
+  }
+  const projectInvoices = Array.from(invoiceMap.values());
   const actualHoursByTask = new Map(
     taskHoursByTask.map((t) => [t.taskId as string, Number(t._sum.hours ?? 0)])
   );
@@ -168,71 +193,28 @@ export default async function ProjectDetailPage({
         ) : null}
       </div>
 
+      {project.description ? (
+        <p className="mb-6 max-w-3xl text-sm text-muted-foreground">{project.description}</p>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-1">
-          {project.description ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{project.description}</p>
-              </CardContent>
-            </Card>
-          ) : null}
-
-          {project.budgetHours ? (
-            <BudgetCard
-              budgetHours={Number(project.budgetHours)}
-              loggedHours={Number(loggedHours?._sum.hours ?? 0)}
-            />
-          ) : null}
-
-          {project.billingType === "FLAT_FEE" && project.flatFeeAmount ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Flat fee</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-figures">
-                  {formatCurrency(project.flatFeeAmount, org.defaultCurrency)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Add this as a line item when you generate this client&apos;s invoice.
-                </p>
-              </CardContent>
-            </Card>
-          ) : null}
-
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Links</CardTitle>
               <AddLinkDialog projectId={project.id} />
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
               <LinkList links={project.links} redirectPath={`/projects/${project.id}`} />
+              {canManage ? (
+                <ShareLinkCard
+                  projectId={project.id}
+                  shareUrl={project.shareToken ? `${origin}/share/${project.shareToken}` : null}
+                />
+              ) : null}
             </CardContent>
           </Card>
 
-          {linearConnection ? (
-            <LinearSyncCard
-              projectId={project.id}
-              externalName={
-                project.externalLink?.source === "linear" ? project.externalLink.externalName : null
-              }
-              canManage={canManage}
-            />
-          ) : null}
-
-          {canManage ? (
-            <ShareLinkCard
-              projectId={project.id}
-              shareUrl={project.shareToken ? `${origin}/share/${project.shareToken}` : null}
-            />
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-4 lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -319,6 +301,32 @@ export default async function ProjectDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {linearConnection ? (
+            <LinearSyncCard
+              projectId={project.id}
+              externalName={
+                project.externalLink?.source === "linear" ? project.externalLink.externalName : null
+              }
+              canManage={canManage}
+            />
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <ProjectBillingCard
+            clientId={project.client.id}
+            currency={org.defaultCurrency}
+            budgetHours={project.budgetHours ? Number(project.budgetHours) : null}
+            loggedHours={Number(totalLoggedHours._sum.hours ?? 0)}
+            flatFeeAmount={
+              project.billingType === "FLAT_FEE" && project.flatFeeAmount
+                ? Number(project.flatFeeAmount)
+                : null
+            }
+            invoicedTotal={invoicedTotal}
+            invoices={projectInvoices}
+          />
 
           {project.billingType === "MILESTONE" ? (
             <MilestonesCard

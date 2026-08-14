@@ -63,7 +63,7 @@ export default async function PrivacyPage() {
               </p>
               <p className="mt-2">
                 <strong className="text-foreground">Integration data:</strong> if you
-                connect QuickBooks, GitHub, or Linear, we store the OAuth tokens needed to
+                connect QuickBooks or Linear, we store the OAuth tokens needed to
                 act on your behalf (encrypted at rest) and the data you ask us to sync —
                 for example, pushing an invoice to QuickBooks or pulling issues in from
                 Linear as tasks.
@@ -107,7 +107,7 @@ export default async function PrivacyPage() {
                 Only the service providers that make Consultainer work: our hosting
                 infrastructure (AWS), Stripe for payment processing, Resend for
                 transactional email delivery, Rybbit for aggregate analytics, and — solely
-                when you choose to connect them — QuickBooks, GitHub, and Linear. We
+                when you choose to connect them — QuickBooks and Linear. We
                 don&apos;t share Customer Data with anyone else, and we disclose data to
                 law enforcement only when legally required to.
               </p>

@@ -23,9 +23,7 @@ running locally).
 - `introduction.mdx`, `quickstart.mdx` — top-level onboarding.
 - `concepts/` — how clients, projects, time, invoicing, milestones, and
   expenses actually work.
-- `integrations/` — QuickBooks and Linear. GitHub isn't documented here —
-  it's currently only wired to the (retired-from-marketing) code health
-  scanner, not a customer-facing feature.
+- `integrations/` — QuickBooks and Linear.
 - `mcp-server.mdx` — connecting an AI coding agent via MCP.
 - `api-reference/` — the REST API (`/api/v1/*`).
 

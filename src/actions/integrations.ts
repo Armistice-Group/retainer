@@ -12,14 +12,6 @@ export async function disconnectQuickBooksAction() {
   revalidatePath("/settings/integrations");
 }
 
-export async function disconnectGithubAction() {
-  const { org, role } = await requireOrgContext();
-  requireRole(role, ["OWNER", "ADMIN"]);
-
-  await prisma.githubConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings/integrations");
-}
-
 export async function disconnectLinearAction() {
   const { org, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);

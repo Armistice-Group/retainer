@@ -45,8 +45,8 @@ export default async function TermsPage() {
               <p className="mt-2">
                 Consultainer helps consultants and consulting firms manage clients,
                 projects, time tracking, milestones, and invoicing, and offers optional
-                integrations with third-party services (currently QuickBooks Online,
-                GitHub, and Linear) and optional connectivity to AI assistants via the
+                integrations with third-party services (currently QuickBooks Online
+                and Linear) and optional connectivity to AI assistants via the
                 Model Context Protocol (MCP). We may add, change, or remove features at
                 any time.
               </p>
@@ -108,7 +108,7 @@ export default async function TermsPage() {
             <section>
               <h2 className="text-base font-medium text-foreground">6. Third-party integrations</h2>
               <p className="mt-2">
-                Connecting QuickBooks, GitHub, Linear, or any other integration is
+                Connecting QuickBooks, Linear, or any other integration is
                 optional and governed by that provider&apos;s own terms. We&apos;re not
                 responsible for those providers&apos; services, and disconnecting an
                 integration in Consultainer doesn&apos;t automatically revoke access on

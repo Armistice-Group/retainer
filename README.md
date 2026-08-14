@@ -8,7 +8,6 @@ Client, project, and billing management for consultants and contractors. Track c
 - **PostgreSQL** via **Prisma 7** (driver adapters, `@prisma/adapter-pg`)
 - **Auth.js v5** (Credentials provider, JWT sessions) — multi-tenant via an `Organization` → `Membership` model
 - **@react-pdf/renderer** for invoice PDFs, **Resend** for transactional email, Slack incoming webhooks, **QuickBooks Online** (OAuth 2.0) for pushing invoices
-- **AI Code Health**: connect a project's GitHub repo (OAuth 2.0) to scan it for the security/resilience mistakes AI-generated code tends to make, and optionally gate sending an invoice on it passing
 - **REST API + MCP server** for external tools and AI agents (Claude, etc.), authenticated with per-user API keys
 - **Docker Compose** for self-hosting (Postgres + the app), portable to any container host later
 
@@ -92,19 +91,6 @@ Setup:
 4. Click Connect in Settings, authorize, and push a draft/sent invoice from its detail page.
 
 **Why QuickBooks and not Found.com, Novo, or Bill.com:** researched directly against each vendor before building anything. Found.com and Novo are banking apps with invoicing as a built-in feature — neither exposes a public developer API; their "partners" programs are referral/reseller relationships, not integration platforms. Bill.com does have a real API, but its core AR/AP endpoints authenticate via the user's actual BILL.com username/password (no OAuth, no org-scoped key) — storing or handling that felt like the wrong security tradeoff for a self-hosted tool, so it was set aside in favor of QuickBooks' genuine OAuth 2.0 flow.
-
-## AI Code Health
-
-An org owner/admin connects GitHub once (Settings → Organization → AI Code Health); each project can then connect one of the accessible repos and scan it for the mistakes AI-generated code commonly ships with: a committed `.env`, wildcard CORS, a Supabase service-role key leaking into client code, an API route touching the DB with no visible auth check, and a live Stripe key outside `.env.example`. Each finding carries a ready-to-paste fix prompt. The scan reads file contents through the GitHub REST API (tree + contents endpoints) rather than cloning the repo, and is capped to the first 250 candidate text files under 300KB per scan to keep it fast and within a normal request's time budget.
-
-A project can optionally require a clean scan (no critical findings) before an invoice billing that project can be sent — a blocked send shows which projects failed and why, with an explicit "Send anyway" override rather than a silent hard block.
-
-Setup:
-1. `INTEGRATION_ENCRYPTION_KEY` — reused from the QuickBooks setup above; generate one if you haven't already.
-2. Register a GitHub OAuth App at Settings → Developer settings → OAuth Apps → New OAuth App. Set the callback URL to `<your-domain>/api/integrations/github/callback`. Set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` from the app's credentials.
-3. Click Connect under AI Code Health in Settings, authorize, then open a project and click "Connect a repo".
-
-**Scope note:** GitHub OAuth Apps don't offer a read-only repo scope — the `repo` scope needed to read private repos also grants write access. Consultainer only ever calls read endpoints with it, but the token itself is as powerful as any other `repo`-scoped token, so treat the connected GitHub account accordingly (a bot/service account with least-privilege repo access is a reasonable choice if that matters for your org). Access tokens are assumed non-expiring, which is the GitHub OAuth App default; if your app has "token expiration" enabled, you'll need to reconnect periodically since there's no refresh flow here.
 
 ## What's intentionally not built yet
 
