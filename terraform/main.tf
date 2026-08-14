@@ -20,8 +20,6 @@ resource "aws_secretsmanager_secret_version" "app" {
     RESEND_FROM_EMAIL          = ""
     QUICKBOOKS_CLIENT_ID       = ""
     QUICKBOOKS_CLIENT_SECRET   = ""
-    GITHUB_CLIENT_ID           = ""
-    GITHUB_CLIENT_SECRET       = ""
   })
 
   lifecycle {
@@ -99,12 +97,13 @@ module "ec2" {
 
   # Application config — points at the RDS instance (module.rds), not a
   # containerized db on the instance itself.
-  app_domain  = var.root_domain
-  db_host     = module.rds.endpoint
-  db_name     = var.db_name
-  db_username = var.db_username
-  db_password = var.rds_master_password
-  cron_secret = random_password.cron_secret.result
+  app_domain                = var.root_domain
+  db_host                   = module.rds.endpoint
+  db_name                   = var.db_name
+  db_username               = var.db_username
+  db_password               = var.rds_master_password
+  cron_secret               = random_password.cron_secret.result
+  retool_tunnel_public_keys = var.retool_tunnel_public_keys
 
   # EC2 config
   instance_type       = var.ec2_instance_type
@@ -147,13 +146,24 @@ resource "aws_cloudwatch_event_api_destination" "recurring_invoices" {
   connection_arn                   = aws_cloudwatch_event_connection.cron.arn
 }
 
+# Mercury has no invoice-paid webhook (only transaction.created/updated on
+# the org's own accounts), so this destination polls for us on a schedule
+# instead — see src/app/api/cron/mercury-sync/route.ts.
+resource "aws_cloudwatch_event_api_destination" "mercury_sync" {
+  name                             = "${var.name_prefix}-mercury-sync"
+  invocation_endpoint              = "https://${var.root_domain}/api/cron/mercury-sync"
+  http_method                      = "POST"
+  invocation_rate_limit_per_second = 1
+  connection_arn                   = aws_cloudwatch_event_connection.cron.arn
+}
+
 resource "aws_iam_role" "scheduler_cron" {
   name = "${var.name_prefix}-scheduler-cron"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Service = "scheduler.amazonaws.com" }
+      Principal = { Service = "events.amazonaws.com" }
       Action    = "sts:AssumeRole"
     }]
   })
@@ -165,9 +175,12 @@ resource "aws_iam_role_policy" "scheduler_cron_invoke" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = "events:InvokeApiDestination"
-      Resource = aws_cloudwatch_event_api_destination.recurring_invoices.arn
+      Effect = "Allow"
+      Action = "events:InvokeApiDestination"
+      Resource = [
+        aws_cloudwatch_event_api_destination.recurring_invoices.arn,
+        aws_cloudwatch_event_api_destination.mercury_sync.arn,
+      ]
     }]
   })
 }
@@ -175,17 +188,32 @@ resource "aws_iam_role_policy" "scheduler_cron_invoke" {
 # Daily at 13:00 UTC (9am ET) — late enough that overnight time entries from
 # US-hours teams are logged, early enough that a generated draft gets
 # reviewed same business day.
-resource "aws_scheduler_schedule" "recurring_invoices_daily" {
-  name                         = "${var.name_prefix}-recurring-invoices-daily"
-  schedule_expression          = "cron(0 13 * * ? *)"
-  schedule_expression_timezone = "UTC"
+#
+# Uses classic EventBridge Rules, not the newer EventBridge Scheduler —
+# aws_scheduler_schedule's target types don't include "invoke an API
+# destination" (confirmed the hard way: ValidationException on apply).
+# API destinations are an EventBridge Rules concept; aws_cloudwatch_event_rule
+# + aws_cloudwatch_event_target is the combination that actually supports them.
+resource "aws_cloudwatch_event_rule" "recurring_invoices_daily" {
+  name                = "${var.name_prefix}-recurring-invoices-daily"
+  schedule_expression = "cron(0 13 * * ? *)"
+}
 
-  flexible_time_window {
-    mode = "OFF"
-  }
+resource "aws_cloudwatch_event_target" "recurring_invoices_daily" {
+  rule     = aws_cloudwatch_event_rule.recurring_invoices_daily.name
+  arn      = aws_cloudwatch_event_api_destination.recurring_invoices.arn
+  role_arn = aws_iam_role.scheduler_cron.arn
+}
 
-  target {
-    arn      = aws_cloudwatch_event_api_destination.recurring_invoices.arn
-    role_arn = aws_iam_role.scheduler_cron.arn
-  }
+# Hourly — a client who just paid through Mercury expects the invoice to
+# flip to PAID within the hour, not by the next daily run.
+resource "aws_cloudwatch_event_rule" "mercury_sync_hourly" {
+  name                = "${var.name_prefix}-mercury-sync-hourly"
+  schedule_expression = "rate(1 hour)"
+}
+
+resource "aws_cloudwatch_event_target" "mercury_sync_hourly" {
+  rule     = aws_cloudwatch_event_rule.mercury_sync_hourly.name
+  arn      = aws_cloudwatch_event_api_destination.mercury_sync.arn
+  role_arn = aws_iam_role.scheduler_cron.arn
 }

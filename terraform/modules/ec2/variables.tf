@@ -33,6 +33,18 @@ variable "db_password" {
   sensitive = true
 }
 
+# Public keys only — not sensitive. Installs a restricted `retool` user
+# (forced-command, no shell, PermitOpen scoped to the RDS host:port only) so
+# external tools can reach RDS via an SSH tunnel without RDS ever being
+# publicly accessible. A list, not a single key, because a tool like Retool
+# generates and holds its own keypair internally rather than accepting one
+# you hand it — so this ends up needing to carry more than one authorized
+# key over time. Leave empty to skip creating the user.
+variable "retool_tunnel_public_keys" {
+  type    = list(string)
+  default = []
+}
+
 # ── EC2 ───────────────────────────────────────────────────────────────────────
 variable "instance_type" {
   type    = string

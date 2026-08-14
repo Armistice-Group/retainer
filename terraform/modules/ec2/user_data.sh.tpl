@@ -81,11 +81,11 @@ SECRETS=$(aws secretsmanager get-secret-value \
 for key in AUTH_SECRET INTEGRATION_ENCRYPTION_KEY \
            RESEND_API_KEY RESEND_FROM_EMAIL \
            QUICKBOOKS_CLIENT_ID QUICKBOOKS_CLIENT_SECRET \
-           GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET \
            AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET \
            LINEAR_CLIENT_ID LINEAR_CLIENT_SECRET \
            STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
            STRIPE_PRICE_ID_MONTHLY STRIPE_PRICE_ID_YEARLY \
+           STRIPE_PRICE_ID_GROWTH_MONTHLY STRIPE_PRICE_ID_GROWTH_YEARLY \
            ATTIO_API_KEY; do
   value=$(echo "$SECRETS" | jq -r --arg k "$key" '.[$k] // empty')
   [ -n "$value" ] && echo "$key=$value" >> /opt/retainer/.env
@@ -126,5 +126,27 @@ SERVICE_EOF
 systemctl daemon-reload
 systemctl enable retainer
 systemctl start retainer || echo "Initial stack start failed — check /var/log/user-data.log and 'docker compose logs' in /opt/retainer, then: systemctl restart retainer"
+
+# ── Restricted bastion user for external tools (Retool, etc.) to reach RDS ────
+# RDS stays non-publicly-accessible; this user can only forward a single
+# port-forward channel to the RDS host:port, never get a shell, and never
+# reach anything else on the network (e.g. the instance's own IMDS endpoint).
+# Accepts multiple keys (see the variable comment) — re-run-safe, skips
+# entirely if none were supplied.
+%{ if length(retool_tunnel_public_keys) > 0 }
+id -u retool >/dev/null 2>&1 || useradd -m -s /bin/sh retool
+mkdir -p /home/retool/.ssh
+chmod 700 /home/retool/.ssh
+cat > /home/retool/.ssh/authorized_keys << 'AUTHKEYS_EOF'
+%{ for key in retool_tunnel_public_keys ~}
+command="echo This account only supports SSH port forwarding",no-agent-forwarding,no-X11-forwarding,no-pty,permitopen="${db_host}:5432" ${key}
+%{ endfor ~}
+AUTHKEYS_EOF
+chmod 600 /home/retool/.ssh/authorized_keys
+chown -R retool:retool /home/retool/.ssh
+grep -q '^AllowTcpForwarding' /etc/ssh/sshd_config || echo 'AllowTcpForwarding yes' >> /etc/ssh/sshd_config
+systemctl reload ssh || systemctl reload sshd || true
+echo "retool bastion user configured"
+%{ endif }
 
 echo "=== Retainer EC2 bootstrap complete ==="

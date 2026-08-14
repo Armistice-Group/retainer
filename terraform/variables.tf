@@ -107,6 +107,12 @@ variable "ec2_ssh_allowed_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "retool_tunnel_public_keys" {
+  description = "Public keys for the restricted retool bastion user (Retool -> RDS via SSH tunnel). Not sensitive. Leave empty to skip creating the user."
+  type        = list(string)
+  default     = []
+}
+
 # ── Feature Flags ─────────────────────────────────────────────────────────────
 
 variable "deletion_protection" {

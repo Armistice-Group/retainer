@@ -129,17 +129,18 @@ resource "aws_instance" "app" {
   associate_public_ip_address = true
 
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    aws_region         = var.aws_region
-    app_domain         = var.app_domain
-    db_host            = var.db_host
-    db_name            = var.db_name
-    db_username        = var.db_username
-    db_password        = var.db_password
-    secrets_arn        = var.secrets_arn
-    ecr_repository_url = var.ecr_repository_url
-    ecr_registry       = element(split("/", var.ecr_repository_url), 0)
-    app_version        = var.app_version
-    cron_secret        = var.cron_secret
+    aws_region                = var.aws_region
+    app_domain                = var.app_domain
+    db_host                   = var.db_host
+    db_name                   = var.db_name
+    db_username               = var.db_username
+    db_password               = var.db_password
+    secrets_arn               = var.secrets_arn
+    ecr_repository_url        = var.ecr_repository_url
+    ecr_registry              = element(split("/", var.ecr_repository_url), 0)
+    app_version               = var.app_version
+    cron_secret               = var.cron_secret
+    retool_tunnel_public_keys = var.retool_tunnel_public_keys
   })
 
   # Replace the instance (rather than update in place) if user_data changes,
