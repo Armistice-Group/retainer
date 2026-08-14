@@ -50,3 +50,8 @@ terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.*
 terraform/terraform.tfvars
+.agents/skills/*
+.claude/skills/kerno-calibrate
+
+# Kerno MCP — local security-scan job logs, caches, generated test scenarios
+.kerno/
