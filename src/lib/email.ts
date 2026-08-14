@@ -15,10 +15,12 @@ export async function sendEmail({
   to,
   subject,
   react,
+  replyTo,
 }: {
   to: string;
   subject: string;
   react: ReactElement;
+  replyTo?: string;
 }) {
   const resend = getClient();
   if (!resend) {
@@ -32,7 +34,7 @@ export async function sendEmail({
   const html = await render(react);
 
   try {
-    const { error } = await resend.emails.send({ from, to, subject, html });
+    const { error } = await resend.emails.send({ from, to, subject, html, replyTo });
     if (error) console.warn("Resend returned an error", error);
   } catch (err) {
     console.warn("Failed to send email via Resend", err);

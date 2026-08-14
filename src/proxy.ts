@@ -13,12 +13,23 @@ const PUBLIC_PATHS = [
   "/pricing",
   "/security",
   "/contact",
+  "/compare",
 ];
 // Multi-step flows (magic link, SSO completion, signup/email confirmation)
 // live under these as sub-paths and must be reachable while logged out —
 // an exact-match check on PUBLIC_PATHS alone would bounce them to /login
-// before the page ever gets a chance to sign the user in.
-const PUBLIC_PREFIXES = ["/login/", "/signup/", "/invite/", "/verify-email/", "/share/", "/review/"];
+// before the page ever gets a chance to sign the user in. "/vs/" is here too
+// so every marketing comparison page under it is public without having to
+// remember to add each new competitor slug individually.
+const PUBLIC_PREFIXES = [
+  "/login/",
+  "/signup/",
+  "/invite/",
+  "/verify-email/",
+  "/share/",
+  "/review/",
+  "/vs/",
+];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
