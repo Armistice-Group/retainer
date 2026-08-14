@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,8 @@ type ClientFormValues = {
   address: string | null;
   billingEmail: string | null;
   billingAddress: string | null;
+  paymentInstructions: string | null;
+  paymentInstructionsPrivate: boolean;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -107,6 +110,28 @@ export function ClientForm({
             defaultValue={initialValues?.billingAddress ?? ""}
             placeholder="Defaults to address above if left blank"
           />
+        </div>
+
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="paymentInstructions">Payment instructions (optional override)</Label>
+          <Textarea
+            id="paymentInstructions"
+            name="paymentInstructions"
+            rows={3}
+            defaultValue={initialValues?.paymentInstructions ?? ""}
+            placeholder="Leave blank to use your org's default payment instructions"
+          />
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="paymentInstructionsPrivate"
+              name="paymentInstructionsPrivate"
+              className="mt-0.5"
+              defaultChecked={initialValues?.paymentInstructionsPrivate ?? false}
+            />
+            <Label htmlFor="paymentInstructionsPrivate" className="text-sm font-normal">
+              Keep this off the PDF for this client — show it only on their secure share portal
+            </Label>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 sm:col-span-2 border-t border-border pt-4">

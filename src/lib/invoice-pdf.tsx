@@ -5,7 +5,7 @@ export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
   include: {
     client: true;
     org: true;
-    lineItems: true;
+    lineItems: { include: { timeEntries: { select: { id: true } } } };
   };
 }>;
 
@@ -87,6 +87,14 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
   const billEmail = invoice.client.billingEmail || invoice.client.email;
   const billAddress = invoice.client.billingAddress || invoice.client.address;
+  // Client-level payment instructions override the org default entirely
+  // (including the private flag) when set — a client with different payment
+  // terms shouldn't have the org default's privacy setting bleed through.
+  const paymentInstructions = invoice.client.paymentInstructions ?? invoice.org.paymentInstructions;
+  const paymentInstructionsPrivate =
+    invoice.client.paymentInstructions != null
+      ? (invoice.client.paymentInstructionsPrivate ?? false)
+      : invoice.org.paymentInstructionsPrivate;
   const logoSrc = invoice.org.logoData
     ? `data:${invoice.org.logoContentType};base64,${Buffer.from(invoice.org.logoData).toString("base64")}`
     : invoice.org.logoUrl;
@@ -138,14 +146,23 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
             <Text style={[styles.colRate, styles.headerText]}>Rate</Text>
             <Text style={[styles.colAmount, styles.headerText]}>Amount</Text>
           </View>
-          {invoice.lineItems.map((item) => (
-            <View style={styles.tableRow} key={item.id}>
-              <Text style={styles.colDesc}>{item.description}</Text>
-              <Text style={styles.colQty}>{Number(item.quantity)}</Text>
-              <Text style={styles.colRate}>{formatCurrency(item.rate, invoice.currency)}</Text>
-              <Text style={styles.colAmount}>{formatCurrency(item.amount, invoice.currency)}</Text>
-            </View>
-          ))}
+          {invoice.lineItems.map((item) => {
+            const isHourly = item.timeEntries.length > 0;
+            return (
+              <View style={styles.tableRow} key={item.id}>
+                <Text style={styles.colDesc}>{item.description}</Text>
+                <Text style={styles.colQty}>
+                  {Number(item.quantity)}
+                  {isHourly ? " hrs" : ""}
+                </Text>
+                <Text style={styles.colRate}>
+                  {formatCurrency(item.rate, invoice.currency)}
+                  {isHourly ? "/hr" : ""}
+                </Text>
+                <Text style={styles.colAmount}>{formatCurrency(item.amount, invoice.currency)}</Text>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.totalsBlock}>
@@ -164,6 +181,15 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
             </Text>
           </View>
         </View>
+
+        {paymentInstructions && !paymentInstructionsPrivate ? (
+          <View style={styles.notes}>
+            <Text style={styles.label}>Payment Instructions</Text>
+            {paymentInstructions.split("\n").map((line, i) => (
+              <Text key={i}>{line}</Text>
+            ))}
+          </View>
+        ) : null}
 
         {invoice.notes ? (
           <View style={styles.notes}>
