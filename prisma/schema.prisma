@@ -85,30 +85,43 @@ enum NotificationType {
 enum Plan {
   FREE
   PAID
+  // Adds Stripe Connect — the org can collect payment directly on invoices,
+  // not just generate and send them.
+  GROWTH
 }
 
 model Organization {
-  id                   String   @id @default(cuid())
-  name                 String
-  slug                 String   @unique
-  domain               String?  @unique
-  autoJoinDomain       Boolean  @default(true)
-  invoicePrefix        String   @default("INV")
-  nextInvoiceNumber    Int      @default(1)
-  defaultCurrency      String   @default("USD")
-  defaultTaxRate       Decimal  @default(0) @db.Decimal(5, 2)
+  id                         String  @id @default(cuid())
+  name                       String
+  slug                       String  @unique
+  domain                     String? @unique
+  autoJoinDomain             Boolean @default(true)
+  invoicePrefix              String  @default("INV")
+  nextInvoiceNumber          Int     @default(1)
+  defaultCurrency            String  @default("USD")
+  defaultTaxRate             Decimal @default(0) @db.Decimal(5, 2)
   // Applied to the billed rate on hourly line items at invoice-generation
   // time — a straight multiplier baked into the rate shown on the invoice,
   // never broken out as its own line. Distinct from defaultTaxRate, which
   // is a visible, itemized "Tax" line.
-  overheadPercent      Decimal  @default(0) @db.Decimal(5, 2)
-  externalBillingUrl   String?
-  externalBillingLabel String?
-  slackWebhookUrl      String?
-  logoUrl              String?
-  logoData             Bytes?
-  logoContentType      String?
-  brandColor           String?
+  overheadPercent            Decimal @default(0) @db.Decimal(5, 2)
+  externalBillingUrl         String?
+  externalBillingLabel       String?
+  // Free text, not a structured payment-method schema — orgs accept wildly
+  // different combinations (ACH details, a Stripe/PayPal payment link, a
+  // mailing address for checks), so a single configurable block that gets
+  // printed verbatim on every invoice PDF is more useful than a rigid set of
+  // fields most orgs would only partially fill in.
+  paymentInstructions        String? @db.Text
+  // When true, paymentInstructions is withheld from the plain PDF (which can
+  // be forwarded/leaked anywhere) and only shown on the authenticated client
+  // share portal — for orgs whose instructions include bank/ACH details.
+  paymentInstructionsPrivate Boolean @default(false)
+  slackWebhookUrl            String?
+  logoUrl                    String?
+  logoData                   Bytes?
+  logoContentType            String?
+  brandColor                 String?
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses
@@ -118,29 +131,37 @@ model Organization {
   // Billing (Stripe) — plan is the source of truth for feature gating;
   // kept in sync with Stripe via webhook, never set directly from client
   // input. stripeSubscriptionStatus is for display/debugging only.
-  plan                     Plan     @default(FREE)
-  stripeCustomerId         String?  @unique
-  stripeSubscriptionId     String?  @unique
+  plan                     Plan    @default(FREE)
+  stripeCustomerId         String? @unique
+  stripeSubscriptionId     String? @unique
   stripeSubscriptionStatus String?
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  // Stripe Connect (Growth plan) — lets this org collect invoice payments
+  // directly. chargesEnabled mirrors Stripe's own flag (set from
+  // account.updated webhooks) rather than being inferred from "account
+  // exists", since an Express account can exist mid-onboarding without
+  // being able to actually take a payment yet.
+  stripeConnectAccountId      String? @unique
+  stripeConnectChargesEnabled Boolean @default(false)
 
-  memberships          Membership[]
-  invites              Invite[]
-  clients              Client[]
-  projects             Project[]
-  timeEntries          TimeEntry[]
-  invoices             Invoice[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships               Membership[]
+  invites                   Invite[]
+  clients                   Client[]
+  projects                  Project[]
+  timeEntries               TimeEntry[]
+  invoices                  Invoice[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
-  notifications        Notification[]
-  apiKeys              ApiKey[]
-  quickBooksConnection QuickBooksConnection?
-  githubConnection     GithubConnection?
-  linearConnection     LinearConnection?
-  laurelConnection     LaurelConnection?
-  ssoConnection        SsoConnection?
-  expenses             Expense[]
+  notifications             Notification[]
+  apiKeys                   ApiKey[]
+  quickBooksConnection      QuickBooksConnection?
+  linearConnection          LinearConnection?
+  mercuryConnection         MercuryConnection?
+  ssoConnection             SsoConnection?
+  expenses                  Expense[]
+  activeTimers              ActiveTimer[]
 }
 
 model User {
@@ -162,9 +183,8 @@ model User {
   notifications               Notification[]
   apiKeys                     ApiKey[]
   connectedQuickBooksAccounts QuickBooksConnection[]
-  connectedGithubAccounts     GithubConnection[]
   connectedLinearAccounts     LinearConnection[]
-  connectedLaurelAccounts     LaurelConnection[]
+  connectedMercuryAccounts    MercuryConnection[]
   authenticators              Authenticator[]
   webAuthnChallenges          WebAuthnChallenge[]
   connectedSsoAccounts        SsoConnection[]
@@ -174,6 +194,7 @@ model User {
   uploadedClientDocuments     ClientDocument[]
   expensesSubmitted           Expense[]              @relation("ExpenseSubmittedBy")
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
+  activeTimer                 ActiveTimer?
 }
 
 enum MembershipType {
@@ -188,11 +209,11 @@ model Membership {
 
   // Contractor profile — self-edited from Profile, shown to clients on a
   // per-project approval review when requested for a CONTRACTOR.
-  title              String?
-  bio                String?
-  resumeFileName     String?
-  resumeFileData     Bytes?
-  resumeContentType  String?
+  title             String?
+  bio               String?
+  resumeFileName    String?
+  resumeFileData    Bytes?
+  resumeContentType String?
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -225,24 +246,32 @@ model Invite {
 }
 
 model Client {
-  id             String       @id @default(cuid())
-  name           String
-  website        String?
-  description    String?
-  email          String?
-  phone          String?
-  address        String?
-  billingEmail   String?
-  billingAddress String?
-  status         ClientStatus @default(ACTIVE)
-  shareToken     String?      @unique
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                         String       @id @default(cuid())
+  name                       String
+  website                    String?
+  description                String?
+  email                      String?
+  phone                      String?
+  address                    String?
+  billingEmail               String?
+  billingAddress             String?
+  // Overrides Organization.paymentInstructions for this client's invoices
+  // specifically (e.g. a client that only accepts wire transfer). Null means
+  // "use the org default" — an empty override isn't representable on
+  // purpose, since "this client has no payment instructions at all" isn't a
+  // real state anyone wants; they'd just fall back to the org default.
+  paymentInstructions        String?      @db.Text
+  paymentInstructionsPrivate Boolean?
+  status                     ClientStatus @default(ACTIVE)
+  shareToken                 String?      @unique
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   quickbooksCustomerId String?
+  mercuryCustomerId    String?
 
   contacts                  Contact[]
   links                     Link[]
@@ -334,20 +363,19 @@ model Link {
 }
 
 model Project {
-  id                     String        @id @default(cuid())
-  name                   String
-  description            String?
-  status                 ProjectStatus @default(ACTIVE)
-  startDate              DateTime?
-  endDate                DateTime?
-  codeHealthGateEnabled  Boolean       @default(false)
-  confidential           Boolean       @default(false)
-  budgetHours            Decimal?      @db.Decimal(7, 2)
-  billingType            BillingType   @default(HOURLY)
-  flatFeeAmount          Decimal?      @db.Decimal(12, 2)
-  shareToken             String?       @unique
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  name          String
+  description   String?
+  status        ProjectStatus @default(ACTIVE)
+  startDate     DateTime?
+  endDate       DateTime?
+  confidential  Boolean       @default(false)
+  budgetHours   Decimal?      @db.Decimal(7, 2)
+  billingType   BillingType   @default(HOURLY)
+  flatFeeAmount Decimal?      @db.Decimal(12, 2)
+  shareToken    String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -362,22 +390,22 @@ model Project {
   invoiceLineItems InvoiceLineItem[]
   milestones       Milestone[]
   expenses         Expense[]
-  repo             Repo?
   externalLink     ExternalProjectLink?
+  activeTimers     ActiveTimer[]
 
   @@index([orgId])
   @@index([clientId])
 }
 
 model Milestone {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
-  amount      Decimal  @db.Decimal(12, 2)
+  amount      Decimal   @db.Decimal(12, 2)
   dueDate     DateTime? @db.Date
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -385,9 +413,9 @@ model Milestone {
   // Evidence of completion — required note plus an optional file or link,
   // captured atomically in the same action that marks the milestone done.
   // No separate evidence table: one completion event, one evidence bundle.
-  completedAt   DateTime?
-  completedById String?
-  completedBy   User?   @relation(fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt    DateTime?
+  completedById  String?
+  completedBy    User?     @relation(fields: [completedById], references: [id], onDelete: SetNull)
   completionNote String?
   completionUrl  String?
 
@@ -423,6 +451,7 @@ model Task {
 
   timeEntries  TimeEntry[]
   externalLink ExternalTaskLink?
+  activeTimers ActiveTimer[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -445,7 +474,7 @@ model ProjectMember {
   // default) means no review was ever asked for; approvalToken is only set
   // while a review is pending or has been responded to.
   approvalStatus      ProjectMemberApprovalStatus @default(NOT_REQUIRED)
-  approvalToken       String?                      @unique
+  approvalToken       String?                     @unique
   approvalRequestedAt DateTime?
   approvalRespondedAt DateTime?
 
@@ -538,27 +567,71 @@ model TimeEntry {
   @@index([taskId])
 }
 
+// The one currently-running timer for a user, app-wide — not per-org, since
+// a person is only ever doing one thing at a time regardless of which org's
+// work it's for. Stopping it converts the elapsed duration into a real
+// TimeEntry; starting a new one while another is running stops-and-logs the
+// old one first rather than blocking, matching how Toggl/Harvest behave.
+model ActiveTimer {
+  id          String   @id @default(cuid())
+  startedAt   DateTime @default(now())
+  description String?
+  billable    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+}
+
 model Invoice {
-  id            String        @id @default(cuid())
-  number        String
-  status        InvoiceStatus @default(DRAFT)
-  issueDate     DateTime      @db.Date
-  dueDate       DateTime      @db.Date
-  paymentTerms  PaymentTerms  @default(NET30)
-  poNumber      String?
-  paymentMethod String?
-  subtotal      Decimal       @default(0) @db.Decimal(12, 2)
-  taxRate       Decimal       @default(0) @db.Decimal(5, 2)
-  taxAmount     Decimal       @default(0) @db.Decimal(12, 2)
-  total         Decimal       @default(0) @db.Decimal(12, 2)
-  currency      String        @default("USD")
-  notes         String?
+  id                      String        @id @default(cuid())
+  number                  String
+  status                  InvoiceStatus @default(DRAFT)
+  issueDate               DateTime      @db.Date
+  dueDate                 DateTime      @db.Date
+  paymentTerms            PaymentTerms  @default(NET30)
+  poNumber                String?
+  paymentMethod           String?
+  subtotal                Decimal       @default(0) @db.Decimal(12, 2)
+  taxRate                 Decimal       @default(0) @db.Decimal(5, 2)
+  taxAmount               Decimal       @default(0) @db.Decimal(12, 2)
+  total                   Decimal       @default(0) @db.Decimal(12, 2)
+  currency                String        @default("USD")
+  notes                   String?
   // Guards notifyNewlyOverdueInvoices against sending a duplicate ping if the
   // daily cron ever fires more than once while an invoice is still exactly
   // one day overdue (manual re-trigger, EventBridge retry, etc).
-  overdueNotifiedAt DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  overdueNotifiedAt       DateTime?
+  // Snapshot of the schedule's retainerHours at generation time (not a live
+  // lookup) so a client's billed-vs-logged balance stays accurate even if the
+  // schedule's hours are edited later. Only set for retainer-generated
+  // invoices whose schedule tracks hours.
+  retainerHoursIncluded   Decimal?      @db.Decimal(8, 2)
+  // Set once a "Pay now" checkout is started/completed for this invoice
+  // (Growth plan, Stripe Connect). paymentIntentId is the actual proof of
+  // payment the webhook uses to mark PAID — sessionId alone isn't, since a
+  // session can be abandoned without paying.
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?       @unique
+  // Same idea as the Stripe fields above, for orgs paying through a
+  // connected Mercury account instead — mercuryInvoiceId is Mercury's own
+  // invoice id (used to poll status, since Mercury doesn't webhook invoice
+  // payments), mercuryInvoiceSlug builds the hosted pay page URL. Set once,
+  // on first "Pay now" click, so repeat clicks reuse the same Mercury
+  // invoice instead of creating duplicates.
+  mercuryInvoiceId        String?       @unique
+  mercuryInvoiceSlug      String?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -590,19 +663,23 @@ enum RecurringInterval {
 // it's a standing fee, so each run creates one manual line item rather than
 // pulling in TimeEntry/Milestone/Expense records.
 model RecurringInvoiceSchedule {
-  id          String            @id @default(cuid())
-  description String
-  amount      Decimal           @db.Decimal(12, 2)
-  interval    RecurringInterval @default(MONTHLY)
-  dueInDays   Int               @default(30)
-  active      Boolean           @default(true)
+  id            String            @id @default(cuid())
+  description   String
+  amount        Decimal           @db.Decimal(12, 2)
+  interval      RecurringInterval @default(MONTHLY)
+  dueInDays     Int               @default(30)
+  // Optional — lets a retainer be tracked in hours (e.g. "$5,000/mo = 40 hrs")
+  // so the client page can show a running billed-vs-logged balance. Null for
+  // retainers that are just a flat fee with no hours dimension.
+  retainerHours Decimal?          @db.Decimal(8, 2)
+  active        Boolean           @default(true)
   // Draft by default so a human reviews before it goes out; an org that
   // trusts the schedule can flip this on to skip that step.
-  autoSend    Boolean           @default(false)
-  nextRunAt   DateTime
-  lastRunAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  autoSend      Boolean           @default(false)
+  nextRunAt     DateTime
+  lastRunAt     DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -692,49 +769,27 @@ model QuickBooksConnection {
   connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
 }
 
-model GithubConnection {
-  id          String   @id @default(cuid())
-  login       String
-  accessToken String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// Mercury Bank — an alternative to Stripe Connect for Growth-plan orgs that
+// already bank with Mercury. Unlike QuickBooks/Linear above, this isn't an
+// OAuth app we operate (Mercury's OAuth requires Mercury's own manual
+// platform approval before we could get client credentials at all) — the
+// org generates its own long-lived personal API token in their Mercury
+// dashboard (Settings > Tokens) and pastes it in, so there's no redirect
+// flow and no refresh token to manage. destinationAccountId is which of the
+// org's Mercury checking accounts invoice payments land in.
+model MercuryConnection {
+  id                     String   @id @default(cuid())
+  apiToken               String
+  destinationAccountId   String?
+  destinationAccountName String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   orgId String       @unique
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   connectedById String?
   connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
-
-  repos Repo[]
-}
-
-model Repo {
-  id          String   @id @default(cuid())
-  githubOwner String
-  githubName  String
-  installedAt DateTime @default(now())
-
-  projectId String  @unique
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  connectionId String
-  connection   GithubConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-
-  scans Scan[]
-
-  @@index([connectionId])
-}
-
-model Scan {
-  id        String   @id @default(cuid())
-  score     Int
-  findings  Json
-  createdAt DateTime @default(now())
-
-  repoId String
-  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
-
-  @@index([repoId, createdAt])
 }
 
 // ── Task tracker / time tracker integrations ─────────────────────────────────
@@ -794,26 +849,6 @@ model ExternalTimeEntryLink {
   timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
 
   @@unique([source, externalId])
-}
-
-// Laurel's data-sync endpoints (pending time entries, client/matter push) are
-// provisioned per-customer by Laurel's solutions team and aren't in public
-// docs — this connection stores the OAuth2 client_credentials, which is
-// enough to authenticate; the actual sync endpoints are a follow-up
-// (see Linear ARM-63) once a real customer/client ID pair exists.
-model LaurelConnection {
-  id           String    @id @default(cuid())
-  customerId   String
-  clientId     String
-  clientSecret String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  orgId String       @unique
-  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  connectedById String?
-  connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
 }
 
 // ── Passkeys (WebAuthn) ───────────────────────────────────────────────────────
@@ -891,16 +926,16 @@ model SsoLoginTicket {
 // domain claim) until the link is clicked; typing someone else's email at
 // signup must not be enough to get into their org or squat their domain.
 model PendingSignup {
-  id                   String   @id @default(cuid())
-  token                String   @unique
-  email                String
-  name                 String
-  passwordHash         String
-  orgName              String
-  autoJoinOrgId        String?
-  claimableDomain      String?
-  expiresAt            DateTime
-  createdAt            DateTime @default(now())
+  id              String   @id @default(cuid())
+  token           String   @unique
+  email           String
+  name            String
+  passwordHash    String
+  orgName         String
+  autoJoinOrgId   String?
+  claimableDomain String?
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
 
   @@index([email])
 }
