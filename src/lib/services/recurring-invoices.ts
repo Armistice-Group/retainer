@@ -31,6 +31,7 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
         subtotal: amount,
         total: amount,
         recurringScheduleId: schedule.id,
+        retainerHoursIncluded: schedule.retainerHours,
       },
     });
 

@@ -92,6 +92,21 @@ export function CreateRecurringScheduleDialog({ clientId }: { clientId: string }
               </Select>
             </div>
           </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="rs-retainerHours">Retainer hours (optional)</Label>
+            <Input
+              id="rs-retainerHours"
+              name="retainerHours"
+              type="number"
+              step="0.25"
+              min="0"
+              placeholder="e.g. 40"
+            />
+            <p className="text-xs text-muted-foreground">
+              If this amount covers a block of hours, enter it here to track billed-vs-logged
+              balance on the client page. Leave blank for a flat retainer with no hours dimension.
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="rs-startDate">First invoice date</Label>
