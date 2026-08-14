@@ -143,7 +143,7 @@ export default async function SharedClientPage({
                     </a>
                     {canPay ? (
                       <Button size="sm" asChild className="shrink-0">
-                        <a href={`/share/client/${token}/invoices/${inv.id}/pay`}>
+                        <a href={`/api/share/client/${token}/invoices/${inv.id}/pay`}>
                           <CreditCard className="size-3.5" /> Pay now
                         </a>
                       </Button>

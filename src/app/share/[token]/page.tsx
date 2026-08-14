@@ -207,7 +207,7 @@ export default async function SharedProjectPage({
                     </a>
                     {canPay ? (
                       <Button size="sm" asChild className="shrink-0">
-                        <a href={`/share/${token}/invoices/${inv.id}/pay`}>
+                        <a href={`/api/share/${token}/invoices/${inv.id}/pay`}>
                           <CreditCard className="size-3.5" /> Pay now
                         </a>
                       </Button>
