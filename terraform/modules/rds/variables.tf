@@ -16,6 +16,12 @@ variable "sg_ec2_id" {
   type        = string
 }
 
+variable "additional_allowed_security_group_ids" {
+  description = "Extra security groups allowed to reach Postgres, beyond the app's own (sg_ec2_id) — e.g. another app's EC2 instance sharing this RDS instance under a separate database/role. Empty by default; this instance is single-tenant unless explicitly opted into sharing."
+  type        = list(string)
+  default     = []
+}
+
 variable "instance_class" {
   type    = string
   default = "db.t4g.micro"

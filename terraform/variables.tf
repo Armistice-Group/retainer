@@ -73,6 +73,12 @@ variable "rds_master_password" {
   sensitive   = true
 }
 
+variable "rds_additional_allowed_security_group_ids" {
+  description = "Extra security groups allowed to reach this RDS instance, beyond retainer's own app EC2 — e.g. another app sharing this instance under its own database/role. Empty by default (single-tenant). Each such database/role is provisioned by hand (see DEPLOYMENT.md), not by this Terraform config."
+  type        = list(string)
+  default     = []
+}
+
 # ── Application image ─────────────────────────────────────────────────────────
 
 variable "app_version" {

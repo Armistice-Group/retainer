@@ -11,7 +11,9 @@ resource "aws_db_subnet_group" "this" {
 }
 
 # ── Security group ────────────────────────────────────────────────────────────
-# Only the app EC2 instance's security group may reach Postgres.
+# Only the app EC2 instance's security group may reach Postgres — plus
+# whatever additional_allowed_security_group_ids opts in, for another app
+# sharing this instance under its own database/role. Empty by default.
 
 resource "aws_security_group" "rds" {
   name        = "${var.name_prefix}-rds"
@@ -19,11 +21,11 @@ resource "aws_security_group" "rds" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description     = "Postgres from app EC2"
+    description     = "Postgres from app EC2 (+ any additional apps sharing this instance)"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [var.sg_ec2_id]
+    security_groups = concat([var.sg_ec2_id], var.additional_allowed_security_group_ids)
   }
 
   egress {

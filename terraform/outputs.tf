@@ -52,3 +52,34 @@ output "secrets_arn" {
   description = "Secrets Manager ARN — update values here before first deploy"
   value       = aws_secretsmanager_secret.app.arn
 }
+
+# ── Shared-infra values, for a *different* app's Terraform to consume by value
+# (e.g. pewmarket/terraform sharing this VPC + RDS instance). Deliberately
+# plain values, not a remote-state data source — state here is local-only
+# (see versions.tf), so cross-repo remote state isn't set up. Copy these via
+# `terraform output` into the other repo's tfvars when standing it up; they
+# only change if this VPC/RDS is ever recreated.
+
+output "vpc_id" {
+  description = "Shared VPC ID — for another app's EC2/ALB to live in the same network as this RDS instance."
+  value       = module.networking.vpc_id
+}
+
+output "public_subnet_ids" {
+  description = "Shared public subnet IDs (2 AZs) — ALB requires 2+."
+  value       = module.networking.public_subnet_ids
+}
+
+output "rds_endpoint" {
+  description = "Shared RDS Postgres endpoint (hostname only, no port)."
+  value       = module.rds.endpoint
+}
+
+output "rds_port" {
+  value = module.rds.port
+}
+
+output "rds_security_group_id" {
+  description = "The RDS instance's security group — a sharing app's EC2 SG must be added to rds_additional_allowed_security_group_ids here (in retainer's own tfvars, applied from this repo) before it can connect. Adding an ingress rule to this SG from a different Terraform state won't stick — it's managed as a single inline block here and would get reverted on the next apply."
+  value       = module.rds.sg_rds_id
+}

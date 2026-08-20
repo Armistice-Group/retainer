@@ -69,6 +69,8 @@ module "rds" {
   db_username          = var.db_username
   db_password          = var.rds_master_password
 
+  additional_allowed_security_group_ids = var.rds_additional_allowed_security_group_ids
+
   deletion_protection = var.deletion_protection
 }
 
