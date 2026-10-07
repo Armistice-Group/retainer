@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      db:
+      consultainer-db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@consultainer-db:5432/${POSTGRES_DB:-consulthub}?schema=public
