@@ -25,6 +25,7 @@ import { MilestonesCard, type MilestoneItem } from "./milestones-card";
 import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
 import { getOrigin } from "@/lib/url";
+import { CopyButton } from "@/components/copy-button";
 
 export default async function ProjectDetailPage({
   params,
@@ -255,6 +256,14 @@ export default async function ProjectDetailPage({
                         <p className="text-muted-foreground">{member.user.email}</p>
                       </div>
                       <div className="flex items-center gap-1">
+                        {/* The client contact is emailed this link when email is
+                            configured; otherwise it has to be shared by hand. */}
+                        {canManage && member.approvalStatus === "PENDING" && member.approvalToken ? (
+                          <CopyButton
+                            value={`${origin}/review/${member.approvalToken}`}
+                            label="Review link"
+                          />
+                        ) : null}
                         <span className="tabular-figures text-sm">
                           {formatCurrency(member.billRate, member.currency)}/hr
                         </span>

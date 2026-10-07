@@ -3,12 +3,15 @@ import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { OrgSecurityForm } from "../org-security-form";
 import { SsoCard } from "../sso-card";
+import { getOrigin } from "@/lib/url";
+import { SSO_CALLBACK_PATH } from "@/lib/integrations/sso";
 
 export default async function OrgSecurityPage() {
   const { org, role } = await requireOrgContext();
   const readOnly = role === "MEMBER";
 
   const ssoConnection = await prisma.ssoConnection.findUnique({ where: { orgId: org.id } });
+  const origin = await getOrigin();
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -25,9 +28,21 @@ export default async function OrgSecurityPage() {
       </Card>
 
       <SsoCard
-        connected={!!ssoConnection}
-        issuer={ssoConnection?.issuer ?? null}
-        enabled={ssoConnection?.enabled ?? false}
+        connection={
+          ssoConnection
+            ? {
+                issuer: ssoConnection.issuer,
+                clientId: ssoConnection.clientId,
+                displayName: ssoConnection.displayName,
+                allowedDomains: ssoConnection.allowedDomains,
+                autoProvision: ssoConnection.autoProvision,
+                defaultRole: ssoConnection.defaultRole,
+                enforced: ssoConnection.enforced,
+                enabled: ssoConnection.enabled,
+              }
+            : null
+        }
+        callbackUrl={`${origin}${SSO_CALLBACK_PATH}`}
         readOnly={readOnly}
       />
     </div>

@@ -128,15 +128,14 @@ model Organization {
   // are always auto-approved regardless of amount.
   expenseApprovalThreshold Decimal @default(100) @db.Decimal(12, 2)
 
-  // Billing (Stripe) — plan is the source of truth for feature gating;
-  // kept in sync with Stripe via webhook, never set directly from client
-  // input. stripeSubscriptionStatus is for display/debugging only.
+  // Legacy hosted-billing columns — unused on self-hosted instances (no plan
+  // gating), kept so existing databases migrate cleanly.
   plan                     Plan    @default(FREE)
   stripeCustomerId         String? @unique
   stripeSubscriptionId     String? @unique
   stripeSubscriptionStatus String?
 
-  // Stripe Connect (Growth plan) — lets this org collect invoice payments
+  // Stripe Connect — lets this org collect invoice payments
   // directly. chargesEnabled mirrors Stripe's own flag (set from
   // account.updated webhooks) rather than being inferred from "account
   // exists", since an Express account can exist mid-onboarding without
@@ -896,6 +895,19 @@ model SsoConnection {
   tokenEndpoint         String
   jwksUri               String
   enabled               Boolean  @default(true)
+  // Label for the login-page button ("Sign in with <displayName>").
+  displayName           String?
+  // Create an account (and org membership, with defaultRole) on first SSO
+  // sign-in. When false, only people who already belong to the org — via
+  // invite or the local admin — can sign in through the IdP.
+  autoProvision         Boolean  @default(true)
+  defaultRole           Role     @default(MEMBER)
+  // Email domains the IdP is trusted for. Empty = any verified email the IdP
+  // returns.
+  allowedDomains        String[] @default([])
+  // Blocks password / magic-link / passkey login for everyone in the org
+  // except OWNERs, who keep local login as a break-glass path.
+  enforced              Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

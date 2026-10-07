@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -23,18 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
   title: { default: "Consultainer", template: "%s — Consultainer" },
-  description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
-  alternates: { canonical: "/" },
-  openGraph: {
-    title: "Consultainer",
-    description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Consultainer",
-    description: "Run client engagements — tasks, time, and invoices — from your AI coding agent and Linear, not a separate admin app. Built for engineering consultancies: software, security, and design.",
-  },
+  description: "Clients, projects, time, and invoices for engineering consultancies.",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
@@ -49,11 +38,6 @@ export default function RootLayout({
       className={`${instrumentSans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Script
-          src="https://app.rybbit.io/api/script.js"
-          data-site-id="43e29c61736f"
-          strategy="afterInteractive"
-        />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

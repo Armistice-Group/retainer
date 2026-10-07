@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import Link from "next/link";
 import { loginAction, type ActionState } from "@/actions/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,17 +10,21 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
 import { PasskeySignInButton } from "@/components/auth/passkey-signin-button";
 import { MagicLinkForm } from "./magic-link-form";
-import { SsoLoginForm } from "./sso-login-form";
+import { SsoSignInButton, type SsoProvider } from "./sso-signin-button";
 
-type Mode = "password" | "magic-link" | "sso";
+type Mode = "password" | "magic-link";
 
 export function LoginForm({
   callbackUrl,
   googleEnabled,
+  magicLinkEnabled,
+  ssoProviders,
   initialError,
 }: {
   callbackUrl: string;
   googleEnabled: boolean;
+  magicLinkEnabled: boolean;
+  ssoProviders: SsoProvider[];
   initialError?: string;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(loginAction, null);
@@ -33,11 +36,9 @@ export function LoginForm({
   const description =
     mode === "magic-link"
       ? "We'll email you a link to log in — no password needed."
-      : mode === "sso"
-        ? "Enter your work email to sign in through your organization's identity provider."
-        : needsCode
-          ? "Enter the 6-digit code from your authenticator app."
-          : "Welcome back. Enter your details to continue.";
+      : needsCode
+        ? "Enter the 6-digit code from your authenticator app."
+        : "Welcome back. Enter your details to continue.";
 
   return (
     <Card>
@@ -48,12 +49,13 @@ export function LoginForm({
       <CardContent>
         {mode === "magic-link" ? (
           <MagicLinkForm onBack={() => setMode("password")} />
-        ) : mode === "sso" ? (
-          <SsoLoginForm onBack={() => setMode("password")} />
         ) : (
           <>
             {!needsCode ? (
               <div className="mb-6 flex flex-col gap-4">
+                {ssoProviders.map((provider) => (
+                  <SsoSignInButton key={provider.id} provider={provider} />
+                ))}
                 <PasskeySignInButton callbackUrl={callbackUrl} />
                 {googleEnabled ? <GoogleSignInButton callbackUrl={callbackUrl} /> : null}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -95,13 +97,15 @@ export function LoginForm({
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Password</Label>
-                      <button
-                        type="button"
-                        className="text-xs text-primary hover:underline"
-                        onClick={() => setMode("magic-link")}
-                      >
-                        Email me a login link instead
-                      </button>
+                      {magicLinkEnabled ? (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={() => setMode("magic-link")}
+                        >
+                          Email me a login link instead
+                        </button>
+                      ) : null}
                     </div>
                     <Input
                       id="password"
@@ -142,25 +146,11 @@ export function LoginForm({
                 {needsCode ? "Verify" : "Log in"}
               </SubmitButton>
             </form>
-            {!needsCode ? (
-              <p className="mt-4 text-center text-sm text-muted-foreground">
-                <button
-                  type="button"
-                  className="text-primary hover:underline"
-                  onClick={() => setMode("sso")}
-                >
-                  Sign in with SSO
-                </button>
-              </p>
-            ) : null}
           </>
         )}
         {mode === "password" && !needsCode ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="font-medium text-primary hover:underline">
-              Create one
-            </Link>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            Need an account? Ask an admin for an invite.
           </p>
         ) : null}
       </CardContent>

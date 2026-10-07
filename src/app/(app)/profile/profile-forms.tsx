@@ -35,9 +35,11 @@ export function ProfileNameForm({ name }: { name: string }) {
 export function ChangeEmailForm({
   currentEmail,
   hasPassword,
+  emailEnabled,
 }: {
   currentEmail: string;
   hasPassword: boolean;
+  emailEnabled: boolean;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(changeEmailAction, null);
 
@@ -80,10 +82,12 @@ export function ChangeEmailForm({
         </div>
       ) : null}
       <p className="text-xs text-muted-foreground">
-        We&apos;ll email a confirmation link to the new address before anything changes.
+        {emailEnabled
+          ? "We'll email a confirmation link to the new address before anything changes."
+          : "You'll be signed out and can log back in with the new address."}
       </p>
       <div>
-        <SubmitButton pendingText="Sending...">Update email</SubmitButton>
+        <SubmitButton pendingText="Updating...">Update email</SubmitButton>
       </div>
     </form>
   );

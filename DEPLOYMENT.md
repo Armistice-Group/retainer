@@ -1,5 +1,8 @@
 # Retainer — Deployment & Infrastructure
 
+> **Legacy.** This describes the former hosted AWS deployment (torn down). For
+> self-hosting, see the "Self-hosting" section of the README.
+
 This document covers standing up Retainer on AWS: an EC2 instance running the
 app container, backed by a dedicated RDS Postgres instance, behind an ALB
 that terminates TLS.

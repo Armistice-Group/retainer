@@ -102,7 +102,6 @@ export default async function SharedClientPage({
               {invoices.map((inv) => {
                 const canPay =
                   inv.status === "SENT" &&
-                  org.plan === "GROWTH" &&
                   (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
                 return (
                   <div

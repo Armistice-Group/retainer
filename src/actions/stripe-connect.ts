@@ -15,11 +15,8 @@ export async function startStripeConnectOnboardingAction() {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  if (org.plan !== "GROWTH") {
-    throw new Error("Stripe Connect requires the Growth plan.");
-  }
   if (!isStripeConfigured()) {
-    throw new Error("Billing isn't configured yet. Contact support.");
+    throw new Error("Stripe isn't configured on this instance. Set STRIPE_SECRET_KEY.");
   }
 
   const stripe = getStripe();
@@ -48,8 +45,8 @@ export async function startStripeConnectOnboardingAction() {
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${origin}/settings/billing?connect=refresh`,
-    return_url: `${origin}/settings/billing?connect=return`,
+    refresh_url: `${origin}/settings/payments?connect=refresh`,
+    return_url: `${origin}/settings/payments?connect=return`,
     type: "account_onboarding",
   });
 

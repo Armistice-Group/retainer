@@ -18,10 +18,6 @@ export async function connectMercuryAction(
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  if (org.plan !== "GROWTH") {
-    return { error: "Mercury is available on the Growth plan." };
-  }
-
   const apiToken = ((formData.get("apiToken") as string) || "").trim();
   if (!apiToken) {
     return { fieldErrors: { apiToken: ["Paste your Mercury API token."] } };
@@ -60,7 +56,7 @@ export async function connectMercuryAction(
     },
   });
 
-  revalidatePath("/settings/billing");
+  revalidatePath("/settings/payments");
   return null;
 }
 
@@ -85,7 +81,7 @@ export async function setMercuryDestinationAccountAction(formData: FormData) {
     where: { orgId: org.id },
     data: { destinationAccountId: account.id, destinationAccountName: account.name },
   });
-  revalidatePath("/settings/billing");
+  revalidatePath("/settings/payments");
 }
 
 export async function disconnectMercuryAction() {
@@ -93,5 +89,5 @@ export async function disconnectMercuryAction() {
   requireRole(role, ["OWNER", "ADMIN"]);
 
   await prisma.mercuryConnection.deleteMany({ where: { orgId: org.id } });
-  revalidatePath("/settings/billing");
+  revalidatePath("/settings/payments");
 }

@@ -3,7 +3,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import {
@@ -12,7 +12,7 @@ import {
   changeEmailSchema,
 } from "@/lib/validations/profile";
 import { contractorProfileSchema } from "@/lib/validations/contractor";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { ConfirmEmailChangeEmail } from "@/emails/confirm-email-change-email";
 import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
@@ -117,6 +117,19 @@ export async function changeEmailAction(
   const taken = await prisma.user.findUnique({ where: { email: parsed.data.newEmail } });
   if (taken) {
     return { fieldErrors: { newEmail: ["That email is already in use."] } };
+  }
+
+  if (!isEmailConfigured()) {
+    // No way to send a confirmation link. A password re-check is the best
+    // available proof it's really you; accounts without a local password
+    // (SSO/Google) get their email from the identity provider instead.
+    if (!user.passwordHash) {
+      return { error: "Your email is managed by your sign-in provider." };
+    }
+    await prisma.user.update({ where: { id: user.id }, data: { email: parsed.data.newEmail } });
+    // The session JWT caches the old email — require a fresh login.
+    await signOut({ redirectTo: "/login" });
+    return null;
   }
 
   // Don't apply the change yet — confirm the new address is actually yours

@@ -28,9 +28,6 @@ export async function createInvoicePaymentCheckoutUrl(
   if (invoice.status !== "SENT") {
     throw new InvoicePaymentError("This invoice isn't open for payment.");
   }
-  if (invoice.org.plan !== "GROWTH") {
-    throw new InvoicePaymentError("Online payment isn't set up for this invoice yet.");
-  }
 
   const mercuryConnection = await prisma.mercuryConnection.findUnique({
     where: { orgId: invoice.orgId },

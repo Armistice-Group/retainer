@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
+import { isEmailConfigured } from "@/lib/email";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileNameForm, ChangePasswordForm, ChangeEmailForm } from "./profile-forms";
 import { ApiKeysCard } from "./api-keys-card";
@@ -52,7 +53,11 @@ export default async function ProfilePage() {
               <CardTitle className="text-base">Email</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChangeEmailForm currentEmail={dbUser.email} hasPassword={!!dbUser.passwordHash} />
+              <ChangeEmailForm
+                currentEmail={dbUser.email}
+                hasPassword={!!dbUser.passwordHash}
+                emailEnabled={isEmailConfigured()}
+              />
             </CardContent>
           </Card>
 

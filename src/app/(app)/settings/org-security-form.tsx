@@ -41,7 +41,7 @@ export function OrgSecurityForm({ org, readOnly }: { org: OrgSecurity; readOnly:
           <p className="text-sm text-destructive">{state.fieldErrors.domain[0]}</p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Must match your own email domain. Used for auto-join and SSO below.
+            Must match your own email domain. Teammates signing in with Google on this domain can join automatically.
           </p>
         )}
       </div>

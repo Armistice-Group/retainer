@@ -1,21 +1,29 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { encrypt } from "@/lib/crypto";
-import { emailDomain, isClaimableDomain } from "@/lib/org";
 import {
+  createSsoFlow,
   discoverOidc,
   getAuthorizationUrl,
+  parseDomainList,
+  sealSsoFlow,
   signOAuthState,
   SsoError,
+  SSO_CALLBACK_PATH,
+  SSO_FLOW_COOKIE,
+  SSO_FLOW_TTL_SECONDS,
 } from "@/lib/integrations/sso";
 import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
 
-export async function connectSsoAction(
+/** Creates or updates the org's OIDC connection. On update the client secret
+ * may be left blank to keep the stored one. */
+export async function saveSsoConnectionAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -25,16 +33,20 @@ export async function connectSsoAction(
   const issuer = ((formData.get("issuer") as string) || "").trim();
   const clientId = ((formData.get("clientId") as string) || "").trim();
   const clientSecret = ((formData.get("clientSecret") as string) || "").trim();
+  const displayName = ((formData.get("displayName") as string) || "").trim().slice(0, 60) || null;
+  const allowedDomains = parseDomainList((formData.get("allowedDomains") as string) || "");
+  const autoProvision = formData.get("autoProvision") === "on";
+  const enforced = formData.get("enforced") === "on";
+  const defaultRole = formData.get("defaultRole") === "ADMIN" ? "ADMIN" : "MEMBER";
 
-  if (!issuer || !clientId || !clientSecret) {
-    return { error: "All three fields are required." };
-  }
-  if (!org.domain) {
-    return {
-      error:
-        "Set an organization domain first (above) — SSO signs people in by matching their email domain.",
-    };
-  }
+  const existing = await prisma.ssoConnection.findUnique({ where: { orgId: org.id } });
+
+  const fieldErrors: Record<string, string[]> = {};
+  if (!issuer) fieldErrors.issuer = ["Issuer URL is required."];
+  else if (!/^https?:\/\//.test(issuer)) fieldErrors.issuer = ["Must start with https://"];
+  if (!clientId) fieldErrors.clientId = ["Client ID is required."];
+  if (!clientSecret && !existing) fieldErrors.clientSecret = ["Client secret is required."];
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   let discovery;
   try {
@@ -48,31 +60,33 @@ export async function connectSsoAction(
     };
   }
 
-  await prisma.ssoConnection.upsert({
-    where: { orgId: org.id },
-    create: {
-      orgId: org.id,
-      issuer,
-      clientId,
-      clientSecret: encrypt(clientSecret),
-      authorizationEndpoint: discovery.authorizationEndpoint,
-      tokenEndpoint: discovery.tokenEndpoint,
-      jwksUri: discovery.jwksUri,
-      connectedById: user.id,
-    },
-    update: {
-      issuer,
-      clientId,
-      clientSecret: encrypt(clientSecret),
-      authorizationEndpoint: discovery.authorizationEndpoint,
-      tokenEndpoint: discovery.tokenEndpoint,
-      jwksUri: discovery.jwksUri,
-      connectedById: user.id,
-    },
-  });
+  const data = {
+    issuer: discovery.issuer,
+    clientId,
+    authorizationEndpoint: discovery.authorizationEndpoint,
+    tokenEndpoint: discovery.tokenEndpoint,
+    jwksUri: discovery.jwksUri,
+    displayName,
+    allowedDomains,
+    autoProvision,
+    enforced,
+    defaultRole,
+    connectedById: user.id,
+  } as const;
+
+  if (existing) {
+    await prisma.ssoConnection.update({
+      where: { id: existing.id },
+      data: { ...data, ...(clientSecret ? { clientSecret: encrypt(clientSecret) } : {}) },
+    });
+  } else {
+    await prisma.ssoConnection.create({
+      data: { ...data, orgId: org.id, clientSecret: encrypt(clientSecret) },
+    });
+  }
 
   revalidatePath("/settings/security");
-  return null;
+  return { saved: true };
 }
 
 export async function disconnectSsoAction() {
@@ -91,28 +105,24 @@ export async function setSsoEnabledAction(enabled: boolean) {
   revalidatePath("/settings/security");
 }
 
-export async function startSsoLoginAction(
-  _prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  const email = ((formData.get("email") as string) || "").toLowerCase().trim();
-  const domain = emailDomain(email);
-  if (!domain || !isClaimableDomain(domain)) {
-    return { fieldErrors: { email: ["Enter your work email."] } };
-  }
-
-  const org = await prisma.organization.findUnique({ where: { domain } });
-  const connection = org
-    ? await prisma.ssoConnection.findUnique({ where: { orgId: org.id } })
+/** Starts an OIDC login for one of the connections listed on the login page. */
+export async function startSsoLoginAction(formData: FormData) {
+  const connectionId = (formData.get("connectionId") as string) || "";
+  const connection = connectionId
+    ? await prisma.ssoConnection.findUnique({ where: { id: connectionId } })
     : null;
-
-  if (!connection || !connection.enabled) {
-    return { fieldErrors: { email: ["No SSO connection found for this email's domain."] } };
-  }
+  if (!connection || !connection.enabled) redirect("/login?error=sso-failed");
 
   const origin = await getOrigin();
-  const redirectUri = `${origin}/api/sso/callback`;
-  const state = signOAuthState(org!.id);
+  const flow = createSsoFlow(signOAuthState(connection.orgId));
 
-  redirect(getAuthorizationUrl(connection, state, redirectUri));
+  (await cookies()).set(SSO_FLOW_COOKIE, sealSsoFlow(flow), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: origin.startsWith("https://"),
+    path: SSO_CALLBACK_PATH,
+    maxAge: SSO_FLOW_TTL_SECONDS,
+  });
+
+  redirect(getAuthorizationUrl(connection, flow, `${origin}${SSO_CALLBACK_PATH}`));
 }

@@ -1,8 +1,6 @@
 import "server-only";
 import Papa from "papaparse";
 import { prisma } from "@/lib/prisma";
-import { canAddClient } from "@/lib/plan-limits";
-import type { Plan } from "@/generated/prisma/client";
 
 export class ImportError extends Error {}
 
@@ -33,7 +31,6 @@ function numOrNull(raw: string | undefined) {
 
 export type ImportContext = {
   orgId: string;
-  plan: Plan;
   actorId: string;
   defaultCurrency: string;
 };
@@ -96,13 +93,6 @@ export async function importClientsAndProjects(
         clientId = existing.id;
         summary.clientsMatched++;
       } else {
-        if (!(await canAddClient(ctx.orgId, ctx.plan))) {
-          summary.rowErrors.push({
-            row: rowNum,
-            message: `Skipped — plan limit reached, couldn't add client "${clientName}".`,
-          });
-          continue;
-        }
         const created = await prisma.client.create({
           data: {
             orgId: ctx.orgId,

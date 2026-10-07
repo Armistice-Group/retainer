@@ -32,29 +32,3 @@ export async function findAutoJoinOrg(email: string) {
     where: { domain, autoJoinDomain: true },
   });
 }
-
-export async function bootstrapOrgForUser(userId: string, orgName: string, email?: string) {
-  const slug = await uniqueOrgSlug(orgName);
-  const domain = email ? emailDomain(email) : null;
-  const claimableDomain = domain && isClaimableDomain(domain) ? domain : null;
-
-  const create = (domainValue: string | null) =>
-    prisma.$transaction(async (tx) => {
-      const org = await tx.organization.create({
-        data: { name: orgName, slug, domain: domainValue },
-      });
-      await tx.membership.create({ data: { userId, orgId: org.id, role: "OWNER" } });
-      return org;
-    });
-
-  try {
-    return await create(claimableDomain);
-  } catch (err) {
-    // Rare race: another signup claimed this domain between findAutoJoinOrg and
-    // here. Fall back to an unclaimed org rather than failing signup outright.
-    if (claimableDomain && (err as { code?: string }).code === "P2002") {
-      return create(null);
-    }
-    throw err;
-  }
-}

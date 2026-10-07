@@ -29,7 +29,7 @@ export async function importClientsAction(
 
   try {
     const result = await importClientsAndProjects(
-      { orgId: org.id, plan: org.plan, actorId: user.id, defaultCurrency: org.defaultCurrency },
+      { orgId: org.id, actorId: user.id, defaultCurrency: org.defaultCurrency },
       csvText
     );
     revalidatePath("/clients");

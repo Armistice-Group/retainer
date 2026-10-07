@@ -166,7 +166,6 @@ export default async function SharedProjectPage({
               {invoices.map((inv) => {
                 const canPay =
                   inv.status === "SENT" &&
-                  org.plan === "GROWTH" &&
                   (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
                 return (
                   <div

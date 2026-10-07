@@ -4,32 +4,14 @@ import { authConfig } from "@/lib/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = [
-  "/",
-  "/login",
-  "/signup",
-  "/terms",
-  "/privacy",
-  "/pricing",
-  "/security",
-  "/contact",
-  "/compare",
-];
-// Multi-step flows (magic link, SSO completion, signup/email confirmation)
-// live under these as sub-paths and must be reachable while logged out —
-// an exact-match check on PUBLIC_PATHS alone would bounce them to /login
-// before the page ever gets a chance to sign the user in. "/vs/" is here too
-// so every marketing comparison page under it is public without having to
-// remember to add each new competitor slug individually.
-const PUBLIC_PREFIXES = [
-  "/login/",
-  "/signup/",
-  "/invite/",
-  "/verify-email/",
-  "/share/",
-  "/review/",
-  "/vs/",
-];
+// "/" just redirects (to /setup, /login or /dashboard) so it must be
+// reachable logged out; /setup guards itself once the instance is set up.
+const PUBLIC_PATHS = ["/", "/login", "/setup"];
+// Multi-step flows (magic link, SSO completion, email confirmation) live
+// under these as sub-paths and must be reachable while logged out — an
+// exact-match check on PUBLIC_PATHS alone would bounce them to /login before
+// the page ever gets a chance to sign the user in.
+const PUBLIC_PREFIXES = ["/login/", "/invite/", "/verify-email/", "/share/", "/review/"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -43,7 +25,7 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (req.auth && (pathname === "/login" || pathname === "/signup")) {
+  if (req.auth && (pathname === "/login" || pathname === "/setup")) {
     return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
   }
 
@@ -52,11 +34,11 @@ export default auth((req) => {
 
 export const config = {
   // icon/apple-icon/opengraph-image are the generated favicon, home-screen
-  // icon, and social-card image (src/app/icon.tsx etc.); robots.txt/sitemap.xml
-  // are the generated crawler files (src/app/robots.ts, sitemap.ts) — all of
-  // these are fetched by crawlers and email clients with no session cookie at
-  // all, so they must never hit the auth redirect below.
+  // icon, and social-card image (src/app/icon.tsx etc.); robots.txt is the
+  // generated crawler file (src/app/robots.ts) — all of these are fetched by
+  // crawlers and email clients with no session cookie at all, so they must
+  // never hit the auth redirect below.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|robots.txt|sitemap.xml).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|robots.txt).*)",
   ],
 };

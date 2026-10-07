@@ -4,8 +4,8 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
-import { bootstrapOrgForUser, findAutoJoinOrg } from "@/lib/org";
-import { syncAttioSignup } from "@/lib/attio";
+import { findAutoJoinOrg } from "@/lib/org";
+import { isLocalLoginBlocked, SsoRequiredError } from "@/lib/integrations/sso-policy";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import {
   TwoFactorRequiredError,
@@ -36,6 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) return null;
+        if (await isLocalLoginBlocked(user.id)) throw new SsoRequiredError();
 
         if (user.twoFactorEnabled && user.twoFactorSecret) {
           if (!code) throw new TwoFactorRequiredError();
@@ -59,6 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { email: record.email } });
         if (!user) return null;
+        if (await isLocalLoginBlocked(user.id)) return null;
 
         await prisma.magicLinkToken.update({
           where: { id: record.id },
@@ -83,6 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) return null;
+        if (await isLocalLoginBlocked(user.id)) return null;
 
         return { id: user.id, email: user.email, name: user.name };
       },
@@ -121,32 +124,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       let dbUser = await prisma.user.findUnique({ where: { email } });
 
       if (!dbUser) {
+        // No open signup on a self-hosted instance — a Google account only
+        // gets in if it matches an org's auto-join domain. Everyone else
+        // needs an invite first.
+        const autoJoinOrg = await findAutoJoinOrg(email);
+        if (!autoJoinOrg) return "/login?error=no-account";
+
         dbUser = await prisma.user.create({
           data: { email, name: user.name || email, passwordHash: null },
         });
-
-        const autoJoinOrg = await findAutoJoinOrg(email);
-        if (autoJoinOrg) {
-          await prisma.membership.create({
-            data: { userId: dbUser.id, orgId: autoJoinOrg.id, role: "MEMBER" },
-          });
-          const adminIds = await getOrgAdminUserIds(prisma, autoJoinOrg.id);
-          await notify(prisma, {
-            orgId: autoJoinOrg.id,
-            userIds: adminIds,
-            type: "MEMBER_JOINED",
-            message: `${dbUser.name} joined your organization (matched ${autoJoinOrg.domain} domain).`,
-            link: "/settings/members",
-          });
-        } else {
-          const newOrg = await bootstrapOrgForUser(dbUser.id, `${dbUser.name}'s Organization`, email);
-          await syncAttioSignup({
-            orgName: newOrg.name,
-            orgDomain: newOrg.domain,
-            userName: dbUser.name,
-            userEmail: dbUser.email,
-          });
-        }
+        await prisma.membership.create({
+          data: { userId: dbUser.id, orgId: autoJoinOrg.id, role: "MEMBER" },
+        });
+        const adminIds = await getOrgAdminUserIds(prisma, autoJoinOrg.id);
+        await notify(prisma, {
+          orgId: autoJoinOrg.id,
+          userIds: adminIds,
+          type: "MEMBER_JOINED",
+          message: `${dbUser.name} joined your organization (matched ${autoJoinOrg.domain} domain).`,
+          link: "/settings/members",
+        });
+      } else if (await isLocalLoginBlocked(dbUser.id)) {
+        return "/login?error=sso-required";
       }
 
       user.id = dbUser.id;

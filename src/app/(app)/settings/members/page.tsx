@@ -8,7 +8,7 @@ import { MemberRowActions } from "./member-row-actions";
 import { CopyButton } from "@/components/copy-button";
 import { revokeInviteAction } from "@/actions/org";
 import { X } from "lucide-react";
-import { headers } from "next/headers";
+import { getOrigin } from "@/lib/url";
 
 export default async function MembersPage() {
   const { org, role, user } = await requireOrgContext();
@@ -28,10 +28,7 @@ export default async function MembersPage() {
       : Promise.resolve([]),
   ]);
 
-  const headerList = await headers();
-  const origin = headerList.get("x-forwarded-host")
-    ? `${headerList.get("x-forwarded-proto") ?? "https"}://${headerList.get("x-forwarded-host")}`
-    : `http://${headerList.get("host")}`;
+  const origin = await getOrigin();
 
   return (
     <div className="flex flex-col gap-6">

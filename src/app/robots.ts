@@ -1,32 +1,6 @@
 import type { MetadataRoute } from "next";
 
-// AUTH_URL is only injected at container runtime (from Secrets Manager), not
-// at `docker build` time — force-dynamic so this reads the real value on
-// every request instead of getting frozen as "localhost:3000" at build time.
-export const dynamic = "force-dynamic";
-
+// Self-hosted instances are private workspaces — nothing here should be indexed.
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.AUTH_URL || "http://localhost:3000";
-  return {
-    rules: [
-      {
-        userAgent: "*",
-        allow: ["/", "/pricing", "/security", "/terms", "/privacy", "/contact"],
-        disallow: [
-          "/dashboard",
-          "/clients",
-          "/projects",
-          "/time",
-          "/invoices",
-          "/settings",
-          "/profile",
-          "/onboarding",
-          "/share/",
-          "/review/",
-          "/api/",
-        ],
-      },
-    ],
-    sitemap: `${base}/sitemap.xml`,
-  };
+  return { rules: [{ userAgent: "*", disallow: "/" }] };
 }

@@ -1,6 +1,6 @@
 # Consultainer
 
-Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — self-hosted, with a clear path to the cloud later.
+Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — self-hosted.
 
 ## Stack
 
@@ -19,33 +19,49 @@ Requires Node 20+, Docker, and npm.
 cp .env.example .env        # then edit values, or generate a fresh AUTH_SECRET:
 #   npx auth secret --raw >> .env   (or: openssl rand -base64 32)
 
-docker compose up -d db     # start Postgres only
+docker run -d --name consultainer-dev-db -p 5433:5432 \
+  -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=consultainer postgres:16-alpine
+# DATABASE_URL=postgresql://app:app@localhost:5433/consultainer?schema=public
 npm install
 npm run db:migrate          # apply the schema
 npm run db:seed             # optional: seed a demo org (demo@example.com / password123)
-npm run dev                 # http://localhost:3000
+npm run dev                 # http://localhost:3000 — an empty DB redirects to /setup
 ```
 
-> The Postgres container is exposed on host port **5433** (not 5432), since 5432 is a very common local default and this avoids clashing with a Postgres install you may already have running.
+> Host port **5433** (not 5432) avoids clashing with a Postgres install you may already have running.
 
-## Running the whole stack in Docker
+## Self-hosting
+
+Consultainer is self-hosted only — no billing, no plan limits, no telemetry.
 
 ```bash
-cp .env.example .env   # fill in POSTGRES_PASSWORD and AUTH_SECRET
+cp .env.example .env
+# Fill in the Required section: AUTH_URL, AUTH_SECRET, INTEGRATION_ENCRYPTION_KEY,
+# CRON_SECRET, POSTGRES_PASSWORD (and ideally SETUP_TOKEN).
 docker compose up -d --build
 ```
 
-This builds the app image, starts Postgres, waits for it to be healthy, and the app container runs `prisma migrate deploy` automatically before starting the server. Visit `http://localhost:3000`.
+This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrades are just `git pull && docker compose up -d --build`.
 
-To seed demo data into the containerized database: `docker compose exec app node_modules/.bin/tsx prisma/seed.ts` (or run `npm run db:seed` locally against the same `DATABASE_URL`).
+**First run.** Open `AUTH_URL`. On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 
-## Moving beyond Docker Compose later
+**No public signup.** People join by invite (Settings → Members), by SSO auto-provisioning, or via Google sign-in on an org's auto-join domain.
 
-The app is a single stateless Next.js server plus a Postgres database — nothing here is tied to Docker Compose specifically. When you're ready:
+**Email is optional.** Without `RESEND_API_KEY`, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, and email changes apply immediately after a password check.
 
-- Point `DATABASE_URL` at any managed Postgres (RDS, Cloud SQL, Neon, Supabase, etc.) and run `prisma migrate deploy` against it.
-- Deploy the app image (the `Dockerfile` produces a standalone Next.js server) to any container host — Fly.io, Railway, ECS, Cloud Run — or deploy the Next.js app directly to Vercel and use its build step in place of the Dockerfile.
-- Set `AUTH_URL` to your real domain and rotate `AUTH_SECRET`.
+**Reverse proxy.** Put any TLS-terminating proxy (Caddy, nginx, Traefik) in front of port `APP_PORT` and set `AUTH_URL` to the public `https://` URL — SSO/OAuth redirect URIs are built from it.
+
+To seed demo data: `docker compose exec app node_modules/.bin/tsx prisma/seed.ts`.
+
+## Single sign-on (OIDC)
+
+Settings → Security → Single sign-on. Works with any OpenID Connect provider (Okta, Entra ID, Google Workspace, Authentik, Keycloak, Zitadel, Auth0):
+
+1. Create a confidential "web" OIDC client in your IdP, with the **redirect URI** shown on the settings card (`<AUTH_URL>/api/sso/callback`) and scopes `openid email profile`.
+2. Paste the issuer URL, client ID, and client secret. Endpoints come from the issuer's `/.well-known/openid-configuration`.
+3. Optionally set a button label, restrict allowed email domains, choose whether first-time users get an account automatically (and with which role), and **require SSO** — this blocks password, passkey, magic-link, and Google login for everyone except owners, who keep local login as a break-glass path.
+
+Once enabled, a "Sign in with …" button appears on the login page. The flow uses PKCE, a nonce, and a state value bound to the browser that started it. Identities are matched to accounts by email, and an IdP that reports `email_verified: false` is refused.
 
 ## Data model
 
@@ -60,7 +76,7 @@ The app is a single stateless Next.js server plus a Postgres database — nothin
 ## Notifications: Slack + email
 
 - **Slack**: paste an [Incoming Webhook](https://api.slack.com/messaging/webhooks) URL into Settings → Organization. Posts there when an invoice is sent/paid and when time is logged.
-- **Email** (via [Resend](https://resend.com)): set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in your environment. Used for team invites and invoice sent/paid notices to the org owner. Without a key set, email sends are logged and skipped rather than failing — the app works fully without one.
+- **Email** (optional, via [Resend](https://resend.com)): set `RESEND_API_KEY` and `RESEND_FROM_EMAIL`. Used for team invites, magic-link login, and invoice sent/paid notices to the org owner. Without it the app works fully — see Self-hosting above.
 - **In-app**: always on, no config needed — see the bell icon in the top bar.
 
 ## REST API + MCP

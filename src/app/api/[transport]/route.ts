@@ -5,7 +5,6 @@ import { authenticateApiRequest, type ApiAuthContext } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere, canViewProject } from "@/lib/project-access";
 import { taskStatusValues } from "@/lib/validations/task";
-import { canAddClient, UPGRADE_MESSAGE_CLIENTS } from "@/lib/plan-limits";
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -87,13 +86,6 @@ const handler = createMcpHandler(
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
-        const org = await prisma.organization.findUniqueOrThrow({
-          where: { id: ctx.orgId },
-          select: { plan: true },
-        });
-        if (!(await canAddClient(ctx.orgId, org.plan))) {
-          return errorResult(UPGRADE_MESSAGE_CLIENTS);
-        }
         const client = await prisma.client.create({
           data: { orgId: ctx.orgId, ...args },
         });

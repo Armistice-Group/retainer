@@ -1,29 +1,29 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { uniqueOrgSlug, findAutoJoinOrg, emailDomain, isClaimableDomain } from "@/lib/org";
-import { signupSchema, loginSchema, acceptInviteSchema } from "@/lib/validations/auth";
+import { uniqueOrgSlug } from "@/lib/org";
+import { loginSchema, acceptInviteSchema } from "@/lib/validations/auth";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { TwoFactorRequiredError, InvalidTwoFactorCodeError } from "@/lib/two-factor";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { MagicLinkEmail } from "@/emails/magic-link-email";
-import { VerifySignupEmail } from "@/emails/verify-signup-email";
 import { getOrigin } from "@/lib/url";
 import { issueMagicLinkToken } from "@/lib/magic-link";
-import { syncAttioSignup } from "@/lib/attio";
+import { SsoRequiredError } from "@/lib/integrations/sso-policy";
 
 export type ActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   requiresTwoFactor?: boolean;
   magicLinkSent?: boolean;
-  pendingVerification?: boolean;
   emailChangePending?: boolean;
+  saved?: boolean;
+  inviteUrl?: string;
+  emailSent?: boolean;
 } | null;
 
 export async function signInWithGoogleAction(callbackUrl: string) {
@@ -37,6 +37,9 @@ export async function requestMagicLinkAction(
   const email = ((formData.get("email") as string) || "").toLowerCase().trim();
   if (!email || !email.includes("@")) {
     return { fieldErrors: { email: ["Enter a valid email"] } };
+  }
+  if (!isEmailConfigured()) {
+    return { error: "Email isn't configured on this instance." };
   }
 
   // Always report success regardless of whether the account exists, so this
@@ -54,98 +57,6 @@ export async function requestMagicLinkAction(
   }
 
   return { magicLinkSent: true };
-}
-
-export async function signupAction(
-  _prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  const parsed = signupSchema.safeParse({
-    orgName: formData.get("orgName"),
-    name: formData.get("name"),
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return { fieldErrors: parsed.error.flatten().fieldErrors };
-  }
-
-  const { orgName, name, email, password } = parsed.data;
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return { fieldErrors: { email: ["An account with this email already exists."] } };
-  }
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  const autoJoinOrg = await findAutoJoinOrg(email);
-  const domain = emailDomain(email);
-  const claimableDomain = !autoJoinOrg && domain && isClaimableDomain(domain) ? domain : null;
-
-  if (autoJoinOrg || claimableDomain) {
-    // Typing an email doesn't prove you own it — without this, anyone could
-    // join an existing org (or squat a domain for a fake one) just by
-    // entering someone else's address here. Gate behind a confirmation
-    // click before anything (user, org, membership) is actually created.
-    const token = randomUUID();
-    await prisma.pendingSignup.create({
-      data: {
-        token,
-        email,
-        name,
-        passwordHash,
-        orgName,
-        autoJoinOrgId: autoJoinOrg?.id ?? null,
-        claimableDomain,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    const origin = await getOrigin();
-    await sendEmail({
-      to: email,
-      subject: autoJoinOrg
-        ? `Confirm your email to join ${autoJoinOrg.name} on Consultainer`
-        : `Confirm your email to create ${orgName} on Consultainer`,
-      react: VerifySignupEmail({
-        verifyUrl: `${origin}/signup/verify/${token}`,
-        orgName: autoJoinOrg?.name ?? orgName,
-        joiningExisting: !!autoJoinOrg,
-        origin,
-      }),
-    });
-
-    return { pendingVerification: true };
-  }
-
-  const slug = await uniqueOrgSlug(orgName);
-  const { org: newOrg, user: newUser } = await prisma.$transaction(async (tx) => {
-    const org = await tx.organization.create({ data: { name: orgName, slug } });
-    const user = await tx.user.create({ data: { name, email, passwordHash } });
-    await tx.membership.create({
-      data: { userId: user.id, orgId: org.id, role: "OWNER" },
-    });
-    return { org, user };
-  });
-
-  await syncAttioSignup({
-    orgName: newOrg.name,
-    orgDomain: newOrg.domain,
-    userName: newUser.name,
-    userEmail: newUser.email,
-  });
-
-  try {
-    await signIn("credentials", { email, password, redirectTo: "/dashboard" });
-  } catch (err) {
-    if (err instanceof AuthError) {
-      return { error: "Account created, but sign-in failed. Try logging in." };
-    }
-    throw err;
-  }
-
-  return null;
 }
 
 export async function loginAction(
@@ -180,6 +91,9 @@ export async function loginAction(
         requiresTwoFactor: true,
         fieldErrors: { code: ["Invalid code. Try again."] },
       };
+    }
+    if (err instanceof SsoRequiredError) {
+      return { error: "Your organization requires signing in with SSO." };
     }
     if (err instanceof AuthError) {
       return { error: "Invalid email or password." };
