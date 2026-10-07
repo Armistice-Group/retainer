@@ -33,7 +33,7 @@ services:
       timeout: 5s
       retries: 10
 
-  app:
+  consultainer-app:
     image: ghcr.io/armistice-group/retainer:${CONSULTAINER_VERSION:-latest}
     restart: unless-stopped
     depends_on:
