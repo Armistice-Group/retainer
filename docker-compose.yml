@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-consulthub}
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-consulthub}"]
       interval: 5s
