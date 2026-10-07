@@ -1,0 +1,15 @@
+# Never bake local secrets or build output into the image.
+.env*
+!.env.example
+.git
+.github
+.next
+node_modules
+src/generated
+terraform
+docs
+*.md
+!README.md
+Dockerfile
+docker-compose*.yml
+.DS_Store

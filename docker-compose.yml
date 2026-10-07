@@ -1,7 +1,13 @@
 # Self-hosted Consultainer: Postgres + the app + a tiny scheduler.
 #
-#   cp .env.example .env    # fill in the Required section
-#   docker compose up -d --build
+#   curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
+#   curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
+#   # fill in the Required section of .env
+#   docker compose up -d
+#
+# Upgrade: docker compose pull && docker compose up -d
+# Pin a version with CONSULTAINER_VERSION=1.2.3 in .env (default: latest).
+# Build from source instead: see docker-compose.build.yml.
 #
 # Then open AUTH_URL — a fresh database redirects to /setup to create your
 # organization and local admin account.
@@ -28,9 +34,7 @@ services:
       retries: 10
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/armistice-group/retainer:${CONSULTAINER_VERSION:-latest}
     restart: unless-stopped
     depends_on:
       consultainer-db:

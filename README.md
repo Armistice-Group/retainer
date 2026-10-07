@@ -34,14 +34,17 @@ npm run dev                 # http://localhost:3000 — an empty DB redirects to
 
 Consultainer is self-hosted only — no billing, no plan limits, no telemetry.
 
+No checkout needed — the app is published as a multi-arch (amd64/arm64) image at `ghcr.io/armistice-group/retainer`:
+
 ```bash
-cp .env.example .env
+curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
 # Fill in the Required section: AUTH_URL, AUTH_SECRET, INTEGRATION_ENCRYPTION_KEY,
 # CRON_SECRET, POSTGRES_PASSWORD (and ideally SETUP_TOKEN).
-docker compose up -d --build
+docker compose up -d
 ```
 
-This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrades are just `git pull && docker compose up -d --build`.
+This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (newest release), `X.Y.Z` / `X.Y` (pin with `CONSULTAINER_VERSION` in `.env`), and `main` (every commit to main). To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 **First run.** Open `AUTH_URL`. On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 

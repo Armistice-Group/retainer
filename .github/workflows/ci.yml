@@ -1,34 +1,25 @@
 name: CI
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Pipeline overview
-#
-#  lint    ESLint + tsc --noEmit                             [self-hosted]
-#  build   docker build (no push) → Trivy HIGH/CRITICAL scan  [self-hosted, x64]
-#
-# On success on `main`, deploy.yml picks up the commit and ships it.
-#
-# Self-hosted runner labels expected:
-#   [self-hosted, x64]   — Linux x86_64 host with Docker installed
-# ─────────────────────────────────────────────────────────────────────────────
+# GitHub-hosted runners only — this repo is public, and self-hosted runners
+# would execute untrusted fork-PR code on our own machines.
 
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_name != 'main' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lint:
     name: Lint & type-check
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - name: Fix workspace permissions
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -37,24 +28,3 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
-
-  build:
-    name: Build image + Trivy scan
-    needs: lint
-    runs-on: [self-hosted, x64]
-    steps:
-      - name: Fix workspace permissions
-        run: sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
-      - uses: actions/checkout@v4
-      - name: Build image
-        run: docker build -t retainer:${{ github.sha }} .
-      - name: Trivy scan
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: retainer:${{ github.sha }}
-          format: table
-          severity: HIGH,CRITICAL
-          exit-code: '0'
-      - name: Clean up local image
-        if: always()
-        run: docker rmi retainer:${{ github.sha }} || true
