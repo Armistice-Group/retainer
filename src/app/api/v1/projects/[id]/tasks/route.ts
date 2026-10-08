@@ -3,6 +3,7 @@ import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { canViewProject } from "@/lib/project-access";
 import { taskSchema } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
+import { soloMemberId } from "@/lib/org";
 
 export async function GET(
   req: Request,
@@ -56,11 +57,11 @@ export async function POST(
       projectId: id,
       title: parsed.data.title,
       description: parsed.data.description || null,
-      assigneeId: parsed.data.assigneeId || null,
+      assigneeId: parsed.data.assigneeId || (await soloMemberId(ctx.orgId)),
     },
   });
 
-  if (task.assigneeId) {
+  if (task.assigneeId && task.assigneeId !== ctx.actorId) {
     await notify(prisma, {
       orgId: ctx.orgId,
       userIds: [task.assigneeId],

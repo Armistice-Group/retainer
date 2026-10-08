@@ -91,7 +91,7 @@ export function AddTaskDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-assignee">Assignee (optional)</Label>
-            <Select name="assigneeId">
+            <Select name="assigneeId" defaultValue={members.length === 1 ? members[0].id : undefined}>
               <SelectTrigger id="task-assignee" className="w-full">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>

@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/time-entries";
 import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/services/invoices";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
+import { soloMemberId } from "@/lib/org";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -317,7 +318,7 @@ const handler = createMcpHandler(
             projectId,
             title: args.title,
             description: args.description ?? null,
-            assigneeId: args.assigneeId ?? null,
+            assigneeId: args.assigneeId || (await soloMemberId(ctx.orgId)),
             estimatedHours: args.estimatedHours ?? null,
           },
         });

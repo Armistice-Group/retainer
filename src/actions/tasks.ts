@@ -7,6 +7,7 @@ import { canViewProject } from "@/lib/project-access";
 import { taskSchema, taskUpdateSchema, taskStatusValues } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
+import { soloMemberId } from "@/lib/org";
 
 export async function createTaskAction(
   _prevState: ActionState,
@@ -35,12 +36,13 @@ export async function createTaskAction(
       projectId: parsed.data.projectId,
       title: parsed.data.title,
       description: parsed.data.description || null,
-      assigneeId: parsed.data.assigneeId || null,
+      assigneeId: parsed.data.assigneeId || (await soloMemberId(org.id)),
       estimatedHours: parsed.data.estimatedHours ?? null,
     },
   });
 
-  if (task.assigneeId) {
+  // No point notifying someone about a task they just assigned themselves.
+  if (task.assigneeId && task.assigneeId !== user.id) {
     await notify(prisma, {
       orgId: org.id,
       userIds: [task.assigneeId],

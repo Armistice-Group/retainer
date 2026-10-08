@@ -32,3 +32,14 @@ export async function findAutoJoinOrg(email: string) {
     where: { domain, autoJoinDomain: true },
   });
 }
+
+/** In a one-person org everything belongs to that person: returns their user
+ * id so new tasks default to them, or null once there's anyone else. */
+export async function soloMemberId(orgId: string) {
+  const members = await prisma.membership.findMany({
+    where: { orgId },
+    select: { userId: true },
+    take: 2,
+  });
+  return members.length === 1 ? members[0].userId : null;
+}

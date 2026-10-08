@@ -102,12 +102,14 @@ export async function syncLinearTasksAction(
     include: { user: { select: { id: true, email: true } } },
   });
   const userIdByEmail = new Map(orgUsers.map((m) => [m.user.email.toLowerCase(), m.user.id]));
+  // Solo org: every issue is that person's, whoever Linear says it's assigned to.
+  const soloUserId = orgUsers.length === 1 ? orgUsers[0].user.id : null;
 
   let synced = 0;
   for (const issue of issues) {
-    const assigneeId = issue.assignee?.email
-      ? (userIdByEmail.get(issue.assignee.email.toLowerCase()) ?? null)
-      : null;
+    const assigneeId =
+      soloUserId ??
+      (issue.assignee?.email ? (userIdByEmail.get(issue.assignee.email.toLowerCase()) ?? null) : null);
     const status = mapLinearStateType(issue.state.type);
 
     const existingLink = await prisma.externalTaskLink.findUnique({
