@@ -1,6 +1,6 @@
 # Consultainer
 
-Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — self-hosted.
+Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — open source (Apache-2.0) and self-hosted.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
@@ -140,3 +140,7 @@ Setup:
 | `npm run db:seed` | Seed a demo organization |
 | `npm run db:studio` | Open Prisma Studio against `DATABASE_URL` |
 | `npm run lint` | ESLint |
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). Copyright 2026 Armistice Group LLC — see [NOTICE](NOTICE).
