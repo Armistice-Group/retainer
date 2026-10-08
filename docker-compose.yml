@@ -6,7 +6,8 @@
 #   docker compose up -d
 #
 # Upgrade: docker compose pull && docker compose up -d
-# Pin a version with CONSULTAINER_VERSION=1.2.3 in .env (default: latest).
+# Pin a release with CONSULTAINER_VERSION=1.2.3 in .env (default: latest,
+# which follows main).
 # Build from source instead: see docker-compose.build.yml.
 #
 # Then open the app (http://<this-host>:3113 by default) — a fresh database

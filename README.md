@@ -44,7 +44,7 @@ curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.en
 docker compose up -d
 ```
 
-This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (newest release), `X.Y.Z` / `X.Y` (pin with `CONSULTAINER_VERSION` in `.env`), and `main` (every commit to main). To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (every change to main — what compose runs by default), and `X.Y.Z` / `X.Y` release tags to pin with `CONSULTAINER_VERSION` in `.env`. To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 **First run.** Open the app (port `APP_PORT`, 3113 by default). On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 
