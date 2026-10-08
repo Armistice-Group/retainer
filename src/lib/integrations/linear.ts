@@ -13,6 +13,12 @@ const SCOPE = "read";
 
 export class LinearError extends Error {}
 
+/** Whether this instance has OAuth app credentials for the integration —
+ * without them the Connect flow can't start. */
+export function isLinearConfigured() {
+  return !!process.env.LINEAR_CLIENT_ID && !!process.env.LINEAR_CLIENT_SECRET;
+}
+
 function env(name: string) {
   const value = process.env[name];
   if (!value) throw new LinearError(`${name} is not configured.`);

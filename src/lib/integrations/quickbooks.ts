@@ -50,6 +50,12 @@ function authSecret() {
   return secret;
 }
 
+/** Whether this instance has OAuth app credentials for the integration —
+ * without them the Connect flow can't start. */
+export function isQuickBooksConfigured() {
+  return !!process.env.QUICKBOOKS_CLIENT_ID && !!process.env.QUICKBOOKS_CLIENT_SECRET;
+}
+
 function env(name: string) {
   const value = process.env[name];
   if (!value) throw new QuickBooksError(`${name} is not configured.`);

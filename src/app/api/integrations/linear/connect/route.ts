@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
-import { requireOrgContext, requireRole } from "@/lib/org-context";
-import { getAuthorizationUrl, signOAuthState } from "@/lib/integrations/linear";
+import { requireOrgContext } from "@/lib/org-context";
+import { getAuthorizationUrl, signOAuthState, isLinearConfigured } from "@/lib/integrations/linear";
 import { getRequestOrigin } from "@/lib/url";
 
 export async function GET() {
   const { org, role } = await requireOrgContext();
-  requireRole(role, ["OWNER", "ADMIN"]);
-
   const origin = await getRequestOrigin();
-  const redirectUri = `${origin}/api/integrations/linear/callback`;
-  const state = signOAuthState(org.id);
+  const back = (status: string) =>
+    NextResponse.redirect(`${origin}/settings/integrations?linear=${status}`);
 
-  return NextResponse.redirect(getAuthorizationUrl(state, redirectUri));
+  if (role !== "OWNER" && role !== "ADMIN") return back("forbidden");
+  // Without the instance's OAuth app credentials there's nothing to redirect
+  // to — send the admin back to the setup instructions instead of erroring.
+  if (!isLinearConfigured()) return back("not-configured");
+
+  const redirectUri = `${origin}/api/integrations/linear/callback`;
+  return NextResponse.redirect(getAuthorizationUrl(signOAuthState(org.id), redirectUri));
 }

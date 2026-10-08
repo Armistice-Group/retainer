@@ -3,6 +3,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { IntegrationSetupHint } from "./integration-setup-hint";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectLinearAction } from "@/actions/integrations";
 
@@ -11,11 +12,15 @@ export function LinearCard({
   workspaceName,
   readOnly,
   callbackStatus,
+  configured,
+  callbackUrl,
 }: {
   connected: boolean;
   workspaceName: string | null;
   readOnly: boolean;
   callbackStatus?: string;
+  configured: boolean;
+  callbackUrl: string;
 }) {
   return (
     <Card>
@@ -23,6 +28,18 @@ export function LinearCard({
         <CardTitle className="text-base">Linear</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {callbackStatus === "forbidden" ? (
+          <Alert variant="destructive">
+            <AlertDescription>Only owners and admins can connect integrations.</AlertDescription>
+          </Alert>
+        ) : null}
+        {callbackStatus === "not-configured" && !configured ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              Linear isn&apos;t set up on this instance yet — see the steps below.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {callbackStatus === "error" ? (
           <Alert variant="destructive">
             <AlertDescription>
@@ -56,12 +73,22 @@ export function LinearCard({
                 Disconnect
               </ConfirmSubmitButton>
             </form>
-          ) : (
+          ) : !configured ? null : (
             <Button size="sm" asChild>
-              <Link href="/api/integrations/linear/connect" prefetch={false}>Connect</Link>
+              <Link href="/api/integrations/linear/connect" prefetch={false}>
+                Connect
+              </Link>
             </Button>
           )}
         </div>
+        {!configured && !connected && !readOnly ? (
+          <IntegrationSetupHint
+            appUrl="https://linear.app/settings/api/applications"
+            appLabel="linear.app → Settings → API"
+            callbackUrl={callbackUrl}
+            envVars={["LINEAR_CLIENT_ID", "LINEAR_CLIENT_SECRET"]}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
