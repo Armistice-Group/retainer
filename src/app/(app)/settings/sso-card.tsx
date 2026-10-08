@@ -29,6 +29,7 @@ export type SsoConnectionSummary = {
   autoProvision: boolean;
   defaultRole: "OWNER" | "ADMIN" | "MEMBER";
   enforced: boolean;
+  trustEmails: boolean;
   enabled: boolean;
 };
 
@@ -136,6 +137,8 @@ function ConnectionSummary({
         </dd>
         <dt className="text-muted-foreground">Domains</dt>
         <dd>{connection.allowedDomains.length ? connection.allowedDomains.join(", ") : "Any"}</dd>
+        <dt className="text-muted-foreground">Unverified emails</dt>
+        <dd>{connection.trustEmails ? "Trusted" : "Rejected"}</dd>
         <dt className="text-muted-foreground">Enforced</dt>
         <dd>{connection.enforced ? "Yes — owners keep password login" : "No"}</dd>
       </dl>
@@ -193,13 +196,15 @@ function SsoForm({
         <Input
           id="sso-issuer"
           name="issuer"
-          placeholder="https://your-org.okta.com"
+          placeholder="https://auth.example.com/application/o/consultainer/"
           defaultValue={connection?.issuer}
           required
         />
         {fieldError("issuer") ?? (
           <p className="text-xs text-muted-foreground">
-            We fetch <code>/.well-known/openid-configuration</code> from this URL.
+            We fetch <code>/.well-known/openid-configuration</code> from this URL. Authentik:
+            the provider&apos;s &ldquo;OpenID Configuration Issuer&rdquo;. Okta:{" "}
+            <code>https://your-org.okta.com</code>.
           </p>
         )}
       </div>
@@ -282,6 +287,24 @@ function SsoForm({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </div>
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="sso-trustEmails"
+            name="trustEmails"
+            defaultChecked={connection?.trustEmails ?? false}
+            className="mt-0.5"
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="sso-trustEmails" className="font-normal">
+              Trust email addresses from this provider
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Needed for Authentik 2025.10+, which marks every email unverified by default. Only
+              turn on if users can&apos;t change their own email in the identity provider — the
+              email is what links a sign-in to an existing account.
+            </p>
           </div>
         </div>
         <div className="flex items-start gap-2">

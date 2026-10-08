@@ -9,8 +9,8 @@
 # Pin a version with CONSULTAINER_VERSION=1.2.3 in .env (default: latest).
 # Build from source instead: see docker-compose.build.yml.
 #
-# Then open AUTH_URL — a fresh database redirects to /setup to create your
-# organization and local admin account.
+# Then open the app (http://<this-host>:3113 by default) — a fresh database
+# redirects to /setup to create your organization and local admin account.
 
 x-required: &required
   AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (openssl rand -base64 32)}
@@ -42,8 +42,10 @@ services:
     environment:
       <<: *required
       DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@consultainer-db:5432/${POSTGRES_DB:-consulthub}?schema=public
-      AUTH_URL: ${AUTH_URL:-http://localhost:3113}
-      # Behind your own reverse proxy, Auth.js has to trust the Host header.
+      # Optional. Leave unset and redirects follow whatever address the app is
+      # reached at (localhost, hp.local, a domain); setting it forces one URL.
+      AUTH_URL: ${AUTH_URL:-}
+      # Lets Auth.js build redirects from the request's Host / X-Forwarded-*.
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
       SETUP_TOKEN: ${SETUP_TOKEN:-}

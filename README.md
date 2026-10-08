@@ -39,20 +39,20 @@ No checkout needed — the app is published as a multi-arch (amd64/arm64) image 
 ```bash
 curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
 curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
-# Fill in the Required section: AUTH_URL, AUTH_SECRET, INTEGRATION_ENCRYPTION_KEY,
+# Fill in the Required section: AUTH_SECRET, INTEGRATION_ENCRYPTION_KEY,
 # CRON_SECRET, POSTGRES_PASSWORD (and ideally SETUP_TOKEN).
 docker compose up -d
 ```
 
 This starts Postgres, the app, and a small scheduler for recurring invoices and Mercury sync. The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (newest release), `X.Y.Z` / `X.Y` (pin with `CONSULTAINER_VERSION` in `.env`), and `main` (every commit to main). To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
-**First run.** Open `AUTH_URL`. On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
+**First run.** Open the app (port `APP_PORT`, 3113 by default). On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 
 **No public signup.** People join by invite (Settings → Members), by SSO auto-provisioning, or via Google sign-in on an org's auto-join domain.
 
 **Email is optional.** Without `RESEND_API_KEY`, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, and email changes apply immediately after a password check.
 
-**Reverse proxy.** Put any TLS-terminating proxy (Caddy, nginx, Traefik) in front of port `APP_PORT` and set `AUTH_URL` to the public `https://` URL — SSO/OAuth redirect URIs are built from it.
+**URLs.** Sign-in, SSO and OAuth redirects follow whatever address the app is reached at — `localhost`, `hp.local`, or a domain behind a TLS proxy (Caddy, nginx, Traefik; forward `X-Forwarded-Host`/`-Proto`). Links that leave the browser (emails, invite/share/review links) use the **instance URL** you confirm at setup, editable by owners in Settings → General. Set `AUTH_URL` only to force a single URL for everything.
 
 To seed demo data: `docker compose exec consultainer-app node_modules/.bin/tsx prisma/seed.ts`.
 
@@ -60,7 +60,7 @@ To seed demo data: `docker compose exec consultainer-app node_modules/.bin/tsx p
 
 Settings → Security → Single sign-on. Works with any OpenID Connect provider (Okta, Entra ID, Google Workspace, Authentik, Keycloak, Zitadel, Auth0):
 
-1. Create a confidential "web" OIDC client in your IdP, with the **redirect URI** shown on the settings card (`<AUTH_URL>/api/sso/callback`) and scopes `openid email profile`.
+1. Create a confidential "web" OIDC client in your IdP, with the **redirect URI** shown on the settings card (`<your URL>/api/sso/callback` — open the settings page on the address people will sign in from) and scopes `openid email profile`.
 2. Paste the issuer URL, client ID, and client secret. Endpoints come from the issuer's `/.well-known/openid-configuration`.
 3. Optionally set a button label, restrict allowed email domains, choose whether first-time users get an account automatically (and with which role), and **require SSO** — this blocks password, passkey, magic-link, and Google login for everyone except owners, who keep local login as a break-glass path.
 

@@ -18,7 +18,7 @@ import {
   SSO_FLOW_COOKIE,
   SSO_FLOW_TTL_SECONDS,
 } from "@/lib/integrations/sso";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
 
 /** Creates or updates the org's OIDC connection. On update the client secret
@@ -37,6 +37,7 @@ export async function saveSsoConnectionAction(
   const allowedDomains = parseDomainList((formData.get("allowedDomains") as string) || "");
   const autoProvision = formData.get("autoProvision") === "on";
   const enforced = formData.get("enforced") === "on";
+  const trustEmails = formData.get("trustEmails") === "on";
   const defaultRole = formData.get("defaultRole") === "ADMIN" ? "ADMIN" : "MEMBER";
 
   const existing = await prisma.ssoConnection.findUnique({ where: { orgId: org.id } });
@@ -70,6 +71,7 @@ export async function saveSsoConnectionAction(
     allowedDomains,
     autoProvision,
     enforced,
+    trustEmails,
     defaultRole,
     connectedById: user.id,
   } as const;
@@ -113,7 +115,7 @@ export async function startSsoLoginAction(formData: FormData) {
     : null;
   if (!connection || !connection.enabled) redirect("/login?error=sso-failed");
 
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
   const flow = createSsoFlow(signOAuthState(connection.orgId));
 
   (await cookies()).set(SSO_FLOW_COOKIE, sealSsoFlow(flow), {

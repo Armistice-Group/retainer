@@ -2,10 +2,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
 import { OrgSettingsForm } from "./org-settings-form";
 import { OrgLogoCard } from "./org-logo-card";
+import { InstanceUrlCard } from "./instance-url-card";
+import { getConfiguredPublicUrl, getRequestOrigin } from "@/lib/url";
 
 export default async function OrgSettingsPage() {
   const { org, role } = await requireOrgContext();
   const readOnly = role === "MEMBER";
+
+  const [configuredUrl, currentUrl] = await Promise.all([
+    getConfiguredPublicUrl(),
+    getRequestOrigin(),
+  ]);
 
   const previewSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
@@ -38,7 +45,16 @@ export default async function OrgSettingsPage() {
         </CardContent>
       </Card>
 
-      <OrgLogoCard previewSrc={previewSrc} readOnly={readOnly} />
+      <div className="flex flex-col gap-6">
+        <OrgLogoCard previewSrc={previewSrc} readOnly={readOnly} />
+        {role === "OWNER" ? (
+          <InstanceUrlCard
+            configuredUrl={configuredUrl}
+            currentUrl={currentUrl}
+            envOverride={process.env.AUTH_URL ? new URL(process.env.AUTH_URL).origin : null}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createInvoicePaymentCheckoutUrl, InvoicePaymentError } from "@/lib/services/invoice-payment";
 import { getClientShareTokenInvoiceIfAuthorized } from "@/lib/services/client-share";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 export async function GET(
   _req: Request,
@@ -14,7 +14,7 @@ export async function GET(
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
 
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
   try {
     const url = await createInvoicePaymentCheckoutUrl(
       invoice,

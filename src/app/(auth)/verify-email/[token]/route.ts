@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signOut } from "@/lib/auth";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 // A Route Handler, not a page — signOut() needs to clear the session cookie,
 // and cookies() can only be written from a Server Action or Route Handler.
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
 
   const pending = await prisma.pendingEmailChange.findUnique({ where: { token } });
   if (!pending || pending.expiresAt < new Date()) {

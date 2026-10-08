@@ -17,6 +17,8 @@ export default async function LoginPage({
   const errorMessages: Record<string, string> = {
     "invalid-magic-link": "That login link is invalid or has expired.",
     "sso-failed": "SSO sign-in failed. Try again or contact your admin.",
+    "sso-email-unverified":
+      "Your identity provider marked your email as unverified. An admin can turn on “Trust email addresses from this provider” in Settings → Security.",
     "sso-domain-not-allowed": "Your email domain isn't allowed to sign in with this SSO provider.",
     "sso-no-account": "You don't have an account yet. Ask an admin to invite you.",
     "sso-required": "Your organization requires signing in with SSO.",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
+import { originFromHeaders } from "@/lib/request-origin";
 
 const { auth } = NextAuth(authConfig);
 
@@ -15,18 +16,19 @@ const PUBLIC_PREFIXES = ["/login/", "/invite/", "/verify-email/", "/share/", "/r
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const origin = originFromHeaders(req.headers, req.nextUrl.protocol.replace(":", "")) ?? req.nextUrl.origin;
 
   const isPublic =
     PUBLIC_PATHS.includes(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 
   if (!req.auth && !isPublic) {
-    const loginUrl = new URL("/login", req.nextUrl.origin);
+    const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (req.auth && (pathname === "/login" || pathname === "/setup")) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
   return NextResponse.next();

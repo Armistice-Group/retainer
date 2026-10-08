@@ -8,6 +8,10 @@ export { signOAuthState, verifyOAuthState } from "@/lib/integrations/oauth-state
 
 export class SsoError extends Error {}
 
+/** The IdP didn't vouch for the email — distinct so the login page can tell
+ * the admin which setting to change. */
+export class SsoUnverifiedEmailError extends SsoError {}
+
 export const SSO_CALLBACK_PATH = "/api/sso/callback";
 
 export type OidcDiscovery = {
@@ -164,10 +168,11 @@ export async function verifyIdToken(
   if (!email) throw new SsoError("SSO identity provider did not return an email claim.");
   // The email is how an IdP identity is matched to an existing account
   // (including the local admin), so an address the IdP itself says it
-  // hasn't verified must never be trusted. Providers that omit the claim
-  // entirely (some only issue verified addresses) are allowed through.
-  if (payload.email_verified === false || payload.email_verified === "false") {
-    throw new SsoError("SSO identity provider reports this email as unverified.");
+  // hasn't verified isn't trusted unless the admin opted in. Providers that
+  // omit the claim entirely (some only issue verified addresses) are allowed.
+  const unverified = payload.email_verified === false || payload.email_verified === "false";
+  if (unverified && !connection.trustEmails) {
+    throw new SsoUnverifiedEmailError("SSO identity provider reports this email as unverified.");
   }
 
   const name = typeof payload.name === "string" ? payload.name : null;

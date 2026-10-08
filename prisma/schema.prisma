@@ -946,6 +946,11 @@ model SsoConnection {
   // Email domains the IdP is trusted for. Empty = any verified email the IdP
   // returns.
   allowedDomains        String[] @default([])
+  // Accept the IdP's email even when it sends email_verified=false (or
+  // omits it). Some IdPs, notably authentik 2025.10+, report every address
+  // as unverified by default. Only safe if users can't set arbitrary emails
+  // in the IdP, since the email is what links to an existing account.
+  trustEmails           Boolean  @default(false)
   // Blocks password / magic-link / passkey login for everyone in the org
   // except OWNERs, who keep local login as a break-glass path.
   enforced              Boolean  @default(false)
@@ -991,4 +996,14 @@ model PendingSignup {
   createdAt       DateTime @default(now())
 
   @@index([email])
+}
+
+// Instance-wide (not per-organization) settings for a self-hosted install,
+// as simple key/value rows.
+//   publicUrl — the address people use to reach this instance, confirmed
+//   at setup; base of links that leave the browser (emails, share links).
+model InstanceSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

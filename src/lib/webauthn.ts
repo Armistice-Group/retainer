@@ -8,14 +8,14 @@ import {
   type AuthenticatorTransportFuture,
 } from "@simplewebauthn/server";
 import { prisma } from "@/lib/prisma";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 export const RP_NAME = "Consultainer";
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const LOGIN_TICKET_TTL_MS = 30 * 1000;
 
 async function rpConfig() {
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
   const rpID = new URL(origin).hostname;
   return { origin, rpID };
 }

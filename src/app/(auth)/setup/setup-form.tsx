@@ -14,7 +14,13 @@ function FieldError({ state, name }: { state: ActionState; name: string }) {
   return message ? <p className="text-sm text-destructive">{message}</p> : null;
 }
 
-export function SetupForm({ tokenRequired }: { tokenRequired: boolean }) {
+export function SetupForm({
+  tokenRequired,
+  detectedUrl,
+}: {
+  tokenRequired: boolean;
+  detectedUrl: string | null;
+}) {
   const [state, formAction] = useActionState<ActionState, FormData>(completeSetupAction, null);
 
   return (
@@ -56,6 +62,18 @@ export function SetupForm({ tokenRequired }: { tokenRequired: boolean }) {
             <Input id="orgName" name="orgName" placeholder="Acme Consulting" required />
             <FieldError state={state} name="orgName" />
           </div>
+
+          {detectedUrl ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="publicUrl">Instance URL</Label>
+              <Input id="publicUrl" name="publicUrl" defaultValue={detectedUrl} required />
+              <p className="text-xs text-muted-foreground">
+                Detected from your browser. Used in links sent to people — invites, share and
+                review links — so change it if others reach this instance at a different address.
+              </p>
+              <FieldError state={state} name="publicUrl" />
+            </div>
+          ) : null}
 
           <div className="mt-2 border-t border-border pt-4">
             <p className="text-sm font-medium">Admin account</p>

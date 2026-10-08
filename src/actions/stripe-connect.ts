@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 // Express account creation + an Account Link is the standard Stripe Connect
 // onboarding flow — Stripe hosts the actual form (business details, bank
@@ -20,7 +20,7 @@ export async function startStripeConnectOnboardingAction() {
   }
 
   const stripe = getStripe();
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
 
   let accountId = org.stripeConnectAccountId;
   if (!accountId) {

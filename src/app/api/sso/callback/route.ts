@@ -11,13 +11,14 @@ import {
   verifyOAuthState,
   SSO_CALLBACK_PATH,
   SSO_FLOW_COOKIE,
+  SsoUnverifiedEmailError,
 } from "@/lib/integrations/sso";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 const TICKET_TTL_MS = 60 * 1000;
 
 export async function GET(req: Request) {
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
   const cookieStore = await cookies();
   const flow = unsealSsoFlow(cookieStore.get(SSO_FLOW_COOKIE)?.value);
   // Single use — clear it whatever happens next.
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     identity = await verifyIdToken(connection, idToken, flow.nonce);
   } catch (err) {
     console.warn("[sso] Sign-in failed", err);
-    return loginError("sso-failed");
+    return loginError(err instanceof SsoUnverifiedEmailError ? "sso-email-unverified" : "sso-failed");
   }
 
   const domain = emailDomain(identity.email);

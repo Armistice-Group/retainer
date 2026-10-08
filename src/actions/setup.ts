@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { uniqueOrgSlug } from "@/lib/org";
 import { setupSchema } from "@/lib/validations/auth";
 import { checkSetupToken, isSetupComplete, markSetupComplete } from "@/lib/setup";
+import { normalizeOrigin, setPublicUrl } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
 
 // Arbitrary constant key for pg_advisory_xact_lock — serializes concurrent
@@ -36,6 +37,12 @@ export async function completeSetupAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const rawPublicUrl = ((formData.get("publicUrl") as string) || "").trim();
+  const publicUrl = rawPublicUrl ? normalizeOrigin(rawPublicUrl) : null;
+  if (rawPublicUrl && !publicUrl) {
+    return { fieldErrors: { publicUrl: ["Enter a full URL, like https://time.example.com"] } };
+  }
+
   const { orgName, name, email, password } = parsed.data;
   const passwordHash = await bcrypt.hash(password, 12);
   const slug = await uniqueOrgSlug(orgName);
@@ -59,6 +66,7 @@ export async function completeSetupAction(
   }
 
   markSetupComplete();
+  if (publicUrl) await setPublicUrl(publicUrl);
 
   try {
     await signIn("credentials", { email, password, redirectTo: "/welcome" });

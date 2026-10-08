@@ -7,10 +7,10 @@ import {
   fetchWorkspaceName,
   verifyOAuthState,
 } from "@/lib/integrations/linear";
-import { getOrigin } from "@/lib/url";
+import { getRequestOrigin } from "@/lib/url";
 
 export async function GET(req: Request) {
-  const origin = await getOrigin();
+  const origin = await getRequestOrigin();
   const settingsUrl = (status: "connected" | "error") =>
     NextResponse.redirect(`${origin}/settings/integrations?linear=${status}`);
 
