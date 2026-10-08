@@ -51,7 +51,7 @@ export function ApiKeysCard({ apiKeys, mcpUrl }: { apiKeys: ApiKeyItem[]; mcpUrl
               <span>Copy this key now — you won&apos;t be able to see it again.</span>
               <div className="flex items-center gap-2">
                 <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">{newKey}</code>
-                <CopyButton value={newKey} label="Copy" />
+                <CopyButton value={newKey} label="Copy API key" />
               </div>
             </AlertDescription>
           </Alert>
