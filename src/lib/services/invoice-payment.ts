@@ -108,7 +108,7 @@ async function createStripeInvoicePaymentCheckoutUrl(
     throw new InvoicePaymentError("Payment setup isn't finished on the recipient's side yet.");
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const amountCents = Math.round(Number(invoice.total) * 100);
 
   const session = await stripe.checkout.sessions.create({

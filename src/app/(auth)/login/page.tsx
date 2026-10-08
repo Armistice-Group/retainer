@@ -37,7 +37,7 @@ export default async function LoginPage({
     <LoginForm
       callbackUrl={callbackUrl || "/dashboard"}
       googleEnabled={!!process.env.AUTH_GOOGLE_ID}
-      magicLinkEnabled={isEmailConfigured()}
+      magicLinkEnabled={await isEmailConfigured()}
       ssoProviders={ssoConnections.map((c) => ({
         id: c.id,
         // With one org on the instance the org name adds nothing; with

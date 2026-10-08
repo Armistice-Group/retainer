@@ -1,4 +1,5 @@
 import "server-only";
+import { getConfig, getConfigs, type ConfigKey } from "@/lib/instance-config";
 import { decrypt } from "@/lib/crypto";
 import type { LinearConnection } from "@/generated/prisma/client";
 
@@ -15,19 +16,21 @@ export class LinearError extends Error {}
 
 /** Whether this instance has OAuth app credentials for the integration —
  * without them the Connect flow can't start. */
-export function isLinearConfigured() {
-  return !!process.env.LINEAR_CLIENT_ID && !!process.env.LINEAR_CLIENT_SECRET;
+export async function isLinearConfigured() {
+  const c = await getConfigs(["LINEAR_CLIENT_ID", "LINEAR_CLIENT_SECRET"]);
+  return !!c.LINEAR_CLIENT_ID && !!c.LINEAR_CLIENT_SECRET;
 }
 
-function env(name: string) {
-  const value = process.env[name];
+// From .env or Settings → Integrations (see lib/instance-config).
+async function env(name: ConfigKey) {
+  const value = await getConfig(name);
   if (!value) throw new LinearError(`${name} is not configured.`);
   return value;
 }
 
-export function getAuthorizationUrl(state: string, redirectUri: string) {
+export async function getAuthorizationUrl(state: string, redirectUri: string) {
   const url = new URL(AUTHORIZE_URL);
-  url.searchParams.set("client_id", env("LINEAR_CLIENT_ID"));
+  url.searchParams.set("client_id", await env("LINEAR_CLIENT_ID"));
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", SCOPE);
@@ -42,8 +45,8 @@ export async function exchangeCodeForToken(code: string, redirectUri: string) {
     body: new URLSearchParams({
       code,
       redirect_uri: redirectUri,
-      client_id: env("LINEAR_CLIENT_ID"),
-      client_secret: env("LINEAR_CLIENT_SECRET"),
+      client_id: await env("LINEAR_CLIENT_ID"),
+      client_secret: await env("LINEAR_CLIENT_SECRET"),
       grant_type: "authorization_code",
     }),
   });

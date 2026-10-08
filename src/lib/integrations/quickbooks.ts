@@ -1,4 +1,5 @@
 import "server-only";
+import { getConfig, getConfigs, type ConfigKey } from "@/lib/instance-config";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -52,32 +53,34 @@ function authSecret() {
 
 /** Whether this instance has OAuth app credentials for the integration —
  * without them the Connect flow can't start. */
-export function isQuickBooksConfigured() {
-  return !!process.env.QUICKBOOKS_CLIENT_ID && !!process.env.QUICKBOOKS_CLIENT_SECRET;
+export async function isQuickBooksConfigured() {
+  const c = await getConfigs(["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"]);
+  return !!c.QUICKBOOKS_CLIENT_ID && !!c.QUICKBOOKS_CLIENT_SECRET;
 }
 
-function env(name: string) {
-  const value = process.env[name];
+// From .env or Settings → Integrations (see lib/instance-config).
+async function env(name: ConfigKey) {
+  const value = await getConfig(name);
   if (!value) throw new QuickBooksError(`${name} is not configured.`);
   return value;
 }
 
-function apiBase() {
-  const environment = process.env.QUICKBOOKS_ENVIRONMENT ?? "sandbox";
+async function apiBase() {
+  const environment = (await getConfig("QUICKBOOKS_ENVIRONMENT")) ?? "sandbox";
   return environment === "production"
     ? "https://quickbooks.api.intuit.com"
     : "https://sandbox-quickbooks.api.intuit.com";
 }
 
-function basicAuthHeader() {
-  const clientId = env("QUICKBOOKS_CLIENT_ID");
-  const clientSecret = env("QUICKBOOKS_CLIENT_SECRET");
+async function basicAuthHeader() {
+  const clientId = await env("QUICKBOOKS_CLIENT_ID");
+  const clientSecret = await env("QUICKBOOKS_CLIENT_SECRET");
   return "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 }
 
-export function getAuthorizationUrl(state: string, redirectUri: string) {
+export async function getAuthorizationUrl(state: string, redirectUri: string) {
   const url = new URL(AUTHORIZE_URL);
-  url.searchParams.set("client_id", env("QUICKBOOKS_CLIENT_ID"));
+  url.searchParams.set("client_id", await env("QUICKBOOKS_CLIENT_ID"));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", SCOPE);
   url.searchParams.set("redirect_uri", redirectUri);
@@ -95,7 +98,7 @@ async function requestTokens(body: URLSearchParams) {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: basicAuthHeader(),
+      Authorization: await basicAuthHeader(),
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "application/json",
     },
@@ -159,7 +162,7 @@ async function qboFetch(
   init?: RequestInit
 ) {
   const accessToken = await getValidAccessToken(connection);
-  const res = await fetch(`${apiBase()}/v3/company/${connection.realmId}${path}`, {
+  const res = await fetch(`${await apiBase()}/v3/company/${connection.realmId}${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${accessToken}`,

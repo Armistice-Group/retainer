@@ -62,7 +62,9 @@ This starts Postgres, the app, and a small scheduler for recurring invoices and 
 
 **No public signup.** People join by invite (Settings → Members), by SSO auto-provisioning, or via Google sign-in on an org's auto-join domain.
 
-**Email is optional.** Without `RESEND_API_KEY`, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, and email changes apply immediately after a password check.
+**Integrations are configured in the app.** Owners add email (Resend), QuickBooks, Linear, and Stripe credentials under Settings → Integrations / Payments — each card shows the callback URL to register. Environment variables still work and take precedence.
+
+**Email is optional.** Without it, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, and email changes apply immediately after a password check.
 
 **URLs.** Sign-in, SSO and OAuth redirects follow whatever address the app is reached at — `localhost`, `hp.local`, or a domain behind a TLS proxy (Caddy, nginx, Traefik; forward `X-Forwarded-Host`/`-Proto`). Links that leave the browser (emails, invite/share/review links) use the **instance URL** you confirm at setup, editable by owners in Settings → General. Set `AUTH_URL` only to force a single URL for everything.
 

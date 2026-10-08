@@ -12,8 +12,8 @@ export async function GET() {
   if (role !== "OWNER" && role !== "ADMIN") return back("forbidden");
   // Without the instance's OAuth app credentials there's nothing to redirect
   // to — send the admin back to the setup instructions instead of erroring.
-  if (!isLinearConfigured()) return back("not-configured");
+  if (!(await isLinearConfigured())) return back("not-configured");
 
   const redirectUri = `${origin}/api/integrations/linear/callback`;
-  return NextResponse.redirect(getAuthorizationUrl(signOAuthState(org.id), redirectUri));
+  return NextResponse.redirect(await getAuthorizationUrl(signOAuthState(org.id), redirectUri));
 }

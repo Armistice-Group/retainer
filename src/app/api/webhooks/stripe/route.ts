@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import { getConfig } from "@/lib/instance-config";
 import { notifyInvoiceStatusChange } from "@/lib/services/invoices";
 
 // Records invoice payments collected through Stripe Connect. Must read the raw body (not req.json()) for signature verification to work.
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = await getConfig("STRIPE_WEBHOOK_SECRET");
   if (!secret) {
-    console.error("[stripe webhook] STRIPE_WEBHOOK_SECRET is not configured.");
+    console.error("[stripe webhook] No webhook signing secret configured (Settings → Payments or STRIPE_WEBHOOK_SECRET).");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
   try {
-    event = await getStripe().webhooks.constructEventAsync(body, signature, secret);
+    event = await (await getStripe()).webhooks.constructEventAsync(body, signature, secret);
   } catch (err) {
     console.error("[stripe webhook] Signature verification failed", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });

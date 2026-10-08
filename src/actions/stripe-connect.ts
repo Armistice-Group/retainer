@@ -15,11 +15,11 @@ export async function startStripeConnectOnboardingAction() {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  if (!isStripeConfigured()) {
-    throw new Error("Stripe isn't configured on this instance. Set STRIPE_SECRET_KEY.");
+  if (!(await isStripeConfigured())) {
+    throw new Error("Stripe isn't configured on this instance. Add your keys in Settings → Payments.");
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const origin = await getRequestOrigin();
 
   let accountId = org.stripeConnectAccountId;
@@ -64,7 +64,7 @@ export async function openStripeConnectDashboardAction() {
     throw new Error("Connect Stripe first.");
   }
 
-  const stripe = getStripe();
+  const stripe = await getStripe();
   const loginLink = await stripe.accounts.createLoginLink(org.stripeConnectAccountId);
   redirect(loginLink.url);
 }

@@ -119,7 +119,7 @@ export async function changeEmailAction(
     return { fieldErrors: { newEmail: ["That email is already in use."] } };
   }
 
-  if (!isEmailConfigured()) {
+  if (!(await isEmailConfigured())) {
     // No way to send a confirmation link. A password re-check is the best
     // available proof it's really you; accounts without a local password
     // (SSO/Google) get their email from the identity provider instead.

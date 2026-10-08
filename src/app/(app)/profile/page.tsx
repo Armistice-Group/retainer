@@ -56,7 +56,7 @@ export default async function ProfilePage() {
               <ChangeEmailForm
                 currentEmail={dbUser.email}
                 hasPassword={!!dbUser.passwordHash}
-                emailEnabled={isEmailConfigured()}
+                emailEnabled={await isEmailConfigured()}
               />
             </CardContent>
           </Card>

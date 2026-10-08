@@ -5,6 +5,10 @@ import { decrypt } from "@/lib/crypto";
 import { listEligibleAccounts } from "@/lib/integrations/mercury";
 import { StripeConnectCard } from "../stripe-connect-card";
 import { MercuryConnectCard } from "../mercury-card";
+import { IntegrationCredentials } from "../integration-credentials";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { describeIntegration } from "@/lib/instance-config";
+import { getRequestOrigin } from "@/lib/url";
 
 export default async function PaymentsPage({
   searchParams,
@@ -20,9 +24,10 @@ export default async function PaymentsPage({
   // back from Stripe's onboarding flow (or just revisits this page), which
   // is the only moment this actually needs to be fresh.
   let chargesEnabled = org.stripeConnectChargesEnabled;
-  if (org.stripeConnectAccountId && !chargesEnabled && isStripeConfigured()) {
+  const stripeConfigured = await isStripeConfigured();
+  if (org.stripeConnectAccountId && !chargesEnabled && stripeConfigured) {
     try {
-      const account = await getStripe().accounts.retrieve(org.stripeConnectAccountId);
+      const account = await (await getStripe()).accounts.retrieve(org.stripeConnectAccountId);
       chargesEnabled = !!account.charges_enabled;
       if (chargesEnabled) {
         await prisma.organization.update({
@@ -48,7 +53,31 @@ export default async function PaymentsPage({
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
-      {isStripeConfigured() ? (
+      {role === "OWNER" || !stripeConfigured ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Stripe</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              Optional. Adds a Pay now button to invoices through Stripe Connect. Needs a Stripe
+              account with Connect enabled; send the webhook only the{" "}
+              <code className="text-xs">checkout.session.completed</code> event.
+            </p>
+            <IntegrationCredentials
+              integration="stripe"
+              fields={await describeIntegration("stripe")}
+              configured={stripeConfigured}
+              canEdit={role === "OWNER"}
+              callbackUrl={`${await getRequestOrigin()}/api/webhooks/stripe`}
+              callbackLabel="webhook endpoint"
+              appUrl="https://dashboard.stripe.com/apikeys"
+              appLabel="dashboard.stripe.com"
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+      {stripeConfigured ? (
         <StripeConnectCard
           accountId={org.stripeConnectAccountId}
           chargesEnabled={chargesEnabled}

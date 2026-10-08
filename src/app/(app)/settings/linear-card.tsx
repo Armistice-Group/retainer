@@ -3,7 +3,6 @@ import { CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { IntegrationSetupHint } from "./integration-setup-hint";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectLinearAction } from "@/actions/integrations";
 
@@ -13,14 +12,15 @@ export function LinearCard({
   readOnly,
   callbackStatus,
   configured,
-  callbackUrl,
+  credentials,
 }: {
   connected: boolean;
   workspaceName: string | null;
   readOnly: boolean;
   callbackStatus?: string;
   configured: boolean;
-  callbackUrl: string;
+  /** Instance credentials form (see integration-credentials.tsx). */
+  credentials: React.ReactNode;
 }) {
   return (
     <Card>
@@ -36,7 +36,7 @@ export function LinearCard({
         {callbackStatus === "not-configured" && !configured ? (
           <Alert variant="destructive">
             <AlertDescription>
-              Linear isn&apos;t set up on this instance yet — see the steps below.
+              Linear isn&apos;t set up on this instance yet — add its credentials below.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -81,14 +81,7 @@ export function LinearCard({
             </Button>
           )}
         </div>
-        {!configured && !connected && !readOnly ? (
-          <IntegrationSetupHint
-            appUrl="https://linear.app/settings/api/applications"
-            appLabel="linear.app → Settings → API"
-            callbackUrl={callbackUrl}
-            envVars={["LINEAR_CLIENT_ID", "LINEAR_CLIENT_SECRET"]}
-          />
-        ) : null}
+        {credentials}
       </CardContent>
     </Card>
   );

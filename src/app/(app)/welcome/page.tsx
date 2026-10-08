@@ -20,7 +20,7 @@ export default async function WelcomePage() {
     prisma.invite.count({ where: { orgId: org.id, usedAt: null } }),
     prisma.client.count({ where: { orgId: org.id } }),
   ]);
-  const emailEnabled = isEmailConfigured();
+  const emailEnabled = await isEmailConfigured();
 
   const steps: Step[] = [
     {

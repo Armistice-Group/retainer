@@ -38,7 +38,7 @@ export async function requestMagicLinkAction(
   if (!email || !email.includes("@")) {
     return { fieldErrors: { email: ["Enter a valid email"] } };
   }
-  if (!isEmailConfigured()) {
+  if (!(await isEmailConfigured())) {
     return { error: "Email isn't configured on this instance." };
   }
 
