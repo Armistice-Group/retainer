@@ -12,7 +12,12 @@ import {
   type LinearProjectOption,
   type LinearLabelOption,
 } from "@/lib/integrations/linear";
-import { pullLinearIssues, LinearSyncError, type SyncResult } from "@/lib/services/linear-sync";
+import {
+  pullLinearIssues,
+  removeStaleLinearTasks,
+  LinearSyncError,
+  type SyncResult,
+} from "@/lib/services/linear-sync";
 import type { ActionState } from "@/actions/auth";
 
 async function orgConnection() {
@@ -126,6 +131,35 @@ export async function syncLinearTasksAction(
         err instanceof LinearSyncError
           ? err.message
           : "Couldn't pull issues from Linear. Try reconnecting in Settings → Integrations.",
+    };
+  }
+}
+
+export async function removeStaleLinearTasksAction(
+  projectId: string,
+): Promise<{ removed: number; keptWithTime: number; error: string | null }> {
+  const { org, user, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id || !(await canViewProject(project, user.id, role))) {
+    return { removed: 0, keptWithTime: 0, error: "Project not found." };
+  }
+
+  try {
+    const result = await removeStaleLinearTasks(projectId);
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/dashboard");
+    return { ...result, error: null };
+  } catch (err) {
+    console.warn("[linear] Cleanup failed", err);
+    return {
+      removed: 0,
+      keptWithTime: 0,
+      error:
+        err instanceof LinearSyncError
+          ? err.message
+          : "Couldn't reach Linear to check which tasks still match.",
     };
   }
 }

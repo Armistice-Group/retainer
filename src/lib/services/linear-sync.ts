@@ -28,7 +28,14 @@ async function linearContext(projectId: string) {
   return { link, project, connection };
 }
 
-export type SyncResult = { created: number; updated: number; skipped: number };
+export type SyncResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  /** Tasks pulled in earlier whose issue no longer matches the link's
+   * filters (e.g. after narrowing it to a Linear project or labels). */
+  stale: number;
+};
 
 /** Pulls the issues matching a project's Linear link (team + optional Linear
  * project / labels) into its tasks. An issue already linked to a task in a
@@ -49,7 +56,7 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
   // Solo org: every issue is that person's, whoever Linear says it's assigned to.
   const soloUserId = members.length === 1 ? members[0].user.id : null;
 
-  const result: SyncResult = { created: 0, updated: 0, skipped: 0 };
+  const result: SyncResult = { created: 0, updated: 0, skipped: 0, stale: 0 };
   for (const issue of issues) {
     const assigneeId =
       soloUserId ??
@@ -100,7 +107,41 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
     where: { id: ctx.link.id },
     data: { lastSyncedAt: new Date() },
   });
+  result.stale = (await staleTasks(projectId, new Set(issues.map((i) => i.id)))).length;
   return result;
+}
+
+/** Linear-linked tasks in the project whose issue isn't in `matchingIds`. */
+async function staleTasks(projectId: string, matchingIds: Set<string>) {
+  const linked = await prisma.task.findMany({
+    where: { projectId, externalLink: { is: { source: "linear" } } },
+    select: {
+      id: true,
+      externalLink: { select: { externalId: true } },
+      _count: { select: { timeEntries: true } },
+    },
+  });
+  return linked.filter((t) => !matchingIds.has(t.externalLink!.externalId));
+}
+
+/** Deletes tasks pulled in from Linear that no longer match the link's
+ * filters. Tasks with time logged against them are kept (deleting would
+ * detach those hours from the task) and counted instead. Nothing is changed
+ * in Linear. */
+export async function removeStaleLinearTasks(projectId: string) {
+  const ctx = await linearContext(projectId);
+  if (!ctx)
+    throw new LinearSyncError("This project isn't linked to Linear, or Linear isn't connected.");
+
+  const token = await getLinearAccessToken(ctx.connection);
+  const issues = await listScopedIssues(token, scopeOf(ctx.link));
+  const stale = await staleTasks(projectId, new Set(issues.map((i) => i.id)));
+  const removable = stale.filter((t) => t._count.timeEntries === 0).map((t) => t.id);
+
+  if (removable.length) {
+    await prisma.task.deleteMany({ where: { id: { in: removable }, projectId } });
+  }
+  return { removed: removable.length, keptWithTime: stale.length - removable.length };
 }
 
 /** Mirrors a task to Linear after it's created or changed in Consultainer:

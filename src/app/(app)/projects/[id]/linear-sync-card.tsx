@@ -9,7 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/empty-state";
 import { LinkLinearDialog } from "./link-linear-dialog";
-import { unlinkLinearProjectAction, syncLinearTasksAction } from "@/actions/linear";
+import {
+  unlinkLinearProjectAction,
+  syncLinearTasksAction,
+  removeStaleLinearTasksAction,
+} from "@/actions/linear";
 import { formatDate } from "@/lib/format";
 
 export type LinearLinkSummary = {
@@ -39,6 +43,8 @@ export function LinearSyncCard({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [unlinking, setUnlinking] = useState(false);
+  const [stale, setStale] = useState(0);
+  const [removing, setRemoving] = useState(false);
 
   async function sync() {
     setSyncing(true);
@@ -49,6 +55,7 @@ export function LinearSyncCard({
         setSyncError(res.error);
       } else {
         const { created, updated, skipped } = res.result;
+        setStale(res.result.stale);
         setResult(
           `${created} new, ${updated} updated` +
             (skipped ? `, ${skipped} skipped (already in another project)` : "") +
@@ -57,6 +64,33 @@ export function LinearSyncCard({
       }
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function removeStale() {
+    if (
+      !confirm(
+        `Remove ${stale} task${stale === 1 ? "" : "s"} that no longer match? Tasks with time logged are kept. Nothing changes in Linear.`,
+      )
+    )
+      return;
+    setRemoving(true);
+    setSyncError(null);
+    try {
+      const res = await removeStaleLinearTasksAction(projectId);
+      if (res.error) {
+        setSyncError(res.error);
+      } else {
+        setStale(0);
+        setResult(
+          `Removed ${res.removed} task${res.removed === 1 ? "" : "s"}.` +
+            (res.keptWithTime
+              ? ` Kept ${res.keptWithTime} with time logged — delete those individually if you need to.`
+              : ""),
+        );
+      }
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -141,6 +175,19 @@ export function LinearSyncCard({
             ) : null}
           </div>
         )}
+
+        {stale > 0 && canManage ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+            <span className="text-muted-foreground">
+              {stale} task{stale === 1 ? "" : "s"} pulled in earlier no longer match
+              {stale === 1 ? "es" : ""} these filters.
+            </span>
+            <Button variant="outline" size="sm" onClick={removeStale} disabled={removing}>
+              {removing ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              Remove
+            </Button>
+          </div>
+        ) : null}
 
         {link?.pushChanges && !connectionCanWrite ? (
           <Alert>
