@@ -83,7 +83,7 @@ export function ProjectBillingCard({
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  over ? "bg-destructive" : nearLimit ? "bg-chart-4" : "bg-primary"
+                  over ? "bg-destructive" : nearLimit ? "bg-chart-4" : "bg-brand"
                 )}
                 style={{ width: `${budgetPercent}%` }}
               />

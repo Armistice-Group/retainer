@@ -75,7 +75,7 @@ export function ContractorProfileCard({
                 href={`/api/members/${membershipId}/resume`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1 text-sm text-primary hover:underline"
+                className="flex items-center gap-1 text-sm text-brand hover:underline"
               >
                 <Paperclip className="size-3.5" /> Current resume
               </a>

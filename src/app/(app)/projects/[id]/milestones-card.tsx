@@ -139,7 +139,7 @@ export function MilestonesCard({
                             href={m.completionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-primary hover:underline"
+                            className="flex items-center gap-1 text-brand hover:underline"
                           >
                             <ExternalLink className="size-3.5" /> Link
                           </a>
@@ -149,7 +149,7 @@ export function MilestonesCard({
                             href={`/api/milestones/${m.id}/evidence`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-primary hover:underline"
+                            className="flex items-center gap-1 text-brand hover:underline"
                           >
                             <Paperclip className="size-3.5" /> Attached file
                           </a>

@@ -56,8 +56,8 @@ function RunningTimer({ timer }: { timer: ActiveTimerData }) {
   }, []);
 
   return (
-    <div className="flex items-center gap-2 rounded-md border border-primary/40 bg-primary/5 py-1 pr-1 pl-3">
-      <TimerIcon className="size-3.5 text-primary" />
+    <div className="flex items-center gap-2 rounded-md border border-brand/40 bg-brand/5 py-1 pr-1 pl-3">
+      <TimerIcon className="size-3.5 text-brand" />
       <div className="flex flex-col leading-tight">
         <span className="font-mono text-sm font-medium tabular-nums">
           {formatElapsed(now.getTime() - startedAt.getTime())}

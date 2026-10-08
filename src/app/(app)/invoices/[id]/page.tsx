@@ -345,7 +345,7 @@ export default async function InvoiceDetailPage({
               </div>
               <Link
                 href={`/clients/${invoice.clientId}`}
-                className="mt-3 text-sm text-primary hover:underline"
+                className="mt-3 text-sm text-brand hover:underline"
               >
                 View client
               </Link>
@@ -363,7 +363,7 @@ export default async function InvoiceDetailPage({
                     href={`https://app.qbo.intuit.com/app/invoice?txnId=${invoice.quickbooksInvoiceId}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="self-start text-sm text-primary hover:underline"
+                    className="self-start text-sm text-brand hover:underline"
                   >
                     View in QuickBooks
                   </a>

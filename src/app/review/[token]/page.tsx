@@ -79,7 +79,7 @@ export default async function ContractorReviewPage({
                 href={`/api/review/${token}/resume`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-fit items-center gap-1 text-sm text-primary hover:underline"
+                className="flex w-fit items-center gap-1 text-sm text-brand hover:underline"
               >
                 <Paperclip className="size-3.5" /> Resume
               </a>

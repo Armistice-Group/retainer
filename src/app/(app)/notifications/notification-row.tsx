@@ -55,7 +55,7 @@ export function NotificationRow({
       }}
       className={cn(
         "flex items-start gap-3 px-4 py-3 text-sm hover:bg-muted/50",
-        !readAt && "bg-primary/5"
+        !readAt && "bg-brand/5"
       )}
     >
       <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
@@ -63,7 +63,7 @@ export function NotificationRow({
         <p className={cn(!readAt && "font-medium")}>{message}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{formatDate(createdAt)}</p>
       </div>
-      {!readAt ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" /> : null}
+      {!readAt ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-brand" /> : null}
     </Link>
   );
 }

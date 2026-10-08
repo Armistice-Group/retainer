@@ -40,7 +40,7 @@ export function SidebarNav() {
                 : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             )}
           >
-            <Icon className="size-4" strokeWidth={2} />
+            <Icon className={cn("size-4", active && "text-brand")} strokeWidth={2} />
             {link.label}
           </Link>
         );

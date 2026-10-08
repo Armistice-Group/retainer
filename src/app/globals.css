@@ -27,6 +27,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -49,72 +51,79 @@
 }
 
 :root {
-  --background: #f7f8fc;
-  --foreground: #171b2e;
+  /* Neutral zinc surfaces; primary actions are monochrome. Color is reserved
+     for meaning: --brand (emerald — billable, running, links) and the data
+     palette. */
+  --background: #fafafa;
+  --foreground: #18181b;
   --card: #ffffff;
-  --card-foreground: #171b2e;
+  --card-foreground: #18181b;
   --popover: #ffffff;
-  --popover-foreground: #171b2e;
-  --primary: #4f6df5;
-  --primary-foreground: #f8f9ff;
-  --secondary: #eef0fa;
-  --secondary-foreground: #22273e;
-  --muted: #eef0fa;
-  --muted-foreground: #7d84a0;
-  --accent: #e5e9fa;
-  --accent-foreground: #2c3768;
-  --destructive: oklch(0.58 0.21 27);
-  --border: #e2e5f2;
-  --input: #e2e5f2;
-  --ring: #4f6df5;
-  --chart-1: #4f6df5;
-  --chart-2: #2fb6c7;
-  --chart-3: #3fae82;
-  --chart-4: #d98a3d;
-  --chart-5: #9c6fd6;
+  --popover-foreground: #18181b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --brand: #059669;
+  --brand-foreground: #ffffff;
+  --destructive: #dc2626;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #0891b2;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #7c3aed;
   --radius: 0.5rem;
-  --sidebar: #f3f4fa;
-  --sidebar-foreground: #171b2e;
-  --sidebar-primary: #4f6df5;
-  --sidebar-primary-foreground: #f8f9ff;
-  --sidebar-accent: #e5e9fa;
-  --sidebar-accent-foreground: #2c3768;
-  --sidebar-border: #e2e5f2;
-  --sidebar-ring: #4f6df5;
+  --sidebar: #f4f4f5;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #18181b;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #e4e4e7;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #059669;
 }
 
 .dark {
-  --background: #0d0f18;
-  --foreground: #e9ecf7;
-  --card: #151826;
-  --card-foreground: #e9ecf7;
-  --popover: #151826;
-  --popover-foreground: #e9ecf7;
-  --primary: #5b7cff;
-  --primary-foreground: #0a0d1a;
-  --secondary: #1c2032;
-  --secondary-foreground: #e9ecf7;
-  --muted: #1c2032;
-  --muted-foreground: #868dab;
-  --accent: #232a44;
-  --accent-foreground: #cfd6f7;
-  --destructive: oklch(0.65 0.2 25);
-  --border: #262b40;
-  --input: #262b40;
-  --ring: #5b7cff;
-  --chart-1: #5b7cff;
-  --chart-2: #4fc4e0;
-  --chart-3: #6cf7b8;
-  --chart-4: #f7a26c;
-  --chart-5: #b58aef;
-  --sidebar: #0a0c14;
-  --sidebar-foreground: #e9ecf7;
-  --sidebar-primary: #5b7cff;
-  --sidebar-primary-foreground: #0a0d1a;
-  --sidebar-accent: #1d2338;
-  --sidebar-accent-foreground: #cfd6f7;
-  --sidebar-border: #1c2032;
-  --sidebar-ring: #5b7cff;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #111113;
+  --card-foreground: #fafafa;
+  --popover: #111113;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1c1c1f;
+  --secondary-foreground: #fafafa;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a1aa;
+  --accent: #1c1c1f;
+  --accent-foreground: #fafafa;
+  --brand: #34d399;
+  --brand-foreground: #052e1f;
+  --destructive: #f87171;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #34d399;
+  --chart-1: #34d399;
+  --chart-2: #22d3ee;
+  --chart-3: #34d399;
+  --chart-4: #fbbf24;
+  --chart-5: #a78bfa;
+  --sidebar: #09090b;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1c1c1f;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #1c1c1f;
+  --sidebar-ring: #34d399;
 }
 
 @layer base {
@@ -127,12 +136,20 @@
   html {
     @apply font-sans;
   }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
 }
 
 @layer utilities {
+  /* Amounts and hours: the body face with fixed-width digits, so columns of
+     figures line up without switching to a monospace font. The running
+     timer keeps font-mono. */
   .tabular-figures {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
   }
 }

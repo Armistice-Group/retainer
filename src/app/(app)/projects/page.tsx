@@ -70,7 +70,7 @@ export default async function ProjectsPage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {clientProjects.map((project) => (
                   <Link key={project.id} href={`/projects/${project.id}`}>
-                    <Card className="h-full gap-2 p-5 transition-colors hover:border-primary/40">
+                    <Card className="h-full gap-2 p-5 transition-colors hover:border-foreground/20">
                       <div className="flex items-start justify-between gap-2">
                         <p className="flex items-center gap-1.5 font-medium">
                           {project.confidential ? (

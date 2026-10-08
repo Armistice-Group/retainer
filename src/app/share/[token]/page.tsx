@@ -88,7 +88,7 @@ export default async function SharedProjectPage({
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",
-                      overBudget ? "bg-destructive" : "bg-primary"
+                      overBudget ? "bg-destructive" : "bg-brand"
                     )}
                     style={{ width: `${budgetPercent ?? 0}%` }}
                   />

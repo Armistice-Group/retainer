@@ -69,10 +69,10 @@ export function ImportForm() {
               </div>
             ) : null}
             <div className="flex gap-3">
-              <Link href="/clients" className="text-primary hover:underline">
+              <Link href="/clients" className="text-brand hover:underline">
                 View clients
               </Link>
-              <Link href="/projects" className="text-primary hover:underline">
+              <Link href="/projects" className="text-brand hover:underline">
                 View projects
               </Link>
             </div>

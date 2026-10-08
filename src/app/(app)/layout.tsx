@@ -3,6 +3,7 @@ import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { Wordmark } from "@/components/brand-mark";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -59,8 +60,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen w-full">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-          <Link href="/dashboard" className="text-base font-semibold tracking-tight">
-            <span className="text-primary">Consultainer</span>
+          <Link href="/dashboard" className="text-base">
+            <Wordmark />
           </Link>
         </div>
         <div className="border-b border-sidebar-border py-2">

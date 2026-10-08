@@ -293,7 +293,7 @@ export default async function ClientDetailPage({
                         <div className="flex flex-wrap items-center gap-1.5 font-medium">
                           {contact.name}
                           {contact.isPrimary ? (
-                            <Star className="size-3.5 fill-primary text-primary" />
+                            <Star className="size-3.5 fill-brand text-brand" />
                           ) : null}
                           {contact.receivesInvoices ? (
                             <Receipt className="size-3.5 text-muted-foreground" />

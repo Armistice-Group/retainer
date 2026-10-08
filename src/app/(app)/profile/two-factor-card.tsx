@@ -106,7 +106,7 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
             </code>
             <a
               href={setup.uri}
-              className="mt-1 w-fit text-xs text-primary hover:underline"
+              className="mt-1 w-fit text-xs text-brand hover:underline"
             >
               Open in authenticator app
             </a>

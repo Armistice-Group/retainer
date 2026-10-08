@@ -239,7 +239,7 @@ export default async function DashboardPage() {
             {recentEntries.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No time logged yet.{" "}
-                <Link href="/time" className="text-primary hover:underline">
+                <Link href="/time" className="text-brand hover:underline">
                   Log your first entry
                 </Link>
                 .

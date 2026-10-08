@@ -55,7 +55,7 @@ export default async function ClientsPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => (
             <Link key={client.id} href={`/clients/${client.id}`}>
-              <Card className="h-full gap-2 p-5 transition-colors hover:border-primary/40">
+              <Card className="h-full gap-2 p-5 transition-colors hover:border-foreground/20">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium">{client.name}</p>
                   <StatusBadge status={client.status} />

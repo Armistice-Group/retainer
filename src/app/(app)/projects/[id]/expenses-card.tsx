@@ -74,7 +74,7 @@ export function ExpensesCard({
                         href={`/api/expenses/${e.id}/receipt`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-1 flex items-center gap-1 text-primary hover:underline"
+                        className="mt-1 flex items-center gap-1 text-brand hover:underline"
                       >
                         <Paperclip className="size-3.5" /> Receipt
                       </a>

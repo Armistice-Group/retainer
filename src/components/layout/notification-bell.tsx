@@ -44,7 +44,7 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
         <Button variant="ghost" size="icon" className="relative size-8" disabled={isPending}>
           <Bell className="size-4" />
           {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+            <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-foreground">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           ) : null}
@@ -56,7 +56,7 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
           {unreadCount > 0 ? (
             <button
               type="button"
-              className="text-xs font-normal text-primary hover:underline"
+              className="text-xs font-normal text-brand hover:underline"
               onClick={() => startTransition(() => markAllNotificationsReadAction())}
             >
               Mark all read
@@ -81,7 +81,7 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
                 <Link href={n.link ?? "#"} className="flex flex-col items-start gap-0.5 py-2">
                   <span className={cn("text-sm", !n.readAt && "font-medium")}>{n.message}</span>
                   <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    {!n.readAt ? <span className="size-1.5 rounded-full bg-primary" /> : null}
+                    {!n.readAt ? <span className="size-1.5 rounded-full bg-brand" /> : null}
                     {timeAgo(n.createdAt)}
                   </span>
                 </Link>
@@ -91,7 +91,7 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/notifications" className="justify-center text-sm text-primary">
+          <Link href="/notifications" className="justify-center text-sm text-brand">
             View all
           </Link>
         </DropdownMenuItem>

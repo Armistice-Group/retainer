@@ -147,7 +147,7 @@ function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
               {formatDate(cycle.lastRunAt)}
               {" · "}
               {cycle.lastInvoice ? (
-                <Link href={`/invoices/${cycle.lastInvoice.id}`} className="text-primary hover:underline">
+                <Link href={`/invoices/${cycle.lastInvoice.id}`} className="text-brand hover:underline">
                   {cycle.lastInvoice.number}
                 </Link>
               ) : (

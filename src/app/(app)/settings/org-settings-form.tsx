@@ -218,7 +218,7 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
               href="https://api.slack.com/messaging/webhooks"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-brand hover:underline"
             >
               Incoming Webhook
             </a>{" "}

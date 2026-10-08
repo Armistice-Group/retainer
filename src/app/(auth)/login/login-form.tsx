@@ -100,7 +100,7 @@ export function LoginForm({
                       {magicLinkEnabled ? (
                         <button
                           type="button"
-                          className="text-xs text-primary hover:underline"
+                          className="text-xs text-brand hover:underline"
                           onClick={() => setMode("magic-link")}
                         >
                           Email me a login link instead
