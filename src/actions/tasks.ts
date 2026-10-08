@@ -8,6 +8,7 @@ import { taskSchema, taskUpdateSchema, taskStatusValues } from "@/lib/validation
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 import { soloMemberId } from "@/lib/org";
+import { pushTaskToLinear } from "@/lib/services/linear-sync";
 
 export async function createTaskAction(
   _prevState: ActionState,
@@ -40,6 +41,8 @@ export async function createTaskAction(
       estimatedHours: parsed.data.estimatedHours ?? null,
     },
   });
+  // Projects linked to Linear get a matching issue (best effort).
+  await pushTaskToLinear(task.id);
 
   // No point notifying someone about a task they just assigned themselves.
   if (task.assigneeId && task.assigneeId !== user.id) {
@@ -88,6 +91,7 @@ export async function updateTaskAction(
       estimatedHours: parsed.data.estimatedHours ?? null,
     },
   });
+  await pushTaskToLinear(taskId);
 
   revalidatePath(`/projects/${projectId}`);
   return null;
@@ -106,6 +110,7 @@ export async function updateTaskStatusAction(taskId: string, projectId: string, 
     where: { id: taskId, projectId },
     data: { status: status as (typeof taskStatusValues)[number] },
   });
+  await pushTaskToLinear(taskId);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/dashboard");
@@ -121,6 +126,7 @@ export async function assignTaskAction(taskId: string, projectId: string, assign
     where: { id: taskId, projectId },
     data: { assigneeId: assigneeId || null },
   });
+  await pushTaskToLinear(taskId);
 
   if (task.assigneeId) {
     await notify(prisma, {

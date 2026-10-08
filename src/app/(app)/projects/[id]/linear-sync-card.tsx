@@ -1,26 +1,43 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Loader2, RefreshCw, ListTodo, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EmptyState } from "@/components/empty-state";
 import { LinkLinearDialog } from "./link-linear-dialog";
 import { unlinkLinearProjectAction, syncLinearTasksAction } from "@/actions/linear";
+import { formatDate } from "@/lib/format";
+
+export type LinearLinkSummary = {
+  teamId: string;
+  teamName: string | null;
+  linearProjectId: string | null;
+  linearProjectName: string | null;
+  labelIds: string[];
+  labelNames: string[];
+  pushChanges: boolean;
+  lastSyncedAt: string | null;
+};
 
 export function LinearSyncCard({
   projectId,
-  externalName,
+  link,
   canManage,
+  connectionCanWrite,
 }: {
   projectId: string;
-  externalName: string | null;
+  link: LinearLinkSummary | null;
   canManage: boolean;
+  /** False for connections granted before write access was requested. */
+  connectionCanWrite: boolean;
 }) {
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [lastSynced, setLastSynced] = useState<number | null>(null);
+  const [result, setResult] = useState<string | null>(null);
   const [unlinking, setUnlinking] = useState(false);
 
   async function sync() {
@@ -28,8 +45,16 @@ export function LinearSyncCard({
     setSyncError(null);
     try {
       const res = await syncLinearTasksAction(projectId);
-      if (res.error) setSyncError(res.error);
-      else setLastSynced(res.synced);
+      if (res.error || !res.result) {
+        setSyncError(res.error);
+      } else {
+        const { created, updated, skipped } = res.result;
+        setResult(
+          `${created} new, ${updated} updated` +
+            (skipped ? `, ${skipped} skipped (already in another project)` : "") +
+            ".",
+        );
+      }
     } finally {
       setSyncing(false);
     }
@@ -48,46 +73,86 @@ export function LinearSyncCard({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Linear</CardTitle>
-        {externalName ? (
+        {link ? (
           <Button variant="outline" size="sm" onClick={sync} disabled={syncing}>
-            {syncing ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {syncing ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3.5" />
+            )}
             Sync now
           </Button>
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {!externalName ? (
+        {!link ? (
           <EmptyState
             icon={ListTodo}
-            title="No Linear team linked"
-            description="Link a Linear team to pull its issues in as tasks."
+            title="Not linked to Linear"
+            description="Pull in issues from a Linear team — narrowed to one Linear project or labels — as tasks."
             action={canManage ? <LinkLinearDialog projectId={projectId} /> : undefined}
           />
         ) : (
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-sm">
-              <p className="font-medium">{externalName}</p>
-              {lastSynced !== null ? (
-                <p className="text-muted-foreground">
-                  Synced {lastSynced} issue{lastSynced === 1 ? "" : "s"}.
-                </p>
-              ) : (
-                <p className="text-muted-foreground">Not synced yet this session.</p>
-              )}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-col gap-1.5 text-sm">
+              <p className="font-medium">
+                {link.teamName ?? "Linear team"}
+                {link.linearProjectName ? ` · ${link.linearProjectName}` : ""}
+              </p>
+              {link.labelNames.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {link.labelNames.map((name) => (
+                    <Badge key={name} variant="outline" className="font-normal">
+                      {name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+              <p className="text-muted-foreground">
+                {result ??
+                  (link.lastSyncedAt
+                    ? `Last synced ${formatDate(link.lastSyncedAt)}.`
+                    : "Not synced yet.")}
+                {link.pushChanges && connectionCanWrite ? " Task changes are sent to Linear." : ""}
+              </p>
             </div>
             {canManage ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0"
-                onClick={unlink}
-                disabled={unlinking}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
+              <div className="flex shrink-0 items-center">
+                <LinkLinearDialog
+                  projectId={projectId}
+                  existing={{
+                    teamId: link.teamId,
+                    linearProjectId: link.linearProjectId,
+                    labelIds: link.labelIds,
+                    pushChanges: link.pushChanges,
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={unlink}
+                  disabled={unlinking}
+                  aria-label="Unlink from Linear"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
             ) : null}
           </div>
         )}
+
+        {link?.pushChanges && !connectionCanWrite ? (
+          <Alert>
+            <AlertDescription>
+              Linear was connected with read-only access, so changes here aren&apos;t sent back yet.{" "}
+              <Link href="/settings/integrations" className="text-brand hover:underline">
+                Reconnect Linear
+              </Link>{" "}
+              to allow it.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         {syncError ? (
           <Alert variant="destructive">

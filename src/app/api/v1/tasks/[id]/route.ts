@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { taskStatusValues } from "@/lib/validations/task";
+import { pushTaskToLinear } from "@/lib/services/linear-sync";
 
 export async function PATCH(
   req: Request,
@@ -29,6 +30,7 @@ export async function PATCH(
   }
 
   const updated = await prisma.task.update({ where: { id }, data });
+  await pushTaskToLinear(id);
   return Response.json({ task: updated });
 }
 

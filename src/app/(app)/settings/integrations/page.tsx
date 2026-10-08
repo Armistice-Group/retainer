@@ -4,7 +4,7 @@ import { QuickBooksCard } from "../quickbooks-card";
 import { LinearCard } from "../linear-card";
 import { EmailCard } from "../email-card";
 import { IntegrationCredentials } from "../integration-credentials";
-import { isLinearConfigured } from "@/lib/integrations/linear";
+import { canWrite, isLinearConfigured } from "@/lib/integrations/linear";
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks";
 import { isEmailConfigured } from "@/lib/email";
 import { describeIntegration } from "@/lib/instance-config";
@@ -65,6 +65,7 @@ export default async function IntegrationsPage({
         readOnly={readOnly}
         callbackStatus={linear}
         configured={linearConfigured}
+        canWrite={linearConnection ? canWrite(linearConnection) : true}
         credentials={
           <IntegrationCredentials
             integration="linear"

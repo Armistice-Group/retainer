@@ -13,6 +13,7 @@ export function LinearCard({
   callbackStatus,
   configured,
   credentials,
+  canWrite = true,
 }: {
   connected: boolean;
   workspaceName: string | null;
@@ -21,6 +22,8 @@ export function LinearCard({
   configured: boolean;
   /** Instance credentials form (see integration-credentials.tsx). */
   credentials: React.ReactNode;
+  /** False for connections made before write access was requested. */
+  canWrite?: boolean;
 }) {
   return (
     <Card>
@@ -62,17 +65,31 @@ export function LinearCard({
                 Connect Linear so projects can pull in issues as tasks.
               </p>
             )}
+            {connected && !canWrite ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Read-only access — reconnect so new tasks and edits can be sent to Linear.
+              </p>
+            ) : null}
           </div>
           {readOnly ? null : connected ? (
-            <form action={disconnectLinearAction}>
-              <ConfirmSubmitButton
-                variant="outline"
-                size="sm"
-                confirmMessage="Disconnect Linear? Projects linked to a Linear team will need it reconnected before they can sync again."
-              >
-                Disconnect
-              </ConfirmSubmitButton>
-            </form>
+            <div className="flex shrink-0 items-center gap-2">
+              {!canWrite && configured ? (
+                <Button size="sm" asChild>
+                  <Link href="/api/integrations/linear/connect" prefetch={false}>
+                    Reconnect
+                  </Link>
+                </Button>
+              ) : null}
+              <form action={disconnectLinearAction}>
+                <ConfirmSubmitButton
+                  variant="outline"
+                  size="sm"
+                  confirmMessage="Disconnect Linear? Projects linked to a Linear team will need it reconnected before they can sync again."
+                >
+                  Disconnect
+                </ConfirmSubmitButton>
+              </form>
+            </div>
           ) : !configured ? null : (
             <Button size="sm" asChild>
               <Link href="/api/integrations/linear/connect" prefetch={false}>

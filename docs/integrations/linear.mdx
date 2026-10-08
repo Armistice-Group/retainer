@@ -1,24 +1,41 @@
 ---
 title: Linear
-description: Pull Linear issues into a project's task list
+description: Sync a project's tasks with Linear issues, both ways
 ---
 
-Connect Linear from **Settings → Integrations**. An owner or admin
-authorizes access via OAuth.
+## Connecting
 
-## What syncs
+In **Settings → Integrations**, an owner adds the instance's Linear OAuth app
+credentials (the card shows the callback URL to register), then an owner or
+admin clicks **Connect**. Consultainer asks for read and write access.
 
-Once connected and linked to a project, Linear issues pull in as tasks on
-that project — real backlog items, not a generic bucket for hours. Time can
-be logged against a synced task the same as any other.
+## Linking a project
 
-<Note>
-  Today this is a one-way, read-only pull from Linear into Consultainer.
-  Editing or completing a task in Consultainer doesn't push changes back to
-  Linear yet.
-</Note>
+On a project's page, **Link Linear** picks:
+
+- **Team** — required.
+- **Linear project** — optional. Only issues in that Linear project sync.
+- **Labels** — optional. Only issues with at least one of them sync.
+
+Several Consultainer projects can link to the same team — one per client,
+say — each narrowed by its own Linear project or labels. If an issue matches
+more than one, it stays with the project that pulled it in first.
+
+**Sync now** pulls matching issues in as tasks and updates ones already
+pulled in (title, description, status, assignee — matched by email).
+
+## Sending changes to Linear
+
+With **Send task changes to Linear** on (the default), a task created in
+Consultainer — in the app, the REST API, or over MCP — becomes a Linear issue
+in the linked team, with the link's Linear project and labels applied.
+Title, description, status, and assignee edits are sent back too. If Linear
+is unreachable, the change still saves in Consultainer.
+
+Connections made before write access was requested are read-only; reconnect
+from Settings → Integrations to enable this.
 
 ## Disconnecting
 
-Disconnecting Linear from Settings → Integrations stops future syncs;
-tasks already pulled in stay as they are.
+Disconnecting Linear stops syncing in both directions; tasks already pulled in
+stay as they are.

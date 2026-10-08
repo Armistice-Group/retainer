@@ -14,6 +14,7 @@ import {
 import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/services/invoices";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
+import { pushTaskToLinear } from "@/lib/services/linear-sync";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -294,6 +295,7 @@ const handler = createMcpHandler(
           where: { id: taskId, projectId },
           data: { status },
         });
+        await pushTaskToLinear(task.id);
         return text(task);
       }
     );
@@ -322,6 +324,7 @@ const handler = createMcpHandler(
             estimatedHours: args.estimatedHours ?? null,
           },
         });
+        await pushTaskToLinear(task.id);
         return text(task);
       }
     );
@@ -349,6 +352,7 @@ const handler = createMcpHandler(
             estimatedHours: args.estimatedHours ?? null,
           },
         });
+        await pushTaskToLinear(task.id);
         return text(task);
       }
     );

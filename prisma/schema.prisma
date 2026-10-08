@@ -843,12 +843,16 @@ model MercuryConnection {
 // a `source` string, rather than each integration needing its own schema.
 
 model LinearConnection {
-  id            String   @id @default(cuid())
-  workspaceName String?
-  accessToken   String
-  scope         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  workspaceName        String?
+  accessToken          String
+  // Linear access tokens last 24h; the refresh token rotates on every use.
+  // Both encrypted. Null on connections made before refresh tokens existed.
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
+  scope                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   orgId String       @unique
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -858,16 +862,27 @@ model LinearConnection {
 }
 
 model ExternalProjectLink {
-  id           String   @id @default(cuid())
-  source       String
-  externalId   String
-  externalName String?
-  createdAt    DateTime @default(now())
+  id                String    @id @default(cuid())
+  source            String
+  // Linear: the team. Several Consultainer projects (one per client, say)
+  // can share a team, each narrowed by a Linear project and/or labels below.
+  externalId        String
+  externalName      String?
+  // Optional Linear filters: issues must be in this Linear project, and/or
+  // carry at least one of these labels. Also applied to issues created here.
+  linearProjectId   String?
+  linearProjectName String?
+  labelIds          String[]  @default([])
+  labelNames        String[]  @default([])
+  // Create/update Linear issues when tasks change in Consultainer.
+  pushChanges       Boolean   @default(true)
+  lastSyncedAt      DateTime?
+  createdAt         DateTime  @default(now())
 
   projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([source, externalId])
+  @@index([source, externalId])
 }
 
 model ExternalTaskLink {

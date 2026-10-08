@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
 import {
   exchangeCodeForToken,
   fetchWorkspaceName,
+  tokenColumns,
   verifyOAuthState,
 } from "@/lib/integrations/linear";
 import { getRequestOrigin } from "@/lib/url";
@@ -35,22 +35,18 @@ export async function GET(req: Request) {
 
   try {
     const redirectUri = `${origin}/api/integrations/linear/callback`;
-    const accessToken = await exchangeCodeForToken(code, redirectUri);
-    const workspaceName = await fetchWorkspaceName(accessToken);
+    const tokens = await exchangeCodeForToken(code, redirectUri);
+    const workspaceName = await fetchWorkspaceName(tokens.accessToken);
 
     await prisma.linearConnection.upsert({
       where: { orgId: verified.orgId },
       create: {
         orgId: verified.orgId,
         workspaceName,
-        accessToken: encrypt(accessToken),
+        ...tokenColumns(tokens),
         connectedById: session.user.id,
       },
-      update: {
-        workspaceName,
-        accessToken: encrypt(accessToken),
-        connectedById: session.user.id,
-      },
+      update: { workspaceName, ...tokenColumns(tokens), connectedById: session.user.id },
     });
   } catch {
     return settingsUrl("error");

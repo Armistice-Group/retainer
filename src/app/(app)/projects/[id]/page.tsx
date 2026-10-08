@@ -21,6 +21,7 @@ import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { LinearSyncCard } from "./linear-sync-card";
+import { canWrite } from "@/lib/integrations/linear";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
 import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
@@ -314,10 +315,22 @@ export default async function ProjectDetailPage({
           {linearConnection ? (
             <LinearSyncCard
               projectId={project.id}
-              externalName={
-                project.externalLink?.source === "linear" ? project.externalLink.externalName : null
+              link={
+                project.externalLink?.source === "linear"
+                  ? {
+                      teamId: project.externalLink.externalId,
+                      teamName: project.externalLink.externalName,
+                      linearProjectId: project.externalLink.linearProjectId,
+                      linearProjectName: project.externalLink.linearProjectName,
+                      labelIds: project.externalLink.labelIds,
+                      labelNames: project.externalLink.labelNames,
+                      pushChanges: project.externalLink.pushChanges,
+                      lastSyncedAt: project.externalLink.lastSyncedAt?.toISOString() ?? null,
+                    }
+                  : null
               }
               canManage={canManage}
+              connectionCanWrite={canWrite(linearConnection)}
             />
           ) : null}
         </div>

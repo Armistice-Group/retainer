@@ -4,6 +4,7 @@ import { canViewProject } from "@/lib/project-access";
 import { taskSchema } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import { soloMemberId } from "@/lib/org";
+import { pushTaskToLinear } from "@/lib/services/linear-sync";
 
 export async function GET(
   req: Request,
@@ -60,6 +61,7 @@ export async function POST(
       assigneeId: parsed.data.assigneeId || (await soloMemberId(ctx.orgId)),
     },
   });
+  await pushTaskToLinear(task.id);
 
   if (task.assigneeId && task.assigneeId !== ctx.actorId) {
     await notify(prisma, {
