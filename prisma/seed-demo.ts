@@ -37,9 +37,35 @@ async function main() {
       domain: "northwind.example",
       invoicePrefix: "NWL",
       defaultCurrency: "USD",
-      paymentInstructions: "ACH: Northwind Labs LLC · Routing 000000000 · Account 0000000000",
       nextInvoiceNumber: 1,
     },
+  });
+
+  await prisma.paymentMethod.createMany({
+    data: [
+      {
+        orgId: org.id,
+        type: "ACH",
+        label: "Operating",
+        details: { bankName: "First Example Bank", accountName: "Northwind Labs LLC", routingNumber: "000000000", accountNumber: "000001234567", accountType: "Checking" },
+        showOnPdf: false,
+        sortOrder: 0,
+      },
+      {
+        orgId: org.id,
+        type: "STRIPE_LINK",
+        details: { url: "https://buy.stripe.com/test_northwind" },
+        showOnPdf: true,
+        sortOrder: 1,
+      },
+      {
+        orgId: org.id,
+        type: "CHECK",
+        details: { payableTo: "Northwind Labs LLC", mailingAddress: "100 Example Ave, Suite 4\nPortland, OR 97201" },
+        showOnPdf: true,
+        sortOrder: 2,
+      },
+    ],
   });
 
   const people = [

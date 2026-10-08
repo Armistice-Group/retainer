@@ -2,9 +2,7 @@
 
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,8 +24,6 @@ type ClientFormValues = {
   address: string | null;
   billingEmail: string | null;
   billingAddress: string | null;
-  paymentInstructions: string | null;
-  paymentInstructionsPrivate: boolean;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -107,7 +103,7 @@ export function ClientForm({
 
       <FormSection
         title="Billing"
-        description="Where invoices go, if different from the contact details. Leave blank to use those."
+        description="Where invoices go, if different from the contact details. Leave blank to use those. Payment methods are on the client page."
       >
         <Field id="billingEmail" label="Billing email" error={errors.billingEmail}>
           <Input
@@ -124,30 +120,6 @@ export function ClientForm({
             defaultValue={initialValues?.billingAddress ?? ""}
           />
         </Field>
-        <Field
-          id="paymentInstructions"
-          label="Payment instructions"
-          hint="Leave blank to use your organization's default."
-          wide
-        >
-          <Textarea
-            id="paymentInstructions"
-            name="paymentInstructions"
-            rows={3}
-            defaultValue={initialValues?.paymentInstructions ?? ""}
-          />
-        </Field>
-        <div className="flex items-start gap-2 sm:col-span-2">
-          <Checkbox
-            id="paymentInstructionsPrivate"
-            name="paymentInstructionsPrivate"
-            className="mt-0.5"
-            defaultChecked={initialValues?.paymentInstructionsPrivate ?? false}
-          />
-          <Label htmlFor="paymentInstructionsPrivate" className="text-sm font-normal">
-            Keep these off the PDF — show them only on the client&apos;s secure share page
-          </Label>
-        </div>
       </FormSection>
 
       <FormActions cancelHref={cancelHref}>

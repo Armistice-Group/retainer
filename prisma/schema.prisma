@@ -159,6 +159,7 @@ model Organization {
   invoices                  Invoice[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
   billingCycles             ClientBillingCycle[]
+  paymentMethods            PaymentMethod[]
   notifications             Notification[]
   apiKeys                   ApiKey[]
   quickBooksConnection      QuickBooksConnection?
@@ -285,6 +286,7 @@ model Client {
   documents                 ClientDocument[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
   billingCycle              ClientBillingCycle?
+  paymentMethods            PaymentMethod[]
 
   @@index([orgId])
 }
@@ -1026,4 +1028,45 @@ model InstanceSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+enum PaymentMethodType {
+  ACH
+  WIRE
+  CHECK
+  STRIPE_LINK
+  PADDLE
+  PAYPAL
+  VENMO
+  ZELLE
+  CRYPTO
+  OTHER
+}
+
+// How a client can pay: structured, typed entries (ACH, wire, a Stripe link,
+// ...) printed on invoices and the client share page. Org-wide defaults have
+// clientId null; if a client has any of its own, those replace the defaults
+// for that client. Replaces the free-text paymentInstructions columns (kept
+// only so old databases migrate; no longer read).
+model PaymentMethod {
+  id        String            @id @default(cuid())
+  type      PaymentMethodType
+  // Optional nickname shown as the heading, e.g. "Operating account".
+  label     String?
+  // Type-specific fields — see src/lib/payment-methods.ts.
+  details   Json
+  // Bank details default to the share page only, since a PDF can be
+  // forwarded anywhere.
+  showOnPdf Boolean           @default(true)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, clientId])
 }

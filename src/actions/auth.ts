@@ -24,6 +24,9 @@ export type ActionState = {
   saved?: boolean;
   inviteUrl?: string;
   emailSent?: boolean;
+  /** Submitted values echoed back on a validation error, so a form can
+   * refill fields (React resets uncontrolled forms after an action). */
+  values?: Record<string, string>;
 } | null;
 
 export async function signInWithGoogleAction(callbackUrl: string) {

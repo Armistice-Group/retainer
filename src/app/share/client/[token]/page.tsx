@@ -8,17 +8,15 @@ import { getClientByShareToken } from "@/lib/services/client-share";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
+import { effectivePaymentMethods } from "@/lib/services/payment-methods";
+import { PaymentMethodsList } from "@/components/payment-methods-list";
 
 export const metadata: Metadata = {
   title: "Client report",
   robots: { index: false, follow: false },
 };
 
-export default async function SharedClientPage({
-  params,
-}: {
-  params: Promise<{ token: string }>;
-}) {
+export default async function SharedClientPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const report = await getClientByShareToken(token);
   if (!report) notFound();
@@ -28,7 +26,7 @@ export default async function SharedClientPage({
   const logoSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
-  const paymentInstructions = client.paymentInstructions ?? org.paymentInstructions;
+  const paymentMethods = await effectivePaymentMethods(org.id, client.id);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -102,7 +100,8 @@ export default async function SharedClientPage({
               {invoices.map((inv) => {
                 const canPay =
                   inv.status === "SENT" &&
-                  (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
+                  (org.stripeConnectChargesEnabled ||
+                    !!org.mercuryConnection?.destinationAccountId);
                 return (
                   <div
                     key={inv.id}
@@ -124,7 +123,7 @@ export default async function SharedClientPage({
                             "text-xs",
                             isOverdue(inv.status, inv.dueDate)
                               ? "font-medium text-destructive"
-                              : "text-muted-foreground"
+                              : "text-muted-foreground",
                           )}
                         >
                           Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
@@ -154,16 +153,14 @@ export default async function SharedClientPage({
           </Card>
         ) : null}
 
-        {paymentInstructions ? (
+        {paymentMethods.length ? (
           <Card>
             <CardHeader className="flex flex-row items-center gap-2">
               <Landmark className="size-4 text-muted-foreground" />
               <CardTitle className="text-base">Payment details</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="whitespace-pre-line text-sm text-muted-foreground">
-                {paymentInstructions}
-              </p>
+              <PaymentMethodsList methods={paymentMethods} />
             </CardContent>
           </Card>
         ) : null}

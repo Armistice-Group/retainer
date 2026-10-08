@@ -45,6 +45,7 @@ export default async function DashboardPage() {
     quickbooksConnection,
     linearConnection,
     apiKeyCount,
+    paymentMethodCount,
   ] = await Promise.all([
       prisma.timeEntry.aggregate({
         where: { orgId: org.id, userId: user.id, date: { gte: weekStart } },
@@ -81,6 +82,7 @@ export default async function DashboardPage() {
       prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }),
       prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
       prisma.apiKey.count({ where: { userId: user.id, revokedAt: null } }),
+      prisma.paymentMethod.count({ where: { orgId: org.id, clientId: null } }),
     ]);
 
   const outstandingTotal = outstandingInvoices
@@ -133,10 +135,10 @@ export default async function DashboardPage() {
     },
     {
       key: "payment",
-      label: "Set default payment instructions",
-      description: "ACH, a Stripe link, or check details — clients can override this per client.",
-      href: "/settings#paymentInstructions",
-      done: !!org.paymentInstructions,
+      label: "Add how clients can pay you",
+      description: "ACH, wire, a Stripe link, check details — clients can have their own.",
+      href: "/settings#payment-methods",
+      done: paymentMethodCount > 0,
     },
     {
       key: "mcp",

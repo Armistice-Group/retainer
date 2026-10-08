@@ -3,8 +3,6 @@
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateOrgGeneralAction } from "@/actions/org";
@@ -20,8 +18,6 @@ type Org = {
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
-  paymentInstructions: string | null;
-  paymentInstructionsPrivate: boolean;
   brandColor: string | null;
 };
 
@@ -166,38 +162,6 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
           <p className="text-xs text-muted-foreground">
             A quick link to your accounting or payments platform for teams that generate invoices
             outside Consultainer.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="paymentInstructions">Payment instructions</Label>
-          <Textarea
-            id="paymentInstructions"
-            name="paymentInstructions"
-            rows={4}
-            placeholder={"ACH: routing 000000000, account 000000000\nOr pay by card: https://buy.stripe.com/...\nChecks payable to Acme Consulting LLC, mailed to..."}
-            defaultValue={org.paymentInstructions ?? ""}
-            disabled={readOnly}
-          />
-          {state?.fieldErrors?.paymentInstructions ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.paymentInstructions[0]}</p>
-          ) : null}
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="paymentInstructionsPrivate"
-              name="paymentInstructionsPrivate"
-              className="mt-0.5"
-              defaultChecked={org.paymentInstructionsPrivate}
-              disabled={readOnly}
-            />
-            <Label htmlFor="paymentInstructionsPrivate" className="text-sm font-normal">
-              Keep this off the PDF — show it only on a client&apos;s secure share portal (use
-              this if it includes bank/ACH account details)
-            </Label>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            However you accept payment — ACH details, a Stripe or PayPal link, a mailing address
-            for checks — write it here and it&apos;s printed on every invoice you send, unless
-            marked private above.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:col-span-2">

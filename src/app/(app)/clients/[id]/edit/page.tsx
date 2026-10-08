@@ -30,8 +30,6 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           address: client.address,
           billingEmail: client.billingEmail,
           billingAddress: client.billingAddress,
-          paymentInstructions: client.paymentInstructions,
-          paymentInstructionsPrivate: client.paymentInstructionsPrivate ?? false,
           status: client.status,
         }}
       />

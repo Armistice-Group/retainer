@@ -9,8 +9,6 @@ export const clientSchema = z.object({
   address: z.string().trim().max(500).optional().or(z.literal("")),
   billingEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   billingAddress: z.string().trim().max(500).optional().or(z.literal("")),
-  paymentInstructions: z.string().trim().max(2000).optional().or(z.literal("")),
-  paymentInstructionsPrivate: z.boolean().default(false),
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 

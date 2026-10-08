@@ -8,6 +8,8 @@ import { getProjectByShareToken } from "@/lib/services/project-share";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
+import { effectivePaymentMethods } from "@/lib/services/payment-methods";
+import { PaymentMethodsList } from "@/components/payment-methods-list";
 
 export const metadata: Metadata = {
   title: "Project report",
@@ -28,7 +30,7 @@ export default async function SharedProjectPage({
   const logoSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
-  const paymentInstructions = project.client.paymentInstructions ?? org.paymentInstructions;
+  const paymentMethods = await effectivePaymentMethods(org.id, project.client.id);
 
   const budgetHours = project.budgetHours != null ? Number(project.budgetHours) : null;
   const budgetPercent =
@@ -77,7 +79,7 @@ export default async function SharedProjectPage({
                     <span
                       className={cn(
                         "tabular-figures text-xs",
-                        overBudget ? "text-destructive" : "text-muted-foreground"
+                        overBudget ? "text-destructive" : "text-muted-foreground",
                       )}
                     >
                       {Math.round(budgetPercent)}%
@@ -88,7 +90,7 @@ export default async function SharedProjectPage({
                   <div
                     className={cn(
                       "h-full rounded-full transition-all",
-                      overBudget ? "bg-destructive" : "bg-brand"
+                      overBudget ? "bg-destructive" : "bg-brand",
                     )}
                     style={{ width: `${budgetPercent ?? 0}%` }}
                   />
@@ -166,7 +168,8 @@ export default async function SharedProjectPage({
               {invoices.map((inv) => {
                 const canPay =
                   inv.status === "SENT" &&
-                  (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
+                  (org.stripeConnectChargesEnabled ||
+                    !!org.mercuryConnection?.destinationAccountId);
                 return (
                   <div
                     key={inv.id}
@@ -188,7 +191,7 @@ export default async function SharedProjectPage({
                             "text-xs",
                             isOverdue(inv.status, inv.dueDate)
                               ? "font-medium text-destructive"
-                              : "text-muted-foreground"
+                              : "text-muted-foreground",
                           )}
                         >
                           Issued {formatDate(inv.issueDate)} · Due {formatDate(inv.dueDate)}
@@ -218,16 +221,14 @@ export default async function SharedProjectPage({
           </Card>
         ) : null}
 
-        {paymentInstructions ? (
+        {paymentMethods.length ? (
           <Card>
             <CardHeader className="flex flex-row items-center gap-2">
               <Landmark className="size-4 text-muted-foreground" />
               <CardTitle className="text-base">Payment details</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="whitespace-pre-line text-sm text-muted-foreground">
-                {paymentInstructions}
-              </p>
+              <PaymentMethodsList methods={paymentMethods} />
             </CardContent>
           </Card>
         ) : null}

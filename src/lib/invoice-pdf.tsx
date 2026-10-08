@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { Prisma } from "@/generated/prisma/client";
+import type { DisplayMethod } from "@/lib/payment-methods";
+import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 
 export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
   include: {
@@ -11,7 +13,12 @@ export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#1a1a1a", fontFamily: "Helvetica" },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 32,
+  },
   logo: { maxWidth: 160, maxHeight: 60, marginBottom: 4, objectFit: "contain" },
   orgName: { fontSize: 16, fontWeight: 700, marginBottom: 4 },
   invoiceTitle: { fontSize: 20, fontWeight: 700, textAlign: "right" },
@@ -39,7 +46,12 @@ const styles = StyleSheet.create({
   colAmount: { flex: 1, textAlign: "right" },
   headerText: { fontSize: 8, textTransform: "uppercase", color: "#888" },
   totalsBlock: { marginTop: 16, alignItems: "flex-end" },
-  totalsRow: { flexDirection: "row", width: 200, justifyContent: "space-between", paddingVertical: 2 },
+  totalsRow: {
+    flexDirection: "row",
+    width: 200,
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
   totalsLabel: { color: "#555" },
   grandTotalRow: {
     flexDirection: "row",
@@ -57,7 +69,7 @@ const styles = StyleSheet.create({
 
 function formatCurrency(amount: number | string | { toString(): string }, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    Number(amount.toString())
+    Number(amount.toString()),
   );
 }
 
@@ -83,18 +95,20 @@ const PAYMENT_TERMS_LABELS: Record<string, string> = {
   CUSTOM: "Custom",
 };
 
-export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
+export function InvoiceDocument({
+  invoice,
+  paymentMethods,
+}: {
+  invoice: InvoiceForPdf;
+  paymentMethods: DisplayMethod[];
+}) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
   const billEmail = invoice.client.billingEmail || invoice.client.email;
   const billAddress = invoice.client.billingAddress || invoice.client.address;
-  // Client-level payment instructions override the org default entirely
-  // (including the private flag) when set — a client with different payment
-  // terms shouldn't have the org default's privacy setting bleed through.
-  const paymentInstructions = invoice.client.paymentInstructions ?? invoice.org.paymentInstructions;
-  const paymentInstructionsPrivate =
-    invoice.client.paymentInstructions != null
-      ? (invoice.client.paymentInstructionsPrivate ?? false)
-      : invoice.org.paymentInstructionsPrivate;
+  // Methods marked share-page-only (bank details, by default) never go on
+  // the PDF, which can be forwarded anywhere.
+  const pdfMethods = paymentMethods.filter((m) => m.showOnPdf);
+  const hiddenCount = paymentMethods.length - pdfMethods.length;
   const logoSrc = invoice.org.logoData
     ? `data:${invoice.org.logoContentType};base64,${Buffer.from(invoice.org.logoData).toString("base64")}`
     : invoice.org.logoUrl;
@@ -159,7 +173,9 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
                   {formatCurrency(item.rate, invoice.currency)}
                   {isHourly ? "/hr" : ""}
                 </Text>
-                <Text style={styles.colAmount}>{formatCurrency(item.amount, invoice.currency)}</Text>
+                <Text style={styles.colAmount}>
+                  {formatCurrency(item.amount, invoice.currency)}
+                </Text>
               </View>
             );
           })}
@@ -182,12 +198,23 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
           </View>
         </View>
 
-        {paymentInstructions && !paymentInstructionsPrivate ? (
+        {pdfMethods.length || hiddenCount ? (
           <View style={styles.notes}>
-            <Text style={styles.label}>Payment Instructions</Text>
-            {paymentInstructions.split("\n").map((line, i) => (
-              <Text key={i}>{line}</Text>
+            <Text style={styles.label}>How to Pay</Text>
+            {pdfMethods.map((m) => (
+              <View key={m.id} style={{ marginBottom: 6 }}>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>{m.title}</Text>
+                {m.lines.map((line, i) => (
+                  <Text key={i}>{line.label ? `${line.label}: ${line.value}` : line.value}</Text>
+                ))}
+              </View>
             ))}
+            {hiddenCount ? (
+              <Text style={{ color: "#666666" }}>
+                {pdfMethods.length ? "Bank transfer details" : "Payment details"} are on your secure
+                client link from {invoice.org.name}.
+              </Text>
+            ) : null}
           </View>
         ) : null}
 
@@ -203,5 +230,6 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceForPdf }) {
 }
 
 export async function renderInvoicePdf(invoice: InvoiceForPdf) {
-  return renderToBuffer(<InvoiceDocument invoice={invoice} />);
+  const paymentMethods = await effectivePaymentMethods(invoice.orgId, invoice.clientId);
+  return renderToBuffer(<InvoiceDocument invoice={invoice} paymentMethods={paymentMethods} />);
 }

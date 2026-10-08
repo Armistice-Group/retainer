@@ -29,6 +29,7 @@ import { ClientShareLinkCard } from "./client-share-link-card";
 import { ClientInvoicesCard } from "./client-invoices-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
 import { BillingCycleCard } from "./billing-cycle-card";
+import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-methods-editor";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -87,9 +88,7 @@ export default async function ClientDetailPage({
 
   const entitledHours = Number(retainerAgg._sum.retainerHoursIncluded ?? 0);
   const retainerBalance =
-    entitledHours > 0
-      ? { entitledHours, loggedHours: Number(loggedAgg._sum.hours ?? 0) }
-      : null;
+    entitledHours > 0 ? { entitledHours, loggedHours: Number(loggedAgg._sum.hours ?? 0) } : null;
 
   const documentItems = client.documents.map((d) => ({
     id: d.id,
@@ -110,6 +109,15 @@ export default async function ClientDetailPage({
     nextRunAt: s.nextRunAt.toISOString(),
     lastRunAt: s.lastRunAt ? s.lastRunAt.toISOString() : null,
   }));
+
+  const [clientMethods, orgMethodCount] = await Promise.all([
+    prisma.paymentMethod.findMany({
+      where: { orgId: org.id, clientId: client.id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, type: true, label: true, details: true, showOnPdf: true },
+    }),
+    prisma.paymentMethod.count({ where: { orgId: org.id, clientId: null } }),
+  ]);
 
   const cycle = client.billingCycle;
   const lastCycleInvoice = cycle?.lastInvoiceId
@@ -163,9 +171,8 @@ export default async function ClientDetailPage({
         <Alert className="mb-4">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>
-              <strong>{client.name}</strong>{" "}
-              was created. Add the people you&apos;ll be working with here — a manager, VP,
-              marketing lead, whoever&apos;s relevant — or skip for now.
+              <strong>{client.name}</strong> was created. Add the people you&apos;ll be working with
+              here — a manager, VP, marketing lead, whoever&apos;s relevant — or skip for now.
             </span>
             <div className="flex shrink-0 items-center gap-2">
               <ContactDialog clientId={client.id} />
@@ -278,6 +285,24 @@ export default async function ClientDetailPage({
           </Card>
 
           <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Payment methods</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PaymentMethodsEditor
+                clientId={client.id}
+                methods={clientMethods as EditableMethod[]}
+                readOnly={!canManage}
+                emptyText={
+                  orgMethodCount
+                    ? `Using your organization's ${orgMethodCount} default method${orgMethodCount === 1 ? "" : "s"}. Add one here to use different methods for this client.`
+                    : "No payment methods. Add your defaults in Settings → General, or one just for this client here."
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Points of contact</CardTitle>
               <ContactDialog clientId={client.id} />
@@ -305,7 +330,10 @@ export default async function ClientDetailPage({
                           </p>
                         ) : null}
                         {contact.email ? (
-                          <a href={`mailto:${contact.email}`} className="text-muted-foreground hover:underline">
+                          <a
+                            href={`mailto:${contact.email}`}
+                            className="text-muted-foreground hover:underline"
+                          >
                             {contact.email}
                           </a>
                         ) : null}
@@ -315,9 +343,7 @@ export default async function ClientDetailPage({
                       </div>
                       <div className="flex items-center gap-1">
                         <ContactDialog clientId={client.id} contact={contact} />
-                        <form
-                          action={deleteContactAction.bind(null, contact.id, client.id)}
-                        >
+                        <form action={deleteContactAction.bind(null, contact.id, client.id)}>
                           <Button variant="ghost" size="icon" className="size-7" type="submit">
                             <Trash2 className="size-3.5" />
                           </Button>
