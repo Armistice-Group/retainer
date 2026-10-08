@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { FormSection, Field, FormActions } from "@/components/forms/form-section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toDateInputValue } from "@/lib/format";
 import type { ActionState } from "@/actions/auth";
@@ -36,35 +37,36 @@ export function ProjectForm({
   initialValues,
   defaultClientId,
   submitLabel,
+  cancelHref,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   clients: { id: string; name: string }[];
   initialValues?: ProjectFormValues;
   defaultClientId?: string;
   submitLabel: string;
+  cancelHref?: string;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, null);
   const [billingType, setBillingType] = useState(initialValues?.billingType ?? "HOURLY");
 
+  const errors = state?.fieldErrors ?? {};
+
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction}>
       {state?.error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-6">
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="name">Project name</Label>
+      <FormSection
+        title="Project"
+        description="What the work is and who it's for."
+      >
+        <Field id="name" label="Project name" error={errors.name} wide>
           <Input id="name" name="name" defaultValue={initialValues?.name} required />
-          {state?.fieldErrors?.name ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.name[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="clientId">Client</Label>
+        </Field>
+        <Field id="clientId" label="Client" error={errors.clientId}>
           <Select name="clientId" defaultValue={initialValues?.clientId ?? defaultClientId}>
             <SelectTrigger id="clientId" className="w-full">
               <SelectValue placeholder="Select a client" />
@@ -77,13 +79,8 @@ export function ProjectForm({
               ))}
             </SelectContent>
           </Select>
-          {state?.fieldErrors?.clientId ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.clientId[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="status">Status</Label>
+        </Field>
+        <Field id="status" label="Status">
           <Select name="status" defaultValue={initialValues?.status ?? "ACTIVE"}>
             <SelectTrigger id="status" className="w-full">
               <SelectValue />
@@ -95,10 +92,23 @@ export function ProjectForm({
               <SelectItem value="ARCHIVED">Archived</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </Field>
+        <Field id="description" label="Description" wide>
+          <Textarea
+            id="description"
+            name="description"
+            rows={3}
+            defaultValue={initialValues?.description ?? ""}
+            placeholder="Scope, goals, or anything worth remembering about this project."
+          />
+        </Field>
+      </FormSection>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="billingType">Billing</Label>
+      <FormSection
+        title="Billing"
+        description="How this work is charged. Hourly rates are set per person on the project page."
+      >
+        <Field id="billingType" label="Billing type">
           <Select
             name="billingType"
             defaultValue={billingType}
@@ -113,11 +123,9 @@ export function ProjectForm({
               <SelectItem value="MILESTONE">Milestone-based</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
+        </Field>
         {billingType === "FLAT_FEE" ? (
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="flatFeeAmount">Flat fee amount</Label>
+          <Field id="flatFeeAmount" label="Flat fee amount" error={errors.flatFeeAmount}>
             <Input
               id="flatFeeAmount"
               name="flatFeeAmount"
@@ -127,45 +135,14 @@ export function ProjectForm({
               defaultValue={initialValues?.flatFeeAmount ?? ""}
               required
             />
-            {state?.fieldErrors?.flatFeeAmount ? (
-              <p className="text-sm text-destructive">{state.fieldErrors.flatFeeAmount[0]}</p>
-            ) : null}
-          </div>
+          </Field>
         ) : null}
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="startDate">Start date</Label>
-          <Input
-            id="startDate"
-            name="startDate"
-            type="date"
-            defaultValue={initialValues?.startDate ? toDateInputValue(initialValues.startDate) : ""}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="endDate">End date</Label>
-          <Input
-            id="endDate"
-            name="endDate"
-            type="date"
-            defaultValue={initialValues?.endDate ? toDateInputValue(initialValues.endDate) : ""}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={4}
-            defaultValue={initialValues?.description ?? ""}
-            placeholder="Scope, goals, or anything worth remembering about this project."
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="budgetHours">Budget (hours)</Label>
+        <Field
+          id="budgetHours"
+          label="Budget (hours)"
+          hint="Optional not-to-exceed cap."
+          error={errors.budgetHours}
+        >
           <Input
             id="budgetHours"
             name="budgetHours"
@@ -173,30 +150,43 @@ export function ProjectForm({
             step="0.25"
             min="0"
             defaultValue={initialValues?.budgetHours ?? ""}
-            placeholder="Optional — not-to-exceed cap"
           />
-          {state?.fieldErrors?.budgetHours ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.budgetHours[0]}</p>
-          ) : null}
-        </div>
+        </Field>
+      </FormSection>
 
-        <div className="flex items-end pb-2.5">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="confidential"
-              name="confidential"
-              defaultChecked={initialValues?.confidential}
-            />
-            <Label htmlFor="confidential" className="font-normal">
-              Confidential — only assigned team members (and owners/admins) can see it
-            </Label>
-          </div>
+      <FormSection title="Schedule & access">
+        <Field id="startDate" label="Start date">
+          <Input
+            id="startDate"
+            name="startDate"
+            type="date"
+            defaultValue={initialValues?.startDate ? toDateInputValue(initialValues.startDate) : ""}
+          />
+        </Field>
+        <Field id="endDate" label="End date">
+          <Input
+            id="endDate"
+            name="endDate"
+            type="date"
+            defaultValue={initialValues?.endDate ? toDateInputValue(initialValues.endDate) : ""}
+          />
+        </Field>
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="confidential"
+            name="confidential"
+            className="mt-0.5"
+            defaultChecked={initialValues?.confidential}
+          />
+          <Label htmlFor="confidential" className="text-sm font-normal">
+            Confidential — only people assigned to it (and owners/admins) can see it
+          </Label>
         </div>
-      </div>
+      </FormSection>
 
-      <div>
+      <FormActions cancelHref={cancelHref}>
         <SubmitButton pendingText="Saving...">{submitLabel}</SubmitButton>
-      </div>
+      </FormActions>
     </form>
   );
 }

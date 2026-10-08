@@ -13,6 +13,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
+# Shown in the app's user menu; set by the image workflow.
+ARG APP_VERSION=dev
+ARG APP_REVISION=
+ENV NEXT_PUBLIC_APP_VERSION=$APP_VERSION NEXT_PUBLIC_APP_REVISION=$APP_REVISION
 RUN npm run build
 
 FROM base AS runner

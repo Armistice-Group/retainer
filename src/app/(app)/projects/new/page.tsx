@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { ProjectForm } from "../project-form";
@@ -20,21 +19,18 @@ export default async function NewProjectPage({
   });
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <PageHeader title="Start a project" description="Projects live under a client and track their own time and rates." />
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Project details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProjectForm
-            action={createProjectAction}
-            clients={clients}
-            defaultClientId={clientId}
-            submitLabel="Create project"
-          />
-        </CardContent>
-      </Card>
+    <div className="mx-auto w-full max-w-5xl">
+      <PageHeader
+        title="Start a project"
+        description="Projects live under a client and track their own time and rates."
+      />
+      <ProjectForm
+        action={createProjectAction}
+        clients={clients}
+        defaultClientId={clientId}
+        submitLabel="Create project"
+        cancelHref={clientId ? `/clients/${clientId}` : "/projects"}
+      />
     </div>
   );
 }

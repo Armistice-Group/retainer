@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { FormSection, Field, FormActions } from "@/components/forms/form-section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { ActionState } from "@/actions/auth";
 
@@ -34,127 +35,40 @@ export function ClientForm({
   action,
   initialValues,
   submitLabel,
+  cancelHref,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   initialValues?: ClientFormValues;
   submitLabel: string;
+  cancelHref?: string;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, null);
+  const errors = state?.fieldErrors ?? {};
 
   return (
-    <form action={formAction} className="flex flex-col gap-5">
+    <form action={formAction}>
       {state?.error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-6">
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="name">Company name</Label>
+      <FormSection
+        title="Company"
+        description="How this client appears across projects and invoices."
+      >
+        <Field id="name" label="Company name" error={errors.name} wide>
           <Input id="name" name="name" defaultValue={initialValues?.name} required />
-          {state?.fieldErrors?.name ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.name[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="website">Website / domain</Label>
+        </Field>
+        <Field id="website" label="Website" error={errors.website}>
           <Input
             id="website"
             name="website"
             defaultValue={initialValues?.website ?? ""}
             placeholder="acme.com"
           />
-          {state?.fieldErrors?.website ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.website[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="address">Address</Label>
-          <Input id="address" name="address" defaultValue={initialValues?.address ?? ""} placeholder="Optional" />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" name="phone" defaultValue={initialValues?.phone ?? ""} placeholder="Optional" />
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <div className="mt-1 mb-0.5 border-t border-border pt-4">
-            <p className="text-sm font-medium">Billing / Accounts Payable</p>
-            <p className="text-xs text-muted-foreground">Optional — where invoices should go, if different.</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="billingEmail">Billing email</Label>
-          <Input
-            id="billingEmail"
-            name="billingEmail"
-            type="email"
-            defaultValue={initialValues?.billingEmail ?? ""}
-            placeholder="Defaults to email below if left blank"
-          />
-          {state?.fieldErrors?.billingEmail ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.billingEmail[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="billingAddress">Billing address</Label>
-          <Input
-            id="billingAddress"
-            name="billingAddress"
-            defaultValue={initialValues?.billingAddress ?? ""}
-            placeholder="Defaults to address above if left blank"
-          />
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="paymentInstructions">Payment instructions (optional override)</Label>
-          <Textarea
-            id="paymentInstructions"
-            name="paymentInstructions"
-            rows={3}
-            defaultValue={initialValues?.paymentInstructions ?? ""}
-            placeholder="Leave blank to use your org's default payment instructions"
-          />
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="paymentInstructionsPrivate"
-              name="paymentInstructionsPrivate"
-              className="mt-0.5"
-              defaultChecked={initialValues?.paymentInstructionsPrivate ?? false}
-            />
-            <Label htmlFor="paymentInstructionsPrivate" className="text-sm font-normal">
-              Keep this off the PDF for this client — show it only on their secure share portal
-            </Label>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2 border-t border-border pt-4">
-          <Label htmlFor="email">General email</Label>
-          <Input id="email" name="email" type="email" defaultValue={initialValues?.email ?? ""} placeholder="Optional" />
-          {state?.fieldErrors?.email ? (
-            <p className="text-sm text-destructive">{state.fieldErrors.email[0]}</p>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={4}
-            defaultValue={initialValues?.description ?? ""}
-            placeholder="What does this client do? Any context worth remembering."
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="status">Status</Label>
+        </Field>
+        <Field id="status" label="Status">
           <Select name="status" defaultValue={initialValues?.status ?? "ACTIVE"}>
             <SelectTrigger id="status" className="w-full">
               <SelectValue />
@@ -164,12 +78,81 @@ export function ClientForm({
               <SelectItem value="INACTIVE">Inactive</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+        </Field>
+        <Field id="description" label="Notes" wide>
+          <Textarea
+            id="description"
+            name="description"
+            rows={3}
+            defaultValue={initialValues?.description ?? ""}
+            placeholder="What they do, how the engagement started — anything worth remembering."
+          />
+        </Field>
+      </FormSection>
 
-      <div>
+      <FormSection
+        title="Contact"
+        description="General contact details. People you work with go under Points of contact."
+      >
+        <Field id="email" label="Email" error={errors.email}>
+          <Input id="email" name="email" type="email" defaultValue={initialValues?.email ?? ""} />
+        </Field>
+        <Field id="phone" label="Phone">
+          <Input id="phone" name="phone" defaultValue={initialValues?.phone ?? ""} />
+        </Field>
+        <Field id="address" label="Address" wide>
+          <Input id="address" name="address" defaultValue={initialValues?.address ?? ""} />
+        </Field>
+      </FormSection>
+
+      <FormSection
+        title="Billing"
+        description="Where invoices go, if different from the contact details. Leave blank to use those."
+      >
+        <Field id="billingEmail" label="Billing email" error={errors.billingEmail}>
+          <Input
+            id="billingEmail"
+            name="billingEmail"
+            type="email"
+            defaultValue={initialValues?.billingEmail ?? ""}
+          />
+        </Field>
+        <Field id="billingAddress" label="Billing address">
+          <Input
+            id="billingAddress"
+            name="billingAddress"
+            defaultValue={initialValues?.billingAddress ?? ""}
+          />
+        </Field>
+        <Field
+          id="paymentInstructions"
+          label="Payment instructions"
+          hint="Leave blank to use your organization's default."
+          wide
+        >
+          <Textarea
+            id="paymentInstructions"
+            name="paymentInstructions"
+            rows={3}
+            defaultValue={initialValues?.paymentInstructions ?? ""}
+          />
+        </Field>
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="paymentInstructionsPrivate"
+            name="paymentInstructionsPrivate"
+            className="mt-0.5"
+            defaultChecked={initialValues?.paymentInstructionsPrivate ?? false}
+          />
+          <Label htmlFor="paymentInstructionsPrivate" className="text-sm font-normal">
+            Keep these off the PDF — show them only on the client&apos;s secure share page
+          </Label>
+        </div>
+      </FormSection>
+
+      <FormActions cancelHref={cancelHref}>
         <SubmitButton pendingText="Saving...">{submitLabel}</SubmitButton>
-      </div>
+      </FormActions>
     </form>
   );
 }

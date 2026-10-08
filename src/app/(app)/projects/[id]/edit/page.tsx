@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
@@ -7,11 +6,7 @@ import { ProjectForm } from "../../project-form";
 import { updateProjectAction } from "@/actions/projects";
 import { PageHeader } from "@/components/layout/page-header";
 
-export default async function EditProjectPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { org, user, role } = await requireOrgContext();
 
@@ -30,32 +25,26 @@ export default async function EditProjectPage({
   const boundAction = updateProjectAction.bind(null, id);
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-5xl">
       <PageHeader title={`Edit ${project.name}`} />
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Project details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProjectForm
-            action={boundAction}
-            clients={clients}
-            submitLabel="Save changes"
-            initialValues={{
-              clientId: project.clientId,
-              name: project.name,
-              description: project.description,
-              status: project.status,
-              startDate: project.startDate,
-              endDate: project.endDate,
-              confidential: project.confidential,
-              budgetHours: project.budgetHours ? Number(project.budgetHours) : null,
-              billingType: project.billingType,
-              flatFeeAmount: project.flatFeeAmount ? Number(project.flatFeeAmount) : null,
-            }}
-          />
-        </CardContent>
-      </Card>
+      <ProjectForm
+        action={boundAction}
+        clients={clients}
+        submitLabel="Save changes"
+        cancelHref={`/projects/${id}`}
+        initialValues={{
+          clientId: project.clientId,
+          name: project.name,
+          description: project.description,
+          status: project.status,
+          startDate: project.startDate,
+          endDate: project.endDate,
+          confidential: project.confidential,
+          budgetHours: project.budgetHours ? Number(project.budgetHours) : null,
+          billingType: project.billingType,
+          flatFeeAmount: project.flatFeeAmount ? Number(project.flatFeeAmount) : null,
+        }}
+      />
     </div>
   );
 }
