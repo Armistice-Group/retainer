@@ -30,9 +30,9 @@ export default async function EditProjectPage({
   const boundAction = updateProjectAction.bind(null, id);
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-2xl">
       <PageHeader title={`Edit ${project.name}`} />
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Project details</CardTitle>
         </CardHeader>

@@ -24,6 +24,7 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createRecurringScheduleAction } from "@/actions/recurring-invoices";
 import { toISODate } from "@/lib/date";
+import { BILLING_INTERVALS } from "@/lib/billing-interval";
 import type { ActionState } from "@/actions/auth";
 
 export function CreateRecurringScheduleDialog({ clientId }: { clientId: string }) {
@@ -45,12 +46,12 @@ export function CreateRecurringScheduleDialog({ clientId }: { clientId: string }
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Plus className="size-3.5" /> New schedule
+          <Plus className="size-3.5" /> New retainer
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New recurring invoice</DialogTitle>
+          <DialogTitle>New retainer</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="clientId" value={clientId} />
@@ -86,8 +87,11 @@ export function CreateRecurringScheduleDialog({ clientId }: { clientId: string }
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="WEEKLY">Weekly</SelectItem>
-                  <SelectItem value="MONTHLY">Monthly</SelectItem>
+                  {BILLING_INTERVALS.map((i) => (
+                    <SelectItem key={i.value} value={i.value}>
+                      {i.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -57,7 +57,7 @@ export default async function WelcomePage() {
   ];
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl">
       <PageHeader
         title={`${org.name} is ready`}
         description="You're signed in as the local admin. A few optional next steps:"

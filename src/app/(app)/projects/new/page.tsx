@@ -20,9 +20,9 @@ export default async function NewProjectPage({
   });
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-2xl">
       <PageHeader title="Start a project" description="Projects live under a client and track their own time and rates." />
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Project details</CardTitle>
         </CardHeader>

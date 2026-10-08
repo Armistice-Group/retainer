@@ -20,9 +20,9 @@ export default async function EditClientPage({
   const boundAction = updateClientAction.bind(null, id);
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-2xl">
       <PageHeader title={`Edit ${client.name}`} />
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Client details</CardTitle>
         </CardHeader>

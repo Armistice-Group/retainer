@@ -153,6 +153,7 @@ model Organization {
   timeEntries               TimeEntry[]
   invoices                  Invoice[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
+  billingCycles             ClientBillingCycle[]
   notifications             Notification[]
   apiKeys                   ApiKey[]
   quickBooksConnection      QuickBooksConnection?
@@ -278,6 +279,7 @@ model Client {
   invoices                  Invoice[]
   documents                 ClientDocument[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
+  billingCycle              ClientBillingCycle?
 
   @@index([orgId])
 }
@@ -653,7 +655,12 @@ model Invoice {
 
 enum RecurringInterval {
   WEEKLY
+  BIWEEKLY
+  // Runs on the 1st and 15th of each month.
+  SEMIMONTHLY
   MONTHLY
+  QUARTERLY
+  YEARLY
 }
 
 // A retainer-style billing schedule: a flat amount charged to a client on a
@@ -690,6 +697,40 @@ model RecurringInvoiceSchedule {
 
   @@index([orgId])
   @@index([clientId])
+  @@index([nextRunAt])
+}
+
+// Optional per-client billing cadence for ordinary (non-retainer) work: on
+// each run, everything unbilled for the client — billable time, completed
+// milestones, approved expenses — dated before the run date is rolled into
+// one invoice via the same generateInvoice() path as the manual flow. A run
+// with nothing to bill creates no invoice and just advances.
+model ClientBillingCycle {
+  id            String            @id @default(cuid())
+  interval      RecurringInterval
+  // Day of month the cycle was started on, so monthly-or-longer cycles that
+  // get clamped (Jan 31 → Feb 28) snap back to the 31st afterwards instead
+  // of drifting.
+  anchorDay     Int
+  paymentTerms  PaymentTerms      @default(NET30)
+  // Draft by default so a human reviews before it goes out.
+  autoSend      Boolean           @default(false)
+  active        Boolean           @default(true)
+  nextRunAt     DateTime
+  lastRunAt     DateTime?
+  // Outcome of the last run, for display: the invoice it created, or why it
+  // didn't create one.
+  lastInvoiceId String?
+  lastRunNote   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
   @@index([nextRunAt])
 }
 

@@ -28,6 +28,7 @@ import { ClientDocumentsCard } from "./client-documents-card";
 import { ClientShareLinkCard } from "./client-share-link-card";
 import { ClientInvoicesCard } from "./client-invoices-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
+import { BillingCycleCard } from "./billing-cycle-card";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -54,6 +55,7 @@ export default async function ClientDetailPage({
       projects: { where: projectVisibilityWhere(user.id, role), orderBy: { createdAt: "desc" } },
       documents: { orderBy: { uploadedAt: "desc" } },
       recurringInvoiceSchedules: { orderBy: { createdAt: "asc" } },
+      billingCycle: true,
     },
   });
 
@@ -108,6 +110,26 @@ export default async function ClientDetailPage({
     nextRunAt: s.nextRunAt.toISOString(),
     lastRunAt: s.lastRunAt ? s.lastRunAt.toISOString() : null,
   }));
+
+  const cycle = client.billingCycle;
+  const lastCycleInvoice = cycle?.lastInvoiceId
+    ? await prisma.invoice.findUnique({
+        where: { id: cycle.lastInvoiceId },
+        select: { id: true, number: true },
+      })
+    : null;
+  const billingCycleItem = cycle
+    ? {
+        interval: cycle.interval,
+        paymentTerms: cycle.paymentTerms,
+        autoSend: cycle.autoSend,
+        active: cycle.active,
+        nextRunAt: cycle.nextRunAt.toISOString(),
+        lastRunAt: cycle.lastRunAt ? cycle.lastRunAt.toISOString() : null,
+        lastInvoice: lastCycleInvoice,
+        lastRunNote: cycle.lastRunNote,
+      }
+    : null;
 
   return (
     <div>
@@ -373,6 +395,8 @@ export default async function ClientDetailPage({
               shareUrl={client.shareToken ? `${origin}/share/client/${client.shareToken}` : null}
             />
           ) : null}
+
+          {canManage ? <BillingCycleCard clientId={client.id} cycle={billingCycleItem} /> : null}
 
           {canManage ? (
             <RecurringScheduleCard clientId={client.id} schedules={recurringScheduleItems} />

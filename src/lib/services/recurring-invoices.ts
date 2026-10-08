@@ -1,13 +1,10 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { addDays, addMonths } from "@/lib/date";
+import { addDays } from "@/lib/date";
+import { nextRunDate } from "@/lib/billing-interval";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
 import type { RecurringInvoiceSchedule } from "@/generated/prisma/client";
-
-function advance(nextRunAt: Date, interval: "WEEKLY" | "MONTHLY") {
-  return interval === "WEEKLY" ? addDays(nextRunAt, 7) : addMonths(nextRunAt, 1);
-}
 
 async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Date) {
   const issueDate = now;
@@ -53,7 +50,7 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
 
     await tx.recurringInvoiceSchedule.update({
       where: { id: schedule.id },
-      data: { lastRunAt: now, nextRunAt: advance(schedule.nextRunAt, schedule.interval) },
+      data: { lastRunAt: now, nextRunAt: nextRunDate(schedule.nextRunAt, schedule.interval) },
     });
 
     return created;

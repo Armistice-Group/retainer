@@ -5,9 +5,9 @@ import { PageHeader } from "@/components/layout/page-header";
 
 export default function NewClientPage() {
   return (
-    <div>
+    <div className="mx-auto w-full max-w-2xl">
       <PageHeader title="Add a client" description="Create a new client to organize projects and invoices under." />
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Client details</CardTitle>
         </CardHeader>

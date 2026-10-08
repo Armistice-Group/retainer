@@ -11,13 +11,14 @@ import {
   deleteRecurringScheduleAction,
 } from "@/actions/recurring-invoices";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { billingIntervalLabel, type BillingInterval } from "@/lib/billing-interval";
 
 export type RecurringScheduleItem = {
   id: string;
   description: string;
   amount: number;
   currency: string;
-  interval: "WEEKLY" | "MONTHLY";
+  interval: BillingInterval;
   active: boolean;
   autoSend: boolean;
   nextRunAt: string;
@@ -34,15 +35,15 @@ export function RecurringScheduleCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Recurring invoices</CardTitle>
+        <CardTitle className="text-base">Retainers</CardTitle>
         <CreateRecurringScheduleDialog clientId={clientId} />
       </CardHeader>
       <CardContent>
         {schedules.length === 0 ? (
           <EmptyState
             icon={Repeat}
-            title="No recurring schedule"
-            description="Set up a retainer to auto-generate an invoice on a schedule instead of billing unbilled time by hand."
+            title="No retainer"
+            description="Bill a fixed amount on a schedule, independent of logged time."
           />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
@@ -58,7 +59,7 @@ export function RecurringScheduleCard({
                     ) : null}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {formatCurrency(s.amount, s.currency)} · {s.interval === "WEEKLY" ? "Weekly" : "Monthly"}
+                    {formatCurrency(s.amount, s.currency)} · {billingIntervalLabel(s.interval)}
                     {" · "}
                     {s.active ? `Next ${formatDate(s.nextRunAt)}` : "Not running"}
                     {s.lastRunAt ? ` · Last ${formatDate(s.lastRunAt)}` : ""}
