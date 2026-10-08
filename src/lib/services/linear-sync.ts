@@ -36,6 +36,11 @@ export type SyncResult = {
   /** Tasks pulled in earlier whose issue no longer matches the link's
    * filters (e.g. after narrowing it to a Linear project or labels). */
   stale: number;
+  /** Open tasks created here with no issue yet, sent to Linear as new issues. */
+  pushed: number;
+  pushFailed: number;
+  /** Why the first failed push failed, for showing to the user. */
+  pushError: string | null;
 };
 
 /** Pulls the issues matching a project's Linear link (team + optional Linear
@@ -57,7 +62,15 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
   // Solo org: every issue is that person's, whoever Linear says it's assigned to.
   const soloUserId = members.length === 1 ? members[0].user.id : null;
 
-  const result: SyncResult = { created: 0, updated: 0, skipped: 0, stale: 0 };
+  const result: SyncResult = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    stale: 0,
+    pushed: 0,
+    pushFailed: 0,
+    pushError: null,
+  };
   for (const issue of issues) {
     const assigneeId =
       soloUserId ??
@@ -82,7 +95,7 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
       await prisma.task.update({ where: { id: existing.taskId }, data: fields });
       await prisma.externalTaskLink.update({
         where: { id: existing.id },
-        data: { externalUrl: issue.url, lastSyncedAt: new Date() },
+        data: { externalKey: issue.identifier, externalUrl: issue.url, lastSyncedAt: new Date() },
       });
       result.updated++;
     } else {
@@ -94,6 +107,7 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
             create: {
               source: "linear",
               externalId: issue.id,
+              externalKey: issue.identifier,
               externalUrl: issue.url,
               lastSyncedAt: new Date(),
             },
@@ -109,6 +123,25 @@ export async function pullLinearIssues(projectId: string): Promise<SyncResult> {
     data: { lastSyncedAt: new Date() },
   });
   result.stale = (await staleTasks(projectId, new Set(issues.map((i) => i.id)))).length;
+
+  // The other direction: open tasks that never got an issue — created
+  // before the project was linked, or while a push was failing.
+  if (ctx.link.pushChanges && canWrite(ctx.connection)) {
+    const unlinked = await prisma.task.findMany({
+      where: { projectId, externalLink: null, status: { not: "DONE" } },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    });
+    for (const task of unlinked) {
+      const push = await pushTaskToLinear(task.id);
+      if (push.pushed) {
+        result.pushed++;
+      } else {
+        result.pushFailed++;
+        result.pushError ??= push.reason ?? null;
+      }
+    }
+  }
   return result;
 }
 
@@ -172,10 +205,13 @@ export async function pushTaskToLinear(
     const fields = { title: task.title, description: task.description, stateId, assigneeId };
 
     if (task.externalLink?.source === "linear") {
-      await updateIssue(token, task.externalLink.externalId, fields);
+      const issue = await updateIssue(token, task.externalLink.externalId, fields);
       await prisma.externalTaskLink.update({
         where: { id: task.externalLink.id },
-        data: { lastSyncedAt: new Date() },
+        data: {
+          ...(issue ? { externalKey: issue.identifier, externalUrl: issue.url } : {}),
+          lastSyncedAt: new Date(),
+        },
       });
     } else if (!task.externalLink) {
       const issue = await createIssue(token, scopeOf(ctx.link), fields);
@@ -184,6 +220,7 @@ export async function pushTaskToLinear(
           taskId: task.id,
           source: "linear",
           externalId: issue.id,
+          externalKey: issue.identifier,
           externalUrl: issue.url,
           lastSyncedAt: new Date(),
         },

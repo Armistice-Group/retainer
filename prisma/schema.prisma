@@ -914,6 +914,8 @@ model ExternalTaskLink {
   id           String    @id @default(cuid())
   source       String
   externalId   String
+  // Human-readable issue key shown on the task, e.g. RING-12 for Linear.
+  externalKey  String?
   externalUrl  String?
   lastSyncedAt DateTime?
   createdAt    DateTime  @default(now())

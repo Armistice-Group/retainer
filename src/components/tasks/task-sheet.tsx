@@ -208,7 +208,12 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 hover:underline"
                 >
-                  Open issue <ExternalLink className="size-3" />
+                  {task.linearKey ? (
+                    <span className="font-mono text-xs">{task.linearKey}</span>
+                  ) : (
+                    "Open issue"
+                  )}
+                  <ExternalLink className="size-3" />
                 </a>
               </dd>
             </>

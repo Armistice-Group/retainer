@@ -273,7 +273,8 @@ function LinkForm({
                   {linearProjectId !== ANY_PROJECT || labelIds.length
                     ? " with this project and these labels"
                     : ""}
-                  ; title, status, and assignee edits sync back.
+                  ; title, status, and assignee edits sync back. Syncing also sends open
+                  tasks that don&apos;t have an issue yet.
                 </span>
               </Label>
             </div>

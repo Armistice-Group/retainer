@@ -13,6 +13,7 @@ import {
 import { updateTaskStatusAction, assignTaskAction, deleteTaskAction } from "@/actions/tasks";
 import { EditTaskDialog } from "@/components/tasks/edit-task-dialog";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
+import { LinearKeyBadge } from "@/components/tasks/linear-key-badge";
 import type { TaskDetail } from "@/lib/task-detail";
 
 const STATUS_ORDER = ["TODO", "IN_PROGRESS", "DONE"] as const;
@@ -26,6 +27,8 @@ export type TaskItem = {
   assigneeName: string | null;
   estimatedHours: number | null;
   actualHours: number;
+  linearKey: string | null;
+  linearUrl: string | null;
 };
 
 export function TaskList({
@@ -107,6 +110,7 @@ export function TaskList({
               >
                 <StatusBadge status={task.status} />
               </button>
+              <LinearKeyBadge linearKey={task.linearKey} url={task.linearUrl} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

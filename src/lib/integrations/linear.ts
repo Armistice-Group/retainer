@@ -238,6 +238,7 @@ export async function listTeamFilters(accessToken: string, teamId: string) {
 
 export type LinearIssue = {
   id: string;
+  identifier: string;
   title: string;
   description: string | null;
   url: string;
@@ -285,6 +286,7 @@ export async function listScopedIssues(accessToken: string, scope: IssueScope) {
           issues(first: 100, after: $after, filter: $filter, orderBy: updatedAt) {
             nodes {
               id
+              identifier
               title
               description
               url
@@ -377,7 +379,10 @@ export async function createIssue(
   fields: IssueFields & { title: string },
 ) {
   const data = await graphql<{
-    issueCreate: { success: boolean; issue: { id: string; url: string } | null };
+    issueCreate: {
+      success: boolean;
+      issue: { id: string; identifier: string; url: string } | null;
+    };
   }>(
     accessToken,
     `
@@ -386,6 +391,7 @@ export async function createIssue(
           success
           issue {
             id
+            identifier
             url
           }
         }
@@ -409,20 +415,29 @@ export async function createIssue(
   return data.issueCreate.issue;
 }
 
+/** Returns the issue's current identifier and URL (they change if the
+ * issue moves teams), or null when there was nothing to update. */
 export async function updateIssue(accessToken: string, issueId: string, fields: IssueFields) {
   const input = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-  if (Object.keys(input).length === 0) return;
-  await graphql(
+  if (Object.keys(input).length === 0) return null;
+  const data = await graphql<{
+    issueUpdate: { success: boolean; issue: { identifier: string; url: string } | null };
+  }>(
     accessToken,
     `
       mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
         issueUpdate(id: $id, input: $input) {
           success
+          issue {
+            identifier
+            url
+          }
         }
       }
     `,
     { id: issueId, input },
   );
+  return data.issueUpdate.issue;
 }
 
 export async function createComment(accessToken: string, issueId: string, body: string) {

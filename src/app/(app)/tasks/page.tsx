@@ -49,6 +49,7 @@ export default async function TasksPage({
       include: {
         assignee: { select: { name: true } },
         project: { select: { id: true, name: true, client: { select: { name: true } } } },
+        externalLink: { select: { source: true, externalKey: true } },
         _count: { select: { comments: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -93,6 +94,7 @@ export default async function TasksPage({
       estimatedHours: t.estimatedHours ? Number(t.estimatedHours) : null,
       actualHours: hoursByTask.get(t.id) ?? 0,
       commentCount: t._count.comments,
+      linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
     });
   }
   const groups = [...groupMap.values()].sort(

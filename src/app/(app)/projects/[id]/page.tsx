@@ -48,7 +48,10 @@ export default async function ProjectDetailPage({
       client: true,
       links: { orderBy: { createdAt: "asc" } },
       members: { include: { user: true }, orderBy: { createdAt: "asc" } },
-      tasks: { include: { assignee: true }, orderBy: { createdAt: "desc" } },
+      tasks: {
+        include: { assignee: true, externalLink: true },
+        orderBy: { createdAt: "desc" },
+      },
       timeEntries: {
         include: { user: true },
         orderBy: { date: "desc" },
@@ -139,6 +142,8 @@ export default async function ProjectDetailPage({
     assigneeName: t.assignee?.name ?? null,
     estimatedHours: t.estimatedHours ? Number(t.estimatedHours) : null,
     actualHours: actualHoursByTask.get(t.id) ?? 0,
+    linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
+    linearUrl: t.externalLink?.source === "linear" ? t.externalLink.externalUrl : null,
   }));
 
   const milestoneItems: MilestoneItem[] = project.milestones.map((m) => ({

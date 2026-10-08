@@ -19,6 +19,7 @@ export type TaskGroup = {
     estimatedHours: number | null;
     actualHours: number;
     commentCount: number;
+    linearKey: string | null;
   }[];
 };
 
@@ -67,6 +68,11 @@ export function TasksBoard({
                         <StatusBadge status={task.status} />
                       </span>
                       <span className="min-w-0 flex-1 basis-full truncate sm:basis-auto">
+                        {task.linearKey ? (
+                          <span className="mr-2 font-mono text-xs text-muted-foreground">
+                            {task.linearKey}
+                          </span>
+                        ) : null}
                         {task.title}
                       </span>
                       {task.commentCount > 0 ? (

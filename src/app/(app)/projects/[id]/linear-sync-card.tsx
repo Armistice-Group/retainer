@@ -54,13 +54,20 @@ export function LinearSyncCard({
       if (res.error || !res.result) {
         setSyncError(res.error);
       } else {
-        const { created, updated, skipped } = res.result;
+        const { created, updated, skipped, pushed, pushFailed, pushError } = res.result;
         setStale(res.result.stale);
         setResult(
           `${created} new, ${updated} updated` +
             (skipped ? `, ${skipped} skipped (already in another project)` : "") +
+            (pushed ? `, ${pushed} sent to Linear` : "") +
             ".",
         );
+        if (pushFailed) {
+          setSyncError(
+            `Couldn't send ${pushFailed} task${pushFailed === 1 ? "" : "s"} to Linear` +
+              (pushError ? `: ${pushError}` : "."),
+          );
+        }
       }
     } finally {
       setSyncing(false);

@@ -14,6 +14,7 @@ export type TaskDetail = {
   actualHours: number;
   project: { id: string; name: string; clientName: string };
   members: { id: string; name: string }[];
+  linearKey: string | null;
   linearUrl: string | null;
   canPostToLinear: boolean;
   timeEntries: {
@@ -74,6 +75,7 @@ export async function getTaskDetail(
     actualHours: task.timeEntries.reduce((sum, e) => sum + Number(e.hours), 0),
     project: { id: task.project.id, name: task.project.name, clientName: task.project.client.name },
     members: task.project.members.map((m) => ({ id: m.user.id, name: m.user.name })),
+    linearKey: task.externalLink?.source === "linear" ? task.externalLink.externalKey : null,
     linearUrl: task.externalLink?.source === "linear" ? task.externalLink.externalUrl : null,
     canPostToLinear: await canPushCommentsToLinear(task.id),
     timeEntries: task.timeEntries.map((e) => ({

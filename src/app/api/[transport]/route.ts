@@ -264,7 +264,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_my_tasks",
-      "List open (not-done) tasks assigned to the authenticated user, optionally filtered to one project.",
+      "List open (not-done) tasks assigned to the authenticated user, optionally filtered to one project. linearKey (e.g. RING-12) is set on tasks linked to a Linear issue.",
       { projectId: z.string().optional() },
       async ({ projectId }, extra) => {
         const ctx = ctxFrom(extra);
@@ -275,10 +275,19 @@ const handler = createMcpHandler(
             project: { orgId: ctx.orgId },
             ...(projectId ? { projectId } : {}),
           },
-          include: { project: { select: { id: true, name: true } } },
+          include: {
+            project: { select: { id: true, name: true } },
+            externalLink: { select: { source: true, externalKey: true, externalUrl: true } },
+          },
           orderBy: { createdAt: "desc" },
         });
-        return text(tasks);
+        return text(
+          tasks.map(({ externalLink, ...task }) => ({
+            ...task,
+            linearKey: externalLink?.source === "linear" ? externalLink.externalKey : null,
+            linearUrl: externalLink?.source === "linear" ? externalLink.externalUrl : null,
+          }))
+        );
       }
     );
 
