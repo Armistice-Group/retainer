@@ -144,7 +144,7 @@ export default async function DashboardPage() {
       key: "mcp",
       label: "Connect Claude or another AI agent",
       description: "Log hours and draft invoices straight from the agent doing the work.",
-      href: "/profile",
+      href: "/profile#api-keys",
       done: apiKeyCount > 0,
     },
   ];

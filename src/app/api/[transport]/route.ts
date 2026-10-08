@@ -864,7 +864,7 @@ const handler = createMcpHandler(
       }
     );
   },
-  { serverInfo: { name: "consulthub", version: "1.0.0" } },
+  { serverInfo: { name: "consultainer", version: "1.0.0" } },
   { basePath: "/api" }
 );
 

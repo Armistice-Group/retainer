@@ -11,34 +11,55 @@ shipped, without opening a browser tab.
 ## Endpoint
 
 ```
-https://consultainer.app/api/mcp
+https://<your-instance>/api/mcp
 ```
 
 Authenticated with a Bearer token — the same API key used for the
-[REST API](/api-reference/introduction). Generate one from **Settings →
-Profile → API Keys**.
+[REST API](/api-reference/introduction). Create one under **Profile → API
+keys & AI agents**; that card also shows the exact setup for Claude Code,
+Cursor, and Claude Desktop, pre-filled with your instance URL and new key.
 
 ## Connecting a client
 
-For MCP clients that support HTTP transport directly (Claude Code, Cursor),
-add a server pointing at the endpoint above with your API key as a Bearer
-token in the `Authorization` header. For stdio-only clients (like Claude
-Desktop's local config), bridge through
-[`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+**Claude Code**
+
+```bash
+claude mcp add --transport http consultainer https://<your-instance>/api/mcp \
+  --header "Authorization: Bearer <your API key>"
+```
+
+**Cursor** (`~/.cursor/mcp.json`)
+
+```json
+{
+  "mcpServers": {
+    "consultainer": {
+      "url": "https://<your-instance>/api/mcp",
+      "headers": { "Authorization": "Bearer <your API key>" }
+    }
+  }
+}
+```
+
+**Claude Desktop** (`claude_desktop_config.json`) — its local config only
+speaks stdio, so bridge through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
 
 ```json
 {
   "mcpServers": {
     "consultainer": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://consultainer.app/api/mcp"]
+      "args": ["-y", "mcp-remote", "https://<your-instance>/api/mcp",
+               "--header", "Authorization:${CONSULTAINER_AUTH}"],
+      "env": { "CONSULTAINER_AUTH": "Bearer <your API key>" }
     }
   }
 }
 ```
 
-Check your client's docs for exactly how it expects the Bearer token —
-some accept it inline in the URL config, others need it passed as a header.
+If the instance sits behind an authenticating reverse proxy, let `/api/mcp`
+(and `/api/v1/*` for the REST API) through without it — the API key is the
+authentication.
 
 ## Available tools
 

@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CopyButton } from "@/components/copy-button";
 import { createApiKeyAction, revokeApiKeyAction } from "@/actions/api-keys";
 import { formatDate } from "@/lib/format";
+import { AgentSetup } from "./agent-setup";
 
 export type ApiKeyItem = {
   id: string;
@@ -19,7 +20,7 @@ export type ApiKeyItem = {
   lastUsedAt: Date | null;
 };
 
-export function ApiKeysCard({ apiKeys }: { apiKeys: ApiKeyItem[] }) {
+export function ApiKeysCard({ apiKeys, mcpUrl }: { apiKeys: ApiKeyItem[]; mcpUrl: string }) {
   const [name, setName] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -34,27 +35,23 @@ export function ApiKeysCard({ apiKeys }: { apiKeys: ApiKeyItem[] }) {
   }
 
   return (
-    <Card>
+    <Card id="api-keys">
       <CardHeader>
-        <CardTitle className="text-base">API keys</CardTitle>
+        <CardTitle className="text-base">API keys &amp; AI agents</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Use an API key to call the Consultainer REST API or connect it as an MCP server for
-          Claude. A key acts as you, in this organization.
+          Use an API key to call the Consultainer REST API or connect an AI agent (Claude, Cursor)
+          over MCP. A key acts as you, in this organization.
         </p>
 
         {newKey ? (
           <Alert>
             <AlertDescription className="flex flex-col gap-2">
-              <span>
-                Copy this key now — you won&apos;t be able to see it again.
-              </span>
+              <span>Copy this key now — you won&apos;t be able to see it again.</span>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">
-                  {newKey}
-                </code>
-                <CopyButton value={newKey} />
+                <code className="flex-1 truncate rounded bg-muted px-2 py-1 text-xs">{newKey}</code>
+                <CopyButton value={newKey} label="Copy" />
               </div>
             </AlertDescription>
           </Alert>
@@ -95,6 +92,8 @@ export function ApiKeysCard({ apiKeys }: { apiKeys: ApiKeyItem[] }) {
             ))}
           </ul>
         ) : null}
+
+        <AgentSetup mcpUrl={mcpUrl} apiKey={newKey} />
       </CardContent>
     </Card>
   );

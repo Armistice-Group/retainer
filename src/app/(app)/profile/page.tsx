@@ -5,6 +5,7 @@ import { isEmailConfigured } from "@/lib/email";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProfileNameForm, ChangePasswordForm, ChangeEmailForm } from "./profile-forms";
 import { ApiKeysCard } from "./api-keys-card";
+import { getOrigin } from "@/lib/url";
 import { TwoFactorCard } from "./two-factor-card";
 import { PasskeysCard } from "./passkeys-card";
 import { ContractorProfileCard } from "./contractor-profile-card";
@@ -92,7 +93,7 @@ export default async function ProfilePage() {
 
           <TwoFactorCard enabled={dbUser.twoFactorEnabled} />
 
-          <ApiKeysCard apiKeys={apiKeys} />
+          <ApiKeysCard apiKeys={apiKeys} mcpUrl={`${await getOrigin()}/api/mcp`} />
         </div>
       </div>
     </div>
