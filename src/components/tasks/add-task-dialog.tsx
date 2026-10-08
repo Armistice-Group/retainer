@@ -25,14 +25,24 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createTaskAction } from "@/actions/tasks";
 import type { ActionState } from "@/actions/auth";
 
-export function AddTaskDialog({
-  projectId,
-  members,
-}: {
-  projectId: string;
+export type AddTaskProject = {
+  id: string;
+  /** Shown in the project picker when there's more than one project. */
+  label: string;
   members: { id: string; name: string }[];
+};
+
+export function AddTaskDialog({
+  projects,
+  triggerLabel = "Add task",
+}: {
+  /** One project adds the task there; several show a project picker. */
+  projects: AddTaskProject[];
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [projectId, setProjectId] = useState(projects.length === 1 ? projects[0].id : "");
+  const members = projects.find((p) => p.id === projectId)?.members ?? [];
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     createTaskAction,
     null
@@ -50,7 +60,7 @@ export function AddTaskDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
-          <Plus className="size-3.5" /> Add task
+          <Plus className="size-3.5" /> {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -58,12 +68,33 @@ export function AddTaskDialog({
           <DialogTitle>Add a task</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
-          <input type="hidden" name="projectId" value={projectId} />
           {state?.error ? (
             <Alert variant="destructive">
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           ) : null}
+          {projects.length === 1 ? (
+            <input type="hidden" name="projectId" value={projectId} />
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="task-project">Project</Label>
+              <Select name="projectId" value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger id="task-project" className="w-full">
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {state?.fieldErrors?.projectId ? (
+                <p className="text-sm text-destructive">Pick a project.</p>
+              ) : null}
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-title">Title</Label>
             <Input id="task-title" name="title" required />
@@ -91,7 +122,11 @@ export function AddTaskDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="task-assignee">Assignee (optional)</Label>
-            <Select name="assigneeId" defaultValue={members.length === 1 ? members[0].id : undefined}>
+            <Select
+              key={projectId}
+              name="assigneeId"
+              defaultValue={members.length === 1 ? members[0].id : undefined}
+            >
               <SelectTrigger id="task-assignee" className="w-full">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>

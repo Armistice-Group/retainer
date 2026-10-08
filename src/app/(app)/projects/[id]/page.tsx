@@ -13,7 +13,7 @@ import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { EditRateDialog } from "./edit-rate-dialog";
-import { AddTaskDialog } from "./add-task-dialog";
+import { AddTaskDialog } from "@/components/tasks/add-task-dialog";
 import { TaskList } from "./task-list";
 import { ProjectBillingCard, type ProjectInvoiceItem } from "./project-billing-card";
 import { deleteProjectAction, removeProjectMemberAction } from "@/actions/projects";
@@ -305,7 +305,11 @@ export default async function ProjectDetailPage({
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Tasks</CardTitle>
               {project.members.length > 0 ? (
-                <AddTaskDialog projectId={project.id} members={projectMemberOptions} />
+                <AddTaskDialog
+                  projects={[
+                    { id: project.id, label: project.name, members: projectMemberOptions },
+                  ]}
+                />
               ) : null}
             </CardHeader>
             <CardContent>

@@ -61,6 +61,8 @@ export async function createTaskAction(
   }
 
   revalidatePath(`/projects/${parsed.data.projectId}`);
+
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
   return null;
 }
@@ -99,6 +101,8 @@ export async function updateTaskAction(
   await pushTaskToLinear(taskId);
 
   revalidatePath(`/projects/${projectId}`);
+
+  revalidatePath("/tasks");
   return null;
 }
 
@@ -118,6 +122,8 @@ export async function updateTaskStatusAction(taskId: string, projectId: string, 
   await pushTaskToLinear(taskId);
 
   revalidatePath(`/projects/${projectId}`);
+
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
 }
 
@@ -144,6 +150,8 @@ export async function assignTaskAction(taskId: string, projectId: string, assign
   }
 
   revalidatePath(`/projects/${projectId}`);
+
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
 }
 
@@ -155,6 +163,7 @@ export async function deleteTaskAction(taskId: string, projectId: string) {
 
   await prisma.task.delete({ where: { id: taskId, projectId } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
 }
 
@@ -197,6 +206,8 @@ export async function addTaskCommentAction(
   }
 
   revalidatePath(`/projects/${projectId}`);
+
+  revalidatePath("/tasks");
   return null;
 }
 
@@ -217,4 +228,5 @@ export async function deleteTaskCommentAction(commentId: string, projectId: stri
 
   await prisma.taskComment.delete({ where: { id: commentId } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
 }

@@ -63,6 +63,7 @@ export async function createTimeEntryAction(
   }
 
   revalidatePath("/time");
+  revalidatePath("/tasks");
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/dashboard");
   return null;
@@ -96,6 +97,7 @@ export async function updateTimeEntryAction(
   }
 
   revalidatePath("/time");
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
   return null;
 }
@@ -104,5 +106,6 @@ export async function deleteTimeEntryAction(timeEntryId: string) {
   const ctx = await buildContext();
   await deleteTimeEntry(ctx, timeEntryId);
   revalidatePath("/time");
+  revalidatePath("/tasks");
   revalidatePath("/dashboard");
 }

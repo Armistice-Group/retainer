@@ -296,6 +296,9 @@ export default async function DashboardPage() {
       <Card className="mt-4">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Your open tasks</CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/tasks">View all</Link>
+          </Button>
         </CardHeader>
         <CardContent>
           {myTasks.length === 0 ? (
@@ -307,7 +310,7 @@ export default async function DashboardPage() {
               {myTasks.map((task) => (
                 <Link
                   key={task.id}
-                  href={`/projects/${task.projectId}`}
+                  href={`/tasks?task=${task.id}`}
                   className="flex items-center justify-between gap-2 py-3 text-sm hover:underline"
                 >
                   <div>
