@@ -46,7 +46,13 @@ export default async function OrgSettingsPage() {
       </Card>
 
       <div className="flex flex-col gap-6">
-        <OrgLogoCard previewSrc={previewSrc} readOnly={readOnly} />
+        <OrgLogoCard
+          previewSrc={previewSrc}
+          readOnly={readOnly}
+          appBranding={org.appBranding}
+          appAccentFromBrand={org.appAccentFromBrand}
+          brandColor={/^#[0-9a-fA-F]{6}$/.test(org.brandColor ?? "") ? org.brandColor : null}
+        />
         {role === "OWNER" ? (
           <InstanceUrlCard
             configuredUrl={configuredUrl}

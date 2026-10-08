@@ -1,19 +1,14 @@
 import { cn } from "@/lib/utils";
 
-/** Monochrome app mark: an open ring (a clock face, or a "C") with an
- * emerald dot where it opens — the one spot of brand color in the chrome. */
+/** Consultainer's clock mark: a monochrome tile and face, with the minute
+ * hand in the brand accent — the one spot of color in the chrome. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={cn("size-6", className)}>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={cn("size-6 shrink-0", className)}>
       <rect width="24" height="24" rx="6" className="fill-foreground" />
-      <path
-        d="M14.6 8.4A5 5 0 1 0 14.6 15.6"
-        fill="none"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        className="stroke-background"
-      />
-      <circle cx="17.3" cy="12" r="2" className="fill-brand" />
+      <circle cx="12" cy="12" r="6.6" fill="none" strokeWidth="1.9" className="stroke-background" />
+      <path d="M12 12V8.4" strokeWidth="1.9" strokeLinecap="round" className="stroke-background" />
+      <path d="M12 12l2.9 1.7" strokeWidth="1.9" strokeLinecap="round" className="stroke-brand" />
     </svg>
   );
 }

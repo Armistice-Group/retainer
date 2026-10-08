@@ -140,7 +140,7 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             <p className="text-sm text-destructive">{state.fieldErrors.brandColor[0]}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Accents invoice PDFs. Leave blank for the default.
+              Used on invoice PDFs, and as the app accent if turned on under Logo &amp; branding. Leave blank for the default.
             </p>
           )}
         </div>

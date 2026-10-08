@@ -1,29 +1,9 @@
 import { ImageResponse } from "next/og";
+import { ClockMarkSvg } from "@/lib/clock-mark";
 
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
 export default function Icon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#4f6df5",
-          borderRadius: 7,
-          color: "#ffffff",
-          fontSize: 20,
-          fontWeight: 700,
-          fontFamily: "monospace",
-        }}
-      >
-        C
-      </div>
-    ),
-    { ...size }
-  );
+  return new ImageResponse(<ClockMarkSvg size={32} />, { ...size });
 }

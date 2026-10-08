@@ -122,6 +122,11 @@ model Organization {
   logoData                   Bytes?
   logoContentType            String?
   brandColor                 String?
+  // Optional in-app branding: show the org's logo/name in the sidebar and on
+  // the login page instead of Consultainer's, and/or use brandColor as the
+  // UI accent. Off by default; invoices use the logo/color regardless.
+  appBranding                Boolean @default(false)
+  appAccentFromBrand         Boolean @default(false)
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses

@@ -1,28 +1,10 @@
 import { ImageResponse } from "next/og";
+import { ClockMarkSvg } from "@/lib/clock-mark";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
+// iOS applies its own rounded mask, so the tile is drawn square.
 export default function AppleIcon() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#4f6df5",
-          color: "#ffffff",
-          fontSize: 104,
-          fontWeight: 700,
-          fontFamily: "monospace",
-        }}
-      >
-        C
-      </div>
-    ),
-    { ...size }
-  );
+  return new ImageResponse(<ClockMarkSvg size={180} rounded={false} />, { ...size });
 }

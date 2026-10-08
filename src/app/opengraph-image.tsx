@@ -1,8 +1,10 @@
 import { ImageResponse } from "next/og";
+import { ClockMarkSvg } from "@/lib/clock-mark";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
+// Link-preview card (e.g. when a share link is pasted into Slack).
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -11,36 +13,16 @@ export default function OpengraphImage() {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "#100e16",
+          gap: 40,
+          background: "#09090b",
           fontFamily: "sans-serif",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            width: 120,
-            height: 120,
-            borderRadius: 20,
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#4f6df5",
-            color: "#ffffff",
-            fontSize: 68,
-            fontWeight: 700,
-            fontFamily: "monospace",
-            marginBottom: 36,
-          }}
-        >
-          C
-        </div>
-        <div style={{ display: "flex", fontSize: 64, fontWeight: 700, fontFamily: "monospace", color: "#f4f2fb" }}>
+        <ClockMarkSvg size={140} />
+        <div style={{ display: "flex", fontSize: 88, fontWeight: 700, color: "#fafafa", letterSpacing: -2 }}>
           Consultainer
-        </div>
-        <div style={{ display: "flex", fontSize: 28, color: "#a79fc2", marginTop: 16 }}>
-          Built to ship engagements, not manage them
         </div>
       </div>
     ),

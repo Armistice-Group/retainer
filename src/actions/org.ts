@@ -101,7 +101,7 @@ export async function uploadOrgLogoAction(
     data: { logoData: bytes, logoContentType: file.type },
   });
 
-  revalidatePath("/settings");
+  revalidatePath("/", "layout");
   return null;
 }
 
@@ -113,7 +113,22 @@ export async function removeOrgLogoAction() {
     where: { id: org.id },
     data: { logoData: null, logoContentType: null, logoUrl: null },
   });
-  revalidatePath("/settings");
+  revalidatePath("/", "layout");
+}
+
+export async function updateAppBrandingAction(formData: FormData) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: {
+      appBranding: formData.get("appBranding") === "on",
+      appAccentFromBrand: formData.get("appAccentFromBrand") === "on",
+    },
+  });
+  // Sidebar, login page, and accent color all live in layouts.
+  revalidatePath("/", "layout");
 }
 
 export async function updateOrgSecurityAction(

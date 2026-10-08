@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { Wordmark } from "@/components/brand-mark";
+import { OrgBrand } from "@/components/org-brand";
+import { BrandAccentStyle } from "@/components/brand-accent-style";
+import { orgLogoUrl } from "@/lib/branding";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -58,10 +61,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen w-full">
+      {org.appAccentFromBrand ? <BrandAccentStyle color={org.brandColor} /> : null}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-          <Link href="/dashboard" className="text-base">
-            <Wordmark />
+          <Link href="/dashboard" className="min-w-0 text-base">
+            {org.appBranding ? <OrgBrand name={org.name} logoUrl={orgLogoUrl(org)} /> : <Wordmark />}
           </Link>
         </div>
         <div className="border-b border-sidebar-border py-2">
