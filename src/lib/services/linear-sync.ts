@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import {
   canWrite,
+  createComment,
   createIssue,
   findUserIdByEmail,
   getLinearAccessToken,
@@ -191,6 +192,54 @@ export async function pushTaskToLinear(
     return { pushed: true };
   } catch (err) {
     console.warn("[linear] Couldn't push task", taskId, err);
+    return { pushed: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Whether a comment on this task can be posted to its Linear issue: the task
+ * mirrors an issue, and the project link pushes changes over a connection
+ * that can write. */
+export async function canPushCommentsToLinear(taskId: string) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { externalLink: true },
+  });
+  if (task?.externalLink?.source !== "linear") return false;
+  const ctx = await linearContext(task.projectId);
+  return !!ctx && ctx.link.pushChanges && canWrite(ctx.connection);
+}
+
+/** Posts a task comment to the task's Linear issue, attributed to its author
+ * in the body (Linear shows the connected account as the poster). Best
+ * effort, like pushTaskToLinear — the comment is already saved here. */
+export async function pushCommentToLinear(
+  commentId: string,
+): Promise<{ pushed: boolean; reason?: string }> {
+  const comment = await prisma.taskComment.findUnique({
+    where: { id: commentId },
+    include: { author: { select: { name: true } }, task: { include: { externalLink: true } } },
+  });
+  if (!comment) return { pushed: false, reason: "comment not found" };
+  const issueLink = comment.task.externalLink;
+  if (issueLink?.source !== "linear") return { pushed: false, reason: "task not linked" };
+
+  const ctx = await linearContext(comment.task.projectId);
+  if (!ctx || !ctx.link.pushChanges) return { pushed: false, reason: "not linked" };
+  if (!canWrite(ctx.connection)) return { pushed: false, reason: "read-only connection" };
+
+  try {
+    const token = await getLinearAccessToken(ctx.connection);
+    const body = comment.author?.name
+      ? `**${comment.author.name}:** ${comment.body}`
+      : comment.body;
+    const created = await createComment(token, issueLink.externalId, body);
+    await prisma.taskComment.update({
+      where: { id: comment.id },
+      data: { externalId: created.id, externalUrl: created.url },
+    });
+    return { pushed: true };
+  } catch (err) {
+    console.warn("[linear] Couldn't push comment", commentId, err);
     return { pushed: false, reason: err instanceof Error ? err.message : String(err) };
   }
 }

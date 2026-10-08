@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Plus, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -50,6 +50,9 @@ export function TimeEntryDialog({
   defaultDate,
   canManageTeam = false,
   teamMembers = [],
+  defaultProjectId,
+  defaultTaskId,
+  trigger,
 }: {
   projects: ProjectOption[];
   tasks?: TaskOption[];
@@ -57,9 +60,13 @@ export function TimeEntryDialog({
   defaultDate?: string;
   canManageTeam?: boolean;
   teamMembers?: MemberOption[];
+  defaultProjectId?: string;
+  defaultTaskId?: string;
+  /** Replaces the default "Log time" button. */
+  trigger?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [projectId, setProjectId] = useState(editValues?.projectId ?? "");
+  const [projectId, setProjectId] = useState(editValues?.projectId ?? defaultProjectId ?? "");
   const action = editValues
     ? updateTimeEntryAction.bind(null, editValues.id)
     : createTimeEntryAction;
@@ -81,7 +88,9 @@ export function TimeEntryDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {editValues ? (
+        {trigger ? (
+          trigger
+        ) : editValues ? (
           <Button variant="ghost" size="icon" className="size-7">
             <Pencil className="size-3.5" />
           </Button>
@@ -123,7 +132,7 @@ export function TimeEntryDialog({
           {availableTasks.length > 0 ? (
             <div className="flex flex-col gap-2">
               <Label htmlFor="te-task">Task (optional)</Label>
-              <Select name="taskId" defaultValue={editValues?.taskId}>
+              <Select name="taskId" defaultValue={editValues?.taskId ?? defaultTaskId}>
                 <SelectTrigger id="te-task" className="w-full">
                   <SelectValue placeholder="No specific task" />
                 </SelectTrigger>

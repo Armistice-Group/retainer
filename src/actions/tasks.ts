@@ -4,11 +4,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
-import { taskSchema, taskUpdateSchema, taskStatusValues } from "@/lib/validations/task";
+import {
+  taskSchema,
+  taskUpdateSchema,
+  taskStatusValues,
+  taskCommentSchema,
+} from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 import { soloMemberId } from "@/lib/org";
-import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import { pushCommentToLinear, pushTaskToLinear } from "@/lib/services/linear-sync";
 
 export async function createTaskAction(
   _prevState: ActionState,
@@ -51,7 +56,7 @@ export async function createTaskAction(
       userIds: [task.assigneeId],
       type: "TASK_ASSIGNED",
       message: `You were assigned "${task.title}" on ${project.name}.`,
-      link: `/projects/${project.id}`,
+      link: `/projects/${project.id}?task=${task.id}`,
     });
   }
 
@@ -134,7 +139,7 @@ export async function assignTaskAction(taskId: string, projectId: string, assign
       userIds: [task.assigneeId],
       type: "TASK_ASSIGNED",
       message: `You were assigned "${task.title}" on ${project.name}.`,
-      link: `/projects/${project.id}`,
+      link: `/projects/${project.id}?task=${task.id}`,
     });
   }
 
@@ -151,4 +156,65 @@ export async function deleteTaskAction(taskId: string, projectId: string) {
   await prisma.task.delete({ where: { id: taskId, projectId } });
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/dashboard");
+}
+
+export async function addTaskCommentAction(
+  taskId: string,
+  projectId: string,
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, user, role } = await requireOrgContext();
+
+  const parsed = taskCommentSchema.safeParse({
+    body: formData.get("body"),
+    postToLinear: formData.get("postToLinear") === "on",
+  });
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id) return { error: "Project not found." };
+  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
+  const task = await prisma.task.findUnique({ where: { id: taskId, projectId } });
+  if (!task) return { error: "Task not found." };
+
+  const comment = await prisma.taskComment.create({
+    data: { taskId, authorId: user.id, body: parsed.data.body },
+  });
+  // Comments stay internal unless the author opts in on a Linear-linked task.
+  if (parsed.data.postToLinear) await pushCommentToLinear(comment.id);
+
+  if (task.assigneeId && task.assigneeId !== user.id) {
+    await notify(prisma, {
+      orgId: org.id,
+      userIds: [task.assigneeId],
+      type: "TASK_COMMENTED",
+      message: `${user.name ?? "Someone"} commented on "${task.title}".`,
+      link: `/projects/${projectId}?task=${taskId}`,
+    });
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  return null;
+}
+
+/** Removes the comment here only — a copy already posted to Linear stays. */
+export async function deleteTaskCommentAction(commentId: string, projectId: string) {
+  const { org, user, role } = await requireOrgContext();
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
+
+  const comment = await prisma.taskComment.findUnique({
+    where: { id: commentId },
+    include: { task: { select: { projectId: true } } },
+  });
+  if (!comment || comment.task.projectId !== projectId) throw new Error("Comment not found.");
+  const canModerate = role === "OWNER" || role === "ADMIN";
+  if (comment.authorId !== user.id && !canModerate) throw new Error("Not allowed.");
+
+  await prisma.taskComment.delete({ where: { id: commentId } });
+  revalidatePath(`/projects/${projectId}`);
 }

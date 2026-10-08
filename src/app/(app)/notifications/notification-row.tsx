@@ -12,6 +12,7 @@ import {
   Clock,
   Repeat,
   AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 import { markNotificationReadAction } from "@/actions/notifications";
@@ -27,6 +28,7 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   TIME_LOGGED: Clock,
   RECURRING_INVOICE_GENERATED: Repeat,
   INVOICE_OVERDUE: AlertTriangle,
+  TASK_COMMENTED: MessageSquare,
 };
 
 export function NotificationRow({

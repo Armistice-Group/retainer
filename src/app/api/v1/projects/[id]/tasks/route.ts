@@ -69,7 +69,7 @@ export async function POST(
       userIds: [task.assigneeId],
       type: "TASK_ASSIGNED",
       message: `You were assigned "${task.title}" on ${project.name}.`,
-      link: `/projects/${project.id}`,
+      link: `/projects/${project.id}?task=${task.id}`,
     });
   }
 

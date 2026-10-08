@@ -27,13 +27,17 @@ import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
 import { getOrigin } from "@/lib/url";
 import { CopyButton } from "@/components/copy-button";
+import { getTaskDetail } from "@/lib/task-detail";
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ task?: string }>;
 }) {
   const { id } = await params;
+  const { task: openTaskId } = await searchParams;
   const { org, user, role } = await requireOrgContext();
   const canManage = role === "OWNER" || role === "ADMIN";
   const origin = canManage ? await getOrigin() : "";
@@ -65,22 +69,31 @@ export default async function ProjectDetailPage({
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
 
-  const [totalLoggedHours, taskHoursByTask, linearConnection, orgMembers, projectLineItems] =
-    await Promise.all([
-      prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
-      prisma.timeEntry.groupBy({
-        by: ["taskId"],
-        where: { projectId: project.id, taskId: { not: null } },
-        _sum: { hours: true },
-      }),
-      prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
-      prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
-      prisma.invoiceLineItem.findMany({
-        where: { projectId: project.id },
-        include: { invoice: true },
-        orderBy: { invoice: { createdAt: "desc" } },
-      }),
-    ]);
+  const [
+    totalLoggedHours,
+    taskHoursByTask,
+    linearConnection,
+    orgMembers,
+    projectLineItems,
+    openTaskDetail,
+  ] = await Promise.all([
+    prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
+    prisma.timeEntry.groupBy({
+      by: ["taskId"],
+      where: { projectId: project.id, taskId: { not: null } },
+      _sum: { hours: true },
+    }),
+    prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
+    prisma.membership.findMany({ where: { orgId: org.id }, include: { user: true } }),
+    prisma.invoiceLineItem.findMany({
+      where: { projectId: project.id },
+      include: { invoice: true },
+      orderBy: { invoice: { createdAt: "desc" } },
+    }),
+    openTaskId && project.tasks.some((t) => t.id === openTaskId)
+      ? getTaskDetail(openTaskId, { orgId: org.id, userId: user.id, role })
+      : null,
+  ]);
 
   const invoiceMap = new Map<string, ProjectInvoiceItem>();
   let invoicedTotal = 0;
@@ -307,6 +320,7 @@ export default async function ProjectDetailPage({
                   projectId={project.id}
                   tasks={taskItems}
                   members={projectMemberOptions}
+                  openTaskDetail={openTaskDetail}
                 />
               )}
             </CardContent>

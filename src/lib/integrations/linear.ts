@@ -424,3 +424,27 @@ export async function updateIssue(accessToken: string, issueId: string, fields: 
     { id: issueId, input },
   );
 }
+
+export async function createComment(accessToken: string, issueId: string, body: string) {
+  const data = await graphql<{
+    commentCreate: { success: boolean; comment: { id: string; url: string } | null };
+  }>(
+    accessToken,
+    `
+      mutation CreateComment($input: CommentCreateInput!) {
+        commentCreate(input: $input) {
+          success
+          comment {
+            id
+            url
+          }
+        }
+      }
+    `,
+    { input: { issueId, body } },
+  );
+  if (!data.commentCreate.success || !data.commentCreate.comment) {
+    throw new LinearError("Linear didn't create the comment.");
+  }
+  return data.commentCreate.comment;
+}

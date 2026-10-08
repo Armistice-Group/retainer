@@ -80,6 +80,7 @@ enum NotificationType {
   TIME_LOGGED
   RECURRING_INVOICE_GENERATED
   INVOICE_OVERDUE
+  TASK_COMMENTED
 }
 
 enum Plan {
@@ -200,6 +201,7 @@ model User {
   uploadedClientDocuments     ClientDocument[]
   expensesSubmitted           Expense[]              @relation("ExpenseSubmittedBy")
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
+  taskComments                TaskComment[]
   activeTimer                 ActiveTimer?
 }
 
@@ -460,9 +462,30 @@ model Task {
   timeEntries  TimeEntry[]
   externalLink ExternalTaskLink?
   activeTimers ActiveTimer[]
+  comments     TaskComment[]
 
   @@index([projectId])
   @@index([assigneeId])
+}
+
+// Internal discussion on a task — never shown on the client share link. When
+// the task is linked to a Linear issue the author can also post the comment
+// there; externalId/externalUrl then point at the Linear comment.
+model TaskComment {
+  id          String   @id @default(cuid())
+  body        String
+  externalId  String?
+  externalUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  authorId String?
+  author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, createdAt])
 }
 
 enum ProjectMemberApprovalStatus {
