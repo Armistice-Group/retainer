@@ -13,7 +13,13 @@ import {
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 import { soloMemberId } from "@/lib/org";
-import { pushCommentToLinear, pushTaskToLinear } from "@/lib/services/linear-sync";
+import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import {
+  addTaskComment,
+  deleteTaskComment,
+  TaskCommentError,
+  type TaskCommentContext,
+} from "@/lib/services/task-comments";
 
 export async function createTaskAction(
   _prevState: ActionState,
@@ -183,50 +189,30 @@ export async function addTaskCommentAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project || project.orgId !== org.id) return { error: "Project not found." };
-  if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
-  const task = await prisma.task.findUnique({ where: { id: taskId, projectId } });
-  if (!task) return { error: "Task not found." };
-
-  const comment = await prisma.taskComment.create({
-    data: { taskId, authorId: user.id, body: parsed.data.body },
-  });
-  // Comments stay internal unless the author opts in on a Linear-linked task.
-  if (parsed.data.postToLinear) await pushCommentToLinear(comment.id);
-
-  if (task.assigneeId && task.assigneeId !== user.id) {
-    await notify(prisma, {
-      orgId: org.id,
-      userIds: [task.assigneeId],
-      type: "TASK_COMMENTED",
-      message: `${user.name ?? "Someone"} commented on "${task.title}".`,
-      link: `/projects/${projectId}?task=${taskId}`,
-    });
+  try {
+    // Comments stay internal unless the author opts in on a Linear-linked task.
+    await addTaskComment(commentContext(org.id, user, role), taskId, parsed.data);
+  } catch (err) {
+    if (err instanceof TaskCommentError) return { error: err.message };
+    throw err;
   }
 
   revalidatePath(`/projects/${projectId}`);
-
   revalidatePath("/tasks");
   return null;
 }
 
-/** Removes the comment here only — a copy already posted to Linear stays. */
 export async function deleteTaskCommentAction(commentId: string, projectId: string) {
   const { org, user, role } = await requireOrgContext();
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project || project.orgId !== org.id) throw new Error("Project not found.");
-  if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
-
-  const comment = await prisma.taskComment.findUnique({
-    where: { id: commentId },
-    include: { task: { select: { projectId: true } } },
-  });
-  if (!comment || comment.task.projectId !== projectId) throw new Error("Comment not found.");
-  const canModerate = role === "OWNER" || role === "ADMIN";
-  if (comment.authorId !== user.id && !canModerate) throw new Error("Not allowed.");
-
-  await prisma.taskComment.delete({ where: { id: commentId } });
+  await deleteTaskComment(commentContext(org.id, user, role), commentId);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/tasks");
+}
+
+function commentContext(
+  orgId: string,
+  user: { id: string; name?: string | null },
+  role: TaskCommentContext["role"]
+): TaskCommentContext {
+  return { orgId, actorId: user.id, actorName: user.name ?? null, role };
 }

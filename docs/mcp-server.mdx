@@ -75,6 +75,9 @@ authentication.
 | `create_task` | Create a new task on a project. |
 | `update_task` | Update a task's title, description, or hour estimate. |
 | `update_task_status` | Update a task's status (TODO / IN_PROGRESS / DONE). |
+| `list_task_comments` | List a task's internal comments. |
+| `add_task_comment` | Comment on a task (internal; also posted to Linear on linked tasks unless `postToLinear` is false). |
+| `delete_task_comment` | Delete a comment (your own, or any as owner/admin). |
 | `log_time` | Log time against a project for yourself. |
 | `list_time_entries` | List your logged time entries, optionally filtered. |
 | `update_time_entry` | Update one of your time entries (if not yet invoiced). |

@@ -15,6 +15,12 @@ import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import {
+  addTaskComment,
+  deleteTaskComment,
+  listTaskComments,
+  TaskCommentError,
+} from "@/lib/services/task-comments";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -354,6 +360,60 @@ const handler = createMcpHandler(
         });
         await pushTaskToLinear(task.id);
         return text(task);
+      }
+    );
+
+    server.tool(
+      "list_task_comments",
+      "List the internal comments on a task, oldest first. linearUrl is set on comments that were also posted to the task's Linear issue.",
+      { taskId: z.string() },
+      async ({ taskId }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          return text(await listTaskComments(ctx, taskId));
+        } catch (err) {
+          if (err instanceof TaskCommentError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "add_task_comment",
+      "Add an internal comment to a task (clients never see comments) and notify its assignee. If the task is linked to a Linear issue, the comment is also posted there unless postToLinear is false.",
+      {
+        taskId: z.string(),
+        body: z.string().trim().min(1).max(5000),
+        postToLinear: z.boolean().optional(),
+      },
+      async ({ taskId, body, postToLinear }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          const { comment } = await addTaskComment(ctx, taskId, {
+            body,
+            postToLinear: postToLinear ?? true,
+          });
+          return text(comment);
+        } catch (err) {
+          if (err instanceof TaskCommentError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "delete_task_comment",
+      "Delete a task comment. Authors can delete their own; owners and admins can delete any. A copy already posted to Linear is left there.",
+      { commentId: z.string() },
+      async ({ commentId }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          await deleteTaskComment(ctx, commentId);
+          return text({ ok: true });
+        } catch (err) {
+          if (err instanceof TaskCommentError) return errorResult(err.message);
+          throw err;
+        }
       }
     );
 

@@ -1,6 +1,6 @@
 ---
 title: Tasks
-description: List, create, update, and delete tasks on a project
+description: List, create, update, and delete tasks on a project, and comment on them
 ---
 
 ## List a project's tasks
@@ -46,3 +46,43 @@ PATCH /api/v1/tasks/{id}
 ```
 DELETE /api/v1/tasks/{id}
 ```
+
+## List a task's comments
+
+```
+GET /api/v1/tasks/{id}/comments
+```
+
+Comments are internal: they never appear on client share links. Each comment
+has `id`, `body`, `createdAt`, `author` (`{ id, name }`, or `null` if the author
+has left), and `linearUrl` when it was also posted to the task's Linear issue.
+
+## Comment on a task
+
+```
+POST /api/v1/tasks/{id}/comments
+```
+
+<ParamField body="body" type="string" required>
+  Up to 5,000 characters. Notifies the task's assignee.
+</ParamField>
+<ParamField body="postToLinear" type="boolean" default="true">
+  On a task linked to a Linear issue, also post the comment there. Ignored for
+  unlinked tasks.
+</ParamField>
+
+```bash
+curl -X POST https://consultainer.app/api/v1/tasks/task_123/comments \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"body": "Staging is ready for review.", "postToLinear": false}'
+```
+
+## Delete a comment
+
+```
+DELETE /api/v1/tasks/{id}/comments/{commentId}
+```
+
+Authors can delete their own comments; owners and admins can delete any. A
+copy already posted to Linear stays there.
