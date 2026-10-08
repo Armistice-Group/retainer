@@ -35,12 +35,11 @@ export default auth((req) => {
 });
 
 export const config = {
-  // icon/apple-icon/opengraph-image are the generated favicon, home-screen
-  // icon, and social-card image (src/app/icon.tsx etc.); robots.txt is the
-  // generated crawler file (src/app/robots.ts) — all of these are fetched by
-  // crawlers and email clients with no session cookie at all, so they must
-  // never hit the auth redirect below.
+  // opengraph-image is the generated link-preview card and robots.txt the
+  // crawler file (icons are served from /api/branding/icon) — fetched by
+  // crawlers and chat apps with no session cookie, so they must never hit
+  // the auth redirect below.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icon|apple-icon|opengraph-image|robots.txt).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|robots.txt).*)",
   ],
 };

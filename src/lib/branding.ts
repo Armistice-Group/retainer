@@ -22,6 +22,7 @@ export async function getInstanceBranding() {
       id: true,
       name: true,
       logoData: true,
+      logoContentType: true,
       logoUrl: true,
       updatedAt: true,
       brandColor: true,
@@ -58,4 +59,15 @@ export function brandAccentCss(color: string | null | undefined) {
     `--brand:${c};--brand-foreground:${fg};--ring:${c};--sidebar-ring:${c};--chart-1:${c};`;
   // :root / :root.dark outrank the defaults in globals.css (:root / .dark).
   return `:root{${vars(light, lightFg)}}:root.dark{${vars(dark, darkFg)}}`;
+}
+
+/** Version token for icon URLs: changes whenever the branded org (or its
+ * logo) changes, so browsers fetch the new icon instead of a cached one. */
+export async function iconVersion() {
+  try {
+    const branding = await getInstanceBranding();
+    return branding?.logoData ? `${branding.id}-${branding.updatedAt.getTime()}` : "default";
+  } catch {
+    return "default";
+  }
 }

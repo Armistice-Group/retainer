@@ -3,6 +3,8 @@ import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { iconVersion } from "@/lib/branding";
+import { getOrigin } from "@/lib/url";
 
 // Site-wide type pairing — a deliberate departure from Next.js's own Geist
 // defaults. JetBrains Mono in particular isn't just a generic "techy" pick:
@@ -19,12 +21,23 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
-  title: { default: "Consultainer", template: "%s — Consultainer" },
-  description: "Clients, projects, time, and invoices for engineering consultancies.",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  // Tab / home-screen icons follow the org's branding when it's turned on
+  // (see /api/branding/icon); the version busts browser icon caches.
+  const [v, origin] = await Promise.all([iconVersion(), getOrigin().catch(() => null)]);
+  return {
+    // Absolute base for icon / link-preview URLs — the instance's public URL,
+    // never a hardcoded localhost.
+    ...(origin ? { metadataBase: new URL(origin) } : {}),
+    title: { default: "Consultainer", template: "%s — Consultainer" },
+    description: "Clients, projects, time, and invoices for engineering consultancies.",
+    robots: { index: false, follow: false },
+    icons: {
+      icon: `/api/branding/icon?v=${v}`,
+      apple: `/api/branding/icon?kind=apple&v=${v}`,
+    },
+  };
+}
 
 export default function RootLayout({
   children,
