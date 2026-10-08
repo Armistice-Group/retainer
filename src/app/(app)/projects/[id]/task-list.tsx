@@ -50,53 +50,72 @@ export function TaskList({
   return (
     <ul className="flex flex-col divide-y divide-border">
       {tasks.map((task) => (
-        <li key={task.id} className="flex items-center gap-3 py-2.5">
-          <button
-            type="button"
-            onClick={() => cycleStatus(task)}
-            disabled={isPending}
-            className="shrink-0"
-            title="Click to advance status"
-          >
-            <StatusBadge status={task.status} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">{task.title}</p>
+        <li key={task.id} className="flex flex-col gap-1.5 py-3">
+          {/* Title gets the full row width; status/assignee/hours sit on a
+              second line so the card stays readable in a narrow column. */}
+          <div className="flex items-start gap-2">
+            <p className="min-w-0 flex-1 text-sm leading-snug">{task.title}</p>
+            <div className="-my-1 flex shrink-0 items-center">
+              <EditTaskDialog projectId={projectId} task={task} />
+              <form action={deleteTaskAction.bind(null, task.id, projectId)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  type="submit"
+                  aria-label="Delete task"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </form>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <button
+              type="button"
+              onClick={() => cycleStatus(task)}
+              disabled={isPending}
+              className="shrink-0"
+              title="Click to advance status"
+            >
+              <StatusBadge status={task.status} />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1.5 px-1.5 text-xs text-muted-foreground"
+                  disabled={isPending}
+                >
+                  <UserRound className="size-3.5" />
+                  {task.assigneeName ?? "Unassigned"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onSelect={() => startTransition(() => assignTaskAction(task.id, projectId, ""))}
+                >
+                  Unassigned
+                </DropdownMenuItem>
+                {members.map((m) => (
+                  <DropdownMenuItem
+                    key={m.id}
+                    onSelect={() =>
+                      startTransition(() => assignTaskAction(task.id, projectId, m.id))
+                    }
+                  >
+                    {m.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {task.estimatedHours ? (
-              <p className="tabular-figures text-xs text-muted-foreground">
-                {task.actualHours.toFixed(2)}h of {task.estimatedHours.toFixed(2)}h est.
-              </p>
+              <span className="tabular-figures ml-auto text-xs text-muted-foreground">
+                {task.actualHours.toFixed(2)} / {task.estimatedHours.toFixed(2)}h
+              </span>
             ) : null}
           </div>
-          <EditTaskDialog projectId={projectId} task={task} />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs" disabled={isPending}>
-                <UserRound className="size-3.5" />
-                {task.assigneeName ?? "Unassigned"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => startTransition(() => assignTaskAction(task.id, projectId, ""))}
-              >
-                Unassigned
-              </DropdownMenuItem>
-              {members.map((m) => (
-                <DropdownMenuItem
-                  key={m.id}
-                  onSelect={() => startTransition(() => assignTaskAction(task.id, projectId, m.id))}
-                >
-                  {m.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <form action={deleteTaskAction.bind(null, task.id, projectId)}>
-            <Button variant="ghost" size="icon" className="size-7" type="submit">
-              <Trash2 className="size-3.5" />
-            </Button>
-          </form>
         </li>
       ))}
     </ul>

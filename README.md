@@ -2,6 +2,18 @@
 
 Client, project, and billing management for consultants and contractors. Track clients and their contacts/links, run projects with per-person bill rates and tasks, log time, generate invoices, and get Slack/email/in-app notifications — self-hosted.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
+  <img alt="Consultainer dashboard" src="docs/screenshots/dashboard-light.png">
+</picture>
+
+| | |
+|---|---|
+| ![Time tracking](docs/screenshots/time-light.png) | ![Project with budget and rates](docs/screenshots/project-light.png) |
+| ![Invoices](docs/screenshots/invoices-light.png) | ![Client with a billing cycle](docs/screenshots/client-light.png) |
+
+More at [consultainer.app](https://consultainer.app). Screenshots use the fictional demo data in `prisma/seed-demo.ts`; regenerate them with `scripts/screenshots.mjs`.
+
 ## Stack
 
 - **Next.js 16** (App Router, TypeScript, Server Actions) + **Tailwind v4** + **shadcn/ui**
@@ -54,7 +66,7 @@ This starts Postgres, the app, and a small scheduler for recurring invoices and 
 
 **URLs.** Sign-in, SSO and OAuth redirects follow whatever address the app is reached at — `localhost`, `hp.local`, or a domain behind a TLS proxy (Caddy, nginx, Traefik; forward `X-Forwarded-Host`/`-Proto`). Links that leave the browser (emails, invite/share/review links) use the **instance URL** you confirm at setup, editable by owners in Settings → General. Set `AUTH_URL` only to force a single URL for everything.
 
-To seed demo data: `docker compose exec consultainer-app node_modules/.bin/tsx prisma/seed.ts`.
+To try it with realistic demo data (on an empty database): `docker compose exec consultainer-app node_modules/.bin/tsx prisma/seed-demo.ts`, then log in as `maya@northwind.example` / `password123`.
 
 ## Single sign-on (OIDC)
 

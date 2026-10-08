@@ -13,3 +13,4 @@ docs
 Dockerfile
 docker-compose*.yml
 .DS_Store
+site

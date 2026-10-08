@@ -25,7 +25,11 @@ import {
   setBillingCycleActiveAction,
   deleteBillingCycleAction,
 } from "@/actions/recurring-invoices";
-import { BILLING_INTERVALS, billingIntervalLabel, type BillingInterval } from "@/lib/billing-interval";
+import {
+  BILLING_INTERVALS,
+  billingIntervalLabel,
+  type BillingInterval,
+} from "@/lib/billing-interval";
 import { formatDate } from "@/lib/format";
 import { toISODate } from "@/lib/date";
 import type { ActionState } from "@/actions/auth";
@@ -97,11 +101,7 @@ export function BillingCycleCard({
       </CardHeader>
       <CardContent>
         {editing ? (
-          <BillingCycleForm
-            clientId={clientId}
-            cycle={cycle}
-            onDone={() => setEditing(false)}
-          />
+          <BillingCycleForm clientId={clientId} cycle={cycle} onDone={() => setEditing(false)} />
         ) : cycle ? (
           <CycleSummary cycle={cycle} />
         ) : (
@@ -122,7 +122,8 @@ export function BillingCycleCard({
 }
 
 function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
-  const terms = PAYMENT_TERMS.find((t) => t.value === cycle.paymentTerms)?.label ?? cycle.paymentTerms;
+  const terms =
+    PAYMENT_TERMS.find((t) => t.value === cycle.paymentTerms)?.label ?? cycle.paymentTerms;
   return (
     <div className="flex flex-col gap-3 text-sm">
       <div className="flex items-center gap-2">
@@ -145,14 +146,19 @@ function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
             <dt className="text-muted-foreground">Last run</dt>
             <dd>
               {formatDate(cycle.lastRunAt)}
-              {" · "}
               {cycle.lastInvoice ? (
-                <Link href={`/invoices/${cycle.lastInvoice.id}`} className="text-brand hover:underline">
-                  {cycle.lastInvoice.number}
-                </Link>
-              ) : (
-                <span className="text-muted-foreground">{cycle.lastRunNote}</span>
-              )}
+                <>
+                  {" · "}
+                  <Link
+                    href={`/invoices/${cycle.lastInvoice.id}`}
+                    className="text-brand hover:underline"
+                  >
+                    {cycle.lastInvoice.number}
+                  </Link>
+                </>
+              ) : cycle.lastRunNote ? (
+                <span className="text-muted-foreground"> · {cycle.lastRunNote}</span>
+              ) : null}
             </dd>
           </>
         ) : null}
@@ -245,7 +251,9 @@ function BillingCycleForm({
         </Label>
       </div>
       <div className="flex gap-2">
-        <SubmitButton pendingText="Saving...">{cycle ? "Save" : "Start billing cycle"}</SubmitButton>
+        <SubmitButton pendingText="Saving...">
+          {cycle ? "Save" : "Start billing cycle"}
+        </SubmitButton>
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>

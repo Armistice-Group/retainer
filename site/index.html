@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consultainer — self-hosted time tracking & invoicing</title>
+  <meta name="description" content="Self-hosted time tracking, projects, and invoicing for consultancies. One docker compose file, your server, no per-seat fees." />
+  <meta property="og:title" content="Consultainer" />
+  <meta property="og:description" content="Self-hosted time tracking, projects, and invoicing for consultancies." />
+  <meta property="og:image" content="https://consultainer.app/screenshots/dashboard-dark.png" />
+  <meta name="theme-color" content="#09090b" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fafafa; --fg: #18181b; --muted: #71717a; --card: #ffffff; --border: #e4e4e7;
+      --code-bg: #f4f4f5; --brand: #059669; --btn-bg: #18181b; --btn-fg: #fafafa;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #09090b; --fg: #fafafa; --muted: #a1a1aa; --card: #111113; --border: #27272a;
+        --code-bg: #111113; --brand: #34d399; --btn-bg: #fafafa; --btn-fg: #09090b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--fg);
+      font: 16px/1.6 "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .mark { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; }
+    .mark svg { width: 26px; height: 26px; }
+    .tile { fill: var(--fg); } .face { stroke: var(--bg); } .hand { stroke: var(--brand); }
+    nav .links { display: flex; gap: 20px; font-size: 15px; color: var(--muted); }
+    nav .links a { text-decoration: none; } nav .links a:hover { color: var(--fg); }
+
+    header { padding: 72px 0 40px; }
+    h1 {
+      font-size: clamp(38px, 6vw, 64px); line-height: 1.04; letter-spacing: -0.035em;
+      font-weight: 600; margin: 0 0 20px; max-width: 14ch;
+    }
+    .lede { font-size: 19px; color: var(--muted); max-width: 56ch; margin: 0 0 32px; }
+    .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px;
+      border-radius: 8px; font-weight: 500; text-decoration: none; border: 1px solid var(--border);
+    }
+    .btn.primary { background: var(--btn-bg); color: var(--btn-fg); border-color: transparent; }
+    .btn svg { width: 18px; height: 18px; }
+
+    .shot {
+      display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border);
+      box-shadow: 0 24px 60px -30px rgb(0 0 0 / 0.35);
+    }
+    .hero-shot { margin: 56px 0 0; }
+
+    section { padding: 88px 0 0; }
+    h2 { font-size: 30px; letter-spacing: -0.02em; font-weight: 600; margin: 0 0 12px; }
+    .sub { color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+
+    .quickstart { display: grid; grid-template-columns: 1fr 1.25fr; gap: 48px; align-items: start; }
+    pre {
+      margin: 0; padding: 20px 22px; background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 10px; overflow-x: auto; font: 14px/1.7 "JetBrains Mono", ui-monospace, monospace;
+    }
+    pre .c { color: var(--muted); }
+    .facts { list-style: none; padding: 0; margin: 0; display: grid; gap: 14px; }
+    .facts li { padding-left: 22px; position: relative; }
+    .facts li::before {
+      content: ""; position: absolute; left: 0; top: 0.62em; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--brand);
+    }
+
+    .tour { display: grid; gap: 80px; }
+    .row { display: grid; grid-template-columns: 1fr 1.7fr; gap: 48px; align-items: center; }
+    .row:nth-child(even) { grid-template-columns: 1.7fr 1fr; }
+    .row:nth-child(even) .copy { order: 2; }
+    .row h3 { font-size: 22px; letter-spacing: -0.015em; margin: 0 0 10px; font-weight: 600; }
+    .row p { color: var(--muted); margin: 0; }
+
+    footer {
+      margin-top: 112px; padding: 32px 0 48px; border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    @media (max-width: 820px) {
+      .quickstart, .row, .row:nth-child(even) { grid-template-columns: 1fr; gap: 24px; }
+      .row:nth-child(even) .copy { order: 0; }
+      header { padding-top: 40px; }
+      nav .links a:not(.gh) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="mark" href="./">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect width="24" height="24" rx="6" class="tile" />
+          <circle cx="12" cy="12" r="6.6" fill="none" stroke-width="1.9" class="face" />
+          <path d="M12 12V8.4" stroke-width="1.9" stroke-linecap="round" class="face" />
+          <path d="M12 12l2.9 1.7" stroke-width="1.9" stroke-linecap="round" class="hand" />
+        </svg>
+        Consultainer
+      </a>
+      <div class="links">
+        <a href="#quickstart">Quickstart</a>
+        <a href="#tour">Tour</a>
+        <a class="gh" href="https://github.com/Armistice-Group/retainer">GitHub</a>
+      </div>
+    </nav>
+
+    <header>
+      <h1>Time, projects, and invoices for consultancies.</h1>
+      <p class="lede">
+        Consultainer tracks the hours your team works for each client and turns them into invoices —
+        on your own server, from a single docker compose file. No per-seat pricing, no data leaving your network.
+      </p>
+      <div class="ctas">
+        <a class="btn primary" href="#quickstart">Install with Docker</a>
+        <a class="btn" href="https://github.com/Armistice-Group/retainer">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.2-3.1-.1-.4-.5-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.2.8.8 1.2 1.9 1.2 3.1 0 4.7-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <picture>
+        <source srcset="screenshots/dashboard-dark.png" media="(prefers-color-scheme: dark)" />
+        <img class="shot hero-shot" src="screenshots/dashboard-light.png" width="2880" height="1800"
+             alt="Consultainer dashboard showing hours this week, unbilled time, and outstanding invoices" />
+      </picture>
+    </header>
+
+    <section id="quickstart">
+      <div class="quickstart">
+        <div>
+          <h2>Running in a few minutes</h2>
+          <p class="sub">Postgres, the app, and a small scheduler for recurring invoices — all in one compose file.</p>
+          <ul class="facts">
+            <li>Open it in a browser and create your organization and admin account. No email setup required.</li>
+            <li>Sign in with your own identity provider — Authentik, Okta, Entra ID, Keycloak, any OIDC.</li>
+            <li>Multi-arch images for amd64 and arm64. Upgrades are <code>docker compose pull</code>.</li>
+          </ul>
+        </div>
+        <pre><span class="c"># grab the compose file and example settings</span>
+curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
+
+<span class="c"># fill in the Required section of .env, then</span>
+docker compose up -d</pre>
+      </div>
+    </section>
+
+    <section id="tour">
+      <h2>What it does</h2>
+      <p class="sub">Built for engineering, security, and design consultancies billing by the hour, flat fee, or milestone.</p>
+      <div class="tour">
+        <div class="row">
+          <div class="copy">
+            <h3>Track time against real work</h3>
+            <p>Log hours by hand or run a timer, against projects and tasks. See your week at a glance, or the whole team's.</p>
+          </div>
+          <picture>
+            <source srcset="screenshots/time-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/time-light.png" width="2880" height="1800" loading="lazy" alt="Weekly time log grouped by day" />
+          </picture>
+        </div>
+        <div class="row">
+          <div class="copy">
+            <h3>Projects that know their budget</h3>
+            <p>Per-person bill rates, hour budgets, tasks, milestones, and expenses — with invoiced-to-date always in view.</p>
+          </div>
+          <picture>
+            <source srcset="screenshots/project-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/project-light.png" width="2880" height="1800" loading="lazy" alt="Project page with billing summary, hours budget, and team rates" />
+          </picture>
+        </div>
+        <div class="row">
+          <div class="copy">
+            <h3>Invoices from unbilled work</h3>
+            <p>Pull unbilled time, completed milestones, and expenses into an invoice in a few clicks. Send PDFs, take payment through Stripe or Mercury, push to QuickBooks.</p>
+          </div>
+          <picture>
+            <source srcset="screenshots/invoices-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/invoices-light.png" width="2880" height="1800" loading="lazy" alt="Invoice list with paid, sent, overdue, and draft invoices" />
+          </picture>
+        </div>
+        <div class="row">
+          <div class="copy">
+            <h3>Billing on a schedule</h3>
+            <p>Put a client on a weekly, bi-weekly, or monthly cycle and their invoice drafts itself. Retainers bill a fixed amount on their own schedule.</p>
+          </div>
+          <picture>
+            <source srcset="screenshots/client-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/client-light.png" width="2880" height="1800" loading="lazy" alt="Client page with projects, invoices, and a bi-weekly billing cycle" />
+          </picture>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Works with your agent, too</h2>
+      <p class="sub">
+        A REST API and a built-in MCP server let Claude, Cursor, or any agent log time and draft invoices
+        with a personal API key — the same permissions as the person it acts for.
+      </p>
+    </section>
+
+    <footer>
+      <span>Consultainer — self-hosted, by Armistice Group.</span>
+      <a href="https://github.com/Armistice-Group/retainer">github.com/Armistice-Group/retainer</a>
+    </footer>
+  </div>
+</body>
+</html>
