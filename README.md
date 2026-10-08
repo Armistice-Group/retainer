@@ -54,7 +54,7 @@ This starts Postgres, the app, and a small scheduler for recurring invoices and 
 
 **Reverse proxy.** Put any TLS-terminating proxy (Caddy, nginx, Traefik) in front of port `APP_PORT` and set `AUTH_URL` to the public `https://` URL — SSO/OAuth redirect URIs are built from it.
 
-To seed demo data: `docker compose exec app node_modules/.bin/tsx prisma/seed.ts`.
+To seed demo data: `docker compose exec consultainer-app node_modules/.bin/tsx prisma/seed.ts`.
 
 ## Single sign-on (OIDC)
 

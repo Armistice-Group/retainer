@@ -67,7 +67,7 @@ services:
     image: curlimages/curl:8.10.1
     restart: unless-stopped
     depends_on:
-      - app
+      - consultainer-app
     environment:
       CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env (openssl rand -hex 32)}
     entrypoint:
@@ -77,9 +77,9 @@ services:
         sleep 60
         i=0
         while true; do
-          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/mercury-sync || true
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/mercury-sync || true
           if [ $$((i % 24)) -eq 0 ]; then
-            curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/recurring-invoices || true
+            curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/recurring-invoices || true
           fi
           i=$$((i + 1))
           sleep 3600
