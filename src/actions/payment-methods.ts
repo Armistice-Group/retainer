@@ -11,7 +11,7 @@ import {
 import type { ActionState } from "@/actions/auth";
 
 function revalidate(clientId: string | null) {
-  revalidatePath(clientId ? `/clients/${clientId}` : "/settings");
+  revalidatePath(clientId ? `/clients/${clientId}` : "/settings/payments");
   revalidatePath("/dashboard");
 }
 

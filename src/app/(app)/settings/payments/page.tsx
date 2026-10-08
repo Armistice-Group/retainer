@@ -6,6 +6,7 @@ import { listEligibleAccounts } from "@/lib/integrations/mercury";
 import { StripeConnectCard } from "../stripe-connect-card";
 import { MercuryConnectCard } from "../mercury-card";
 import { IntegrationCredentials } from "../integration-credentials";
+import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-methods-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeIntegration } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
@@ -40,7 +41,14 @@ export default async function PaymentsPage({
     }
   }
 
-  const mercuryConnection = await prisma.mercuryConnection.findUnique({ where: { orgId: org.id } });
+  const [mercuryConnection, paymentMethods] = await Promise.all([
+    prisma.mercuryConnection.findUnique({ where: { orgId: org.id } }),
+    prisma.paymentMethod.findMany({
+      where: { orgId: org.id, clientId: null },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, type: true, label: true, details: true, showOnPdf: true },
+    }),
+  ]);
 
   let mercuryAccounts: { id: string; name: string }[] = [];
   if (mercuryConnection) {
@@ -53,6 +61,23 @@ export default async function PaymentsPage({
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
+      <Card id="payment-methods">
+        <CardHeader>
+          <CardTitle className="text-base">Payment methods</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            How clients can pay you — listed on invoices and the client share page. A client can
+            have its own methods instead, set on the client&apos;s page.
+          </p>
+          <PaymentMethodsEditor
+            clientId={null}
+            methods={paymentMethods as EditableMethod[]}
+            readOnly={readOnly}
+            emptyText="No payment methods yet."
+          />
+        </CardContent>
+      </Card>
       {role === "OWNER" || !stripeConfigured ? (
         <Card>
           <CardHeader>

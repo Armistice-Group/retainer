@@ -137,7 +137,7 @@ export default async function DashboardPage() {
       key: "payment",
       label: "Add how clients can pay you",
       description: "ACH, wire, a Stripe link, check details — clients can have their own.",
-      href: "/settings#payment-methods",
+      href: "/settings/payments#payment-methods",
       done: paymentMethodCount > 0,
     },
     {

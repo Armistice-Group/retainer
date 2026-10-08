@@ -296,7 +296,7 @@ export default async function ClientDetailPage({
                 emptyText={
                   orgMethodCount
                     ? `Using your organization's ${orgMethodCount} default method${orgMethodCount === 1 ? "" : "s"}. Add one here to use different methods for this client.`
-                    : "No payment methods. Add your defaults in Settings → General, or one just for this client here."
+                    : "No payment methods. Add your defaults in Settings → Payments, or one just for this client here."
                 }
               />
             </CardContent>

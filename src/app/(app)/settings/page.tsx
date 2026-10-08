@@ -3,22 +3,15 @@ import { requireOrgContext } from "@/lib/org-context";
 import { OrgSettingsForm } from "./org-settings-form";
 import { OrgLogoCard } from "./org-logo-card";
 import { InstanceUrlCard } from "./instance-url-card";
-import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-methods-editor";
-import { prisma } from "@/lib/prisma";
 import { getConfiguredPublicUrl, getRequestOrigin } from "@/lib/url";
 
 export default async function OrgSettingsPage() {
   const { org, role } = await requireOrgContext();
   const readOnly = role === "MEMBER";
 
-  const [configuredUrl, currentUrl, paymentMethods] = await Promise.all([
+  const [configuredUrl, currentUrl] = await Promise.all([
     getConfiguredPublicUrl(),
     getRequestOrigin(),
-    prisma.paymentMethod.findMany({
-      where: { orgId: org.id, clientId: null },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: { id: true, type: true, label: true, details: true, showOnPdf: true },
-    }),
   ]);
 
   const previewSrc = org.logoData
@@ -47,24 +40,6 @@ export default async function OrgSettingsPage() {
                 brandColor: org.brandColor,
               }}
               readOnly={readOnly}
-            />
-          </CardContent>
-        </Card>
-
-        <Card id="payment-methods">
-          <CardHeader>
-            <CardTitle className="text-base">Payment methods</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              How clients can pay you — listed on invoices and the client share page. A client can
-              have its own methods instead, set on the client&apos;s page.
-            </p>
-            <PaymentMethodsEditor
-              clientId={null}
-              methods={paymentMethods as EditableMethod[]}
-              readOnly={readOnly}
-              emptyText="No payment methods yet."
             />
           </CardContent>
         </Card>
