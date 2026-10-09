@@ -10,6 +10,7 @@ import {
   Clock,
   FileText,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,15 +21,16 @@ const links = [
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/time", label: "Time", icon: Clock },
   { href: "/invoices", label: "Invoices", icon: FileText },
+  { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-1 px-3">
-      {links.map((link) => {
+      {links.filter((link) => isAdmin || !("adminOnly" in link)).map((link) => {
         const active = pathname === link.href || pathname.startsWith(link.href + "/");
         const Icon = link.icon;
         return (

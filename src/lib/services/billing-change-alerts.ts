@@ -33,6 +33,7 @@ const BILLING_FIELDS: Record<string, string[] | null> = {
   ],
   Project: ["billingType", "flatFeeAmount", "paymentTerms"],
   ProjectMember: ["billRate", "currency"],
+  Membership: ["costRate"],
   Contact: ["receivesInvoices", "email"],
   PaymentMethod: null,
   ClientBillingCycle: null,
@@ -43,7 +44,7 @@ const BILLING_FIELDS: Record<string, string[] | null> = {
 
 // Never put these values in an alert (Slack and email travel further than
 // the audit log); say they changed instead.
-const SENSITIVE = new Set(["details", "paymentInstructions"]);
+const SENSITIVE = new Set(["details", "paymentInstructions", "costRate"]);
 
 const VERB: Record<string, string> = { create: "added", update: "changed", delete: "removed" };
 
@@ -153,6 +154,13 @@ async function describe(model: string, row: Row | null): Promise<{ text: string;
         text: `billing for project ${row.name}${client ? ` (${client})` : ""}`,
         link: `/projects/${row.id}`,
       };
+    }
+    case "Membership": {
+      const user =
+        typeof row.userId === "string"
+          ? await prisma.user.findUnique({ where: { id: row.userId }, select: { name: true } })
+          : null;
+      return { text: `${user?.name ?? "a member"}'s cost rate`, link: "/settings/members" };
     }
     case "ProjectMember": {
       const [user, project] = await Promise.all([

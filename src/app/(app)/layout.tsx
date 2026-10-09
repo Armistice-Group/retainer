@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <OrgSwitcher memberships={orgOptions} activeOrgId={org.id} />
         </div>
         <div className="flex-1 overflow-y-auto py-3">
-          <SidebarNav />
+          <SidebarNav isAdmin={role === "OWNER" || role === "ADMIN"} />
         </div>
         <p
           className="px-4 py-3 text-xs text-muted-foreground tabular-figures"

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InviteDialog } from "./invite-dialog";
 import { MemberRowActions } from "./member-row-actions";
+import { CostRateField } from "./cost-rate-field";
 import { CopyButton } from "@/components/copy-button";
 import { revokeInviteAction } from "@/actions/org";
 import { X } from "lucide-react";
@@ -47,7 +48,14 @@ export default async function MembersPage() {
                   </p>
                   <p className="text-muted-foreground">{m.user.email}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {canManage ? (
+                    <CostRateField
+                      membershipId={m.id}
+                      value={m.costRate?.toString() ?? ""}
+                      name={m.user.name}
+                    />
+                  ) : null}
                   {m.employmentType === "CONTRACTOR" ? (
                     <Badge variant="outline" className="font-normal">
                       Contractor

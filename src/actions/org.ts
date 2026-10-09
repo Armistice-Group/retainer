@@ -279,3 +279,18 @@ export async function removeMemberAction(membershipId: string) {
   await prisma.membership.delete({ where: { id: membershipId } });
   revalidatePath("/settings/members");
 }
+
+export async function setMemberCostRateAction(membershipId: string, value: string) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!membership || membership.orgId !== org.id) throw new Error("Member not found.");
+  const trimmed = value.trim();
+  const rate = trimmed === "" ? null : Number(trimmed);
+  if (rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 100000)) {
+    throw new Error("Enter an hourly cost of 0 or more.");
+  }
+  await prisma.membership.update({ where: { id: membershipId }, data: { costRate: rate } });
+  revalidatePath("/settings/members");
+  revalidatePath("/reports");
+}

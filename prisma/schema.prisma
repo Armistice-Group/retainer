@@ -243,6 +243,9 @@ model Membership {
   id             String         @id @default(cuid())
   role           Role           @default(MEMBER)
   employmentType MembershipType @default(EMPLOYEE)
+  // What an hour of this person's time costs the org (salary or contractor
+  // rate), for profit on Reports. Owners and admins only; null = unknown.
+  costRate       Decimal?       @db.Decimal(10, 2)
 
   // Contractor profile — self-edited from Profile, shown to clients on a
   // per-project approval review when requested for a CONTRACTOR.
