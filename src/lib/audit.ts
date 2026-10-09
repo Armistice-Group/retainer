@@ -34,6 +34,7 @@ export const AUDITED_MODELS = [
   "Expense",
   "Invoice",
   "RecurringInvoiceSchedule",
+  "ClientBillingCycle",
   "PaymentMethod",
 ] as const;
 const AUDITED = new Set<string>(AUDITED_MODELS);
@@ -48,6 +49,12 @@ const IGNORED_FIELDS = new Set([
   "budgetAlertLevel",
   "overEstimateAlertedAt",
   "approvedAt",
+  // Bookkeeping the app updates on its own.
+  "nextInvoiceNumber",
+  "nextRunAt",
+  "lastRunAt",
+  "lastInvoiceId",
+  "lastRunNote",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;
@@ -135,6 +142,16 @@ function plain(value: unknown): unknown {
   return undefined; // Nested relation writes and other shapes: not a scalar change.
 }
 
+/** A column value as read back from a row: like plain(), but a plain object
+ * there is a Json column, so it's kept (as text). */
+function stored(value: unknown): unknown {
+  if (isRow(value) && !(value instanceof Date) && !(value instanceof Uint8Array) && !("toFixed" in value)) {
+    const text = JSON.stringify(value);
+    return text.length > 500 ? `${text.slice(0, 500)}…` : text;
+  }
+  return plain(value);
+}
+
 function labelOf(row: Row | null | undefined) {
   if (!row) return null;
   for (const field of LABEL_FIELDS) {
@@ -150,9 +167,9 @@ function diff(data: Row, before: Row | null, after: Row | null) {
   const changes: Record<string, { from: unknown; to: unknown }> = {};
   for (const key of Object.keys(data)) {
     if (IGNORED_FIELDS.has(key)) continue;
-    const to = plain(after && key in after ? after[key] : data[key]);
+    const to = after && key in after ? stored(after[key]) : plain(data[key]);
     if (to === undefined) continue;
-    const from = plain(before?.[key]);
+    const from = stored(before?.[key]);
     if (JSON.stringify(from) === JSON.stringify(to)) continue;
     changes[key] = REDACTED.test(key)
       ? { from: "[redacted]", to: "[redacted]" }
@@ -161,11 +178,11 @@ function diff(data: Row, before: Row | null, after: Row | null) {
   return changes;
 }
 
-function snapshot(data: Row) {
+function snapshot(data: Row, row: Row | null = null) {
   const values: Record<string, unknown> = {};
   for (const [key, raw] of Object.entries(data)) {
     if (IGNORED_FIELDS.has(key)) continue;
-    const v = plain(raw);
+    const v = row && key in row ? stored(row[key]) : plain(raw);
     if (v === undefined) continue;
     values[key] = REDACTED.test(key) ? "[redacted]" : v;
   }
@@ -251,7 +268,10 @@ export async function auditedQuery(base: PrismaClient, params: QueryParams) {
 
       if (operation === "create" || (operation === "upsert" && !before)) {
         action = "create";
-        changes = snapshot(isRow(args.data) ? args.data : isRow(args.create) ? args.create : {});
+        changes = snapshot(
+          isRow(args.data) ? args.data : isRow(args.create) ? args.create : {},
+          row
+        );
       } else if (operation === "update" || operation === "upsert") {
         action = "update";
         const data = isRow(args.data) ? args.data : isRow(args.update) ? args.update : {};
@@ -294,6 +314,19 @@ export async function auditedQuery(base: PrismaClient, params: QueryParams) {
           ipAddress: actor?.ipAddress ?? null,
           userAgent: actor?.userAgent ?? null,
         },
+      });
+
+      // Billing and payment detail changes also alert the org.
+      const { alertOnBillingChange } = await import("@/lib/services/billing-change-alerts");
+      await alertOnBillingChange({
+        orgId,
+        actorId: actor?.userId ?? null,
+        model,
+        action,
+        row,
+        before,
+        changes: (changes ?? null) as Record<string, unknown> | null,
+        count,
       });
     });
   } catch (err) {

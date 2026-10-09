@@ -85,6 +85,8 @@ enum NotificationType {
   BUDGET_ALERT
   TIMESHEET_SUBMITTED
   TIMESHEET_REVIEWED
+  INVOICE_VIEWED
+  BILLING_CHANGED
 }
 
 enum Plan {
@@ -128,6 +130,11 @@ model Organization {
   // share portal — for orgs whose instructions include bank/ACH details.
   paymentInstructionsPrivate Boolean               @default(false)
   slackWebhookUrl            String?
+  // Per-alert Slack/email switches (see lib/alert-events.ts); missing keys
+  // use each alert's defaults.
+  alertSettings              Json                  @default("{}")
+  // Where alert emails go; empty means the org's owners.
+  alertEmails                String[]              @default([])
   logoUrl                    String?
   logoData                   Bytes?
   logoContentType            String?

@@ -14,7 +14,14 @@ const links = [
 
 export function SettingsNav({ showAuditLog }: { showAuditLog: boolean }) {
   const pathname = usePathname();
-  const visible = showAuditLog ? [...links, { href: "/settings/audit", label: "Audit log" }] : links;
+  // Admin-only tabs.
+  const visible = showAuditLog
+    ? [
+        ...links,
+        { href: "/settings/alerts", label: "Alerts" },
+        { href: "/settings/audit", label: "Audit log" },
+      ]
+    : links;
 
   return (
     <div className="mb-6 flex gap-1 overflow-x-auto border-b border-border">

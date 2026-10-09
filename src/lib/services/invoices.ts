@@ -9,12 +9,8 @@ import {
 import { Prisma, type Role } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
-import { notify, getOrgAdminUserIds, getOrgOwnerEmail } from "@/lib/notifications";
-import { postToSlack } from "@/lib/slack";
-import { sendEmail } from "@/lib/email";
-import { InvoiceStatusEmail } from "@/emails/invoice-status-email";
+import { sendAlert } from "@/lib/alerts";
 import { formatCurrency } from "@/lib/format";
-import { getOrigin } from "@/lib/url";
 import { daysOverdue } from "@/lib/invoice-aging";
 
 export class InvoiceError extends Error {}
@@ -33,39 +29,14 @@ export async function notifyInvoiceStatusChange(
   },
   status: "SENT" | "PAID"
 ) {
-  const origin = await getOrigin();
-  const invoiceUrl = `${origin}/invoices/${invoice.id}`;
   const total = formatCurrency(invoice.total, invoice.currency);
   const verb = status === "PAID" ? "was paid" : "was sent";
-  const message = `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`;
-
-  const adminIds = await getOrgAdminUserIds(prisma, org.id);
-  await notify(prisma, {
+  await sendAlert({
     orgId: org.id,
-    userIds: adminIds,
-    type: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
-    message,
+    event: status === "PAID" ? "INVOICE_PAID" : "INVOICE_SENT",
+    message: `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`,
     link: `/invoices/${invoice.id}`,
   });
-
-  await postToSlack(org.slackWebhookUrl, message);
-
-  const ownerEmail = await getOrgOwnerEmail(prisma, org.id);
-  if (ownerEmail) {
-    await sendEmail({
-      to: ownerEmail,
-      subject: `${status === "PAID" ? "Paid" : "Sent"}: invoice ${invoice.number}`,
-      react: InvoiceStatusEmail({
-        orgName: org.name,
-        invoiceNumber: invoice.number,
-        clientName: invoice.client.name,
-        total,
-        status: status === "PAID" ? "paid" : "sent",
-        invoiceUrl,
-        origin,
-      }),
-    });
-  }
 }
 
 // Called once a day by the recurring-invoices cron job. overdueNotifiedAt is
@@ -90,23 +61,16 @@ export async function notifyNewlyOverdueInvoices(now = new Date()) {
     const total = formatCurrency(invoice.total, invoice.currency);
     const message = `Invoice ${invoice.number} for ${invoice.client.name} is now overdue (${total}).`;
 
-    const adminIds = await getOrgAdminUserIds(prisma, invoice.orgId);
-    if (adminIds.length > 0) {
-      await notify(prisma, {
-        orgId: invoice.orgId,
-        userIds: adminIds,
-        type: "INVOICE_OVERDUE",
-        message,
-        link: `/invoices/${invoice.id}`,
-      });
-    }
-
     await prisma.invoice.update({
       where: { id: invoice.id },
       data: { overdueNotifiedAt: now },
     });
-
-    await postToSlack(invoice.org.slackWebhookUrl, message);
+    await sendAlert({
+      orgId: invoice.orgId,
+      event: "INVOICE_OVERDUE",
+      message,
+      link: `/invoices/${invoice.id}`,
+    });
   }
 
   return newlyOverdue.length;

@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { notify, getOrgAdminUserIds } from "@/lib/notifications";
+import { notify } from "@/lib/notifications";
+import { sendAlert } from "@/lib/alerts";
 import { formatWeekLabel } from "@/lib/date";
 import type {
   Prisma,
@@ -129,12 +130,12 @@ export async function submitTimesheet(ctx: TimesheetContext, weekISO: string) {
     update: { status: "SUBMITTED", submittedAt: new Date(), reviewedAt: null, reviewedById: null },
   });
 
-  await notify(prisma, {
+  await sendAlert({
     orgId: ctx.orgId,
-    userIds: await getOrgAdminUserIds(prisma, ctx.orgId, ctx.actorId),
-    type: "TIMESHEET_SUBMITTED",
+    event: "TIMESHEET_SUBMITTED",
     message: `${ctx.actorName ?? "Someone"} submitted ${total.toFixed(2)}h for the week of ${label(weekStart)}.`,
     link: "/time?view=approvals",
+    excludeUserId: ctx.actorId,
   });
   return sheet;
 }

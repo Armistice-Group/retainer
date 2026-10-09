@@ -1,7 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { notify, getOrgAdminUserIds } from "@/lib/notifications";
-import { postToSlack } from "@/lib/slack";
+import { sendAlert } from "@/lib/alerts";
 
 const THRESHOLDS = [100, 80] as const;
 
@@ -12,8 +11,8 @@ function levelFor(logged: number, budget: number) {
 
 /** Alerts once when a project's logged hours reach 80% and 100% of its
  * budget, and when a task's logged hours pass its estimate. Owners and
- * admins hear about both (plus Slack); a task's assignee hears about their
- * task. Re-arms when hours fall back or the budget/estimate grows. Never
+ * admins hear about both (Slack/email per Settings → Alerts); a task's
+ * assignee hears about their task. Re-arms when hours fall back or the budget/estimate grows. Never
  * throws — alerts are a side effect of logging time, not part of it. */
 export async function checkBudgets(projectId: string, taskIds: (string | null | undefined)[] = []) {
   try {
@@ -29,7 +28,6 @@ export async function checkBudgets(projectId: string, taskIds: (string | null | 
 async function checkProject(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: { org: { select: { slackWebhookUrl: true } } },
   });
   if (!project) return;
   const budget = project.budgetHours ? Number(project.budgetHours) : null;
@@ -52,20 +50,18 @@ async function checkProject(projectId: string) {
     level >= 100
       ? `${project.name} is over budget: ${logged.toFixed(2)}h logged of ${budget.toFixed(2)}h.`
       : `${project.name} has used ${Math.round((logged / budget) * 100)}% of its budget (${logged.toFixed(2)}h of ${budget.toFixed(2)}h).`;
-  await notify(prisma, {
+  await sendAlert({
     orgId: project.orgId,
-    userIds: await getOrgAdminUserIds(prisma, project.orgId),
-    type: "BUDGET_ALERT",
+    event: "BUDGET_ALERT",
     message,
     link: `/projects/${projectId}`,
   });
-  await postToSlack(project.org.slackWebhookUrl, `:warning: ${message}`);
 }
 
 async function checkTask(taskId: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
-    include: { project: { include: { org: { select: { slackWebhookUrl: true } } } } },
+    include: { project: true },
   });
   if (!task) return;
   const estimate = task.estimatedHours ? Number(task.estimatedHours) : null;
@@ -83,13 +79,11 @@ async function checkTask(taskId: string) {
 
   await prisma.task.update({ where: { id: taskId }, data: { overEstimateAlertedAt: new Date() } });
   const message = `"${task.title}" on ${task.project.name} is over its estimate: ${logged.toFixed(2)}h logged of ${estimate!.toFixed(2)}h.`;
-  const admins = await getOrgAdminUserIds(prisma, task.project.orgId);
-  await notify(prisma, {
+  await sendAlert({
     orgId: task.project.orgId,
-    userIds: [...admins, ...(task.assigneeId ? [task.assigneeId] : [])],
-    type: "BUDGET_ALERT",
+    event: "BUDGET_ALERT",
     message,
     link: `/projects/${task.projectId}?task=${task.id}`,
+    alsoNotify: task.assigneeId ? [task.assigneeId] : [],
   });
-  await postToSlack(task.project.org.slackWebhookUrl, `:warning: ${message}`);
 }
