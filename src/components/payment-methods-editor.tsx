@@ -323,6 +323,19 @@ function MethodForm({
         </Label>
       </div>
 
+      {clientId && !method ? (
+        <div className="flex items-start gap-2">
+          <Checkbox id="pm-orgWide" name="orgWide" className="mt-0.5" />
+          <Label htmlFor="pm-orgWide" className="flex-col items-start gap-0.5 font-normal">
+            Add for the whole organization
+            <span className="text-xs text-muted-foreground">
+              Saves it under Settings → Payments, offered to every client that uses the
+              organization&apos;s methods — this one included.
+            </span>
+          </Label>
+        </div>
+      ) : null}
+
       <div className="flex gap-2">
         <SubmitButton size="sm" pendingText="Saving...">
           {method ? "Save" : "Add"}

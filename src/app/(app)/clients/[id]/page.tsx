@@ -31,6 +31,8 @@ import { ClientInvoicesCard } from "./client-invoices-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
 import { BillingCycleCard } from "./billing-cycle-card";
 import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-methods-editor";
+import { OrgPaymentMethodsPicker } from "./org-payment-methods";
+import { displayPaymentMethod } from "@/lib/payment-methods";
 import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
@@ -112,13 +114,16 @@ export default async function ClientDetailPage({
     lastRunAt: s.lastRunAt ? s.lastRunAt.toISOString() : null,
   }));
 
-  const [clientMethods, orgMethodCount] = await Promise.all([
+  const [clientMethods, orgMethods] = await Promise.all([
     prisma.paymentMethod.findMany({
       where: { orgId: org.id, clientId: client.id },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, type: true, label: true, details: true, showOnPdf: true },
     }),
-    prisma.paymentMethod.count({ where: { orgId: org.id, clientId: null } }),
+    prisma.paymentMethod.findMany({
+      where: { orgId: org.id, clientId: null },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
   ]);
 
   const cycle = client.billingCycle;
@@ -298,16 +303,21 @@ export default async function ClientDetailPage({
               <CardTitle className="text-base">Payment methods</CardTitle>
             </CardHeader>
             <CardContent>
-              <PaymentMethodsEditor
-                clientId={client.id}
-                methods={clientMethods as EditableMethod[]}
-                readOnly={!canManage}
-                emptyText={
-                  orgMethodCount
-                    ? `Using your organization's ${orgMethodCount} default method${orgMethodCount === 1 ? "" : "s"}. Add one here to use different methods for this client.`
-                    : "No payment methods. Add your defaults in Settings → Payments, or one just for this client here."
-                }
-              />
+              <div className="flex flex-col gap-4">
+                <PaymentMethodsEditor
+                  clientId={client.id}
+                  methods={clientMethods as EditableMethod[]}
+                  readOnly={!canManage}
+                  emptyText="No payment methods just for this client."
+                />
+                <OrgPaymentMethodsPicker
+                  clientId={client.id}
+                  methods={orgMethods.map((m) => ({ id: m.id, name: displayPaymentMethod(m).title }))}
+                  useOrg={client.useOrgPaymentMethods}
+                  excluded={client.excludedOrgPaymentMethodIds}
+                  readOnly={!canManage}
+                />
+              </div>
             </CardContent>
           </Card>
 

@@ -54,12 +54,21 @@ export async function savePaymentMethodAction(
     if (!existing || existing.orgId !== org.id) return { error: "Payment method not found." };
     await prisma.paymentMethod.update({ where: { id: existing.id }, data });
   } else {
-    const count = await prisma.paymentMethod.count({
-      where: { orgId: org.id, clientId: target.clientId },
-    });
+    // Added from a client page but meant for everyone: save it org-wide and
+    // make sure this client is offered the org's methods.
+    const orgWide = !!target.clientId && formData.get("orgWide") === "on";
+    const clientId = orgWide ? null : target.clientId;
+    const count = await prisma.paymentMethod.count({ where: { orgId: org.id, clientId } });
     await prisma.paymentMethod.create({
-      data: { ...data, orgId: org.id, clientId: target.clientId, sortOrder: count },
+      data: { ...data, orgId: org.id, clientId, sortOrder: count },
     });
+    if (orgWide) {
+      await prisma.client.update({
+        where: { id: target.clientId! },
+        data: { useOrgPaymentMethods: true },
+      });
+      revalidate(null);
+    }
   }
 
   revalidate(target.clientId);
@@ -94,4 +103,32 @@ export async function movePaymentMethodAction(methodId: string, direction: "up" 
     list.map((m, idx) => prisma.paymentMethod.update({ where: { id: m.id }, data: { sortOrder: idx } }))
   );
   revalidate(method.clientId);
+}
+
+/** Whether a client is offered the org's methods too, and which ones not. */
+export async function setClientOrgPaymentMethodsAction(
+  clientId: string,
+  useOrgPaymentMethods: boolean,
+  excludedOrgPaymentMethodIds: string[]
+) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+  const client = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!client || client.orgId !== org.id) throw new Error("Client not found.");
+  const orgMethodIds = new Set(
+    (
+      await prisma.paymentMethod.findMany({
+        where: { orgId: org.id, clientId: null },
+        select: { id: true },
+      })
+    ).map((m) => m.id)
+  );
+  await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      useOrgPaymentMethods,
+      excludedOrgPaymentMethodIds: excludedOrgPaymentMethodIds.filter((id) => orgMethodIds.has(id)),
+    },
+  });
+  revalidate(clientId);
 }

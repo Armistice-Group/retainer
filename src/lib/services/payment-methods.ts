@@ -2,17 +2,28 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { displayPaymentMethod } from "@/lib/payment-methods";
 
-/** The methods that apply to a client: its own if it has any, otherwise the
- * org's defaults. Pass no clientId for just the org defaults. */
+const ORDER = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }];
+
+/** The methods offered to a client: its own first, then the org's (unless
+ * the client turned them off, or individual ones). Pass no clientId for
+ * just the org's. */
 export async function effectivePaymentMethods(orgId: string, clientId?: string | null) {
-  const order = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }];
-  if (clientId) {
-    const own = await prisma.paymentMethod.findMany({ where: { orgId, clientId }, orderBy: order });
-    if (own.length) return own.map(displayPaymentMethod);
-  }
-  const defaults = await prisma.paymentMethod.findMany({
+  const orgMethods = await prisma.paymentMethod.findMany({
     where: { orgId, clientId: null },
-    orderBy: order,
+    orderBy: ORDER,
   });
-  return defaults.map(displayPaymentMethod);
+  if (!clientId) return orgMethods.map(displayPaymentMethod);
+
+  const [client, own] = await Promise.all([
+    prisma.client.findUnique({
+      where: { id: clientId },
+      select: { useOrgPaymentMethods: true, excludedOrgPaymentMethodIds: true },
+    }),
+    prisma.paymentMethod.findMany({ where: { orgId, clientId }, orderBy: ORDER }),
+  ]);
+  const inherited =
+    client?.useOrgPaymentMethods === false
+      ? []
+      : orgMethods.filter((m) => !client?.excludedOrgPaymentMethodIds.includes(m.id));
+  return [...own, ...inherited].map(displayPaymentMethod);
 }

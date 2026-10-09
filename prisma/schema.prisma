@@ -283,31 +283,35 @@ model Invite {
 }
 
 model Client {
-  id                         String        @id @default(cuid())
-  name                       String
-  website                    String?
-  description                String?
-  email                      String?
-  phone                      String?
-  address                    String?
-  billingEmail               String?
-  billingAddress             String?
+  id                          String        @id @default(cuid())
+  name                        String
+  website                     String?
+  description                 String?
+  email                       String?
+  phone                       String?
+  address                     String?
+  billingEmail                String?
+  billingAddress              String?
   // Overrides Organization.paymentInstructions for this client's invoices
   // specifically (e.g. a client that only accepts wire transfer). Null means
   // "use the org default" — an empty override isn't representable on
   // purpose, since "this client has no payment instructions at all" isn't a
   // real state anyone wants; they'd just fall back to the org default.
-  paymentInstructions        String?       @db.Text
-  paymentInstructionsPrivate Boolean?
+  paymentInstructions         String?       @db.Text
+  paymentInstructionsPrivate  Boolean?
+  // Whether the org's payment methods are offered alongside the client's
+  // own, minus any switched off for this client.
+  useOrgPaymentMethods        Boolean       @default(true)
+  excludedOrgPaymentMethodIds String[]      @default([])
   // Whether this client gets the org's overdue reminder emails.
-  invoiceReminders           Boolean       @default(true)
+  invoiceReminders            Boolean       @default(true)
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
-  paymentTerms               PaymentTerms?
-  status                     ClientStatus  @default(ACTIVE)
-  shareToken                 String?       @unique
-  createdAt                  DateTime      @default(now())
-  updatedAt                  DateTime      @updatedAt
+  paymentTerms                PaymentTerms?
+  status                      ClientStatus  @default(ACTIVE)
+  shareToken                  String?       @unique
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
