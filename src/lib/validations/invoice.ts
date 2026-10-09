@@ -10,6 +10,8 @@ export const paymentTermsValues = [
   "CUSTOM",
 ] as const;
 
+const defaultTermsValues = ["DUE_ON_RECEIPT", "NET15", "NET30", "NET45", "NET60", "NET90"] as const;
+
 export const generateInvoiceSchema = z
   .object({
     clientId: z.string().min(1, "Client is required"),
@@ -17,8 +19,10 @@ export const generateInvoiceSchema = z
     milestoneIds: z.array(z.string()).default([]),
     expenseIds: z.array(z.string()).default([]),
     issueDate: z.string().min(1),
-    dueDate: z.string().min(1),
-    paymentTerms: z.enum(paymentTermsValues).default("NET30"),
+    // Both optional over the API: terms default to the project's, client's
+    // or org's, and the due date follows from the terms.
+    dueDate: z.string().min(1).optional(),
+    paymentTerms: z.enum(paymentTermsValues).optional(),
     poNumber: z.string().trim().max(100).optional().or(z.literal("")),
     taxRate: z.coerce.number().min(0).max(100).default(0),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
@@ -59,6 +63,7 @@ export const orgGeneralSchema = z.object({
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
+  defaultPaymentTerms: z.enum(defaultTermsValues).default("NET30"),
   brandColor: z
     .string()
     .trim()
@@ -78,3 +83,10 @@ export const orgSecuritySchema = z.object({
     .or(z.literal("")),
   autoJoinDomain: z.boolean().default(true),
 });
+
+/** A client/project default: a fixed term, or null to inherit ("inherit",
+ * empty or missing all mean null). */
+export const defaultPaymentTermsSchema = z.preprocess(
+  (v) => (v === "inherit" || v === "" || v === undefined ? null : v),
+  z.enum(defaultTermsValues).nullable()
+);

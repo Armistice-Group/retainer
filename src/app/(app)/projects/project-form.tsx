@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { FormSection, Field, FormActions } from "@/components/forms/form-section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -29,6 +30,7 @@ type ProjectFormValues = {
   budgetHours: number | null;
   billingType: "HOURLY" | "FLAT_FEE" | "MILESTONE";
   flatFeeAmount: number | null;
+  paymentTerms: string | null;
 };
 
 export function ProjectForm({
@@ -40,7 +42,7 @@ export function ProjectForm({
   cancelHref,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; paymentTermsLabel: string }[];
   initialValues?: ProjectFormValues;
   defaultClientId?: string;
   submitLabel: string;
@@ -48,6 +50,8 @@ export function ProjectForm({
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, null);
   const [billingType, setBillingType] = useState(initialValues?.billingType ?? "HOURLY");
+  const [clientId, setClientId] = useState(initialValues?.clientId ?? defaultClientId);
+  const clientTerms = clients.find((c) => c.id === clientId)?.paymentTermsLabel;
 
   const errors = state?.fieldErrors ?? {};
 
@@ -67,7 +71,7 @@ export function ProjectForm({
           <Input id="name" name="name" defaultValue={initialValues?.name} required />
         </Field>
         <Field id="clientId" label="Client" error={errors.clientId}>
-          <Select name="clientId" defaultValue={initialValues?.clientId ?? defaultClientId}>
+          <Select name="clientId" defaultValue={clientId} onValueChange={setClientId}>
             <SelectTrigger id="clientId" className="w-full">
               <SelectValue placeholder="Select a client" />
             </SelectTrigger>
@@ -150,6 +154,17 @@ export function ProjectForm({
             step="0.25"
             min="0"
             defaultValue={initialValues?.budgetHours ?? ""}
+          />
+        </Field>
+        <Field
+          id="paymentTerms"
+          label="Payment terms"
+          hint="For invoices of only this project's work."
+        >
+          <PaymentTermsSelect
+            id="paymentTerms"
+            defaultValue={initialValues?.paymentTerms}
+            inheritLabel={clientTerms ? `Same as client (${clientTerms})` : "Same as client"}
           />
         </Field>
       </FormSection>

@@ -101,6 +101,9 @@ model Organization {
   nextInvoiceNumber          Int     @default(1)
   defaultCurrency            String  @default("USD")
   defaultTaxRate             Decimal @default(0) @db.Decimal(5, 2)
+  // Starting payment terms for new invoices, unless the client or project
+  // sets its own.
+  defaultPaymentTerms        PaymentTerms @default(NET30)
   // Applied to the billed rate on hourly line items at invoice-generation
   // time — a straight multiplier baked into the rate shown on the invoice,
   // never broken out as its own line. Distinct from defaultTaxRate, which
@@ -275,6 +278,9 @@ model Client {
   // real state anyone wants; they'd just fall back to the org default.
   paymentInstructions        String?      @db.Text
   paymentInstructionsPrivate Boolean?
+  // Default terms for this client's invoices; null uses the org default.
+  // Never CUSTOM (that means "pick a due date by hand").
+  paymentTerms               PaymentTerms?
   status                     ClientStatus @default(ACTIVE)
   shareToken                 String?      @unique
   createdAt                  DateTime     @default(now())
@@ -388,6 +394,9 @@ model Project {
   budgetHours   Decimal?      @db.Decimal(7, 2)
   billingType   BillingType   @default(HOURLY)
   flatFeeAmount Decimal?      @db.Decimal(12, 2)
+  // Overrides the client's payment terms for invoices of only this
+  // project's work; null uses the client's.
+  paymentTerms  PaymentTerms?
   shareToken    String?       @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

@@ -22,6 +22,7 @@ export async function createClientAction(
     address: formData.get("address"),
     billingEmail: formData.get("billingEmail"),
     billingAddress: formData.get("billingAddress"),
+    paymentTerms: formData.get("paymentTerms") ?? undefined,
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -40,6 +41,7 @@ export async function createClientAction(
       address: parsed.data.address || null,
       billingEmail: parsed.data.billingEmail || null,
       billingAddress: parsed.data.billingAddress || null,
+      paymentTerms: parsed.data.paymentTerms,
       status: parsed.data.status,
     },
   });
@@ -64,6 +66,7 @@ export async function updateClientAction(
     address: formData.get("address"),
     billingEmail: formData.get("billingEmail"),
     billingAddress: formData.get("billingAddress"),
+    paymentTerms: formData.get("paymentTerms") ?? undefined,
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -82,6 +85,7 @@ export async function updateClientAction(
       address: parsed.data.address || null,
       billingEmail: parsed.data.billingEmail || null,
       billingAddress: parsed.data.billingAddress || null,
+      paymentTerms: parsed.data.paymentTerms,
       status: parsed.data.status,
     },
   });

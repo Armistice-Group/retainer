@@ -32,7 +32,7 @@ export async function generateInvoiceAction(
     expenseIds: formData.getAll("expenseIds"),
     issueDate: formData.get("issueDate"),
     dueDate: formData.get("dueDate"),
-    paymentTerms: formData.get("paymentTerms") || "NET30",
+    paymentTerms: formData.get("paymentTerms") || undefined,
     poNumber: formData.get("poNumber"),
     taxRate: formData.get("taxRate") || org.defaultTaxRate.toString(),
     notes: formData.get("notes"),

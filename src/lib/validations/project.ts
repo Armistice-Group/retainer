@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultPaymentTermsSchema } from "@/lib/validations/invoice";
 
 export const projectSchema = z.object({
   clientId: z.string().min(1, "Client is required"),
@@ -11,6 +12,7 @@ export const projectSchema = z.object({
   budgetHours: z.coerce.number().positive("Budget must be greater than zero").optional(),
   billingType: z.enum(["HOURLY", "FLAT_FEE", "MILESTONE"]).default("HOURLY"),
   flatFeeAmount: z.coerce.number().positive("Flat fee must be greater than zero").optional(),
+  paymentTerms: defaultPaymentTermsSchema,
 });
 
 export const projectMemberSchema = z.object({

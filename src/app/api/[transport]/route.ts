@@ -25,6 +25,13 @@ import {
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
 const billingTypeValues = ["HOURLY", "FLAT_FEE", "MILESTONE"] as const;
+const defaultTermsArg = z
+  .enum(["DUE_ON_RECEIPT", "NET15", "NET30", "NET45", "NET60", "NET90"])
+  .nullable()
+  .optional()
+  .describe(
+    "Default payment terms for new invoices. null falls back (project → client → organization); omit to leave unchanged."
+  );
 const expenseCategoryDescription =
   "Free-text category, e.g. Travel, Software, Materials.";
 
@@ -90,6 +97,7 @@ const handler = createMcpHandler(
         address: z.string().max(500).optional(),
         billingEmail: z.string().email().optional(),
         billingAddress: z.string().max(500).optional(),
+        paymentTerms: defaultTermsArg,
         status: z.enum(clientStatusValues).default("ACTIVE"),
       },
       async (args, extra) => {
@@ -114,6 +122,7 @@ const handler = createMcpHandler(
         address: z.string().max(500).optional(),
         billingEmail: z.string().email().optional(),
         billingAddress: z.string().max(500).optional(),
+        paymentTerms: defaultTermsArg,
         status: z.enum(clientStatusValues).default("ACTIVE"),
       },
       async ({ clientId, ...rest }, extra) => {
@@ -161,6 +170,7 @@ const handler = createMcpHandler(
         budgetHours: z.number().positive().optional(),
         billingType: z.enum(billingTypeValues).default("HOURLY"),
         flatFeeAmount: z.number().positive().optional(),
+        paymentTerms: defaultTermsArg,
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
@@ -180,6 +190,7 @@ const handler = createMcpHandler(
             budgetHours: args.budgetHours ?? null,
             billingType: args.billingType,
             flatFeeAmount: args.billingType === "FLAT_FEE" ? (args.flatFeeAmount ?? null) : null,
+            paymentTerms: args.paymentTerms,
           },
         });
 
@@ -220,6 +231,7 @@ const handler = createMcpHandler(
         budgetHours: z.number().positive().optional(),
         billingType: z.enum(billingTypeValues).default("HOURLY"),
         flatFeeAmount: z.number().positive().optional(),
+        paymentTerms: defaultTermsArg,
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -242,6 +254,7 @@ const handler = createMcpHandler(
             budgetHours: args.budgetHours ?? null,
             billingType: args.billingType,
             flatFeeAmount: args.billingType === "FLAT_FEE" ? (args.flatFeeAmount ?? null) : null,
+            paymentTerms: args.paymentTerms,
           },
         });
 
@@ -806,7 +819,16 @@ const handler = createMcpHandler(
         milestoneIds: z.array(z.string()).default([]),
         expenseIds: z.array(z.string()).default([]),
         issueDate: z.string(),
-        dueDate: z.string(),
+        dueDate: z
+          .string()
+          .optional()
+          .describe("ISO date. Defaults to the issue date plus the payment terms."),
+        paymentTerms: z
+          .enum(["DUE_ON_RECEIPT", "NET15", "NET30", "NET45", "NET60", "NET90", "CUSTOM"])
+          .optional()
+          .describe(
+            "Defaults to the project's terms (when every item is from one project that sets them), else the client's, else the org's."
+          ),
         taxRate: z.number().min(0).max(100).default(0),
         notes: z.string().optional(),
       },

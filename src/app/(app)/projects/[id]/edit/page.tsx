@@ -5,6 +5,7 @@ import { canViewProject } from "@/lib/project-access";
 import { ProjectForm } from "../../project-form";
 import { updateProjectAction } from "@/actions/projects";
 import { PageHeader } from "@/components/layout/page-header";
+import { paymentTermsLabel } from "@/lib/payment-terms";
 
 export default async function EditProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,7 +16,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
     prisma.client.findMany({
       where: { orgId: org.id },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, paymentTerms: true },
     }),
   ]);
 
@@ -29,7 +30,11 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
       <PageHeader title={`Edit ${project.name}`} />
       <ProjectForm
         action={boundAction}
-        clients={clients}
+        clients={clients.map((c) => ({
+          id: c.id,
+          name: c.name,
+          paymentTermsLabel: paymentTermsLabel(c.paymentTerms ?? org.defaultPaymentTerms),
+        }))}
         submitLabel="Save changes"
         cancelHref={`/projects/${id}`}
         initialValues={{
@@ -43,6 +48,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
           budgetHours: project.budgetHours ? Number(project.budgetHours) : null,
           billingType: project.billingType,
           flatFeeAmount: project.flatFeeAmount ? Number(project.flatFeeAmount) : null,
+          paymentTerms: project.paymentTerms,
         }}
       />
     </div>

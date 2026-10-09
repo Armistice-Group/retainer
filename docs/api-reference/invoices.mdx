@@ -36,11 +36,11 @@ UI.
 <ParamField body="issueDate" type="string" required>
   `YYYY-MM-DD`.
 </ParamField>
-<ParamField body="dueDate" type="string" required>
-  `YYYY-MM-DD`.
+<ParamField body="dueDate" type="string">
+  `YYYY-MM-DD`. Defaults to `issueDate` plus the payment terms; required when `paymentTerms` is `CUSTOM`.
 </ParamField>
-<ParamField body="paymentTerms" type="string" default="NET30">
-  `DUE_ON_RECEIPT`, `NET15`, `NET30`, `NET45`, `NET60`, `NET90`, or `CUSTOM`.
+<ParamField body="paymentTerms" type="string">
+  `DUE_ON_RECEIPT`, `NET15`, `NET30`, `NET45`, `NET60`, `NET90`, or `CUSTOM`. Defaults to the project's terms when every item is from one project that sets them, otherwise the client's, otherwise the organization's default.
 </ParamField>
 <ParamField body="poNumber" type="string" />
 <ParamField body="taxRate" type="number" default="0" />

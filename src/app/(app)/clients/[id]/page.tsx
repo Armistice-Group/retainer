@@ -12,6 +12,7 @@ import {
   FolderKanban,
   Receipt,
   Lock,
+  CalendarClock,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -34,6 +35,7 @@ import { deleteClientAction, deleteContactAction } from "@/actions/clients";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { websiteHref } from "@/lib/format";
+import { paymentTermsLabel } from "@/lib/payment-terms";
 import { projectVisibilityWhere } from "@/lib/project-access";
 import { getOrigin } from "@/lib/url";
 
@@ -263,6 +265,13 @@ export default async function ClientDetailPage({
                   <span className="text-xs text-muted-foreground">(default)</span>
                 ) : null}
               </div>
+              <div className="flex items-center gap-2">
+                <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+                <span>{paymentTermsLabel(client.paymentTerms ?? org.defaultPaymentTerms)}</span>
+                {!client.paymentTerms ? (
+                  <span className="text-xs text-muted-foreground">(org default)</span>
+                ) : null}
+              </div>
               {client.contacts.some((c) => c.receivesInvoices) ? (
                 <div>
                   <p className="mb-1.5 text-xs text-muted-foreground">On invoice emails</p>
@@ -422,7 +431,11 @@ export default async function ClientDetailPage({
             />
           ) : null}
 
-          {canManage ? <BillingCycleCard clientId={client.id} cycle={billingCycleItem} /> : null}
+          {canManage ? <BillingCycleCard
+              clientId={client.id}
+              cycle={billingCycleItem}
+              defaultTerms={client.paymentTerms ?? org.defaultPaymentTerms}
+            /> : null}
 
           {canManage ? (
             <RecurringScheduleCard clientId={client.id} schedules={recurringScheduleItems} />

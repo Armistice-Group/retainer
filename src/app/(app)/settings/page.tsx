@@ -32,6 +32,7 @@ export default async function OrgSettingsPage() {
                 invoicePrefix: org.invoicePrefix,
                 defaultCurrency: org.defaultCurrency,
                 defaultTaxRate: org.defaultTaxRate.toString(),
+                defaultPaymentTerms: org.defaultPaymentTerms,
                 overheadPercent: org.overheadPercent.toString(),
                 expenseApprovalThreshold: org.expenseApprovalThreshold.toString(),
                 externalBillingLabel: org.externalBillingLabel,

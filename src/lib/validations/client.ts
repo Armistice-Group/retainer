@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultPaymentTermsSchema } from "@/lib/validations/invoice";
 
 export const clientSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -9,6 +10,7 @@ export const clientSchema = z.object({
   address: z.string().trim().max(500).optional().or(z.literal("")),
   billingEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   billingAddress: z.string().trim().max(500).optional().or(z.literal("")),
+  paymentTerms: defaultPaymentTermsSchema,
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 

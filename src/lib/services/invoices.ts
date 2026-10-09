@@ -1,4 +1,10 @@
 import "server-only";
+import {
+  dueDateFor,
+  resolvePaymentTerms,
+  type DefaultPaymentTerms,
+  type PaymentTermsValue,
+} from "@/lib/payment-terms";
 import { Prisma, type Role } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
@@ -139,8 +145,11 @@ export type GenerateInvoiceInput = {
   milestoneIds: string[];
   expenseIds: string[];
   issueDate: string;
-  dueDate: string;
-  paymentTerms?: "DUE_ON_RECEIPT" | "NET15" | "NET30" | "NET45" | "NET60" | "NET90" | "CUSTOM";
+  /** Defaults to the issue date plus the payment terms. */
+  dueDate?: string;
+  /** Defaults to the project's terms when every item is from one project
+   * that sets them, else the client's, else the org's. */
+  paymentTerms?: PaymentTermsValue;
   poNumber?: string | null;
   taxRate: number;
   notes?: string | null;
@@ -230,6 +239,24 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
     }
   }
 
+  const itemProjects = [...entries, ...milestones, ...expenses].map((i) => i.project);
+  const onlyProject =
+    new Set(itemProjects.map((p) => p.id)).size === 1 ? itemProjects[0] : null;
+  let paymentTerms: PaymentTermsValue | undefined = input.paymentTerms;
+  if (!paymentTerms) {
+    const orgTerms = await prisma.organization.findUniqueOrThrow({
+      where: { id: ctx.orgId },
+      select: { defaultPaymentTerms: true },
+    });
+    paymentTerms = resolvePaymentTerms({
+      project: onlyProject?.paymentTerms as DefaultPaymentTerms | null | undefined,
+      client: client.paymentTerms as DefaultPaymentTerms | null,
+      org: orgTerms.defaultPaymentTerms as DefaultPaymentTerms,
+    });
+  }
+  const dueDate = input.dueDate ?? dueDateFor(input.issueDate, paymentTerms);
+  if (!dueDate) throw new InvoiceError("Custom payment terms need a due date.");
+
   const invoice = await prisma.$transaction(async (tx) => {
     const orgRow = await tx.organization.findUniqueOrThrow({ where: { id: ctx.orgId } });
     const number = `${orgRow.invoicePrefix}-${String(orgRow.nextInvoiceNumber).padStart(4, "0")}`;
@@ -241,8 +268,8 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
         number,
         status: "DRAFT",
         issueDate: new Date(input.issueDate),
-        dueDate: new Date(input.dueDate),
-        paymentTerms: input.paymentTerms ?? "NET30",
+        dueDate: new Date(dueDate),
+        paymentTerms,
         poNumber: input.poNumber || null,
         taxRate: input.taxRate,
         currency: ctx.defaultCurrency,

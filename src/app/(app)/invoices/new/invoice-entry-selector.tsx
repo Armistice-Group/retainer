@@ -11,21 +11,18 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { generateInvoiceAction } from "@/actions/invoices";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { addDays, toISODate } from "@/lib/date";
+import { toISODate } from "@/lib/date";
+import {
+  PAYMENT_TERMS_OPTIONS,
+  dueDateFor,
+  paymentTermsLabel,
+  type PaymentTermsValue,
+} from "@/lib/payment-terms";
 import type { ActionState } from "@/actions/auth";
-
-const PAYMENT_TERMS_OPTIONS = [
-  { value: "DUE_ON_RECEIPT", label: "Due on receipt", days: 0 },
-  { value: "NET15", label: "Net 15", days: 15 },
-  { value: "NET30", label: "Net 30", days: 30 },
-  { value: "NET45", label: "Net 45", days: 45 },
-  { value: "NET60", label: "Net 60", days: 60 },
-  { value: "NET90", label: "Net 90", days: 90 },
-  { value: "CUSTOM", label: "Custom", days: null },
-] as const;
 
 type EligibleEntry = {
   id: string;
+  projectId: string;
   date: string;
   hours: number;
   description: string | null;
@@ -37,6 +34,7 @@ type EligibleEntry = {
 
 type EligibleMilestone = {
   id: string;
+  projectId: string;
   name: string;
   projectName: string;
   amount: number;
@@ -45,6 +43,7 @@ type EligibleMilestone = {
 
 type EligibleExpense = {
   id: string;
+  projectId: string;
   description: string;
   projectName: string;
   amount: number;
@@ -58,6 +57,8 @@ export function InvoiceEntrySelector({
   expenses,
   currency,
   defaultTaxRate,
+  clientTerms,
+  projectTerms,
 }: {
   clientId: string;
   entries: EligibleEntry[];
@@ -65,6 +66,10 @@ export function InvoiceEntrySelector({
   expenses: EligibleExpense[];
   currency: string;
   defaultTaxRate: number;
+  /** The client's default terms (or the org's when it has none). */
+  clientTerms: PaymentTermsValue;
+  /** Projects with their own terms, by project id. */
+  projectTerms: Record<string, PaymentTermsValue>;
 }) {
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(
     new Set(entries.map((e) => e.id))
@@ -139,28 +144,31 @@ export function InvoiceEntrySelector({
   }
 
   const [today] = useState(() => toISODate(new Date()));
-  const [in30] = useState(() => toISODate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)));
   const [issueDate, setIssueDate] = useState(today);
-  const [paymentTerms, setPaymentTerms] =
-    useState<(typeof PAYMENT_TERMS_OPTIONS)[number]["value"]>("NET30");
-  const [dueDate, setDueDate] = useState(in30);
+  // Until someone picks terms by hand, they follow the selection: a single
+  // project with its own terms uses those, anything else the client's.
+  const [termsOverride, setTermsOverride] = useState<PaymentTermsValue | null>(null);
+  const [dueOverride, setDueOverride] = useState<string | null>(null);
 
-  function computeDueDate(issue: string, terms: (typeof PAYMENT_TERMS_OPTIONS)[number]["value"]) {
-    const days = PAYMENT_TERMS_OPTIONS.find((t) => t.value === terms)?.days;
-    if (days == null || !issue) return null;
-    return toISODate(addDays(new Date(`${issue}T00:00:00`), days));
-  }
+  const selectedProjectIds = new Set([
+    ...entries.filter((e) => selectedEntries.has(e.id)).map((e) => e.projectId),
+    ...milestones.filter((m) => selectedMilestones.has(m.id)).map((m) => m.projectId),
+    ...expenses.filter((e) => selectedExpenses.has(e.id)).map((e) => e.projectId),
+  ]);
+  const onlyProject = selectedProjectIds.size === 1 ? [...selectedProjectIds][0] : null;
+  const autoTerms = (onlyProject && projectTerms[onlyProject]) || clientTerms;
+  const paymentTerms = termsOverride ?? autoTerms;
+  const dueDate = dueOverride ?? dueDateFor(issueDate, paymentTerms) ?? issueDate;
 
   function handleIssueDateChange(value: string) {
     setIssueDate(value);
-    const computed = computeDueDate(value, paymentTerms);
-    if (computed) setDueDate(computed);
+    if (paymentTerms !== "CUSTOM") setDueOverride(null);
   }
 
-  function handlePaymentTermsChange(value: (typeof PAYMENT_TERMS_OPTIONS)[number]["value"]) {
-    setPaymentTerms(value);
-    const computed = computeDueDate(issueDate, value);
-    if (computed) setDueDate(computed);
+  function handlePaymentTermsChange(value: PaymentTermsValue) {
+    setTermsOverride(value);
+    // Custom keeps whatever due date is showing, ready to edit.
+    setDueOverride(value === "CUSTOM" ? dueDate : null);
   }
 
   return (
@@ -310,6 +318,13 @@ export function InvoiceEntrySelector({
               ))}
             </SelectContent>
           </Select>
+          {termsOverride === null ? (
+            <p className="text-xs text-muted-foreground">
+              {onlyProject && projectTerms[onlyProject]
+                ? "This project's default"
+                : `This client's default (${paymentTermsLabel(clientTerms)})`}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="dueDate">Due date</Label>
@@ -318,7 +333,7 @@ export function InvoiceEntrySelector({
             name="dueDate"
             type="date"
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            onChange={(e) => setDueOverride(e.target.value)}
             required
           />
         </div>

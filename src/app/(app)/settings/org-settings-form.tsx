@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
 import { updateOrgGeneralAction } from "@/actions/org";
 import type { ActionState } from "@/actions/auth";
 
@@ -13,6 +14,7 @@ type Org = {
   invoicePrefix: string;
   defaultCurrency: string;
   defaultTaxRate: string;
+  defaultPaymentTerms: string;
   overheadPercent: string;
   expenseApprovalThreshold: string;
   externalBillingLabel: string | null;
@@ -75,6 +77,18 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             disabled={readOnly}
             required
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="defaultPaymentTerms">Default payment terms</Label>
+          <PaymentTermsSelect
+            id="defaultPaymentTerms"
+            name="defaultPaymentTerms"
+            defaultValue={org.defaultPaymentTerms}
+            disabled={readOnly}
+          />
+          <p className="text-xs text-muted-foreground">
+            Clients and projects can set their own.
+          </p>
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="overheadPercent">Overhead (%)</Label>

@@ -4,6 +4,7 @@ import { requireOrgContext } from "@/lib/org-context";
 import { ClientForm } from "../../client-form";
 import { updateClientAction } from "@/actions/clients";
 import { PageHeader } from "@/components/layout/page-header";
+import { paymentTermsLabel } from "@/lib/payment-terms";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,6 +22,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
         action={boundAction}
         submitLabel="Save changes"
         cancelHref={`/clients/${id}`}
+        orgPaymentTerms={paymentTermsLabel(org.defaultPaymentTerms)}
         initialValues={{
           name: client.name,
           website: client.website,
@@ -30,6 +32,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           address: client.address,
           billingEmail: client.billingEmail,
           billingAddress: client.billingAddress,
+          paymentTerms: client.paymentTerms,
           status: client.status,
         }}
       />

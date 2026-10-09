@@ -8,6 +8,7 @@ import { FileText } from "lucide-react";
 import { ClientPicker } from "./client-picker";
 import { InvoiceEntrySelector } from "./invoice-entry-selector";
 import { toISODate } from "@/lib/date";
+import type { PaymentTerms } from "@/generated/prisma/client";
 
 export default async function NewInvoicePage({
   searchParams,
@@ -20,7 +21,7 @@ export default async function NewInvoicePage({
   const clients = await prisma.client.findMany({
     where: { orgId: org.id },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, paymentTerms: true },
   });
 
   let eligibleSection: React.ReactNode = null;
@@ -56,6 +57,7 @@ export default async function NewInvoicePage({
         const hours = Number(entry.hours);
         return {
           id: entry.id,
+          projectId: entry.projectId,
           date: toISODate(new Date(entry.date)),
           hours,
           description: entry.description,
@@ -78,6 +80,7 @@ export default async function NewInvoicePage({
 
       const milestones = eligibleMilestones.map((m) => ({
         id: m.id,
+        projectId: m.projectId,
         name: m.name,
         projectName: m.project.name,
         amount: Number(m.amount),
@@ -96,11 +99,21 @@ export default async function NewInvoicePage({
 
       const expenses = eligibleExpenses.map((e) => ({
         id: e.id,
+        projectId: e.projectId,
         description: e.description,
         projectName: e.project.name,
         amount: Number(e.amount),
         incurredAt: toISODate(new Date(e.incurredAt)),
       }));
+
+      const projectTerms: Record<string, PaymentTerms> = {};
+      for (const p of [
+        ...entries.map((e) => e.project),
+        ...eligibleMilestones.map((m) => m.project),
+        ...eligibleExpenses.map((e) => e.project),
+      ]) {
+        if (p.paymentTerms) projectTerms[p.id] = p.paymentTerms;
+      }
 
       eligibleSection =
         eligible.length === 0 && milestones.length === 0 && expenses.length === 0 ? (
@@ -111,12 +124,15 @@ export default async function NewInvoicePage({
           />
         ) : (
           <InvoiceEntrySelector
+            key={client.id}
             clientId={client.id}
             entries={eligible}
             milestones={milestones}
             expenses={expenses}
             currency={org.defaultCurrency}
             defaultTaxRate={Number(org.defaultTaxRate)}
+            clientTerms={client.paymentTerms ?? org.defaultPaymentTerms}
+            projectTerms={projectTerms}
           />
         );
     }

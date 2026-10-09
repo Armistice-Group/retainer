@@ -57,9 +57,12 @@ export type BillingCycleItem = {
 export function BillingCycleCard({
   clientId,
   cycle,
+  defaultTerms,
 }: {
   clientId: string;
   cycle: BillingCycleItem | null;
+  /** The client's (or org's) default terms, for a new cycle. */
+  defaultTerms: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -101,7 +104,12 @@ export function BillingCycleCard({
       </CardHeader>
       <CardContent>
         {editing ? (
-          <BillingCycleForm clientId={clientId} cycle={cycle} onDone={() => setEditing(false)} />
+          <BillingCycleForm
+            clientId={clientId}
+            cycle={cycle}
+            defaultTerms={defaultTerms}
+            onDone={() => setEditing(false)}
+          />
         ) : cycle ? (
           <CycleSummary cycle={cycle} />
         ) : (
@@ -170,10 +178,12 @@ function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
 function BillingCycleForm({
   clientId,
   cycle,
+  defaultTerms,
   onDone,
 }: {
   clientId: string;
   cycle: BillingCycleItem | null;
+  defaultTerms: string;
   onDone: () => void;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(saveBillingCycleAction, null);
@@ -225,7 +235,7 @@ function BillingCycleForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="bc-paymentTerms">Payment terms</Label>
-          <Select name="paymentTerms" defaultValue={cycle?.paymentTerms ?? "NET30"}>
+          <Select name="paymentTerms" defaultValue={cycle?.paymentTerms ?? defaultTerms}>
             <SelectTrigger id="bc-paymentTerms" className="w-full">
               <SelectValue />
             </SelectTrigger>

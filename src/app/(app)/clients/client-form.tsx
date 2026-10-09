@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { FormSection, Field, FormActions } from "@/components/forms/form-section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,6 +25,7 @@ type ClientFormValues = {
   address: string | null;
   billingEmail: string | null;
   billingAddress: string | null;
+  paymentTerms: string | null;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -32,9 +34,12 @@ export function ClientForm({
   initialValues,
   submitLabel,
   cancelHref,
+  orgPaymentTerms,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   initialValues?: ClientFormValues;
+  /** The org's default terms, as a label like "Net 30". */
+  orgPaymentTerms: string;
   submitLabel: string;
   cancelHref?: string;
 }) {
@@ -118,6 +123,17 @@ export function ClientForm({
             id="billingAddress"
             name="billingAddress"
             defaultValue={initialValues?.billingAddress ?? ""}
+          />
+        </Field>
+        <Field
+          id="paymentTerms"
+          label="Payment terms"
+          hint="Used for new invoices. A project can override it."
+        >
+          <PaymentTermsSelect
+            id="paymentTerms"
+            defaultValue={initialValues?.paymentTerms}
+            inheritLabel={`Organization default (${orgPaymentTerms})`}
           />
         </Field>
       </FormSection>
