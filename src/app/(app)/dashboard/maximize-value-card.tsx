@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, Landmark, ListTodo, MessageSquare, Receipt, Bot } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DismissSetupCardButton } from "./dismiss-setup-card-button";
 import { cn } from "@/lib/utils";
 
 export type MaximizeValueItem = {
@@ -33,6 +34,7 @@ export function MaximizeValueCard({ items }: { items: MaximizeValueItem[] }) {
             money can slip through.
           </p>
         </div>
+        <DismissSetupCardButton />
       </CardHeader>
       <CardContent className="p-0">
         <ul className="flex flex-col divide-y divide-border">

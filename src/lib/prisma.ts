@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { auditedQuery } from "@/lib/audit";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -23,13 +24,24 @@ function getSslConfig() {
   return { ca: readFileSync(caPath, "utf-8"), rejectUnauthorized: true };
 }
 
-function createPrismaClient() {
+function createPrismaClient(): PrismaClient {
   const ssl = getSslConfig();
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
     ...(ssl ? { ssl } : {}),
   });
-  return new PrismaClient({ adapter });
+  const base = new PrismaClient({ adapter });
+  // Writes to org data are recorded in the audit log (see lib/audit.ts).
+  // A query-only extension leaves every model type as-is, so the result is
+  // still typed as a plain client — Prisma.TransactionClient params keep
+  // accepting it.
+  return base.$extends({
+    query: {
+      $allModels: {
+        $allOperations: (params) => auditedQuery(base, params as Parameters<typeof auditedQuery>[1]),
+      },
+    },
+  }) as unknown as PrismaClient;
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

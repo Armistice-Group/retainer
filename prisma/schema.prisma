@@ -163,6 +163,7 @@ model Organization {
   paymentMethods            PaymentMethod[]
   notifications             Notification[]
   apiKeys                   ApiKey[]
+  auditLogs                 AuditLog[]
   quickBooksConnection      QuickBooksConnection?
   linearConnection          LinearConnection?
   mercuryConnection         MercuryConnection?
@@ -203,6 +204,10 @@ model User {
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
   taskComments                TaskComment[]
   activeTimer                 ActiveTimer?
+  auditLogs                   AuditLog[]
+
+  // Dashboard "Get more out of Consultainer" card, hidden for good.
+  setupCardDismissedAt DateTime?
 }
 
 enum MembershipType {
@@ -801,6 +806,34 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([orgId])
+}
+
+// Who changed what, for org admins. Written by the Prisma extension in
+// lib/audit.ts on every write to an audited model, plus sign-ins.
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String // create | update | delete | sign_in
+  entityType  String // Prisma model name, e.g. "Task"
+  entityId    String?
+  entityLabel String?
+  // create: { field: value }; update: { field: { from, to } }
+  changes     Json?
+  // Set on bulk writes, which get one entry for all rows.
+  count       Int?
+  via         String // web | api | system
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+  @@index([orgId, entityType, createdAt])
+  @@index([orgId, actorId, createdAt])
 }
 
 model ApiKey {

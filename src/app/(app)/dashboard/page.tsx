@@ -46,6 +46,7 @@ export default async function DashboardPage() {
     linearConnection,
     apiKeyCount,
     paymentMethodCount,
+    setupCardDismissed,
   ] = await Promise.all([
       prisma.timeEntry.aggregate({
         where: { orgId: org.id, userId: user.id, date: { gte: weekStart } },
@@ -83,6 +84,9 @@ export default async function DashboardPage() {
       prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
       prisma.apiKey.count({ where: { userId: user.id, revokedAt: null } }),
       prisma.paymentMethod.count({ where: { orgId: org.id, clientId: null } }),
+      prisma.user
+        .findUnique({ where: { id: user.id }, select: { setupCardDismissedAt: true } })
+        .then((u) => !!u?.setupCardDismissedAt),
     ]);
 
   const outstandingTotal = outstandingInvoices
@@ -153,7 +157,7 @@ export default async function DashboardPage() {
     <div>
       <PageHeader title={`Welcome back, ${user.name?.split(" ")[0] ?? ""}`} />
 
-      {canManage ? <MaximizeValueCard items={maximizeValueItems} /> : null}
+      {canManage && !setupCardDismissed ? <MaximizeValueCard items={maximizeValueItems} /> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

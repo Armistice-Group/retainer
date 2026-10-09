@@ -1,11 +1,14 @@
 import { PageHeader } from "@/components/layout/page-header";
+import { requireOrgContext } from "@/lib/org-context";
 import { SettingsNav } from "./settings-nav";
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const { role } = await requireOrgContext();
+
   return (
     <div>
       <PageHeader title="Settings" />
-      <SettingsNav />
+      <SettingsNav showAuditLog={role === "OWNER" || role === "ADMIN"} />
       {children}
     </div>
   );

@@ -184,3 +184,14 @@ export async function changePasswordAction(
 
   return null;
 }
+
+/** Hides the dashboard's "Get more out of Consultainer" card for good. */
+export async function dismissSetupCardAction() {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { setupCardDismissedAt: new Date() },
+  });
+  revalidatePath("/dashboard");
+}

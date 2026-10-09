@@ -13,6 +13,7 @@ import {
   verifyLoginTwoFactor,
 } from "@/lib/two-factor";
 import { consumeLoginTicket } from "@/lib/webauthn";
+import { recordAuditEvent } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -150,6 +151,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       user.id = dbUser.id;
       return true;
+    },
+  },
+  events: {
+    async signIn({ user, account }) {
+      if (!user.id) return;
+      const memberships = await prisma.membership.findMany({
+        where: { userId: user.id },
+        select: { orgId: true },
+      });
+      await recordAuditEvent(prisma, {
+        orgIds: memberships.map((m) => m.orgId),
+        actorId: user.id,
+        action: "sign_in",
+        entityType: "User",
+        entityId: user.id,
+        entityLabel: account?.provider ?? null,
+      });
     },
   },
 });
