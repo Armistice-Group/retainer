@@ -1,24 +1,39 @@
 ---
 title: Clients & Projects
-description: How engagements, contacts, and projects fit together
+description: How engagements, contacts, documents, and projects fit together
 ---
 
 ## Clients
 
-A client represents the company or person you're consulting for. Each client
-can hold:
+A client is the company or person you're consulting for. Each client holds:
 
-- **Contacts** — people at the client, with an optional email, phone, title,
-  and role. Mark one as primary and/or set it to receive invoices.
-- **Links** — staging URLs, shared docs, or Drive folders relevant to the
-  engagement.
-- **Documents** — files like a signed contract, W-9, or 1099 attached
-  directly to the client record.
+- **Contacts** — people at the client, with email, phone, title and role. Mark
+  one as primary, and tick **receives invoices** on whoever invoice emails
+  should go to.
+- **Billing** — billing email and address (default to the client's own),
+  default **payment terms** (or the organization's), whether they get
+  **overdue reminders**, and their **payment methods** (see
+  [Payments](/integrations/payments)).
+- **Links** — staging URLs, shared docs, Drive folders.
+- **Documents** — see below.
+- **Billing cycle** and **retainers** — see [Invoicing](/concepts/invoicing).
+
+### Documents
+
+Attach W-9s, 1099s, contracts and other paperwork (PDF or image, up to 5MB).
+Click one to view it in the app; **Download** saves it.
+
+Each document has **Who can see it**: everyone in the organization, owners &
+admins, or specific people. Owners and whoever uploaded it can always see it;
+for everyone else a restricted document doesn't appear and its file can't be
+opened. Owners, the uploader, and admins who can see a document can change its
+access or delete it. Every view and download is recorded in the
+[audit log](/concepts/alerts-and-audit#audit-log).
 
 ## Projects
 
-A project belongs to a client and carries its own team, bill rates, and
-billing type.
+A project belongs to a client and has its own team, bill rates, billing type,
+[tasks](/concepts/tasks), milestones and expenses.
 
 ### Billing types
 
@@ -28,52 +43,40 @@ billing type.
 | **Flat fee** | A single fixed amount for the whole project. |
 | **Milestone-based** | Per deliverable — each milestone has its own amount and is billed once marked complete. |
 
+A project can also override the client's **payment terms** for invoices of
+just its work.
+
 ### Team & bill rates
 
-Each person on a project has their own bill rate and currency, set
-independently of their rate on any other project. A time entry uses the
-project member's standard rate unless a rate override is set on that
-specific entry.
+Each person on a project has their own bill rate and currency, independent of
+their rate on any other project. A time entry uses that rate unless a rate
+override is set on the entry.
 
 ### Confidential projects
 
-A project can be marked confidential, which restricts visibility to explicit
-project members plus organization owners/admins — useful for engagements
-under an NDA that shouldn't be visible to the whole team by default.
+A confidential project is visible only to its members plus owners and admins —
+useful for engagements under an NDA.
 
 ### Budgets
 
 An hourly project can have a budget in hours. The project page shows hours
-logged against that budget, and flags when it's close to or over.
+logged against it and flags when it's close to or over. Owners and admins are
+[alerted](/concepts/alerts-and-audit) the first time a project reaches 80% and
+100% of its budget, and when a task's hours pass its estimate (the task's
+assignee is told too). Each alert can fire again if hours drop back under or
+the budget grows.
 
-Owners and admins get a notification (and a Slack message, if Slack is set up)
-the first time a project reaches 80% and 100% of its budget, and when a task's
-logged hours pass its estimate — the task's assignee is told too. Each alert
-fires once; it can fire again if hours drop back under or the budget grows.
+## Client links
 
-## Client-facing report links
+Owners and admins can give a client a read-only page — no login, no internal
+rates — and regenerate or revoke it at any time:
 
-From a project page, an owner or admin can generate a read-only, token-based
-link for the client — no login required. It shows project status, hours vs.
-budget, billing totals, and milestones, without exposing internal per-person
-bill rates. The link can be regenerated or revoked at any time.
+- **Project link** (on the project page) — status, hours vs. budget, billing
+  totals, milestones, invoices (with **Pay now** when online payments are set
+  up) and how to pay. Turn on **Show tasks** to add the task list (titles and
+  status). Comments stay internal unless marked **Share with client**; only
+  those appear under their task.
+- **Client link** (on the client page) — the same across every
+  non-confidential project for that client.
 
-### Documents
-
-Attach W-9s, 1099s, contracts and other paperwork (PDF or image, up to 5MB) to
-a client. Click one to view it right in the app; **Download** saves it.
-
-Each document has **Who can see it**: everyone in the organization, owners &
-admins, or specific people. Owners and whoever uploaded it can always see it;
-for everyone else, restricted documents don't appear and their files can't be
-opened. Owners, the uploader, and admins who can see a document can change its
-access or delete it. Every view and download is recorded in the audit log.
-
-### Client links
-
-A project's **Client link** (on the project page, owners and admins) is a
-read-only page for the client: progress, budget burn, billing totals, invoices
-and how to pay — no login, no internal rates. Turn on **Show tasks** to add the
-project's task list (titles and status). Comments stay internal unless you tick
-**Share with client** when posting one (or use **Share with client** on an
-existing comment); only those appear under their task on the link.
+Opening an invoice PDF from either counts as the client opening the invoice.

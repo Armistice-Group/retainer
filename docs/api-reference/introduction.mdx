@@ -5,17 +5,19 @@ description: Authentication and conventions for the Consultainer REST API
 
 ## Base URL
 
+Your instance's address, plus `/api/v1`:
+
 ```
-https://consultainer.app/api/v1
+https://<your-instance>/api/v1
 ```
 
 ## Authentication
 
-Generate an API key from **Settings → Profile → API Keys**. Send it as a
+Generate an API key from **Profile → API keys & AI agents**. Send it as a
 Bearer token on every request:
 
 ```bash
-curl https://consultainer.app/api/v1/clients \
+curl https://<your-instance>/api/v1/clients \
   -H "Authorization: Bearer ch_live_..."
 ```
 
@@ -48,4 +50,9 @@ role can't do returns `403`.
   <Card title="Tasks" href="/api-reference/tasks" />
   <Card title="Time Entries" href="/api-reference/time-entries" />
   <Card title="Invoices" href="/api-reference/invoices" />
+  <Card title="Audit log" href="/api-reference/audit-log" />
 </CardGroup>
+
+The same key also works with the [MCP server](/mcp-server), which covers more
+than the REST API (timers, timesheets, meetings, milestones, expenses,
+invoice email).

@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Consultainer",
-  "description": "Docs for Consultainer — client, project, time, and invoice management for engineering consultancies.",
+  "description": "Docs for Consultainer — self-hosted client, project, time, and invoice management for consultancies.",
   "colors": {
     "primary": "#7c5cf4",
     "light": "#a78bfa",
@@ -21,28 +21,39 @@
         "groups": [
           {
             "group": "Get Started",
-            "pages": ["introduction", "quickstart"]
+            "pages": [
+              "introduction",
+              "quickstart",
+              "self-hosting"
+            ]
           },
           {
             "group": "Core Concepts",
             "pages": [
               "concepts/clients-and-projects",
+              "concepts/tasks",
               "concepts/time-tracking",
               "concepts/invoicing",
               "concepts/milestones",
-              "concepts/expenses"
+              "concepts/expenses",
+              "concepts/reports",
+              "concepts/alerts-and-audit"
             ]
           },
           {
             "group": "Integrations",
             "pages": [
-              "integrations/quickbooks",
-              "integrations/linear"
+              "integrations/linear",
+              "integrations/calendars",
+              "integrations/payments",
+              "integrations/quickbooks"
             ]
           },
           {
             "group": "Build with Consultainer",
-            "pages": ["mcp-server"]
+            "pages": [
+              "mcp-server"
+            ]
           }
         ]
       },
@@ -51,7 +62,9 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["api-reference/introduction"]
+            "pages": [
+              "api-reference/introduction"
+            ]
           },
           {
             "group": "Endpoints",
@@ -71,14 +84,14 @@
   "navbar": {
     "links": [
       {
-        "label": "Sign in",
-        "href": "https://consultainer.app/login"
+        "label": "GitHub",
+        "href": "https://github.com/Armistice-Group/retainer"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Start free",
-      "href": "https://consultainer.app/signup"
+      "label": "Install",
+      "href": "/self-hosting"
     }
   },
   "footer": {

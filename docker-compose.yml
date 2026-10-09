@@ -1,4 +1,5 @@
 # Self-hosted Consultainer: Postgres + the app + a tiny scheduler.
+# Full reference (every setting, jobs, proxies, backups): docs/self-hosting.mdx
 #
 #   curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
 #   curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
@@ -46,6 +47,7 @@ services:
       # Optional. Leave unset and redirects follow whatever address the app is
       # reached at (localhost, hp.local, a domain); setting it forces one URL.
       AUTH_URL: ${AUTH_URL:-}
+      # Let calendar links point at private-network addresses (off by default).
       ALLOW_PRIVATE_FETCH: ${ALLOW_PRIVATE_FETCH:-false}
       # Lets Auth.js build redirects from the request's Host / X-Forwarded-*.
       AUTH_TRUST_HOST: "true"
@@ -60,13 +62,15 @@ services:
       QUICKBOOKS_ENVIRONMENT: ${QUICKBOOKS_ENVIRONMENT:-}
       LINEAR_CLIENT_ID: ${LINEAR_CLIENT_ID:-}
       LINEAR_CLIENT_SECRET: ${LINEAR_CLIENT_SECRET:-}
+      LINEAR_WEBHOOK_SECRET: ${LINEAR_WEBHOOK_SECRET:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     ports:
       - "${APP_PORT:-3113}:3000"
 
-  # Drives the scheduled jobs: Mercury payment sync hourly, recurring
-  # invoices / overdue notices daily (both endpoints are idempotent).
+  # Drives the scheduled jobs (all idempotent). Hourly: Mercury payment
+  # status, Linear sync, calendar sync. Daily: retainer invoices, billing
+  # cycles, overdue alerts and reminders, and (Mondays) the weekly digest.
   scheduler:
     image: curlimages/curl:8.10.1
     restart: unless-stopped

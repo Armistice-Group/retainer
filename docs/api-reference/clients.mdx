@@ -12,7 +12,7 @@ GET /api/v1/clients
 Returns every client in your organization.
 
 ```bash
-curl https://consultainer.app/api/v1/clients \
+curl https://<your-instance>/api/v1/clients \
   -H "Authorization: Bearer ch_live_..."
 ```
 
@@ -36,7 +36,7 @@ POST /api/v1/clients
 </ParamField>
 
 ```bash
-curl -X POST https://consultainer.app/api/v1/clients \
+curl -X POST https://<your-instance>/api/v1/clients \
   -H "Authorization: Bearer ch_live_..." \
   -H "Content-Type: application/json" \
   -d '{"name": "Fintra Labs", "email": "hello@fintralabs.com"}'

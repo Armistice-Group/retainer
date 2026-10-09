@@ -1,6 +1,6 @@
 ---
 title: Invoicing
-description: Generating, editing, and sending invoices
+description: Generating, sending, and getting paid for invoices
 ---
 
 ## Generating an invoice
@@ -8,40 +8,54 @@ description: Generating, editing, and sending invoices
 From **Invoices → New**, pick a client. Consultainer shows everything for
 that client currently eligible to bill:
 
-- Unbilled, billable time entries
+- Unbilled, billable time entries (approved ones, if
+  [timesheet approval](/concepts/time-tracking#timesheet-approval) applies —
+  the page says how many hours are still waiting)
 - Completed, unbilled milestones
 - Approved, unbilled expenses
 
 Select what to include, set the issue date, payment terms, tax rate, PO
-number, and notes, then generate. Consultainer groups hourly time by
-project and person into line items automatically; milestones and expenses
-each become their own line item.
+number and notes, then generate a draft. Hourly time is grouped by project,
+person and rate into line items; milestones and expenses each become their
+own line.
 
 ## Payment terms
 
-Due on receipt, Net 15/30/45/60/90, or Custom. Selecting a term on the
-new-invoice form auto-computes the due date from the issue date; Custom
-leaves the due date for you to set manually.
+Due on receipt, Net 15/30/45/60/90, or Custom. A new invoice starts from the
+most specific default: the **project's** terms when everything selected is
+from one project that sets them, otherwise the **client's**, otherwise the
+**organization's** (Settings → General, Net 30 unless changed). Changing the
+terms recomputes the due date; Custom lets you set it yourself. The REST API
+and MCP follow the same defaults when terms or a due date aren't given.
 
 ## Editing a draft
 
-While an invoice is in **Draft**, its line items, issue date, due date, tax
-rate, payment terms, PO number, and notes are all editable. Once it's marked
-**Sent**, line items lock.
+While an invoice is a **Draft**, its line items, dates, tax rate, payment
+terms, PO number and notes are editable. Once it's sent, line items lock.
+**Preview PDF** on the invoice shows it as the client will see it.
 
 ## Statuses
 
-`Draft → Sent → Paid`, or `Void` at any point before Paid. Marking an
-invoice Paid can record a payment method (e.g. Wire, ACH, Check).
+`Draft → Sent → Paid`, or `Void` before Paid. Marking an invoice paid can
+record how (e.g. Wire, ACH, Check); online payments through Stripe or Mercury
+mark it paid automatically.
 
-## PDF and QuickBooks
+## Billing cycles
 
-Every invoice can be downloaded as a PDF. If QuickBooks is connected, a
-draft or sent invoice can be pushed to QuickBooks directly, and its
-paid/sent status can be pulled back into Consultainer with a manual sync
-(QuickBooks doesn't push status changes to Consultainer automatically).
+A client can be invoiced on a schedule — weekly, every two weeks, monthly and
+so on — from the **Billing cycle** card on the client page. Each run puts
+everything unbilled for that client (billable time, completed milestones,
+approved expenses dated before the run) on one invoice, using the cycle's
+payment terms (which start from the client's). A run with nothing to bill
+creates nothing. Invoices are left as drafts to review unless the cycle is set
+to send automatically, which marks them sent. Cycles can be paused.
 
-See [QuickBooks integration](/integrations/quickbooks) for setup.
+## Retainers
+
+A **recurring invoice** (on the client page) bills a fixed amount on a
+schedule — a monthly retainer, say — independent of logged time. Give it the
+hours it covers to track billed-vs-logged hours on the client page. Like
+billing cycles, it creates drafts unless set to send automatically.
 
 ## Sending invoices and tracking opens
 
@@ -66,3 +80,9 @@ Under **Settings → Payments → Overdue reminders**, list the days overdue at
 which clients get a reminder email (e.g. `3, 7, 14`). Each reminder goes out
 once; turning reminders on doesn't send a backlog for invoices already past
 several thresholds. A client can be opted out on its edit page.
+
+## PDF and QuickBooks
+
+Every invoice can be downloaded as a PDF. If QuickBooks is connected, an
+invoice can be pushed to QuickBooks and its status synced back — see
+[QuickBooks](/integrations/quickbooks).

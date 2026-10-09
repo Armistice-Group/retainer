@@ -1,0 +1,64 @@
+---
+title: Calendars
+description: Turn meetings into time entries, with a suggested project for each
+---
+
+Each person can connect their own calendars, and their meetings become time
+to log — Consultainer suggests which project each one belongs to.
+
+## Connecting a calendar
+
+On your **Profile → Calendars**, paste the calendar's secret iCal (.ics)
+link. Up to five per person.
+
+- **Google Calendar** — Settings → your calendar → *Integrate calendar* →
+  *Secret address in iCal format*.
+- **Outlook / Microsoft 365** — Settings → Calendar → *Shared calendars* →
+  *Publish a calendar* (can view all details) → ICS link.
+- **Apple iCloud** — in Calendar, share the calendar as a *Public Calendar*
+  and copy the `webcal://` link.
+
+Anyone with that link can read the calendar, so it's stored encrypted and only
+used to fetch your meetings. Only you see your meetings in Consultainer.
+
+## Sorting meetings
+
+Right after connecting, and then every hour, meetings from the last two weeks
+that have ended show up under **Time → Meetings** (you're notified, at most
+daily, when there are some to sort). Left out: all-day events, blocks marked
+*free*, cancelled meetings, and meetings you declined. Meeting rooms don't
+count as attendees.
+
+Each meeting gets a suggested project, with the reason shown:
+
+1. The project you logged earlier meetings in the **same recurring series**
+   to.
+2. A **client whose email domain matches the attendees** — taken from the
+   client's contacts, billing email and website (public domains like
+   gmail.com, and your own organization's domain, are ignored) — on the
+   project you've logged to most for that client.
+3. A **project or client named in the meeting title**.
+
+For each meeting:
+
+- **Log** — adds the meeting's length as a time entry on the chosen project,
+  dated the meeting's day, described with its title; billable unless you
+  untick **Billable**.
+- **Ignore** — it isn't project work.
+- **Always for this series** — sort the rest of a recurring meeting the same
+  way: other unsorted occurrences now, and future ones automatically on each
+  sync. **Forget them all** on the Calendars card clears these.
+
+**Log all suggested** accepts every suggestion at once.
+
+Over MCP: `list_meetings`, `log_meeting`, `ignore_meeting`.
+
+## Self-hosting notes
+
+Calendar links are fetched by your server, so Consultainer only connects to
+public addresses: links to `localhost`, private networks, link-local / cloud
+metadata addresses and the like are refused — including through redirects or
+hostnames that resolve there. If your calendars are served from a private
+network (e.g. Nextcloud on your LAN), set `ALLOW_PRIVATE_FETCH=true` in
+`.env`. Syncing runs from the scheduler's hourly
+`/api/cron/calendar-sync` call — see [Self-hosting](/self-hosting).

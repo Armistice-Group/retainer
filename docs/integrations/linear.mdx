@@ -26,6 +26,15 @@ pulled in (title, description, status, assignee — matched by email). It also
 pulls in comments from those issues, and sends open tasks that don't have an
 issue yet. Linked projects also sync on their own every hour.
 
+## Issue keys and comments
+
+Linked tasks show their Linear key (e.g. `RING-12`) on the project page, on
+**Tasks**, in the task sheet (linking to the issue), and in the MCP
+`list_my_tasks` output. Comments go both ways: a comment on a linked task is
+posted to the issue too (untick **Also post to Linear** to keep it internal),
+and comments made in Linear appear on the task marked **From Linear**,
+notifying its assignee and watchers. See [Tasks](/concepts/tasks).
+
 ## Live updates (webhooks)
 
 To see Linear changes right away instead of on the next sync, turn on
@@ -36,7 +45,7 @@ webhooks in your Linear OAuth app:
    Consultainer's Linear settings (`https://your-instance/api/webhooks/linear`).
 2. Subscribe to **Issues** and **Comments**.
 3. Copy the app's **webhook signing secret** into the Linear credentials in
-   Consultainer (**Webhook signing secret**).
+   Consultainer (**Webhook signing secret**), or set `LINEAR_WEBHOOK_SECRET`.
 
 New and edited issues then update tasks within seconds, and Linear comments
 appear on the task — labelled **From Linear**, notifying the assignee.

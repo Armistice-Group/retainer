@@ -32,6 +32,6 @@ Each entry has `at`, `actor` (`{ id, name, email }` or `null`), `via` (`web`,
 and `userAgent`. `nextPage` is the next page number, or `null`.
 
 ```bash
-curl "https://consultainer.app/api/v1/audit-log?type=PaymentMethod&from=2026-10-01" \
+curl "https://<your-instance>/api/v1/audit-log?type=PaymentMethod&from=2026-10-01" \
   -H "Authorization: Bearer ch_live_..."
 ```

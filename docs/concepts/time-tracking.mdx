@@ -14,6 +14,13 @@ entry has:
 - **Rate override** — an owner or admin can set a specific rate for that
   entry instead of the project member's standard rate
 
+## Timers
+
+**Start timer** in the top bar, or the play button on any task, runs a timer;
+stopping it logs the elapsed time as an entry, rounded to 0.01h (a timer
+stopped within 36 seconds logs nothing). Only one timer runs at a time: starting another stops and logs the
+first. Timers also work over MCP (`start_timer`, `stop_timer`).
+
 ## My time vs. team time
 
 Everyone sees their own week by default. Owners and admins can switch to a
@@ -22,7 +29,8 @@ team view, see everyone's logged hours, and filter by person.
 ## Editing and deleting entries
 
 A time entry can be edited or deleted by the person who logged it (or an
-owner/admin) — but only until it's been pulled onto an invoice. Once
+owner/admin) — but only until it's been pulled onto an invoice, and (for
+people covered by timesheet approval) while its week isn't submitted. Once
 invoiced, an entry is locked to keep the invoice and the underlying hours in
 sync.
 
@@ -59,19 +67,6 @@ Over MCP: `submit_timesheet`, `list_pending_timesheets`, `review_timesheet`.
 
 ## Logging meetings from your calendar
 
-On your **Profile**, connect a calendar with its secret iCal (.ics) link — Google
-Calendar, Outlook / Microsoft 365 and iCloud all have one (the card says where).
-Every hour, meetings from the last two weeks that have ended show up under
-**Time → Meetings** (you're notified when there are some to sort), each with a
-suggested project:
-
-- the project you logged earlier meetings in the same recurring series to;
-- otherwise a client whose email domain matches the attendees (from its contacts,
-  billing email or website), on the project you've logged most to for them;
-- otherwise a project or client named in the meeting title.
-
-**Log** adds the meeting's length as time on the project (billable unless you
-untick it); **Ignore** skips it. Tick **Always for this series** to sort the rest
-of a recurring meeting the same way automatically. All-day events, free/busy
-blocks, cancelled meetings and ones you declined are left out. Only you see your
-meetings, and the calendar link is stored encrypted.
+Connect your calendar on your **Profile** and your meetings show up under
+**Time → Meetings**, each with a suggested project, to log or ignore. See
+[Calendars](/integrations/calendars).

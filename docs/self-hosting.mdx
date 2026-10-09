@@ -1,0 +1,139 @@
+---
+title: Self-hosting
+description: Install, configure, upgrade, and back up a Consultainer instance
+---
+
+Consultainer is self-hosted only — no billing, no plan limits, no telemetry.
+It's published as a multi-arch (amd64/arm64) image at
+`ghcr.io/armistice-group/retainer`.
+
+## Install
+
+```bash
+curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
+# fill in the Required section of .env
+docker compose up -d
+```
+
+This starts three services:
+
+| Service | What it is |
+| --- | --- |
+| `consultainer-db` | Postgres 16, data in the `db_data` volume. |
+| `consultainer-app` | The app on port `APP_PORT` (3113 by default). Applies database migrations on every start. |
+| `scheduler` | A tiny loop that calls the app's scheduled jobs (below). |
+
+Open the app; a fresh database sends you to `/setup` to create the
+organization and its owner account. To try it with realistic demo data on an
+empty database:
+`docker compose exec consultainer-app node_modules/.bin/tsx prisma/seed-demo.ts`,
+then sign in as `maya@northwind.example` / `password123`.
+
+To build from a checkout instead of pulling the image:
+`docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+
+## Settings (`.env`)
+
+### Required
+
+| Variable | What it's for |
+| --- | --- |
+| `AUTH_SECRET` | Signs sessions. `openssl rand -base64 32` |
+| `INTEGRATION_ENCRYPTION_KEY` | Encrypts SSO secrets, integration tokens and calendar links at rest. `openssl rand -base64 32` — **back it up**: losing it means reconnecting every integration and calendar. |
+| `CRON_SECRET` | Authenticates the scheduler to `/api/cron/*`. `openssl rand -hex 32` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | The database the compose file provisions. |
+
+### Recommended
+
+| Variable | What it's for |
+| --- | --- |
+| `SETUP_TOKEN` | Asked for on `/setup`, so nobody else can claim a fresh instance that's already reachable from the internet. |
+| `APP_PORT` | Host port for the app (default 3113). |
+| `CONSULTAINER_VERSION` | Image tag. `latest` follows every change to main; pin a release like `1.2.3` for controlled upgrades. |
+
+### Optional
+
+| Variable | What it's for |
+| --- | --- |
+| `AUTH_URL` | Force one public URL for everything. Usually leave unset — see [URLs](#urls). |
+| `ALLOW_PRIVATE_FETCH` | `true` lets [calendar links](/integrations/calendars) point at private-network addresses (e.g. Nextcloud on your LAN). Off by default. |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | "Continue with Google" sign-in. Redirect URI: `<your URL>/api/auth/callback/google`. |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Email. |
+| `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENVIRONMENT` | QuickBooks app credentials. |
+| `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET` | Linear OAuth app, and its webhook signing secret for live updates. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe, for collecting invoice payments. |
+
+The integration variables can all be left out: owners enter the same
+credentials in the app (**Settings → Integrations** and **Settings →
+Payments**), which also shows the exact callback and webhook URLs to register.
+A variable that is set takes precedence and shows as read-only in the app.
+
+## Scheduled jobs
+
+The `scheduler` service calls these with `CRON_SECRET`. They're idempotent, so
+an extra run never double-sends anything.
+
+| Endpoint | Every | What it does |
+| --- | --- | --- |
+| `/api/cron/mercury-sync` | hour | Marks invoices paid when Mercury says so. |
+| `/api/cron/linear-sync` | hour | Syncs every linked project with Linear (issues and comments) and retries failed pushes. |
+| `/api/cron/calendar-sync` | hour | Pulls recent meetings from everyone's connected calendars. |
+| `/api/cron/recurring-invoices` | day | Retainer invoices, client billing cycles, overdue alerts, overdue reminder emails to clients, and (Mondays) the weekly digest. |
+
+Running the app some other way (Kubernetes, a PaaS)? Call the same endpoints
+on the same schedule with `Authorization: Bearer <CRON_SECRET>`.
+
+## Email
+
+Email is optional. Without it, invites and contractor reviews give you a link
+to share yourself, magic-link login is hidden, email changes apply after a
+password check, and email-only features — emailing invoices to clients,
+overdue reminders, email alerts, the weekly digest — are off (invoices can
+still be shared with **Copy client link**). Set it up with
+[Resend](https://resend.com) under **Settings → Integrations**.
+
+## URLs
+
+Sign-in, SSO and OAuth redirects follow whatever address the app is reached
+at — `localhost`, a LAN name, or a domain behind a TLS proxy (Caddy, nginx,
+Traefik; forward `X-Forwarded-Host` and `X-Forwarded-Proto`). Links that leave
+the browser — emails, invoice and share links, webhook
+URLs — use the **instance URL** you confirm at setup, editable by owners in
+**Settings → General**. Set `AUTH_URL` only to force one URL for everything.
+
+### Behind an authenticating proxy
+
+If something in front of the app requires a login (Cloudflare Access, an
+oauth2-proxy, …), let these through without it — each has its own
+authentication or is meant to be public:
+
+| Path | Why |
+| --- | --- |
+| `/api/v1/*`, `/api/mcp` | REST API and MCP server (API keys). |
+| `/api/webhooks/*` | Stripe and Linear webhooks (signed). |
+| `/api/cron/*` | Scheduled jobs (`CRON_SECRET`). |
+| `/i/*`, `/share/*`, `/review/*`, `/api/share/*` | Client invoice links, client and project share links, contractor reviews. |
+| `/invite/*`, `/login/*`, `/api/auth/*`, `/api/sso/*` | Joining and signing in. |
+| `/api/branding/*` | The logo and icon shown in emails. |
+
+## Upgrading
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+Migrations run automatically on start. Pin `CONSULTAINER_VERSION` to a
+release to upgrade on your own schedule.
+
+## Backups
+
+Back up the database and your `.env` (above all `INTEGRATION_ENCRYPTION_KEY`):
+
+```bash
+docker compose exec -T consultainer-db pg_dump -U app consultainer > consultainer-$(date +%F).sql
+```
+
+(Use your `POSTGRES_USER` and `POSTGRES_DB` values.) Uploaded files — client
+documents, receipts, logos — are stored in the database, so the dump has
+everything.

@@ -1,0 +1,43 @@
+---
+title: Payments
+description: How clients pay you — payment methods, Stripe, and Mercury
+---
+
+## Payment methods
+
+Under **Settings → Payments → Payment methods**, list how clients can pay:
+ACH, wire, check, a Stripe or PayPal link, Venmo, Zelle, crypto, or anything
+else. They appear on the client's invoice page and share links, and — if you
+choose **Show on invoice PDFs** — on the PDF. Bank details default to the
+online pages only, since a PDF can be forwarded anywhere.
+
+A client can have its own methods too (on the client page). By default a
+client is offered its own methods first, then the organization's; untick
+**Also offer the organization's payment methods**, or individual ones, to
+change that. Adding a method from a client page can save it for the whole
+organization instead.
+
+Changes to payment methods raise a **billing details changed**
+[alert](/concepts/alerts-and-audit).
+
+## Collecting payments online
+
+Connect one of these and sent invoices get a **Pay now** button on the
+client's invoice page and share links; the invoice is marked paid when the
+payment lands.
+
+- **Stripe Connect** — **Settings → Payments → Connect Stripe** walks you
+  through Stripe's onboarding; clients pay by card or ACH into your Stripe
+  account. The instance needs Stripe credentials (secret key and webhook
+  signing secret, entered on the same page — it shows the webhook URL to
+  register).
+- **Mercury** — for organizations that bank with Mercury: paste a read-write
+  API token (app.mercury.com → Settings → Tokens) and choose the deposit
+  account. Clients pay from a Mercury-hosted page; payment status is checked
+  hourly.
+
+## Getting invoices to clients
+
+**Email to client** on an invoice sends it with a link to view, download and
+pay it, and you're told when they open it. Overdue reminders can go out on a
+schedule. See [Invoicing](/concepts/invoicing#sending-invoices-and-tracking-opens).

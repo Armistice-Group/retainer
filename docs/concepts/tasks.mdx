@@ -1,0 +1,54 @@
+---
+title: Tasks
+description: Task lists, the task sheet, comments, mentions, and timers
+---
+
+Every project has a task list, and **Tasks** in the sidebar shows them across
+all your projects, grouped by project. Filter by **Mine / Everyone** and
+**Open / Done / All**; in-progress tasks come first. **New task** lets you pick
+the project.
+
+## The task sheet
+
+Click a task (on its project page or under Tasks) to open its sheet:
+
+- **Status** and **assignee** — change them right there. Assigning someone
+  notifies them.
+- **Hours** — logged against the task, next to its estimate. Task lists show
+  hours in red once they pass the estimate, and the assignee and admins are
+  alerted.
+- **Linear** — the issue key (e.g. `RING-12`) linking to it, for tasks synced
+  with [Linear](/integrations/linear).
+- **Time** — **Start timer** (or **Stop timer** when it's running on this
+  task) and **Log time**, plus the entries logged so far.
+- **Comments** — see below.
+
+The sheet's URL (`?task=…`) can be shared; it opens straight to the task.
+
+## Timers
+
+Every task row has a play button: it starts a timer on that task, stopping
+and logging whatever timer was running, and turns into a stop button while
+it's the running one. The running timer also shows in the top bar. Over MCP:
+`start_timer`, `stop_timer`, `get_active_timer`.
+
+## Comments
+
+Comments are internal by default — clients never see them unless you choose
+to share one.
+
+- **@mentions** — type `@` to pick someone who can see the project. They're
+  notified directly. (Mentions of people who can't see a confidential project
+  are ignored.)
+- **Watchers** — the assignee and watchers are notified of new comments.
+  Commenting or being mentioned makes you a watcher; **Watch / Unwatch** on
+  the sheet changes it.
+- **Linear** — on a task linked to a Linear issue, comments are posted there
+  too (untick **Also post to Linear** to keep one internal), and comments
+  made in Linear show up here marked **From Linear**.
+- **Share with client** — when the project's client link shows tasks, tick
+  this to show a comment there. Shared comments are badged **Client can see**,
+  and their author or an admin can change it later.
+
+Authors can delete their own comments; owners and admins can delete any. A
+copy already posted to Linear stays there.

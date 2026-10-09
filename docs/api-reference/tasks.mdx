@@ -22,7 +22,7 @@ POST /api/v1/projects/{id}/tasks
 </ParamField>
 
 ```bash
-curl -X POST https://consultainer.app/api/v1/projects/proj_123/tasks \
+curl -X POST https://<your-instance>/api/v1/projects/proj_123/tasks \
   -H "Authorization: Bearer ch_live_..." \
   -H "Content-Type: application/json" \
   -d '{"title": "Set up staging environment"}'
@@ -80,7 +80,7 @@ POST /api/v1/tasks/{id}/comments
 </ParamField>
 
 ```bash
-curl -X POST https://consultainer.app/api/v1/tasks/task_123/comments \
+curl -X POST https://<your-instance>/api/v1/tasks/task_123/comments \
   -H "Authorization: Bearer ch_live_..." \
   -H "Content-Type: application/json" \
   -d '{"body": "Staging is ready for review.", "postToLinear": false}'

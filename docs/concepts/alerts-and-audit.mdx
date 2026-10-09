@@ -1,0 +1,50 @@
+---
+title: Alerts & audit log
+description: What owners and admins are told about, where, and the record of who changed what
+---
+
+## Alerts
+
+Owners and admins always see alerts in Consultainer (the bell). Under
+**Settings → Alerts** they choose, per alert, whether it also goes to
+**Slack** and/or **email**, and who alert emails go to (by default, the
+organization's owners).
+
+| Alert | When | Default |
+| --- | --- | --- |
+| A client opens an invoice | The emailed invoice, its client link, or its PDF is opened by the client — first open, then again after a day. | Slack + email |
+| Billing or payment details change | Payment methods or instructions, billing contacts and emails, payment terms, bill or cost rates, billing cycles, recurring invoices, payment connections. Says who changed what, never the payment details themselves. | Slack + email |
+| Access or security settings change | Roles changed, members removed, invites, API keys created or revoked, single sign-on and sign-in rules, two-factor turned off, sign-in email changed, passkeys removed — and anyone deleting 20+ records within 10 minutes. | Slack + email |
+| An invoice is sent / paid | | Slack + email |
+| An invoice becomes overdue | | Slack |
+| Budget | A project reaches 80% / 100% of its hour budget, or a task passes its estimate (its assignee is told too). | Slack |
+| A timesheet is submitted | | In the app only |
+| Weekly digest | See below. | Email |
+
+**Slack** needs an [incoming webhook](https://api.slack.com/messaging/webhooks)
+URL in **Settings → General**. **Email** needs email set up on the instance
+(see [Self-hosting](/self-hosting#email)).
+
+People also get their own notifications in the app — task assigned, comments
+and @mentions on tasks they watch, timesheets reviewed, meetings to sort.
+
+## Weekly digest
+
+Each Monday, last week in one email: hours (in total and per person,
+billable), invoiced, paid, not yet invoiced, overdue invoices, projects near or
+over budget, and timesheets waiting for approval. **Preview** on Settings →
+Alerts shows this week's.
+
+## Audit log
+
+**Settings → Audit log** (owners and admins) records every change to
+organization data — clients, contacts, documents, projects, members, tasks,
+comments, time, expenses, invoices, payment methods, settings and
+integrations — plus sign-ins, document views and downloads, and audit log
+exports. Each entry has who made it (or *System* for scheduled jobs and
+webhooks), whether it came through the API or MCP, the IP address and browser,
+and for updates each field's before and after. Secrets show as `[redacted]`.
+
+Filter by person, action, record type and dates, and export to CSV. The log is
+also available over the [REST API](/api-reference/audit-log) and MCP
+(`list_audit_log`).
