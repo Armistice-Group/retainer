@@ -13,6 +13,7 @@ import {
   Plus,
   Square,
   Trash2,
+  Users,
 } from "lucide-react";
 import { CommentBody, MentionTextarea } from "@/components/tasks/mention-textarea";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -35,6 +36,7 @@ import {
   addTaskCommentAction,
   assignTaskAction,
   deleteTaskCommentAction,
+  setCommentSharedAction,
   setTaskWatchingAction,
   updateTaskStatusAction,
 } from "@/actions/tasks";
@@ -369,6 +371,26 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                         <ExternalLink className="size-3" />
                       </a>
                     ) : null}
+                    {comment.sharedWithClient ? (
+                      <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[0.7rem] font-normal">
+                        <Users className="size-3" /> Client can see
+                      </Badge>
+                    ) : null}
+                    {comment.canDelete && (task.clientSharing || comment.sharedWithClient) ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto h-6 px-1.5 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                        disabled={isPending}
+                        onClick={() =>
+                          startTransition(() =>
+                            setCommentSharedAction(comment.id, projectId, !comment.sharedWithClient)
+                          )
+                        }
+                      >
+                        {comment.sharedWithClient ? "Hide from client" : "Share with client"}
+                      </Button>
+                    ) : null}
                     {comment.canDelete ? (
                       <form
                         action={deleteTaskCommentAction.bind(null, comment.id, projectId)}
@@ -444,6 +466,14 @@ function CommentComposer({ task }: { task: TaskDetail }) {
       />
       {state?.fieldErrors?.body ? (
         <p className="text-sm text-destructive">{state.fieldErrors.body[0]}</p>
+      ) : null}
+      {task.clientSharing ? (
+        <div className="flex items-center gap-2">
+          <Checkbox id="task-comment-client" name="shareWithClient" />
+          <Label htmlFor="task-comment-client" className="font-normal">
+            Share with client (shown on the project&apos;s client link)
+          </Label>
+        </div>
       ) : null}
       <div className="flex items-center justify-between gap-2">
         {task.canPostToLinear ? (

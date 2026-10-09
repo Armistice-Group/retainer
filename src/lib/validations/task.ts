@@ -18,4 +18,5 @@ export const taskStatusValues = ["TODO", "IN_PROGRESS", "DONE"] as const;
 export const taskCommentSchema = z.object({
   body: z.string().trim().min(1, "Write something first").max(5000),
   postToLinear: z.boolean(),
+  shareWithClient: z.boolean().default(false),
 });

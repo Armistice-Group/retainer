@@ -53,7 +53,7 @@ DELETE /api/v1/tasks/{id}
 GET /api/v1/tasks/{id}/comments
 ```
 
-Comments are internal: they never appear on client share links. Each comment
+Comments are internal unless shared with the client (see `shareWithClient`). Each comment
 has `id`, `body`, `createdAt`, `author` (`{ id, name }`, or `null` if the author
 has left or isn't a member), `authorName`, `source` (`app`, or `linear` for
 comments pulled in from the task's Linear issue), and `linearUrl` when the
@@ -69,6 +69,10 @@ POST /api/v1/tasks/{id}/comments
   Up to 5,000 characters. Notifies the task's assignee and watchers. Mention
   someone with `@[Name](user:USER_ID)` to notify them directly (and make them a
   watcher); mentions of people who can't see the project are ignored.
+</ParamField>
+<ParamField body="shareWithClient" type="boolean" default="false">
+  Show the comment on the project's client link. Only appears there while the
+  project's share link shows tasks.
 </ParamField>
 <ParamField body="postToLinear" type="boolean" default="true">
   On a task linked to a Linear issue, also post the comment there. Ignored for

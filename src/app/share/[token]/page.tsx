@@ -11,6 +11,9 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
 
+// In progress first, then to do, then done.
+const TASK_ORDER: Record<string, number> = { IN_PROGRESS: 0, TODO: 1, DONE: 2 };
+
 export const metadata: Metadata = {
   title: "Project report",
   robots: { index: false, follow: false },
@@ -25,7 +28,7 @@ export default async function SharedProjectPage({
   const report = await getProjectByShareToken(token);
   if (!report) notFound();
 
-  const { project, loggedHours, totalBilled, totalPaid, invoices } = report;
+  const { project, loggedHours, totalBilled, totalPaid, invoices, tasks } = report;
   const org = project.org;
   const logoSrc = org.logoData
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
@@ -155,6 +158,48 @@ export default async function SharedProjectPage({
                   </span>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {tasks && tasks.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tasks</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {tasks.filter((t) => t.status === "DONE").length} of {tasks.length} done
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-col divide-y divide-border p-0">
+              {[...tasks]
+                .sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status])
+                .map((t) => (
+                  <div key={t.id} className="flex flex-col gap-2 px-6 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className={cn(
+                          "min-w-0 text-sm font-medium",
+                          t.status === "DONE" && "text-muted-foreground line-through"
+                        )}
+                      >
+                        {t.title}
+                      </p>
+                      <StatusBadge status={t.status} />
+                    </div>
+                    {t.comments.length > 0 ? (
+                      <ul className="flex flex-col gap-2 border-l-2 border-border pl-3">
+                        {t.comments.map((c) => (
+                          <li key={c.id} className="text-sm">
+                            <p className="text-xs text-muted-foreground">
+                              {c.authorName} · {formatDate(c.createdAt)}
+                            </p>
+                            <p className="whitespace-pre-wrap">{c.body}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ))}
             </CardContent>
           </Card>
         ) : null}

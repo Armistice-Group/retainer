@@ -436,18 +436,20 @@ const handler = createMcpHandler(
 
     server.tool(
       "add_task_comment",
-      "Add an internal comment to a task (clients never see comments). Notifies the assignee and watchers. Mention someone with @[Name](user:<userId>) (ids from list_members) to notify them directly. If the task is linked to a Linear issue, the comment is also posted there unless postToLinear is false.",
+      "Add a comment to a task. Comments are internal unless shareWithClient is true and the project shows tasks on its client link. Notifies the assignee and watchers. Mention someone with @[Name](user:<userId>) (ids from list_members) to notify them directly. If the task is linked to a Linear issue, the comment is also posted there unless postToLinear is false.",
       {
         taskId: z.string(),
         body: z.string().trim().min(1).max(5000),
         postToLinear: z.boolean().optional(),
+        shareWithClient: z.boolean().optional(),
       },
-      async ({ taskId, body, postToLinear }, extra) => {
+      async ({ taskId, body, postToLinear, shareWithClient }, extra) => {
         const ctx = ctxFrom(extra);
         try {
           const { comment } = await addTaskComment(ctx, taskId, {
             body,
             postToLinear: postToLinear ?? true,
+            shareWithClient: shareWithClient ?? false,
           });
           return text(comment);
         } catch (err) {

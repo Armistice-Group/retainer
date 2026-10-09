@@ -32,6 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const parsed = taskCommentSchema.safeParse({
     body: body.body,
     postToLinear: body.postToLinear ?? true,
+    shareWithClient: body.shareWithClient === true,
   });
   if (!parsed.success) {
     return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 422 });

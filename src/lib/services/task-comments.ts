@@ -37,6 +37,7 @@ function serialize(comment: {
   source: string;
   externalUrl: string | null;
   externalAuthor: string | null;
+  sharedWithClient: boolean;
   author: { id: string; name: string } | null;
 }) {
   return {
@@ -48,6 +49,7 @@ function serialize(comment: {
     // with the Linear user's name in authorName even when author is null).
     source: comment.source,
     authorName: comment.author?.name ?? comment.externalAuthor,
+    sharedWithClient: comment.sharedWithClient,
     linearUrl: comment.externalUrl,
   };
 }
@@ -71,12 +73,18 @@ export async function listTaskComments(ctx: TaskCommentContext, taskId: string) 
 export async function addTaskComment(
   ctx: TaskCommentContext,
   taskId: string,
-  input: { body: string; postToLinear: boolean }
+  input: { body: string; postToLinear: boolean; shareWithClient?: boolean }
 ) {
   const task = await requireTask(ctx, taskId);
 
   const created = await prisma.taskComment.create({
-    data: { taskId, authorId: ctx.actorId, body: input.body },
+    data: {
+      taskId,
+      authorId: ctx.actorId,
+      body: input.body,
+      // Only meaningful while the project shares its tasks; harmless otherwise.
+      sharedWithClient: !!input.shareWithClient,
+    },
   });
   if (input.postToLinear) await pushCommentToLinear(created.id);
 
@@ -118,4 +126,20 @@ export async function setTaskWatching(ctx: TaskCommentContext, taskId: string, w
   const task = await requireTask(ctx, taskId);
   await setWatching(taskId, ctx.actorId, watching);
   return { projectId: task.projectId, watching };
+}
+
+/** Show or hide a comment on the project's share page. Same rule as
+ * deleting: its author, or an owner/admin. */
+export async function setCommentShared(ctx: TaskCommentContext, commentId: string, shared: boolean) {
+  const comment = await prisma.taskComment.findUnique({ where: { id: commentId } });
+  if (!comment) throw new TaskCommentError("Comment not found.");
+  const task = await requireTask(ctx, comment.taskId).catch(() => {
+    throw new TaskCommentError("Comment not found.");
+  });
+  const canModerate = ctx.role === "OWNER" || ctx.role === "ADMIN";
+  if (comment.authorId !== ctx.actorId && !canModerate) {
+    throw new TaskCommentError("Only the author or an admin can change this.", "forbidden");
+  }
+  await prisma.taskComment.update({ where: { id: commentId }, data: { sharedWithClient: shared } });
+  return { projectId: task.projectId };
 }

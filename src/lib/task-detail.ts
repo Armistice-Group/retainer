@@ -19,6 +19,9 @@ export type TaskDetail = {
   linearKey: string | null;
   linearUrl: string | null;
   canPostToLinear: boolean;
+  /** The project shows tasks on a live share link, so comments can be
+   * shared with the client. */
+  clientSharing: boolean;
   /** People who can be @mentioned here (everyone who can see the project). */
   mentionable: { id: string; name: string }[];
   /** The viewer follows this task's comments (assignees always do). */
@@ -41,6 +44,8 @@ export type TaskDetail = {
     linearUrl: string | null;
     /** Pulled in from the Linear issue rather than written here. */
     fromLinear: boolean;
+    /** Shown on the project's share page. */
+    sharedWithClient: boolean;
     canDelete: boolean;
   }[];
 };
@@ -90,6 +95,7 @@ export async function getTaskDetail(
     linearUrl: task.externalLink?.source === "linear" ? task.externalLink.externalUrl : null,
     canPostToLinear: await canPushCommentsToLinear(task.id),
     mentionable: await mentionableUsers(task.project),
+    clientSharing: task.project.shareTasks && !!task.project.shareToken,
     watching:
       task.assigneeId === viewer.userId ||
       !!(await prisma.taskWatcher.findUnique({
@@ -113,6 +119,7 @@ export async function getTaskDetail(
       createdAt: c.createdAt.toISOString(),
       linearUrl: c.externalUrl,
       fromLinear: c.source === "linear",
+      sharedWithClient: c.sharedWithClient,
       canDelete: canModerate || c.authorId === viewer.userId,
     })),
   };

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { mentionsToPlain } from "@/lib/mentions";
 
 export function generateShareToken() {
   return randomBytes(24).toString("base64url");
@@ -16,6 +17,7 @@ export async function getProjectByShareToken(token: string) {
     },
   });
   if (!project) return null;
+  const org = project.org;
 
   const [loggedAgg, billedAgg, paidAgg, invoices] = await Promise.all([
     prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
@@ -52,7 +54,46 @@ export async function getProjectByShareToken(token: string) {
     }),
   ]);
 
+  // Tasks only when the project opts in, and only comments marked for the
+  // client — never internal ones.
+  const tasks = project.shareTasks
+    ? (
+        await prisma.task.findMany({
+          where: { projectId: project.id },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            updatedAt: true,
+            comments: {
+              where: { sharedWithClient: true },
+              orderBy: { createdAt: "asc" },
+              select: {
+                id: true,
+                body: true,
+                createdAt: true,
+                externalAuthor: true,
+                author: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+        })
+      ).map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        comments: t.comments.map((c) => ({
+          id: c.id,
+          body: mentionsToPlain(c.body),
+          createdAt: c.createdAt,
+          authorName: c.author?.name ?? c.externalAuthor ?? org.name,
+        })),
+      }))
+    : null;
+
   return {
+    tasks,
     project,
     loggedHours: Number(loggedAgg._sum.hours ?? 0),
     totalBilled: Number(billedAgg._sum.amount ?? 0),

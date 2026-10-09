@@ -29,3 +29,15 @@ export async function revokeShareLinkAction(projectId: string) {
   await prisma.project.update({ where: { id: projectId }, data: { shareToken: null } });
   revalidatePath(`/projects/${projectId}`);
 }
+
+export async function setShareTasksAction(projectId: string, shareTasks: boolean) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+
+  await prisma.project.update({ where: { id: projectId }, data: { shareTasks } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
+}

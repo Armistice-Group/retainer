@@ -21,6 +21,7 @@ import {
   TaskCommentError,
   type TaskCommentContext,
   setTaskWatching,
+  setCommentShared,
 } from "@/lib/services/task-comments";
 
 export async function createTaskAction(
@@ -187,6 +188,7 @@ export async function addTaskCommentAction(
   const parsed = taskCommentSchema.safeParse({
     body: formData.get("body"),
     postToLinear: formData.get("postToLinear") === "on",
+    shareWithClient: formData.get("shareWithClient") === "on",
   });
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
@@ -208,6 +210,13 @@ export async function addTaskCommentAction(
 export async function deleteTaskCommentAction(commentId: string, projectId: string) {
   const { org, user, role } = await requireOrgContext();
   await deleteTaskComment(commentContext(org.id, user, role), commentId);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
+}
+
+export async function setCommentSharedAction(commentId: string, projectId: string, shared: boolean) {
+  const { org, user, role } = await requireOrgContext();
+  await setCommentShared(commentContext(org.id, user, role), commentId, shared);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/tasks");
 }

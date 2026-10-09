@@ -232,6 +232,7 @@ export default async function ProjectDetailPage({
                 <ShareLinkCard
                   projectId={project.id}
                   shareUrl={project.shareToken ? `${origin}/share/${project.shareToken}` : null}
+                  shareTasks={project.shareTasks}
                 />
               ) : null}
             </CardContent>
