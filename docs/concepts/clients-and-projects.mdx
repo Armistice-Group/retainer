@@ -46,6 +46,11 @@ under an NDA that shouldn't be visible to the whole team by default.
 An hourly project can have a budget in hours. The project page shows hours
 logged against that budget, and flags when it's close to or over.
 
+Owners and admins get a notification (and a Slack message, if Slack is set up)
+the first time a project reaches 80% and 100% of its budget, and when a task's
+logged hours pass its estimate — the task's assignee is told too. Each alert
+fires once; it can fire again if hours drop back under or the budget grows.
+
 ## Client-facing report links
 
 From a project page, an owner or admin can generate a read-only, token-based

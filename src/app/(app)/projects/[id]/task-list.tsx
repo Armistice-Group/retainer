@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,7 +152,13 @@ export function TaskList({
                 </DropdownMenuContent>
               </DropdownMenu>
               {task.estimatedHours ? (
-                <span className="tabular-figures ml-auto text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    "tabular-figures ml-auto text-xs text-muted-foreground",
+                    task.actualHours > task.estimatedHours && "font-medium text-destructive"
+                  )}
+                  title={task.actualHours > task.estimatedHours ? "Over estimate" : undefined}
+                >
                   {task.actualHours.toFixed(2)} / {task.estimatedHours.toFixed(2)}h
                 </span>
               ) : null}

@@ -14,6 +14,7 @@ import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import { checkBudgets } from "@/lib/services/budget-alerts";
 import {
   addTaskComment,
   deleteTaskComment,
@@ -106,6 +107,7 @@ export async function updateTaskAction(
     },
   });
   await pushTaskToLinear(taskId);
+  await checkBudgets(projectId, [taskId]);
 
   revalidatePath(`/projects/${projectId}`);
 

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { checkBudgets } from "@/lib/services/budget-alerts";
 import { projectSchema, projectMemberSchema } from "@/lib/validations/project";
 import { notify } from "@/lib/notifications";
 import { canViewProject } from "@/lib/project-access";
@@ -133,6 +134,8 @@ export async function updateProjectAction(
       update: {},
     });
   }
+
+  await checkBudgets(projectId);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");

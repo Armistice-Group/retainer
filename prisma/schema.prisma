@@ -82,6 +82,7 @@ enum NotificationType {
   INVOICE_OVERDUE
   TASK_COMMENTED
   TASK_MENTIONED
+  BUDGET_ALERT
 }
 
 enum Plan {
@@ -386,22 +387,26 @@ model Link {
 }
 
 model Project {
-  id            String        @id @default(cuid())
-  name          String
-  description   String?
-  status        ProjectStatus @default(ACTIVE)
-  startDate     DateTime?
-  endDate       DateTime?
-  confidential  Boolean       @default(false)
-  budgetHours   Decimal?      @db.Decimal(7, 2)
-  billingType   BillingType   @default(HOURLY)
-  flatFeeAmount Decimal?      @db.Decimal(12, 2)
+  id               String        @id @default(cuid())
+  name             String
+  description      String?
+  status           ProjectStatus @default(ACTIVE)
+  startDate        DateTime?
+  endDate          DateTime?
+  confidential     Boolean       @default(false)
+  budgetHours      Decimal?      @db.Decimal(7, 2)
+  // Highest budget threshold (80 or 100, % of budgetHours) already alerted
+  // on, so each is announced once; drops back when hours fall or the
+  // budget grows, so it can fire again.
+  budgetAlertLevel Int           @default(0)
+  billingType      BillingType   @default(HOURLY)
+  flatFeeAmount    Decimal?      @db.Decimal(12, 2)
   // Overrides the client's payment terms for invoices of only this
   // project's work; null uses the client's.
-  paymentTerms  PaymentTerms?
-  shareToken    String?       @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  paymentTerms     PaymentTerms?
+  shareToken       String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -461,13 +466,16 @@ model Milestone {
 }
 
 model Task {
-  id             String     @id @default(cuid())
-  title          String
-  description    String?
-  status         TaskStatus @default(TODO)
-  estimatedHours Decimal?   @db.Decimal(6, 2)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  id                    String     @id @default(cuid())
+  title                 String
+  description           String?
+  status                TaskStatus @default(TODO)
+  estimatedHours        Decimal?   @db.Decimal(6, 2)
+  // Set once logged hours pass the estimate and we've said so; cleared if
+  // they drop back under (or the estimate grows).
+  overEstimateAlertedAt DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

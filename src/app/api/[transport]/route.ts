@@ -15,6 +15,7 @@ import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import { checkBudgets } from "@/lib/services/budget-alerts";
 import { startTimer, stopActiveTimer, TimerError } from "@/lib/services/timer";
 import { toISODate } from "@/lib/date";
 import {
@@ -274,6 +275,7 @@ const handler = createMcpHandler(
           });
         }
 
+        await checkBudgets(projectId);
         return text(project);
       }
     );
@@ -384,6 +386,7 @@ const handler = createMcpHandler(
           },
         });
         await pushTaskToLinear(task.id);
+        await checkBudgets(projectId, [task.id]);
         return text(task);
       }
     );

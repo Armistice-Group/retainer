@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
+import { checkBudgets } from "@/lib/services/budget-alerts";
 import { canViewProject } from "@/lib/project-access";
 import type { Role } from "@/generated/prisma/client";
 
@@ -95,6 +96,7 @@ export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInp
     await postToSlack(ctx.slackWebhookUrl, message);
   }
 
+  await checkBudgets(entry.projectId, [entry.taskId]);
   return entry;
 }
 
@@ -118,7 +120,7 @@ export async function updateTimeEntry(
 
   const targetUserId = manage && input.userId ? input.userId : existing.userId;
 
-  return prisma.timeEntry.update({
+  const updated = await prisma.timeEntry.update({
     where: { id: timeEntryId },
     data: {
       projectId: input.projectId,
@@ -131,6 +133,10 @@ export async function updateTimeEntry(
       rateOverride: manage ? (input.rateOverride ?? null) : existing.rateOverride,
     },
   });
+  // Moving an entry changes the old project/task's totals as well.
+  await checkBudgets(updated.projectId, [updated.taskId, existing.taskId]);
+  if (existing.projectId !== updated.projectId) await checkBudgets(existing.projectId);
+  return updated;
 }
 
 export async function deleteTimeEntry(ctx: TimeEntryContext, timeEntryId: string) {
@@ -146,4 +152,5 @@ export async function deleteTimeEntry(ctx: TimeEntryContext, timeEntryId: string
   }
 
   await prisma.timeEntry.delete({ where: { id: timeEntryId } });
+  await checkBudgets(existing.projectId, [existing.taskId]);
 }

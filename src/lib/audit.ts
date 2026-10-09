@@ -44,6 +44,8 @@ const IGNORED_FIELDS = new Set([
   "lastUsedAt",
   "lastSyncedAt",
   "setupCardDismissedAt",
+  "budgetAlertLevel",
+  "overEstimateAlertedAt",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;

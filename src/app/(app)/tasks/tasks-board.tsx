@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronDown, MessageSquare, UserRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
 import { TaskTimerButton } from "@/components/tasks/task-timer-button";
@@ -85,7 +86,14 @@ export function TasksBoard({
                           {task.commentCount}
                         </span>
                       ) : null}
-                      <span className="tabular-figures shrink-0 text-xs text-muted-foreground sm:w-24 sm:text-right">
+                      <span
+                        className={cn(
+                          "tabular-figures shrink-0 text-xs text-muted-foreground sm:w-24 sm:text-right",
+                          task.estimatedHours !== null &&
+                            task.actualHours > task.estimatedHours &&
+                            "font-medium text-destructive"
+                        )}
+                      >
                         {task.actualHours.toFixed(2)}
                         {task.estimatedHours ? ` / ${task.estimatedHours.toFixed(2)}` : ""}h
                       </span>
