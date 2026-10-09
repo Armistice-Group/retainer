@@ -41,6 +41,7 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   INVOICE_VIEWED: Eye,
   BILLING_CHANGED: ShieldAlert,
   SECURITY_ALERT: ShieldAlert,
+  MEETINGS_TO_SORT: CalendarCheck,
 };
 
 export function NotificationRow({

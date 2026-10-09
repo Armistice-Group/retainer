@@ -88,6 +88,7 @@ enum NotificationType {
   INVOICE_VIEWED
   BILLING_CHANGED
   SECURITY_ALERT
+  MEETINGS_TO_SORT
 }
 
 enum Plan {
@@ -187,6 +188,7 @@ model Organization {
   apiKeys                   ApiKey[]
   auditLogs                 AuditLog[]
   timesheets                Timesheet[]
+  calendarFeeds             CalendarFeed[]
   quickBooksConnection      QuickBooksConnection?
   linearConnection          LinearConnection?
   mercuryConnection         MercuryConnection?
@@ -232,6 +234,9 @@ model User {
   activeTimer                 ActiveTimer?
   auditLogs                   AuditLog[]
   invoiceEvents               InvoiceEvent[]
+  calendarFeeds               CalendarFeed[]
+  calendarEvents              CalendarEvent[]
+  calendarRules               CalendarRule[]
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
@@ -465,6 +470,7 @@ model Project {
   expenses         Expense[]
   externalLink     ExternalProjectLink?
   activeTimers     ActiveTimer[]
+  calendarEvents   CalendarEvent[]
 
   @@index([orgId])
   @@index([clientId])
@@ -684,7 +690,8 @@ model TimeEntry {
   invoiceLineItemId String?
   invoiceLineItem   InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
 
-  externalLink ExternalTimeEntryLink?
+  externalLink  ExternalTimeEntryLink?
+  calendarEvent CalendarEvent?
 
   @@index([orgId])
   @@index([projectId])
@@ -734,6 +741,87 @@ model Timesheet {
 
   @@unique([orgId, userId, weekStart])
   @@index([orgId, status])
+}
+
+// A person's calendar subscription (.ics link). Its meetings are pulled in
+// as CalendarEvents for them to sort into projects (or ignore).
+model CalendarFeed {
+  id           String    @id @default(cuid())
+  name         String
+  // The secret iCal address — encrypted, since it reveals the calendar.
+  url          String
+  lastSyncedAt DateTime?
+  lastError    String?
+  // Last "meetings to sort" nudge, so it's at most daily.
+  lastNudgedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  events CalendarEvent[]
+
+  @@index([userId])
+}
+
+enum CalendarEventStatus {
+  PENDING
+  LOGGED
+  IGNORED
+}
+
+// One occurrence of a meeting from a feed. PENDING ones are "to sort";
+// logging one creates a time entry for its duration.
+model CalendarEvent {
+  id                 String              @id @default(cuid())
+  // iCal UID — shared by every occurrence of a recurring meeting.
+  uid                String
+  title              String
+  location           String?
+  start              DateTime
+  end                DateTime
+  // Other attendees' email addresses, lowercased.
+  attendees          String[]            @default([])
+  status             CalendarEventStatus @default(PENDING)
+  suggestedProjectId String?
+  suggestionReason   String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  feedId String
+  feed   CalendarFeed @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  timeEntryId String?    @unique
+  timeEntry   TimeEntry? @relation(fields: [timeEntryId], references: [id], onDelete: SetNull)
+
+  @@unique([feedId, uid, start])
+  @@index([userId, status, start])
+  @@index([uid])
+}
+
+// "Always put this series / these attendees on that project" (projectId
+// null = always ignore), learned when someone sorts a meeting.
+model CalendarRule {
+  id        String   @id @default(cuid())
+  // SERIES: value is an iCal UID. DOMAIN: an attendee email domain.
+  kind      String
+  value     String
+  projectId String?
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, value])
 }
 
 model ActiveTimer {

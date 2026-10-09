@@ -9,6 +9,7 @@ import { getOrigin } from "@/lib/url";
 import { TwoFactorCard } from "./two-factor-card";
 import { PasskeysCard } from "./passkeys-card";
 import { ContractorProfileCard } from "./contractor-profile-card";
+import { CalendarsCard } from "./calendars-card";
 
 export default async function ProfilePage() {
   const { user, org } = await requireOrgContext();
@@ -34,6 +35,15 @@ export default async function ProfilePage() {
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true, keyPrefix: true, createdAt: true, lastUsedAt: true },
   });
+
+  const [calendarFeeds, rememberedCount] = await Promise.all([
+    prisma.calendarFeed.findMany({
+      where: { userId: user.id, orgId: org.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, lastSyncedAt: true, lastError: true },
+    }),
+    prisma.calendarRule.count({ where: { userId: user.id } }),
+  ]);
 
   return (
     <div>
@@ -82,6 +92,16 @@ export default async function ProfilePage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <CalendarsCard
+            feeds={calendarFeeds.map((f) => ({
+              id: f.id,
+              name: f.name,
+              lastSyncedAt: f.lastSyncedAt?.toISOString() ?? null,
+              lastError: f.lastError,
+            }))}
+            rememberedCount={rememberedCount}
+          />
+
           <PasskeysCard
             passkeys={passkeys.map((p) => ({
               id: p.id,

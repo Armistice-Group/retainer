@@ -46,6 +46,7 @@ services:
       # Optional. Leave unset and redirects follow whatever address the app is
       # reached at (localhost, hp.local, a domain); setting it forces one URL.
       AUTH_URL: ${AUTH_URL:-}
+      ALLOW_PRIVATE_FETCH: ${ALLOW_PRIVATE_FETCH:-false}
       # Lets Auth.js build redirects from the request's Host / X-Forwarded-*.
       AUTH_TRUST_HOST: "true"
       NODE_ENV: production
@@ -82,6 +83,7 @@ services:
         while true; do
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/mercury-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/linear-sync || true
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/calendar-sync || true
           if [ $$((i % 24)) -eq 0 ]; then
             curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/recurring-invoices || true
           fi

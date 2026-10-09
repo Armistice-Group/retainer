@@ -16,6 +16,13 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { checkBudgets } from "@/lib/services/budget-alerts";
+import {
+  CalendarError,
+  ignoreMeeting,
+  logMeeting,
+  meetingHours,
+  pendingMeetings,
+} from "@/lib/services/calendar";
 import { describeAudit, findAuditEntries, parseAuditFilters } from "@/lib/audit-query";
 import {
   defaultInvoiceRecipients,
@@ -665,6 +672,72 @@ const handler = createMcpHandler(
           })),
           nextPage: rows.length > limit ? page + 1 : null,
         });
+      }
+    );
+
+    server.tool(
+      "list_meetings",
+      "Meetings from the authenticated user's connected calendars that haven't been sorted yet (last two weeks), each with a suggested project and why.",
+      {},
+      async (_args, extra) => {
+        const ctx = ctxFrom(extra);
+        const meetings = await pendingMeetings(ctx.actorId, ctx.orgId);
+        return text(
+          meetings.map((m) => ({
+            id: m.id,
+            title: m.title,
+            start: m.start,
+            end: m.end,
+            hours: meetingHours(m),
+            attendees: m.attendees,
+            suggestedProjectId: m.suggestedProjectId,
+            suggestionReason: m.suggestionReason,
+          }))
+        );
+      }
+    );
+
+    server.tool(
+      "log_meeting",
+      "Log a calendar meeting (from list_meetings) as time on a project, for its duration. remember: also sort future meetings in the same recurring series this way.",
+      {
+        meetingId: z.string(),
+        projectId: z.string(),
+        taskId: z.string().optional(),
+        billable: z.boolean().default(true),
+        date: z.string().optional().describe("ISO date to log under; defaults to the meeting's UTC date"),
+        remember: z.boolean().default(false),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        const meeting = await prisma.calendarEvent.findUnique({ where: { id: args.meetingId } });
+        if (!meeting || meeting.userId !== ctx.actorId) return errorResult("Meeting not found.");
+        try {
+          const r = await logMeeting(timeEntryContext(ctx), args.meetingId, {
+            ...args,
+            date: args.date ?? meeting.start.toISOString().slice(0, 10),
+          });
+          return text({ timeEntry: r.entry, alsoLogged: r.alsoLogged });
+        } catch (err) {
+          if (err instanceof CalendarError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "ignore_meeting",
+      "Mark a calendar meeting as not project work. remember: ignore future meetings in the series too.",
+      { meetingId: z.string(), remember: z.boolean().default(false) },
+      async ({ meetingId, remember }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          await ignoreMeeting(timeEntryContext(ctx), meetingId, remember);
+          return text({ ok: true });
+        } catch (err) {
+          if (err instanceof CalendarError) return errorResult(err.message);
+          throw err;
+        }
       }
     );
 

@@ -13,6 +13,8 @@ import { TimeEntryDialog } from "./time-entry-dialog";
 import { PersonFilter } from "./person-filter";
 import { TimesheetBar } from "./timesheet-bar";
 import { TimesheetApprovals } from "./timesheet-approvals";
+import { MeetingsInbox } from "./meetings-inbox";
+import { meetingHours, pendingMeetings } from "@/lib/services/calendar";
 import {
   getTimesheet,
   modeCovers,
@@ -41,6 +43,7 @@ export default async function TimePage({
   const canManageTeam = role === "OWNER" || role === "ADMIN";
   const teamView = canManageTeam && view === "team";
   const approvalsView = canManageTeam && view === "approvals";
+  const meetingsView = view === "meetings";
   const membership = memberships.find((m) => m.orgId === org.id)!;
   const needsApproval = modeCovers(org.timesheetApproval, membership);
 
@@ -57,7 +60,8 @@ export default async function TimePage({
     filterUserId,
   });
 
-  const [projects, tasks, entries, teamMembers, pendingCount, sheet] = await Promise.all([
+  const [projects, tasks, entries, teamMembers, pendingCount, sheet, feedCount, meetingCount] =
+    await Promise.all([
     prisma.project.findMany({
       where: { orgId: org.id, ...projectVisibilityWhere(user.id, role) },
       include: { client: true },
@@ -85,6 +89,10 @@ export default async function TimePage({
     needsApproval && !teamView
       ? getTimesheet(org.id, user.id, weekStartFromISO(toISODate(weekStart)))
       : Promise.resolve(null),
+    prisma.calendarFeed.count({ where: { userId: user.id, orgId: org.id } }),
+    prisma.calendarEvent.count({
+      where: { userId: user.id, status: "PENDING", feed: { orgId: org.id } },
+    }),
   ]);
   // Members can't change a week that's submitted or approved.
   const weekLocked =
@@ -122,13 +130,28 @@ export default async function TimePage({
         actions={logDialog}
       />
 
-      {canManageTeam ? (
+      {canManageTeam || feedCount > 0 || meetingsView ? (
         <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
           {[
-            { href: "/time", label: "My time", active: !teamView && !approvalsView },
-            { href: "/time?view=team", label: "Team", active: teamView },
-            ...(org.timesheetApproval !== "OFF" || pendingCount > 0
-              ? [{ href: "/time?view=approvals", label: "Approvals", active: approvalsView }]
+            {
+              href: "/time",
+              label: "My time",
+              active: !teamView && !approvalsView && !meetingsView,
+              count: 0,
+            },
+            { href: "/time?view=meetings", label: "Meetings", active: meetingsView, count: meetingCount },
+            ...(canManageTeam
+              ? [{ href: "/time?view=team", label: "Team", active: teamView, count: 0 }]
+              : []),
+            ...(canManageTeam && (org.timesheetApproval !== "OFF" || pendingCount > 0)
+              ? [
+                  {
+                    href: "/time?view=approvals",
+                    label: "Approvals",
+                    active: approvalsView,
+                    count: pendingCount,
+                  },
+                ]
               : []),
           ].map((tab) => (
             <Link
@@ -142,15 +165,34 @@ export default async function TimePage({
               )}
             >
               {tab.label}
-              {tab.label === "Approvals" && pendingCount > 0 ? (
-                <Badge className="h-4 px-1.5 text-[0.65rem]">{pendingCount}</Badge>
+              {tab.count > 0 ? (
+                <Badge className="h-4 px-1.5 text-[0.65rem]">{tab.count}</Badge>
               ) : null}
             </Link>
           ))}
         </div>
       ) : null}
 
-      {approvalsView ? (
+      {meetingsView ? (
+        <MeetingsInbox
+          hasFeeds={feedCount > 0}
+          projects={projects
+            .filter((p) => p.status === "ACTIVE")
+            .map((p) => ({ id: p.id, label: `${p.client.name} — ${p.name}` }))}
+          meetings={(await pendingMeetings(user.id, org.id)).map((m) => ({
+            id: m.id,
+            uid: m.uid,
+            title: m.title,
+            location: m.location,
+            start: m.start.toISOString(),
+            end: m.end.toISOString(),
+            hours: meetingHours(m),
+            attendees: m.attendees,
+            suggestedProjectId: m.suggestedProjectId,
+            suggestionReason: m.suggestionReason,
+          }))}
+        />
+      ) : approvalsView ? (
         <TimesheetApprovals sheets={await pendingTimesheets(org.id)} />
       ) : (
         <>
