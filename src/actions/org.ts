@@ -44,6 +44,7 @@ export async function updateOrgGeneralAction(
     externalBillingUrl: formData.get("externalBillingUrl"),
     slackWebhookUrl: formData.get("slackWebhookUrl"),
     defaultPaymentTerms: formData.get("defaultPaymentTerms") || undefined,
+    timesheetApproval: formData.get("timesheetApproval") || undefined,
     brandColor: formData.get("brandColor"),
   });
 
@@ -64,6 +65,7 @@ export async function updateOrgGeneralAction(
       externalBillingUrl: parsed.data.externalBillingUrl || null,
       slackWebhookUrl: parsed.data.slackWebhookUrl || null,
       defaultPaymentTerms: parsed.data.defaultPaymentTerms,
+      timesheetApproval: parsed.data.timesheetApproval,
       brandColor: parsed.data.brandColor || null,
     },
   });

@@ -1,4 +1,5 @@
 import "server-only";
+import { invoiceableTimeWhere } from "@/lib/services/timesheets";
 import {
   dueDateFor,
   resolvePaymentTerms,
@@ -159,6 +160,10 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
   const client = await prisma.client.findUnique({ where: { id: input.clientId } });
   if (!client || client.orgId !== ctx.orgId) throw new InvoiceError("Client not found.");
 
+  const approval = await prisma.organization.findUniqueOrThrow({
+    where: { id: ctx.orgId },
+    select: { timesheetApproval: true },
+  });
   const entries = await prisma.timeEntry.findMany({
     where: {
       id: { in: input.timeEntryIds },
@@ -166,6 +171,7 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       billable: true,
       invoiceLineItemId: null,
       project: { clientId: client.id, ...projectVisibilityWhere(ctx.actorId, ctx.role) },
+      AND: [invoiceableTimeWhere(ctx.orgId, approval.timesheetApproval)],
     },
     include: { project: true, user: true },
   });

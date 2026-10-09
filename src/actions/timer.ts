@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
 import { startTimer, stopActiveTimer, discardActiveTimer, TimerError } from "@/lib/services/timer";
 import type { TimerContext } from "@/lib/services/timer";
+import { TimeEntryError } from "@/lib/services/time-entries";
 
 async function buildContext(): Promise<TimerContext> {
   const { org, user, role } = await requireOrgContext();
@@ -29,18 +30,24 @@ export async function startTimerAction(
   try {
     await startTimer(ctx, { projectId, taskId, description, billable }, today);
   } catch (err) {
-    if (err instanceof TimerError) return { error: err.message };
+    if (err instanceof TimerError || err instanceof TimeEntryError) return { error: err.message };
     throw err;
   }
   revalidatePath("/", "layout");
   return null;
 }
 
-export async function stopTimerAction(today: string) {
+export async function stopTimerAction(today: string): Promise<TimerActionState> {
   const ctx = await buildContext();
-  await stopActiveTimer(ctx, today);
+  try {
+    await stopActiveTimer(ctx, today);
+  } catch (err) {
+    if (err instanceof TimeEntryError) return { error: err.message };
+    throw err;
+  }
   revalidatePath("/", "layout");
   revalidatePath("/time");
+  return null;
 }
 
 export async function discardTimerAction() {

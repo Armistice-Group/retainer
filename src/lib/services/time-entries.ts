@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
 import { checkBudgets } from "@/lib/services/budget-alerts";
+import { assertWeekEditable, TimesheetError } from "@/lib/services/timesheets";
 import { canViewProject } from "@/lib/project-access";
 import type { Role } from "@/generated/prisma/client";
 
@@ -51,6 +52,20 @@ export function timeEntryWhere(params: {
     : { orgId, userId: actorId, date: { gte: weekStart, lt: weekEnd } };
 }
 
+/** assertWeekEditable, reported as a TimeEntryError. */
+async function assertWeekOpen(
+  ctx: TimeEntryContext,
+  userId: string,
+  date: Date
+): Promise<Date | null> {
+  try {
+    return await assertWeekEditable(ctx, userId, date);
+  } catch (err) {
+    if (err instanceof TimesheetError) throw new TimeEntryError(err.message);
+    throw err;
+  }
+}
+
 async function assertTask(taskId: string | null | undefined, projectId: string) {
   if (!taskId) return;
   const task = await prisma.task.findUnique({ where: { id: taskId } });
@@ -69,8 +84,11 @@ export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInp
   const manage = canManageTeam(ctx.role);
   const targetUserId = manage && input.userId ? input.userId : ctx.actorId;
 
+  const approvedAt = await assertWeekOpen(ctx, targetUserId, new Date(input.date));
+
   const entry = await prisma.timeEntry.create({
     data: {
+      approvedAt,
       orgId: ctx.orgId,
       projectId: input.projectId,
       userId: targetUserId,
@@ -119,6 +137,8 @@ export async function updateTimeEntry(
   await assertTask(input.taskId, input.projectId);
 
   const targetUserId = manage && input.userId ? input.userId : existing.userId;
+  await assertWeekOpen(ctx, existing.userId, existing.date);
+  const approvedAt = await assertWeekOpen(ctx, targetUserId, new Date(input.date));
 
   const updated = await prisma.timeEntry.update({
     where: { id: timeEntryId },
@@ -131,6 +151,7 @@ export async function updateTimeEntry(
       description: input.description || null,
       billable: input.billable,
       rateOverride: manage ? (input.rateOverride ?? null) : existing.rateOverride,
+      approvedAt,
     },
   });
   // Moving an entry changes the old project/task's totals as well.
@@ -151,6 +172,7 @@ export async function deleteTimeEntry(ctx: TimeEntryContext, timeEntryId: string
     throw new TimeEntryError("This entry has already been invoiced and can't be deleted.");
   }
 
+  await assertWeekOpen(ctx, existing.userId, existing.date);
   await prisma.timeEntry.delete({ where: { id: timeEntryId } });
   await checkBudgets(existing.projectId, [existing.taskId]);
 }

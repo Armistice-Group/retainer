@@ -139,7 +139,11 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
   const [timerError, setTimerError] = useState<string | null>(null);
 
   function stopTimer() {
-    startTransition(() => stopTimerAction(toISODate(new Date())));
+    setTimerError(null);
+    startTransition(async () => {
+      const result = await stopTimerAction(toISODate(new Date()));
+      if (result?.error) setTimerError(result.error);
+    });
   }
 
   function startTimer() {

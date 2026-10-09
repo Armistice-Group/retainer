@@ -3,6 +3,13 @@
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
@@ -17,6 +24,7 @@ type Org = {
   defaultPaymentTerms: string;
   overheadPercent: string;
   expenseApprovalThreshold: string;
+  timesheetApproval: string;
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
@@ -122,6 +130,27 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
           <p className="text-xs text-muted-foreground">
             A team member&apos;s logged expense above this amount needs admin approval before it
             can be invoiced. Admins&apos; own expenses are always auto-approved.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="timesheetApproval">Timesheet approval</Label>
+          <Select
+            name="timesheetApproval"
+            defaultValue={org.timesheetApproval}
+            disabled={readOnly}
+          >
+            <SelectTrigger id="timesheetApproval" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="OFF">Off</SelectItem>
+              <SelectItem value="CONTRACTORS">Contractors</SelectItem>
+              <SelectItem value="EVERYONE">Everyone except admins</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            People covered submit each week from Time; an admin approves it before that time
+            can be invoiced.
           </p>
         </div>
         <div className="flex flex-col gap-2">

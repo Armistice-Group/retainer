@@ -38,3 +38,21 @@ An organization can set an overhead percentage (Settings → General, default
 0%). It's applied to the billed rate on hourly invoice line items at
 generation time — baked directly into the rate shown on the invoice, not
 broken out as a separate line.
+
+## Timesheet approval
+
+Under **Settings → General → Timesheet approval**, an organization can require
+people to submit their time each week before it's invoiced — for
+**Contractors** only, or **Everyone except admins**. It's off by default.
+
+- On **Time**, people it covers see the week's status and a **Submit week**
+  button. A submitted week is locked; **Recall** takes it back to edit.
+- Owners and admins review under **Time → Approvals**: **Approve**, or
+  **Request changes** with a note the person sees.
+- Only approved time (plus time from people approval doesn't cover) shows up
+  when generating invoices, manually or on a billing cycle. New invoice notes
+  how many hours are still waiting.
+- Admins can still edit time in an approved week; sending an approved week back
+  reopens it (time already invoiced stays invoiced).
+
+Over MCP: `submit_timesheet`, `list_pending_timesheets`, `review_timesheet`.

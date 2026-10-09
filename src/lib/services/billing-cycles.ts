@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/format";
 import { nextRunDate } from "@/lib/billing-interval";
 import { notify, getOrgAdminUserIds } from "@/lib/notifications";
 import { postToSlack } from "@/lib/slack";
+import { invoiceableTimeWhere } from "@/lib/services/timesheets";
 import { generateInvoice, notifyInvoiceStatusChange } from "@/lib/services/invoices";
 import type { ClientBillingCycle, PaymentTerms } from "@/generated/prisma/client";
 
@@ -31,6 +32,11 @@ async function billClient(cycle: ClientBillingCycle, cutoff: Date, now: Date) {
   const cutoffDay = new Date(Date.UTC(cutoff.getFullYear(), cutoff.getMonth(), cutoff.getDate()));
   const projectScope = { clientId: cycle.clientId, orgId: cycle.orgId };
 
+  const { timesheetApproval } = await prisma.organization.findUniqueOrThrow({
+    where: { id: cycle.orgId },
+    select: { timesheetApproval: true },
+  });
+
   const [entries, milestones, expenses] = await Promise.all([
     prisma.timeEntry.findMany({
       where: {
@@ -39,6 +45,8 @@ async function billClient(cycle: ClientBillingCycle, cutoff: Date, now: Date) {
         invoiceLineItemId: null,
         date: { lt: cutoffDay },
         project: projectScope,
+        // Unapproved weeks wait for the next run.
+        AND: [invoiceableTimeWhere(cycle.orgId, timesheetApproval)],
       },
       select: { id: true },
     }),

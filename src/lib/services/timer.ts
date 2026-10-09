@@ -26,18 +26,21 @@ export async function stopActiveTimer(ctx: TimerContext, today: string) {
 
   const hours = hoursBetween(existing.startedAt, new Date());
 
+  // Log first, so a refusal (say, the week's timesheet is locked) leaves the
+  // timer running instead of losing the time.
+  const entry =
+    hours < 0.01
+      ? null
+      : await createTimeEntry(ctx, {
+          projectId: existing.projectId,
+          taskId: existing.taskId,
+          date: today,
+          hours,
+          description: existing.description,
+          billable: existing.billable,
+        });
   await prisma.activeTimer.delete({ where: { id: existing.id } });
-
-  if (hours < 0.01) return null;
-
-  return createTimeEntry(ctx, {
-    projectId: existing.projectId,
-    taskId: existing.taskId,
-    date: today,
-    hours,
-    description: existing.description,
-    billable: existing.billable,
-  });
+  return entry;
 }
 
 export async function discardActiveTimer(ctx: TimerContext) {

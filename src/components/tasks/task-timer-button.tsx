@@ -27,8 +27,9 @@ export function TaskTimerButton({
     startTransition(async () => {
       const today = toISODate(new Date());
       if (running) {
-        await stopTimerAction(today);
-        toast.success("Timer stopped.");
+        const result = await stopTimerAction(today);
+        if (result?.error) toast.error(result.error);
+        else toast.success("Timer stopped.");
         return;
       }
       const result = await startTimerAction(projectId, taskId, null, true, today);

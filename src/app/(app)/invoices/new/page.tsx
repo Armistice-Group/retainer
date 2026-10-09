@@ -8,6 +8,7 @@ import { FileText } from "lucide-react";
 import { ClientPicker } from "./client-picker";
 import { InvoiceEntrySelector } from "./invoice-entry-selector";
 import { toISODate } from "@/lib/date";
+import { invoiceableTimeWhere } from "@/lib/services/timesheets";
 import type { PaymentTerms } from "@/generated/prisma/client";
 
 export default async function NewInvoicePage({
@@ -35,6 +36,7 @@ export default async function NewInvoicePage({
           billable: true,
           invoiceLineItemId: null,
           project: { clientId, ...projectVisibilityWhere(user.id, role) },
+          AND: [invoiceableTimeWhere(org.id, org.timesheetApproval)],
         },
         include: { project: true, user: true },
         orderBy: { date: "asc" },
@@ -115,7 +117,23 @@ export default async function NewInvoicePage({
         if (p.paymentTerms) projectTerms[p.id] = p.paymentTerms;
       }
 
-      eligibleSection =
+      // Billable time held back until its week's timesheet is approved.
+      const awaitingApproval =
+        org.timesheetApproval === "OFF"
+          ? null
+          : await prisma.timeEntry.aggregate({
+              where: {
+                orgId: org.id,
+                billable: true,
+                invoiceLineItemId: null,
+                project: { clientId, ...projectVisibilityWhere(user.id, role) },
+                NOT: invoiceableTimeWhere(org.id, org.timesheetApproval),
+              },
+              _sum: { hours: true },
+            });
+      const heldHours = Number(awaitingApproval?._sum.hours ?? 0);
+
+      const selection =
         eligible.length === 0 && milestones.length === 0 && expenses.length === 0 ? (
           <EmptyState
             icon={FileText}
@@ -135,6 +153,18 @@ export default async function NewInvoicePage({
             projectTerms={projectTerms}
           />
         );
+
+      eligibleSection = (
+        <>
+          {heldHours > 0 ? (
+            <p className="mb-4 rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
+              {heldHours.toFixed(2)}h of billable time for this client isn&apos;t shown — it&apos;s
+              waiting on timesheet approval (Time → Approvals).
+            </p>
+          ) : null}
+          {selection}
+        </>
+      );
     }
   }
 

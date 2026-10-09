@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { startTimerAction, stopTimerAction, discardTimerAction } from "@/actions/timer";
 import { toISODate } from "@/lib/date";
 
@@ -80,7 +81,12 @@ function RunningTimer({ timer }: { timer: ActiveTimerData }) {
       <Button
         size="sm"
         disabled={isPending}
-        onClick={() => startTransition(() => stopTimerAction(toISODate(new Date())))}
+        onClick={() =>
+          startTransition(async () => {
+            const result = await stopTimerAction(toISODate(new Date()));
+            if (result?.error) toast.error(result.error);
+          })
+        }
       >
         <Square className="size-3 fill-current" /> Stop
       </Button>

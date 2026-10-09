@@ -16,6 +16,12 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { checkBudgets } from "@/lib/services/budget-alerts";
+import {
+  pendingTimesheets,
+  reviewTimesheet,
+  submitTimesheet,
+  TimesheetError,
+} from "@/lib/services/timesheets";
 import { startTimer, stopActiveTimer, TimerError } from "@/lib/services/timer";
 import { toISODate } from "@/lib/date";
 import {
@@ -536,7 +542,9 @@ const handler = createMcpHandler(
           );
           return text(timer);
         } catch (err) {
-          if (err instanceof TimerError) return errorResult(err.message);
+          if (err instanceof TimerError || err instanceof TimeEntryError) {
+            return errorResult(err.message);
+          }
           throw err;
         }
       }
@@ -553,8 +561,63 @@ const handler = createMcpHandler(
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
-        const entry = await stopActiveTimer(timeEntryContext(ctx), args.date ?? toISODate(new Date()));
-        return text(entry);
+        try {
+          const entry = await stopActiveTimer(
+            timeEntryContext(ctx),
+            args.date ?? toISODate(new Date())
+          );
+          return text(entry);
+        } catch (err) {
+          if (err instanceof TimeEntryError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "submit_timesheet",
+      "Submit the authenticated user's week of time for approval (when the organization requires it). Any date in the week works.",
+      { week: z.string().describe("ISO date in the week, e.g. 2026-10-05") },
+      async ({ week }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          return text(await submitTimesheet(ctx, week));
+        } catch (err) {
+          if (err instanceof TimesheetError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "list_pending_timesheets",
+      "Owner/admin only: submitted timesheets waiting for review, with their entries.",
+      {},
+      async (_args, extra) => {
+        const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can review timesheets.");
+        }
+        return text(await pendingTimesheets(ctx.orgId));
+      }
+    );
+
+    server.tool(
+      "review_timesheet",
+      "Owner/admin only: approve a submitted timesheet (its time becomes invoiceable) or send it back with a note saying what to change.",
+      {
+        timesheetId: z.string(),
+        approve: z.boolean(),
+        note: z.string().max(2000).optional().describe("Required when sending back"),
+      },
+      async ({ timesheetId, approve, note }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          return text(await reviewTimesheet(ctx, timesheetId, { approve, note }));
+        } catch (err) {
+          if (err instanceof TimesheetError) return errorResult(err.message);
+          throw err;
+        }
       }
     );
 

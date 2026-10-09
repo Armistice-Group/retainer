@@ -30,6 +30,7 @@ export const AUDITED_MODELS = [
   "Task",
   "TaskComment",
   "TimeEntry",
+  "Timesheet",
   "Expense",
   "Invoice",
   "RecurringInvoiceSchedule",
@@ -46,6 +47,7 @@ const IGNORED_FIELDS = new Set([
   "setupCardDismissedAt",
   "budgetAlertLevel",
   "overEstimateAlertedAt",
+  "approvedAt",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;

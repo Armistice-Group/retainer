@@ -64,6 +64,7 @@ export const orgGeneralSchema = z.object({
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   defaultPaymentTerms: z.enum(defaultTermsValues).default("NET30"),
+  timesheetApproval: z.enum(["OFF", "CONTRACTORS", "EVERYONE"]).optional(),
   brandColor: z
     .string()
     .trim()

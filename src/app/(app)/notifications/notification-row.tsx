@@ -15,6 +15,7 @@ import {
   MessageSquare,
   AtSign,
   Gauge,
+  CalendarCheck,
 } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 import { markNotificationReadAction } from "@/actions/notifications";
@@ -33,6 +34,8 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   TASK_COMMENTED: MessageSquare,
   TASK_MENTIONED: AtSign,
   BUDGET_ALERT: Gauge,
+  TIMESHEET_SUBMITTED: CalendarCheck,
+  TIMESHEET_REVIEWED: CalendarCheck,
 };
 
 export function NotificationRow({
