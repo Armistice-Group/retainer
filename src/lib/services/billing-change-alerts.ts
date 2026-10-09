@@ -107,6 +107,14 @@ export async function alertOnBillingChange(entry: {
             if (SENSITIVE.has(field) || entry.model === "PaymentMethod") {
               return `${humanize(field)} updated`;
             }
+            if (field === "excludedOrgPaymentMethodIds") {
+              return "which organization payment methods are offered changed";
+            }
+            if (field === "useOrgPaymentMethods") {
+              return c.to === true
+                ? "now also offered the organization's payment methods"
+                : "no longer offered the organization's payment methods";
+            }
             const fmt = (v: unknown) =>
               /paymentTerms$/i.test(field) && typeof v === "string" ? paymentTermsLabel(v) : show(v);
             return `${humanize(field)}: ${fmt(c.from)} → ${fmt(c.to)}`;
