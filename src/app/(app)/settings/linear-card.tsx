@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectLinearAction } from "@/actions/integrations";
+import { CopyButton } from "@/components/copy-button";
 
 export function LinearCard({
   connected,
@@ -14,6 +15,7 @@ export function LinearCard({
   configured,
   credentials,
   canWrite = true,
+  webhook,
 }: {
   connected: boolean;
   workspaceName: string | null;
@@ -24,6 +26,8 @@ export function LinearCard({
   credentials: React.ReactNode;
   /** False for connections made before write access was requested. */
   canWrite?: boolean;
+  /** Live updates via Linear webhooks. */
+  webhook: { url: string; secretSet: boolean; lastEventAt: Date | null };
 }) {
   return (
     <Card>
@@ -98,8 +102,42 @@ export function LinearCard({
             </Button>
           )}
         </div>
+        {connected ? <LiveUpdates webhook={webhook} /> : null}
         {credentials}
       </CardContent>
     </Card>
+  );
+}
+
+function LiveUpdates({
+  webhook,
+}: {
+  webhook: { url: string; secretSet: boolean; lastEventAt: Date | null };
+}) {
+  const live = webhook.secretSet && webhook.lastEventAt;
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-4 text-sm">
+      <div className="flex items-center gap-2">
+        <p className="font-medium">Live updates</p>
+        {live ? (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CheckCircle2 className="size-3.5 text-chart-3" />
+            Last event {webhook.lastEventAt!.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+          </span>
+        ) : null}
+      </div>
+      <p className="text-muted-foreground">
+        Linked projects sync with Linear every hour, including comments. For changes to show
+        up right away, turn on webhooks in your Linear OAuth app for <strong>Issues</strong>{" "}
+        and <strong>Comments</strong>{" "}with this URL, then save the app&apos;s signing secret
+        below{webhook.secretSet ? " (saved)" : ""}.
+      </p>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-xs">
+          {webhook.url}
+        </code>
+        <CopyButton value={webhook.url} label="Copy" />
+      </div>
+    </div>
   );
 }

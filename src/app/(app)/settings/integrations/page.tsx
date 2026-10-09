@@ -7,7 +7,7 @@ import { IntegrationCredentials } from "../integration-credentials";
 import { canWrite, isLinearConfigured } from "@/lib/integrations/linear";
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks";
 import { isEmailConfigured } from "@/lib/email";
-import { describeIntegration } from "@/lib/instance-config";
+import { describeIntegration, getConfig } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
 
 export default async function IntegrationsPage({
@@ -66,6 +66,11 @@ export default async function IntegrationsPage({
         callbackStatus={linear}
         configured={linearConfigured}
         canWrite={linearConnection ? canWrite(linearConnection) : true}
+        webhook={{
+          url: `${origin}/api/webhooks/linear`,
+          secretSet: !!(await getConfig("LINEAR_WEBHOOK_SECRET")),
+          lastEventAt: linearConnection?.lastWebhookAt ?? null,
+        }}
         credentials={
           <IntegrationCredentials
             integration="linear"

@@ -31,6 +31,8 @@ export type TaskDetail = {
     authorName: string | null;
     createdAt: string;
     linearUrl: string | null;
+    /** Pulled in from the Linear issue rather than written here. */
+    fromLinear: boolean;
     canDelete: boolean;
   }[];
 };
@@ -89,9 +91,10 @@ export async function getTaskDetail(
     comments: task.comments.map((c) => ({
       id: c.id,
       body: c.body,
-      authorName: c.author?.name ?? null,
+      authorName: c.author?.name ?? c.externalAuthor,
       createdAt: c.createdAt.toISOString(),
       linearUrl: c.externalUrl,
+      fromLinear: c.source === "linear",
       canDelete: canModerate || c.authorId === viewer.userId,
     })),
   };

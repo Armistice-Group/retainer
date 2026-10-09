@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   exchangeCodeForToken,
-  fetchWorkspaceName,
+  fetchWorkspace,
   tokenColumns,
   verifyOAuthState,
 } from "@/lib/integrations/linear";
@@ -36,17 +36,25 @@ export async function GET(req: Request) {
   try {
     const redirectUri = `${origin}/api/integrations/linear/callback`;
     const tokens = await exchangeCodeForToken(code, redirectUri);
-    const workspaceName = await fetchWorkspaceName(tokens.accessToken);
+    const workspace = await fetchWorkspace(tokens.accessToken);
+    const workspaceName = workspace.name;
+    const linearOrgId = workspace.id;
 
     await prisma.linearConnection.upsert({
       where: { orgId: verified.orgId },
       create: {
         orgId: verified.orgId,
         workspaceName,
+        linearOrgId,
         ...tokenColumns(tokens),
         connectedById: session.user.id,
       },
-      update: { workspaceName, ...tokenColumns(tokens), connectedById: session.user.id },
+      update: {
+        workspaceName,
+        linearOrgId,
+        ...tokenColumns(tokens),
+        connectedById: session.user.id,
+      },
     });
   } catch {
     return settingsUrl("error");

@@ -92,15 +92,15 @@ enum Plan {
 }
 
 model Organization {
-  id                         String  @id @default(cuid())
+  id                         String       @id @default(cuid())
   name                       String
-  slug                       String  @unique
-  domain                     String? @unique
-  autoJoinDomain             Boolean @default(true)
-  invoicePrefix              String  @default("INV")
-  nextInvoiceNumber          Int     @default(1)
-  defaultCurrency            String  @default("USD")
-  defaultTaxRate             Decimal @default(0) @db.Decimal(5, 2)
+  slug                       String       @unique
+  domain                     String?      @unique
+  autoJoinDomain             Boolean      @default(true)
+  invoicePrefix              String       @default("INV")
+  nextInvoiceNumber          Int          @default(1)
+  defaultCurrency            String       @default("USD")
+  defaultTaxRate             Decimal      @default(0) @db.Decimal(5, 2)
   // Starting payment terms for new invoices, unless the client or project
   // sets its own.
   defaultPaymentTerms        PaymentTerms @default(NET30)
@@ -108,7 +108,7 @@ model Organization {
   // time — a straight multiplier baked into the rate shown on the invoice,
   // never broken out as its own line. Distinct from defaultTaxRate, which
   // is a visible, itemized "Tax" line.
-  overheadPercent            Decimal @default(0) @db.Decimal(5, 2)
+  overheadPercent            Decimal      @default(0) @db.Decimal(5, 2)
   externalBillingUrl         String?
   externalBillingLabel       String?
   // Free text, not a structured payment-method schema — orgs accept wildly
@@ -116,11 +116,11 @@ model Organization {
   // mailing address for checks), so a single configurable block that gets
   // printed verbatim on every invoice PDF is more useful than a rigid set of
   // fields most orgs would only partially fill in.
-  paymentInstructions        String? @db.Text
+  paymentInstructions        String?      @db.Text
   // When true, paymentInstructions is withheld from the plain PDF (which can
   // be forwarded/leaked anywhere) and only shown on the authenticated client
   // share portal — for orgs whose instructions include bank/ACH details.
-  paymentInstructionsPrivate Boolean @default(false)
+  paymentInstructionsPrivate Boolean      @default(false)
   slackWebhookUrl            String?
   logoUrl                    String?
   logoData                   Bytes?
@@ -129,8 +129,8 @@ model Organization {
   // Optional in-app branding: show the org's logo/name in the sidebar and on
   // the login page instead of Consultainer's, and/or use brandColor as the
   // UI accent. Off by default; invoices use the logo/color regardless.
-  appBranding                Boolean @default(false)
-  appAccentFromBrand         Boolean @default(false)
+  appBranding                Boolean      @default(false)
+  appAccentFromBrand         Boolean      @default(false)
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses
@@ -262,7 +262,7 @@ model Invite {
 }
 
 model Client {
-  id                         String       @id @default(cuid())
+  id                         String        @id @default(cuid())
   name                       String
   website                    String?
   description                String?
@@ -276,15 +276,15 @@ model Client {
   // "use the org default" — an empty override isn't representable on
   // purpose, since "this client has no payment instructions at all" isn't a
   // real state anyone wants; they'd just fall back to the org default.
-  paymentInstructions        String?      @db.Text
+  paymentInstructions        String?       @db.Text
   paymentInstructionsPrivate Boolean?
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
   paymentTerms               PaymentTerms?
-  status                     ClientStatus @default(ACTIVE)
-  shareToken                 String?      @unique
-  createdAt                  DateTime     @default(now())
-  updatedAt                  DateTime     @updatedAt
+  status                     ClientStatus  @default(ACTIVE)
+  shareToken                 String?       @unique
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -486,12 +486,18 @@ model Task {
 // the task is linked to a Linear issue the author can also post the comment
 // there; externalId/externalUrl then point at the Linear comment.
 model TaskComment {
-  id          String   @id @default(cuid())
-  body        String
-  externalId  String?
-  externalUrl String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  body           String
+  // "app" for comments written here, "linear" for ones pulled in from the
+  // task's Linear issue (which have no author here, only externalAuthor).
+  source         String   @default("app")
+  // The Linear comment: the copy we posted, or the one we pulled in.
+  externalId     String?  @unique
+  externalUrl    String?
+  // Who wrote a pulled-in comment, as Linear names them.
+  externalAuthor String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -918,6 +924,11 @@ model LinearConnection {
   refreshToken         String?
   accessTokenExpiresAt DateTime?
   scope                String?
+  // Linear's organization id — webhooks carry it, so it's how an incoming
+  // event finds this connection. Filled in on first use for older rows.
+  linearOrgId          String?
+  // Last webhook delivery accepted for this connection, shown in settings.
+  lastWebhookAt        DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -926,6 +937,8 @@ model LinearConnection {
 
   connectedById String?
   connectedBy   User?   @relation(fields: [connectedById], references: [id], onDelete: SetNull)
+
+  @@index([linearOrgId])
 }
 
 model ExternalProjectLink {

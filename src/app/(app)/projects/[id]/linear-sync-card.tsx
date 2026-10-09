@@ -54,11 +54,12 @@ export function LinearSyncCard({
       if (res.error || !res.result) {
         setSyncError(res.error);
       } else {
-        const { created, updated, skipped, pushed, pushFailed, pushError } = res.result;
+        const { created, updated, skipped, comments, pushed, pushFailed, pushError } = res.result;
         setStale(res.result.stale);
         setResult(
           `${created} new, ${updated} updated` +
             (skipped ? `, ${skipped} skipped (already in another project)` : "") +
+            (comments ? `, ${comments} comment${comments === 1 ? "" : "s"} pulled in` : "") +
             (pushed ? `, ${pushed} sent to Linear` : "") +
             ".",
         );

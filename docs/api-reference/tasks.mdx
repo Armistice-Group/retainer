@@ -55,7 +55,9 @@ GET /api/v1/tasks/{id}/comments
 
 Comments are internal: they never appear on client share links. Each comment
 has `id`, `body`, `createdAt`, `author` (`{ id, name }`, or `null` if the author
-has left), and `linearUrl` when it was also posted to the task's Linear issue.
+has left or isn't a member), `authorName`, `source` (`app`, or `linear` for
+comments pulled in from the task's Linear issue), and `linearUrl` when the
+comment is on the Linear issue too.
 
 ## Comment on a task
 

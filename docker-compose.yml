@@ -81,6 +81,7 @@ services:
         i=0
         while true; do
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/mercury-sync || true
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/linear-sync || true
           if [ $$((i % 24)) -eq 0 ]; then
             curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/recurring-invoices || true
           fi

@@ -34,7 +34,9 @@ function serialize(comment: {
   id: string;
   body: string;
   createdAt: Date;
+  source: string;
   externalUrl: string | null;
+  externalAuthor: string | null;
   author: { id: string; name: string } | null;
 }) {
   return {
@@ -42,6 +44,10 @@ function serialize(comment: {
     body: comment.body,
     createdAt: comment.createdAt.toISOString(),
     author: comment.author,
+    // "app" (written here) or "linear" (pulled in from the Linear issue,
+    // with the Linear user's name in authorName even when author is null).
+    source: comment.source,
+    authorName: comment.author?.name ?? comment.externalAuthor,
     linearUrl: comment.externalUrl,
   };
 }

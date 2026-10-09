@@ -307,7 +307,8 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-muted-foreground hover:underline"
                       >
-                        Posted to Linear <ExternalLink className="size-3" />
+                        {comment.fromLinear ? "From Linear" : "Posted to Linear"}{" "}
+                        <ExternalLink className="size-3" />
                       </a>
                     ) : null}
                     {comment.canDelete ? (

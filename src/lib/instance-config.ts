@@ -10,6 +10,11 @@ export const INTEGRATION_FIELDS = {
   linear: [
     { key: "LINEAR_CLIENT_ID", label: "Client ID", secret: false },
     { key: "LINEAR_CLIENT_SECRET", label: "Client secret", secret: true },
+    {
+      key: "LINEAR_WEBHOOK_SECRET",
+      label: "Webhook signing secret (optional, for live updates)",
+      secret: true,
+    },
   ],
   quickbooks: [
     { key: "QUICKBOOKS_CLIENT_ID", label: "Client ID", secret: false },

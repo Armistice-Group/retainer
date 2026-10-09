@@ -22,7 +22,26 @@ say — each narrowed by its own Linear project or labels. If an issue matches
 more than one, it stays with the project that pulled it in first.
 
 **Sync now** pulls matching issues in as tasks and updates ones already
-pulled in (title, description, status, assignee — matched by email).
+pulled in (title, description, status, assignee — matched by email). It also
+pulls in comments from those issues, and sends open tasks that don't have an
+issue yet. Linked projects also sync on their own every hour.
+
+## Live updates (webhooks)
+
+To see Linear changes right away instead of on the next sync, turn on
+webhooks in your Linear OAuth app:
+
+1. In Linear, open the OAuth app (**Settings → API → OAuth applications**) and
+   enable **Webhooks** with the URL shown under **Live updates** in
+   Consultainer's Linear settings (`https://your-instance/api/webhooks/linear`).
+2. Subscribe to **Issues** and **Comments**.
+3. Copy the app's **webhook signing secret** into the Linear credentials in
+   Consultainer (**Webhook signing secret**).
+
+New and edited issues then update tasks within seconds, and Linear comments
+appear on the task — labelled **From Linear**, notifying the assignee.
+Deliveries are verified against the signing secret and rejected if older than
+a minute.
 
 ## Sending changes to Linear
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getConfig, getConfigs, type ConfigKey } from "@/lib/instance-config";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
@@ -160,18 +161,19 @@ async function graphql<T>(accessToken: string, query: string, variables?: Record
   return json.data;
 }
 
-export async function fetchWorkspaceName(accessToken: string) {
-  const data = await graphql<{ organization: { name: string } }>(
+export async function fetchWorkspace(accessToken: string) {
+  const data = await graphql<{ organization: { id: string; name: string } }>(
     accessToken,
     `
       query {
         organization {
+          id
           name
         }
       }
     `,
   );
-  return data.organization.name;
+  return data.organization;
 }
 
 export type LinearTeamOption = { id: string; name: string; key: string };
@@ -255,6 +257,162 @@ const TASK_STATE_MAP: Record<string, "TODO" | "IN_PROGRESS" | "DONE"> = {
   completed: "DONE",
   canceled: "DONE",
 };
+
+/** An issue with what's needed to tell which project links it falls under. */
+export type LinearIssueWithScope = LinearIssue & {
+  team: { id: string };
+  project: { id: string } | null;
+  labels: { nodes: { id: string }[] };
+};
+
+/** One issue by id, or null when it's gone or out of this token's reach. */
+export async function fetchIssue(accessToken: string, issueId: string) {
+  try {
+    const data = await graphql<{ issue: LinearIssueWithScope | null }>(
+      accessToken,
+      `
+        query Issue($id: String!) {
+          issue(id: $id) {
+            id
+            identifier
+            title
+            description
+            url
+            updatedAt
+            state {
+              name
+              type
+            }
+            assignee {
+              email
+            }
+            team {
+              id
+            }
+            project {
+              id
+            }
+            labels {
+              nodes {
+                id
+              }
+            }
+          }
+        }
+      `,
+      { id: issueId },
+    );
+    return data.issue;
+  } catch (err) {
+    if (err instanceof LinearError && /not found|entity/i.test(err.message)) return null;
+    throw err;
+  }
+}
+
+export type LinearComment = {
+  id: string;
+  body: string;
+  url: string;
+  createdAt: string;
+  issue: { id: string } | null;
+  user: { name: string; email: string | null } | null;
+  // Set on comments posted by an integration rather than a person.
+  botActor: { name: string | null } | null;
+};
+
+const COMMENT_FIELDS = `
+  id
+  body
+  url
+  createdAt
+  issue {
+    id
+  }
+  user {
+    name
+    email
+  }
+  botActor {
+    name
+  }
+`;
+
+const MAX_COMMENTS = 2000;
+
+/** Comments on a team's issues changed since `since` (all of them when
+ * null), oldest first, up to MAX_COMMENTS. */
+export async function listTeamCommentsSince(
+  accessToken: string,
+  teamId: string,
+  since: Date | null,
+) {
+  const filter: Record<string, unknown> = { issue: { team: { id: { eq: teamId } } } };
+  if (since) filter.updatedAt = { gt: since.toISOString() };
+
+  const comments: LinearComment[] = [];
+  let after: string | null = null;
+  do {
+    const data: {
+      comments: {
+        nodes: LinearComment[];
+        pageInfo: { hasNextPage: boolean; endCursor: string | null };
+      };
+    } = await graphql(
+      accessToken,
+      `
+        query TeamComments($filter: CommentFilter, $after: String) {
+          comments(first: 100, after: $after, filter: $filter, orderBy: createdAt) {
+            nodes {
+              ${COMMENT_FIELDS}
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      `,
+      { filter, after },
+    );
+    comments.push(...data.comments.nodes);
+    after = data.comments.pageInfo.hasNextPage ? data.comments.pageInfo.endCursor : null;
+  } while (after && comments.length < MAX_COMMENTS);
+  return comments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function fetchComment(accessToken: string, commentId: string) {
+  try {
+    const data = await graphql<{ comment: LinearComment | null }>(
+      accessToken,
+      `
+        query Comment($id: String!) {
+          comment(id: $id) {
+            ${COMMENT_FIELDS}
+          }
+        }
+      `,
+      { id: commentId },
+    );
+    return data.comment;
+  } catch (err) {
+    if (err instanceof LinearError && /not found|entity/i.test(err.message)) return null;
+    throw err;
+  }
+}
+
+/** Checks a webhook delivery's Linear-Signature header (hex HMAC-SHA256 of
+ * the raw body under the app's signing secret). */
+export function verifyWebhookSignature(rawBody: string, signature: string | null, secret: string) {
+  if (!signature) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest();
+  let given: Buffer;
+  try {
+    given = Buffer.from(signature, "hex");
+  } catch {
+    return false;
+  }
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
 
 export function mapLinearStateType(stateType: string) {
   return TASK_STATE_MAP[stateType] ?? "TODO";
