@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { Link2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -36,17 +36,14 @@ export function EmailInvoiceDialog({
   emailConfigured: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction] = useActionState<ActionState, FormData>(
-    emailInvoiceAction.bind(null, invoiceId),
-    null
-  );
-
-  useEffect(() => {
-    if (state?.saved) {
+  const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
+    const result = await emailInvoiceAction(invoiceId, prev, formData);
+    if (result?.saved) {
       setOpen(false);
       toast.success(`Invoice ${invoiceNumber} emailed.`);
     }
-  }, [state, invoiceNumber]);
+    return result;
+  }, null);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
