@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { signOutAction } from "@/actions/session";
+import { APP_VERSION_LABEL, APP_VERSION_TITLE } from "@/lib/app-version";
 
 function initials(name: string) {
   return name
@@ -21,10 +22,6 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-// Stamped into the image at build time (see Dockerfile / docker.yml), so it's
-// obvious which build a server is actually running.
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "dev";
-const APP_REVISION = (process.env.NEXT_PUBLIC_APP_REVISION || "").slice(0, 7);
 
 export function UserMenu({ name, email }: { name: string; email: string }) {
   return (
@@ -59,10 +56,10 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
             </DropdownMenuItem>
           </button>
         </form>
-        <DropdownMenuSeparator />
-        <p className="px-2 py-1 text-xs text-muted-foreground">
-          Consultainer {APP_VERSION}
-          {APP_REVISION ? ` (${APP_REVISION})` : ""}
+        {/* The sidebar shows this on wider screens. */}
+        <DropdownMenuSeparator className="md:hidden" />
+        <p className="px-2 py-1 text-xs text-muted-foreground md:hidden" title={APP_VERSION_TITLE}>
+          Consultainer {APP_VERSION_LABEL}
         </p>
       </DropdownMenuContent>
     </DropdownMenu>

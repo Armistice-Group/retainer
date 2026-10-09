@@ -12,6 +12,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { TimerWidget, type ActiveTimerData } from "@/components/layout/timer-widget";
+import { APP_VERSION_LABEL, APP_VERSION_TITLE } from "@/lib/app-version";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, org, role, memberships } = await requireOrgContext();
@@ -62,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen w-full">
       {org.appAccentFromBrand ? <BrandAccentStyle color={org.brandColor} /> : null}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
         <div className="flex h-14 items-center border-b border-sidebar-border px-4">
           <Link href="/dashboard" className="min-w-0 text-base">
             {org.appBranding ? <OrgBrand name={org.name} logoUrl={orgLogoUrl(org)} /> : <Wordmark />}
@@ -74,6 +75,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex-1 overflow-y-auto py-3">
           <SidebarNav />
         </div>
+        <p
+          className="px-4 py-3 text-xs text-muted-foreground tabular-figures"
+          title={APP_VERSION_TITLE}
+        >
+          {APP_VERSION_LABEL}
+        </p>
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">

@@ -63,6 +63,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.ref_name == 'main' && 'main' || 'dev' }}
+            APP_BUILD=${{ github.run_number }}
             APP_REVISION=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
