@@ -60,6 +60,7 @@ const IGNORED_FIELDS = new Set([
   "lastViewedAt",
   "viewCount",
   "viewAlertedAt",
+  "lastDigestAt",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;

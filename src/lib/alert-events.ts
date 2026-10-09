@@ -30,6 +30,11 @@ export const ALERT_EVENTS = {
     hint: null,
     defaults: { email: false, slack: true },
   },
+  WEEKLY_DIGEST: {
+    label: "Weekly digest (Mondays)",
+    hint: "Last week's hours, invoicing and payments, overdue invoices, projects near budget.",
+    defaults: { email: true, slack: false },
+  },
   TIMESHEET_SUBMITTED: {
     label: "A timesheet is submitted for approval",
     hint: null,

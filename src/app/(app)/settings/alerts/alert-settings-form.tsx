@@ -78,7 +78,19 @@ export function AlertSettingsForm({
                 {events.map((e) => (
                   <tr key={e.event}>
                     <td className="py-2.5 pr-3">
-                      <p>{e.label}</p>
+                      <p>
+                        {e.label}
+                        {e.event === "WEEKLY_DIGEST" ? (
+                          <a
+                            href="/settings/alerts/digest-preview"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ml-2 text-xs text-brand hover:underline"
+                          >
+                            Preview
+                          </a>
+                        ) : null}
+                      </p>
                       {e.hint ? <p className="text-xs text-muted-foreground">{e.hint}</p> : null}
                     </td>
                     <td className="text-center">

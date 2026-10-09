@@ -10,7 +10,7 @@ import type { NotificationType } from "@/generated/prisma/client";
 
 /** Who alert emails go to: the org's list when it has one, otherwise its
  * owners. */
-async function alertRecipients(orgId: string, configured: string[]) {
+export async function alertRecipients(orgId: string, configured: string[]) {
   if (configured.length) return configured;
   const owners = await prisma.membership.findMany({
     where: { orgId, role: "OWNER" },
@@ -101,5 +101,7 @@ function headlineFor(event: AlertEvent) {
       return "Budget alert";
     case "TIMESHEET_SUBMITTED":
       return "Timesheet submitted";
+    case "WEEKLY_DIGEST":
+      return "Weekly digest";
   }
 }

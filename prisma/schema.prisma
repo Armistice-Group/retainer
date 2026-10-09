@@ -136,6 +136,8 @@ model Organization {
   // Days overdue at which clients get an emailed reminder, e.g. [3, 7, 14];
   // empty turns reminders off.
   overdueReminderDays        Int[]                 @default([])
+  // When the last weekly digest went out, so each week gets one.
+  lastDigestAt               DateTime?
   // Where alert emails go; empty means the org's owners.
   alertEmails                String[]              @default([])
   logoUrl                    String?
