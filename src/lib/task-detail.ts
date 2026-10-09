@@ -17,6 +17,8 @@ export type TaskDetail = {
   linearKey: string | null;
   linearUrl: string | null;
   canPostToLinear: boolean;
+  /** The viewer's timer is running on this task. */
+  timerRunning: boolean;
   timeEntries: {
     id: string;
     userName: string;
@@ -80,6 +82,9 @@ export async function getTaskDetail(
     linearKey: task.externalLink?.source === "linear" ? task.externalLink.externalKey : null,
     linearUrl: task.externalLink?.source === "linear" ? task.externalLink.externalUrl : null,
     canPostToLinear: await canPushCommentsToLinear(task.id),
+    timerRunning:
+      (await prisma.activeTimer.findUnique({ where: { userId: viewer.userId } }))?.taskId ===
+      task.id,
     timeEntries: task.timeEntries.map((e) => ({
       id: e.id,
       userName: e.user.name,

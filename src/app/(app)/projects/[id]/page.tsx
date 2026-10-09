@@ -79,6 +79,7 @@ export default async function ProjectDetailPage({
     orgMembers,
     projectLineItems,
     openTaskDetail,
+    activeTimer,
   ] = await Promise.all([
     prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
     prisma.timeEntry.groupBy({
@@ -96,6 +97,7 @@ export default async function ProjectDetailPage({
     openTaskId && project.tasks.some((t) => t.id === openTaskId)
       ? getTaskDetail(openTaskId, { orgId: org.id, userId: user.id, role })
       : null,
+    prisma.activeTimer.findUnique({ where: { userId: user.id }, select: { taskId: true } }),
   ]);
 
   const invoiceMap = new Map<string, ProjectInvoiceItem>();
@@ -330,6 +332,7 @@ export default async function ProjectDetailPage({
                   tasks={taskItems}
                   members={projectMemberOptions}
                   openTaskDetail={openTaskDetail}
+                  runningTaskId={activeTimer?.taskId ?? null}
                 />
               )}
             </CardContent>

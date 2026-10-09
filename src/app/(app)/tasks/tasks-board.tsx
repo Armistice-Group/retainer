@@ -5,6 +5,7 @@ import { ChevronDown, MessageSquare, UserRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
+import { TaskTimerButton } from "@/components/tasks/task-timer-button";
 import type { TaskDetail } from "@/lib/task-detail";
 
 export type TaskGroup = {
@@ -26,9 +27,12 @@ export type TaskGroup = {
 export function TasksBoard({
   groups,
   openTaskDetail,
+  runningTaskId,
 }: {
   groups: TaskGroup[];
   openTaskDetail: TaskDetail | null;
+  /** Task the viewer's timer is running on, if any. */
+  runningTaskId: string | null;
 }) {
   const { openTaskId, openTask, closeTask } = useOpenTask();
   const openTitle = groups.flatMap((g) => g.tasks).find((t) => t.id === openTaskId)?.title;
@@ -57,12 +61,12 @@ export function TasksBoard({
               </summary>
               <ul className="flex flex-col divide-y divide-border border-t border-border">
                 {group.tasks.map((task) => (
-                  <li key={task.id}>
+                  <li key={task.id} className="flex items-center pr-2">
                     <button
                       type="button"
                       onClick={() => openTask(task.id)}
                       aria-current={task.id === openTaskId ? "true" : undefined}
-                      className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent/50 aria-[current]:bg-accent/60 sm:flex-nowrap"
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-left text-sm transition-colors hover:bg-accent/50 aria-[current]:bg-accent/60 sm:flex-nowrap"
                     >
                       <span className="w-24 shrink-0">
                         <StatusBadge status={task.status} />
@@ -90,6 +94,11 @@ export function TasksBoard({
                         <span className="truncate">{task.assigneeName ?? "Unassigned"}</span>
                       </span>
                     </button>
+                    <TaskTimerButton
+                      taskId={task.id}
+                      projectId={group.projectId}
+                      running={task.id === runningTaskId}
+                    />
                   </li>
                 ))}
               </ul>

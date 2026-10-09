@@ -14,6 +14,7 @@ import { updateTaskStatusAction, assignTaskAction, deleteTaskAction } from "@/ac
 import { EditTaskDialog } from "@/components/tasks/edit-task-dialog";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
 import { LinearKeyBadge } from "@/components/tasks/linear-key-badge";
+import { TaskTimerButton } from "@/components/tasks/task-timer-button";
 import type { TaskDetail } from "@/lib/task-detail";
 
 const STATUS_ORDER = ["TODO", "IN_PROGRESS", "DONE"] as const;
@@ -36,12 +37,15 @@ export function TaskList({
   tasks,
   members,
   openTaskDetail,
+  runningTaskId,
 }: {
   projectId: string;
   tasks: TaskItem[];
   members: { id: string; name: string }[];
   /** Details of the task in `?task=`, loaded by the page. */
   openTaskDetail: TaskDetail | null;
+  /** Task the viewer's timer is running on, if any. */
+  runningTaskId: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
   const { openTaskId, openTask, closeTask } = useOpenTask();
@@ -86,6 +90,11 @@ export function TaskList({
                 {task.title}
               </button>
               <div className="-my-1 flex shrink-0 items-center">
+                <TaskTimerButton
+                  taskId={task.id}
+                  projectId={projectId}
+                  running={task.id === runningTaskId}
+                />
                 <EditTaskDialog projectId={projectId} task={task} />
                 <form action={deleteTaskAction.bind(null, task.id, projectId)}>
                   <Button

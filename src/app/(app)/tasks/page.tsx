@@ -43,7 +43,7 @@ export default async function TasksPage({
     ...(statuses ? { status: { in: statuses } } : {}),
   };
 
-  const [tasks, projects, openTaskDetail] = await Promise.all([
+  const [tasks, projects, openTaskDetail, activeTimer] = await Promise.all([
     prisma.task.findMany({
       where,
       include: {
@@ -63,6 +63,7 @@ export default async function TasksPage({
       orderBy: [{ client: { name: "asc" } }, { name: "asc" }],
     }),
     params.task ? getTaskDetail(params.task, { orgId: org.id, userId: user.id, role }) : null,
+    prisma.activeTimer.findUnique({ where: { userId: user.id }, select: { taskId: true } }),
   ]);
 
   const hours = tasks.length
@@ -174,7 +175,11 @@ export default async function TasksPage({
         </Card>
       ) : null}
 
-      <TasksBoard groups={groups} openTaskDetail={openTaskDetail} />
+      <TasksBoard
+        groups={groups}
+        openTaskDetail={openTaskDetail}
+        runningTaskId={activeTimer?.taskId ?? null}
+      />
     </div>
   );
 }

@@ -15,6 +15,8 @@ import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import { startTimer, stopActiveTimer, TimerError } from "@/lib/services/timer";
+import { toISODate } from "@/lib/date";
 import {
   addTaskComment,
   deleteTaskComment,
@@ -459,6 +461,81 @@ const handler = createMcpHandler(
           if (err instanceof TimeEntryError) return errorResult(err.message);
           throw err;
         }
+      }
+    );
+
+    server.tool(
+      "get_active_timer",
+      "The authenticated user's running timer (project, task, start time, elapsed hours), or null.",
+      {},
+      async (_args, extra) => {
+        const ctx = ctxFrom(extra);
+        const timer = await prisma.activeTimer.findUnique({
+          where: { userId: ctx.actorId },
+          include: {
+            project: { select: { id: true, name: true } },
+            task: { select: { id: true, title: true } },
+          },
+        });
+        if (!timer || timer.orgId !== ctx.orgId) return text(null);
+        const elapsedHours =
+          Math.round(((Date.now() - timer.startedAt.getTime()) / 3_600_000) * 100) / 100;
+        return text({ ...timer, elapsedHours });
+      }
+    );
+
+    server.tool(
+      "start_timer",
+      "Start a timer for the authenticated user on a task (its project is used) or a project. A timer already running is stopped and logged first.",
+      {
+        taskId: z.string().optional(),
+        projectId: z.string().optional().describe("Required when no taskId is given"),
+        description: z.string().optional(),
+        billable: z.boolean().default(true),
+        date: z
+          .string()
+          .optional()
+          .describe("ISO date to log a stopped timer under; defaults to today (server time)"),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        let projectId = args.projectId;
+        if (args.taskId) {
+          const task = await prisma.task.findUnique({
+            where: { id: args.taskId },
+            include: { project: { select: { orgId: true } } },
+          });
+          if (!task || task.project.orgId !== ctx.orgId) return errorResult("Task not found.");
+          projectId = task.projectId;
+        }
+        if (!projectId) return errorResult("Give a taskId or a projectId.");
+        try {
+          const timer = await startTimer(
+            timeEntryContext(ctx),
+            { projectId, taskId: args.taskId, description: args.description, billable: args.billable },
+            args.date ?? toISODate(new Date())
+          );
+          return text(timer);
+        } catch (err) {
+          if (err instanceof TimerError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "stop_timer",
+      "Stop the authenticated user's running timer and log it as a time entry. Returns the entry, or null when nothing was running (or under 36 seconds had passed).",
+      {
+        date: z
+          .string()
+          .optional()
+          .describe("ISO date to log the entry under; defaults to today (server time)"),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        const entry = await stopActiveTimer(timeEntryContext(ctx), args.date ?? toISODate(new Date()));
+        return text(entry);
       }
     );
 

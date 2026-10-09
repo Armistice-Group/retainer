@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { ExternalLink, Loader2, MessageSquare, Play, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, Play, Plus, Square, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ import {
   deleteTaskCommentAction,
   updateTaskStatusAction,
 } from "@/actions/tasks";
-import { startTimerAction } from "@/actions/timer";
+import { startTimerAction, stopTimerAction } from "@/actions/timer";
 import { formatDate } from "@/lib/format";
 import { toISODate } from "@/lib/date";
 import type { TaskDetail } from "@/lib/task-detail";
@@ -126,6 +126,10 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
   const projectId = task.project.id;
   const [isPending, startTransition] = useTransition();
   const [timerError, setTimerError] = useState<string | null>(null);
+
+  function stopTimer() {
+    startTransition(() => stopTimerAction(toISODate(new Date())));
+  }
 
   function startTimer() {
     setTimerError(null);
@@ -235,8 +239,21 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
               Time
             </h3>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={startTimer} disabled={isPending}>
-                <Play className="size-3.5" /> Start timer
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={task.timerRunning ? stopTimer : startTimer}
+                disabled={isPending}
+              >
+                {task.timerRunning ? (
+                  <>
+                    <Square className="size-3.5 fill-current" /> Stop timer
+                  </>
+                ) : (
+                  <>
+                    <Play className="size-3.5" /> Start timer
+                  </>
+                )}
               </Button>
               <TimeEntryDialog
                 projects={[
