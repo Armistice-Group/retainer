@@ -60,7 +60,8 @@
               "api-reference/projects",
               "api-reference/tasks",
               "api-reference/time-entries",
-              "api-reference/invoices"
+              "api-reference/invoices",
+              "api-reference/audit-log"
             ]
           }
         ]

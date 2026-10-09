@@ -101,6 +101,8 @@ function headlineFor(event: AlertEvent) {
       return "Budget alert";
     case "TIMESHEET_SUBMITTED":
       return "Timesheet submitted";
+    case "SECURITY_ALERT":
+      return "Security alert";
     case "WEEKLY_DIGEST":
       return "Weekly digest";
   }

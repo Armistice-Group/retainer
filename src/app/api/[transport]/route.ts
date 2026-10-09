@@ -16,6 +16,7 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { checkBudgets } from "@/lib/services/budget-alerts";
+import { describeAudit, findAuditEntries, parseAuditFilters } from "@/lib/audit-query";
 import {
   defaultInvoiceRecipients,
   emailInvoice,
@@ -624,6 +625,44 @@ const handler = createMcpHandler(
           if (err instanceof TimesheetError) return errorResult(err.message);
           throw err;
         }
+      }
+    );
+
+    server.tool(
+      "list_audit_log",
+      "Owner/admin only: who changed what in the organization, newest first. Filter by actor (user id, or 'system'), entity type (e.g. Invoice, Task, PaymentMethod), action (create, update, delete, sign_in, view, download, export), and date range.",
+      {
+        actor: z.string().optional(),
+        type: z.string().optional(),
+        action: z.string().optional(),
+        from: z.string().optional().describe("yyyy-mm-dd, inclusive"),
+        to: z.string().optional().describe("yyyy-mm-dd, inclusive"),
+        limit: z.number().int().min(1).max(200).default(50),
+        page: z.number().int().min(0).default(0),
+      },
+      async ({ limit, page, ...filters }, extra) => {
+        const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can read the audit log.");
+        }
+        const rows = await findAuditEntries(ctx.orgId, parseAuditFilters(filters), {
+          skip: page * limit,
+          take: limit + 1,
+        });
+        return text({
+          entries: rows.slice(0, limit).map((e) => ({
+            at: e.createdAt,
+            actor: e.actor?.name ?? (e.via === "system" ? "System" : null),
+            via: e.via,
+            summary: describeAudit(e),
+            entityType: e.entityType,
+            entityId: e.entityId,
+            entityLabel: e.entityLabel,
+            changes: e.changes,
+            ipAddress: e.ipAddress,
+          })),
+          nextPage: rows.length > limit ? page + 1 : null,
+        });
       }
     );
 

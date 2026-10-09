@@ -322,7 +322,17 @@ export async function auditedQuery(base: PrismaClient, params: QueryParams) {
         },
       });
 
-      // Billing and payment detail changes also alert the org.
+      // Access changes and billing/payment detail changes also alert the org.
+      const { alertOnSecurityEvent } = await import("@/lib/services/security-alerts");
+      await alertOnSecurityEvent({
+        orgId,
+        actorId: actor?.userId ?? null,
+        model,
+        action,
+        row: row ?? before,
+        changes: (changes ?? null) as Record<string, unknown> | null,
+        count,
+      });
       const { alertOnBillingChange } = await import("@/lib/services/billing-change-alerts");
       await alertOnBillingChange({
         orgId,

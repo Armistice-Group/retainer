@@ -10,6 +10,11 @@ export const ALERT_EVENTS = {
     hint: "Payment methods and instructions, billing contacts, terms, rates, billing cycles.",
     defaults: { email: true, slack: true },
   },
+  SECURITY_ALERT: {
+    label: "Access or security settings change",
+    hint: "Roles, members removed, invites, API keys, SSO, sign-in rules, two-factor turned off, many deletions at once.",
+    defaults: { email: true, slack: true },
+  },
   INVOICE_SENT: {
     label: "An invoice is sent",
     hint: null,

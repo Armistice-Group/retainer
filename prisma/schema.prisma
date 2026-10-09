@@ -87,6 +87,7 @@ enum NotificationType {
   TIMESHEET_REVIEWED
   INVOICE_VIEWED
   BILLING_CHANGED
+  SECURITY_ALERT
 }
 
 enum Plan {

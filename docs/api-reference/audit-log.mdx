@@ -1,0 +1,37 @@
+---
+title: Audit log
+description: Read who changed what in your organization
+---
+
+## List audit log entries
+
+```
+GET /api/v1/audit-log
+```
+
+Owner and admin API keys only. Newest first.
+
+<ParamField query="actor" type="string">
+  A user ID, or `system` for scheduled jobs and webhooks.
+</ParamField>
+<ParamField query="type" type="string">
+  Record type, e.g. `Invoice`, `Task`, `PaymentMethod`, `Membership`.
+</ParamField>
+<ParamField query="action" type="string">
+  `create`, `update`, `delete`, `sign_in`, `view`, `download`, or `export`.
+</ParamField>
+<ParamField query="from" type="string">`YYYY-MM-DD`, inclusive.</ParamField>
+<ParamField query="to" type="string">`YYYY-MM-DD`, inclusive.</ParamField>
+<ParamField query="limit" type="number" default="50">Up to 200.</ParamField>
+<ParamField query="page" type="number" default="0" />
+
+Each entry has `at`, `actor` (`{ id, name, email }` or `null`), `via` (`web`,
+`api`, or `system`), `action`, `summary`, `entityType`, `entityId`,
+`entityLabel`, `count` (bulk changes), `changes` (`{ field: value }` on create,
+`{ field: { from, to } }` on update; secrets show as `[redacted]`), `ipAddress`
+and `userAgent`. `nextPage` is the next page number, or `null`.
+
+```bash
+curl "https://consultainer.app/api/v1/audit-log?type=PaymentMethod&from=2026-10-01" \
+  -H "Authorization: Bearer ch_live_..."
+```
