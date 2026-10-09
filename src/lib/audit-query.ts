@@ -16,7 +16,7 @@ export type AuditFilters = {
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const ACTIONS = new Set(["create", "update", "delete", "sign_in"]);
+const ACTIONS = new Set(["create", "update", "delete", "sign_in", "view", "download", "export"]);
 
 export function parseAuditFilters(params: Record<string, string | undefined>): AuditFilters {
   return {
@@ -71,6 +71,8 @@ const VERBS: Record<string, string> = {
   delete: "deleted",
   sign_in: "signed in",
   export: "exported",
+  view: "viewed",
+  download: "downloaded",
 };
 
 export function describeAudit(entry: {

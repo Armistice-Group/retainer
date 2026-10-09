@@ -23,8 +23,17 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { uploadClientDocumentAction } from "@/actions/client-documents";
 import type { ActionState } from "@/actions/auth";
+import { DocumentAccessFields, type DocumentMember } from "./document-access-fields";
 
-export function AddDocumentDialog({ clientId }: { clientId: string }) {
+export function AddDocumentDialog({
+  clientId,
+  members,
+  viewerId,
+}: {
+  clientId: string;
+  members: DocumentMember[];
+  viewerId: string;
+}) {
   const [open, setOpen] = useState(false);
   const action = uploadClientDocumentAction.bind(null, clientId);
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(action, null);
@@ -84,6 +93,7 @@ export function AddDocumentDialog({ clientId }: { clientId: string }) {
             />
             <p className="text-xs text-muted-foreground">PNG, JPEG, WebP, or PDF, up to 5MB.</p>
           </div>
+          <DocumentAccessFields members={members} viewerId={viewerId} idPrefix="new-doc" />
           <SubmitButton pendingText="Uploading...">Add document</SubmitButton>
         </form>
       </DialogContent>

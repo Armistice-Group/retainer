@@ -111,6 +111,8 @@ export default async function AuditLogPage({
                 <option value="update">Updated</option>
                 <option value="delete">Deleted</option>
                 <option value="sign_in">Signed in</option>
+                <option value="view">Viewed a document</option>
+                <option value="download">Downloaded a document</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">

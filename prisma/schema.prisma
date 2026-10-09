@@ -331,14 +331,24 @@ model Client {
   @@index([orgId])
 }
 
+enum DocumentAccess {
+  EVERYONE
+  ADMINS
+  SELECTED
+}
+
 model ClientDocument {
-  id          String             @id @default(cuid())
-  type        ClientDocumentType @default(OTHER)
-  label       String?
-  fileName    String
-  fileData    Bytes
-  contentType String
-  uploadedAt  DateTime           @default(now())
+  id             String             @id @default(cuid())
+  type           ClientDocumentType @default(OTHER)
+  label          String?
+  // Who can open it besides owners and the uploader: everyone in the org,
+  // owners and admins, or only allowedUserIds (see lib/document-access).
+  access         DocumentAccess     @default(EVERYONE)
+  allowedUserIds String[]           @default([])
+  fileName       String
+  fileData       Bytes
+  contentType    String
+  uploadedAt     DateTime           @default(now())
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)

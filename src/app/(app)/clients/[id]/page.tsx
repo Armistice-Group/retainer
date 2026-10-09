@@ -26,6 +26,7 @@ import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
 import { ClientDocumentsCard } from "./client-documents-card";
+import { canManageDocument, documentVisibilityWhere } from "@/lib/document-access";
 import { ClientShareLinkCard } from "./client-share-link-card";
 import { ClientInvoicesCard } from "./client-invoices-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
@@ -58,7 +59,22 @@ export default async function ClientDetailPage({
       contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       links: { orderBy: { createdAt: "asc" } },
       projects: { where: projectVisibilityWhere(user.id, role), orderBy: { createdAt: "desc" } },
-      documents: { orderBy: { uploadedAt: "desc" } },
+      // Not fileData: the page only lists them.
+      documents: {
+        where: documentVisibilityWhere(user.id, role),
+        orderBy: { uploadedAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          label: true,
+          fileName: true,
+          contentType: true,
+          uploadedAt: true,
+          uploadedById: true,
+          access: true,
+          allowedUserIds: true,
+        },
+      },
       recurringInvoiceSchedules: { orderBy: { createdAt: "asc" } },
       billingCycle: true,
     },
@@ -100,7 +116,17 @@ export default async function ClientDetailPage({
     label: d.label,
     fileName: d.fileName,
     uploadedAt: d.uploadedAt.toISOString(),
+    access: d.access,
+    allowedUserIds: d.allowedUserIds,
+    canManage: canManageDocument(d, user.id, role),
   }));
+  const orgMembers = (
+    await prisma.membership.findMany({
+      where: { orgId: org.id },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { user: { name: "asc" } },
+    })
+  ).map((m) => ({ id: m.user.id, name: m.user.name, role: m.role }));
 
   const recurringScheduleItems = client.recurringInvoiceSchedules.map((s) => ({
     id: s.id,
@@ -385,7 +411,12 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
 
-          <ClientDocumentsCard clientId={client.id} documents={documentItems} />
+          <ClientDocumentsCard
+            clientId={client.id}
+            documents={documentItems}
+            members={orgMembers}
+            viewerId={user.id}
+          />
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
