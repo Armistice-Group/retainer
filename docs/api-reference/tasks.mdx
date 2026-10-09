@@ -66,7 +66,9 @@ POST /api/v1/tasks/{id}/comments
 ```
 
 <ParamField body="body" type="string" required>
-  Up to 5,000 characters. Notifies the task's assignee.
+  Up to 5,000 characters. Notifies the task's assignee and watchers. Mention
+  someone with `@[Name](user:USER_ID)` to notify them directly (and make them a
+  watcher); mentions of people who can't see the project are ignored.
 </ParamField>
 <ParamField body="postToLinear" type="boolean" default="true">
   On a task linked to a Linear issue, also post the comment there. Ignored for

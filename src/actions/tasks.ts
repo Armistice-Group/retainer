@@ -19,6 +19,7 @@ import {
   deleteTaskComment,
   TaskCommentError,
   type TaskCommentContext,
+  setTaskWatching,
 } from "@/lib/services/task-comments";
 
 export async function createTaskAction(
@@ -205,6 +206,13 @@ export async function addTaskCommentAction(
 export async function deleteTaskCommentAction(commentId: string, projectId: string) {
   const { org, user, role } = await requireOrgContext();
   await deleteTaskComment(commentContext(org.id, user, role), commentId);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/tasks");
+}
+
+export async function setTaskWatchingAction(taskId: string, projectId: string, watching: boolean) {
+  const { org, user, role } = await requireOrgContext();
+  await setTaskWatching(commentContext(org.id, user, role), taskId, watching);
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/tasks");
 }

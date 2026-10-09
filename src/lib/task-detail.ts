@@ -2,10 +2,12 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { canViewProject } from "@/lib/project-access";
 import { canPushCommentsToLinear } from "@/lib/services/linear-sync";
+import { mentionableUsers } from "@/lib/services/task-followers";
 import type { Role } from "@/generated/prisma/client";
 
 export type TaskDetail = {
   id: string;
+  viewerId: string;
   title: string;
   description: string | null;
   status: string;
@@ -17,6 +19,10 @@ export type TaskDetail = {
   linearKey: string | null;
   linearUrl: string | null;
   canPostToLinear: boolean;
+  /** People who can be @mentioned here (everyone who can see the project). */
+  mentionable: { id: string; name: string }[];
+  /** The viewer follows this task's comments (assignees always do). */
+  watching: boolean;
   /** The viewer's timer is running on this task. */
   timerRunning: boolean;
   timeEntries: {
@@ -71,6 +77,7 @@ export async function getTaskDetail(
   const canModerate = viewer.role === "OWNER" || viewer.role === "ADMIN";
   return {
     id: task.id,
+    viewerId: viewer.userId,
     title: task.title,
     description: task.description,
     status: task.status,
@@ -82,6 +89,12 @@ export async function getTaskDetail(
     linearKey: task.externalLink?.source === "linear" ? task.externalLink.externalKey : null,
     linearUrl: task.externalLink?.source === "linear" ? task.externalLink.externalUrl : null,
     canPostToLinear: await canPushCommentsToLinear(task.id),
+    mentionable: await mentionableUsers(task.project),
+    watching:
+      task.assigneeId === viewer.userId ||
+      !!(await prisma.taskWatcher.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: viewer.userId } },
+      })),
     timerRunning:
       (await prisma.activeTimer.findUnique({ where: { userId: viewer.userId } }))?.taskId ===
       task.id,

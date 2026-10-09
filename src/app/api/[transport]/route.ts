@@ -21,6 +21,7 @@ import {
   addTaskComment,
   deleteTaskComment,
   listTaskComments,
+  setTaskWatching,
   TaskCommentError,
 } from "@/lib/services/task-comments";
 
@@ -403,8 +404,23 @@ const handler = createMcpHandler(
     );
 
     server.tool(
+      "watch_task",
+      "Follow (watch: true) or stop following (watch: false) a task's comments as the authenticated user.",
+      { taskId: z.string(), watch: z.boolean().default(true) },
+      async ({ taskId, watch }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          return text(await setTaskWatching(ctx, taskId, watch));
+        } catch (err) {
+          if (err instanceof TaskCommentError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
       "add_task_comment",
-      "Add an internal comment to a task (clients never see comments) and notify its assignee. If the task is linked to a Linear issue, the comment is also posted there unless postToLinear is false.",
+      "Add an internal comment to a task (clients never see comments). Notifies the assignee and watchers. Mention someone with @[Name](user:<userId>) (ids from list_members) to notify them directly. If the task is linked to a Linear issue, the comment is also posted there unless postToLinear is false.",
       {
         taskId: z.string(),
         body: z.string().trim().min(1).max(5000),

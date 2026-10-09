@@ -81,6 +81,7 @@ enum NotificationType {
   RECURRING_INVOICE_GENERATED
   INVOICE_OVERDUE
   TASK_COMMENTED
+  TASK_MENTIONED
 }
 
 enum Plan {
@@ -206,6 +207,7 @@ model User {
   expensesSubmitted           Expense[]              @relation("ExpenseSubmittedBy")
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
   taskComments                TaskComment[]
+  watchedTasks                TaskWatcher[]
   activeTimer                 ActiveTimer?
   auditLogs                   AuditLog[]
 
@@ -476,6 +478,7 @@ model Task {
   timeEntries  TimeEntry[]
   externalLink ExternalTaskLink?
   activeTimers ActiveTimer[]
+  watchers     TaskWatcher[]
   comments     TaskComment[]
 
   @@index([projectId])
@@ -506,6 +509,22 @@ model TaskComment {
   author   User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([taskId, createdAt])
+}
+
+// People following a task beyond its assignee: they get its comment
+// notifications. Commenting or being @mentioned adds you; anyone can
+// watch or unwatch from the task sheet.
+model TaskWatcher {
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
 }
 
 enum ProjectMemberApprovalStatus {

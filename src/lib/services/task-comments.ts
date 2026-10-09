@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { canViewProject } from "@/lib/project-access";
-import { notify } from "@/lib/notifications";
+import { notifyTaskComment, setWatching } from "@/lib/services/task-followers";
 import { pushCommentToLinear } from "@/lib/services/linear-sync";
 import type { Role } from "@/generated/prisma/client";
 
@@ -64,7 +64,8 @@ export async function listTaskComments(ctx: TaskCommentContext, taskId: string) 
   return comments.map(serialize);
 }
 
-/** Adds an internal comment and notifies the assignee. With `postToLinear`,
+/** Adds an internal comment and notifies the assignee, watchers and anyone
+ * @mentioned (`@[Name](user:<id>)`). With `postToLinear`,
  * a task mirrored to a Linear issue also gets the comment there (best
  * effort); on unlinked tasks the flag does nothing. */
 export async function addTaskComment(
@@ -79,15 +80,12 @@ export async function addTaskComment(
   });
   if (input.postToLinear) await pushCommentToLinear(created.id);
 
-  if (task.assigneeId && task.assigneeId !== ctx.actorId) {
-    await notify(prisma, {
-      orgId: ctx.orgId,
-      userIds: [task.assigneeId],
-      type: "TASK_COMMENTED",
-      message: `${ctx.actorName ?? "Someone"} commented on "${task.title}".`,
-      link: `/projects/${task.projectId}?task=${taskId}`,
-    });
-  }
+  await notifyTaskComment({
+    taskId,
+    authorId: ctx.actorId,
+    authorName: ctx.actorName ?? "Someone",
+    body: input.body,
+  });
 
   const comment = await prisma.taskComment.findUniqueOrThrow({
     where: { id: created.id },
@@ -113,4 +111,11 @@ export async function deleteTaskComment(ctx: TaskCommentContext, commentId: stri
   }
   await prisma.taskComment.delete({ where: { id: commentId } });
   return { projectId: task.projectId };
+}
+
+/** Follow or unfollow a task's comments. */
+export async function setTaskWatching(ctx: TaskCommentContext, taskId: string, watching: boolean) {
+  const task = await requireTask(ctx, taskId);
+  await setWatching(taskId, ctx.actorId, watching);
+  return { projectId: task.projectId, watching };
 }

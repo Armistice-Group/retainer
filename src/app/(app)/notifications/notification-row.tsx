@@ -13,6 +13,7 @@ import {
   Repeat,
   AlertTriangle,
   MessageSquare,
+  AtSign,
 } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 import { markNotificationReadAction } from "@/actions/notifications";
@@ -29,6 +30,7 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   RECURRING_INVOICE_GENERATED: Repeat,
   INVOICE_OVERDUE: AlertTriangle,
   TASK_COMMENTED: MessageSquare,
+  TASK_MENTIONED: AtSign,
 };
 
 export function NotificationRow({

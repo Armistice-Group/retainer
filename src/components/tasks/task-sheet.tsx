@@ -3,13 +3,23 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { ExternalLink, Loader2, MessageSquare, Play, Plus, Square, Trash2 } from "lucide-react";
+import {
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Loader2,
+  MessageSquare,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+} from "lucide-react";
+import { CommentBody, MentionTextarea } from "@/components/tasks/mention-textarea";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
@@ -25,6 +35,7 @@ import {
   addTaskCommentAction,
   assignTaskAction,
   deleteTaskCommentAction,
+  setTaskWatchingAction,
   updateTaskStatusAction,
 } from "@/actions/tasks";
 import { startTimerAction, stopTimerAction } from "@/actions/timer";
@@ -303,9 +314,35 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Comments
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Comments
+            </h3>
+            {task.assigneeId === task.viewerId ? (
+              <span className="text-xs text-muted-foreground">Notified as assignee</span>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-1.5 text-xs text-muted-foreground"
+                disabled={isPending}
+                onClick={() =>
+                  startTransition(() =>
+                    setTaskWatchingAction(task.id, projectId, !task.watching)
+                  )
+                }
+                aria-pressed={task.watching}
+                title={
+                  task.watching
+                    ? "You're notified of new comments. Click to stop."
+                    : "Get notified of new comments"
+                }
+              >
+                {task.watching ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {task.watching ? "Unwatch" : "Watch"}
+              </Button>
+            )}
+          </div>
           {task.comments.length === 0 ? (
             <p className="text-muted-foreground">
               No comments yet. Comments are internal — clients never see them.
@@ -345,7 +382,9 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                       </form>
                     ) : null}
                   </div>
-                  <p className="leading-relaxed whitespace-pre-wrap">{comment.body}</p>
+                  <p className="leading-relaxed whitespace-pre-wrap">
+                    <CommentBody body={comment.body} viewerId={task.viewerId} />
+                  </p>
                 </li>
               ))}
             </ul>
@@ -385,11 +424,12 @@ function CommentComposer({ task }: { task: TaskDetail }) {
       <Label htmlFor="task-comment" className="sr-only">
         Comment
       </Label>
-      <Textarea
+      <MentionTextarea
+        people={task.mentionable}
         id="task-comment"
         name="body"
         rows={2}
-        placeholder="Add a comment…"
+        placeholder="Add a comment… (@ to mention)"
         required
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {

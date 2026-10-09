@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { notify } from "@/lib/notifications";
+import { notifyTaskComment } from "@/lib/services/task-followers";
+import { mentionsToPlain } from "@/lib/mentions";
 import {
   canWrite,
   createComment,
@@ -242,9 +243,8 @@ export async function pushCommentToLinear(
 
   try {
     const token = await getLinearAccessToken(ctx.connection);
-    const body = comment.author?.name
-      ? `**${comment.author.name}:** ${comment.body}`
-      : comment.body;
+    const text = mentionsToPlain(comment.body);
+    const body = comment.author?.name ? `**${comment.author.name}:** ${text}` : text;
     const created = await createComment(token, issueLink.externalId, body);
     const save = () =>
       prisma.taskComment.update({
@@ -380,19 +380,13 @@ async function importLinearComment(
   }
 
   if (opts.notify) {
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      include: { project: { select: { orgId: true } } },
+    await notifyTaskComment({
+      taskId,
+      authorId,
+      authorName,
+      body: comment.body,
+      where: " in Linear",
     });
-    if (task?.assigneeId && task.assigneeId !== authorId) {
-      await notify(prisma, {
-        orgId: task.project.orgId,
-        userIds: [task.assigneeId],
-        type: "TASK_COMMENTED",
-        message: `${authorName} commented on "${task.title}" in Linear.`,
-        link: `/projects/${task.projectId}?task=${task.id}`,
-      });
-    }
   }
   return true;
 }
