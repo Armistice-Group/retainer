@@ -42,3 +42,27 @@ paid/sent status can be pulled back into Consultainer with a manual sync
 (QuickBooks doesn't push status changes to Consultainer automatically).
 
 See [QuickBooks integration](/integrations/quickbooks) for setup.
+
+## Sending invoices and tracking opens
+
+**Email to client** (on an invoice) emails it to the client's contacts marked
+*receives invoices* (or its billing email), with an optional message. Replies
+go to you. The email links to the invoice's client page, where they can view
+the PDF in the browser, download it, see how to pay, and pay online if Stripe or
+Mercury is connected. Sending a draft marks it sent.
+
+Prefer your own email? **Copy client link** gives you the same tracked link.
+
+Consultainer records when the client opens the email, views the invoice, or
+opens its PDF (including from a client or project share page), and shows it
+under **Activity** on the invoice. The first open — and any open after a day
+has passed — sends an **invoice opened** alert (Settings → Alerts). Opens by
+people in your organization don't count. Email opens are best-effort: some mail
+apps block the tracking image, and some privacy features load it for everyone.
+
+## Overdue reminders
+
+Under **Settings → Payments → Overdue reminders**, list the days overdue at
+which clients get a reminder email (e.g. `3, 7, 14`). Each reminder goes out
+once; turning reminders on doesn't send a backlog for invoices already past
+several thresholds. A client can be opted out on its edit page.

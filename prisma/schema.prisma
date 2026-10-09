@@ -133,6 +133,9 @@ model Organization {
   // Per-alert Slack/email switches (see lib/alert-events.ts); missing keys
   // use each alert's defaults.
   alertSettings              Json                  @default("{}")
+  // Days overdue at which clients get an emailed reminder, e.g. [3, 7, 14];
+  // empty turns reminders off.
+  overdueReminderDays        Int[]                 @default([])
   // Where alert emails go; empty means the org's owners.
   alertEmails                String[]              @default([])
   logoUrl                    String?
@@ -225,6 +228,7 @@ model User {
   watchedTasks                TaskWatcher[]
   activeTimer                 ActiveTimer?
   auditLogs                   AuditLog[]
+  invoiceEvents               InvoiceEvent[]
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
@@ -295,6 +299,8 @@ model Client {
   // real state anyone wants; they'd just fall back to the org default.
   paymentInstructions        String?       @db.Text
   paymentInstructionsPrivate Boolean?
+  // Whether this client gets the org's overdue reminder emails.
+  invoiceReminders           Boolean       @default(true)
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
   paymentTerms               PaymentTerms?
@@ -744,6 +750,15 @@ model Invoice {
   // daily cron ever fires more than once while an invoice is still exactly
   // one day overdue (manual re-trigger, EventBridge retry, etc).
   overdueNotifiedAt       DateTime?
+  // Unguessable token for the client-facing invoice link (/i/<token>),
+  // created the first time the invoice is emailed or its link copied.
+  viewToken               String?       @unique
+  // Client opens of the emailed invoice, its link or its PDF (not ours).
+  firstViewedAt           DateTime?
+  lastViewedAt            DateTime?
+  viewCount               Int           @default(0)
+  // Last "client opened this" alert, so repeat opens alert at most daily.
+  viewAlertedAt           DateTime?
   // Snapshot of the schedule's retainerHours at generation time (not a live
   // lookup) so a client's billed-vs-logged balance stays accurate even if the
   // schedule's hours are edited later. Only set for retainer-generated
@@ -779,6 +794,7 @@ model Invoice {
 
   recurringScheduleId String?
   recurringSchedule   RecurringInvoiceSchedule? @relation(fields: [recurringScheduleId], references: [id], onDelete: SetNull)
+  events              InvoiceEvent[]
 
   @@unique([orgId, number])
   @@index([orgId])
@@ -864,6 +880,35 @@ model ClientBillingCycle {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([nextRunAt])
+}
+
+enum InvoiceEventType {
+  EMAILED
+  REMINDED
+  EMAIL_OPENED
+  VIEWED
+  PDF_VIEWED
+}
+
+// What happened to an invoice on its way to being paid: emails and
+// reminders sent, and the client opening it.
+model InvoiceEvent {
+  id         String           @id @default(cuid())
+  type       InvoiceEventType
+  recipients String[]         @default([])
+  // e.g. the reminder's days-overdue threshold.
+  detail     String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime         @default(now())
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  actorId String?
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId, createdAt])
 }
 
 model InvoiceLineItem {

@@ -33,6 +33,10 @@ import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { MarkPaidDialog } from "./mark-paid-dialog";
 import { SyncQuickBooksStatusButton } from "./sync-quickbooks-status-button";
+import { EmailInvoiceDialog, CopyClientLinkButton } from "./email-invoice-dialog";
+import { InvoiceActivity } from "./invoice-activity";
+import { defaultInvoiceRecipients } from "@/lib/services/invoice-delivery";
+import { isEmailConfigured } from "@/lib/email";
 
 const PAYMENT_TERMS_LABELS: Record<string, string> = {
   DUE_ON_RECEIPT: "Due on receipt",
@@ -62,9 +66,17 @@ export default async function InvoiceDetailPage({
   const isDraft = invoice.status === "DRAFT";
   const canManage = role === "OWNER" || role === "ADMIN";
 
-  const quickBooksConnection = canManage
-    ? await prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } })
-    : null;
+  const [quickBooksConnection, events, recipients, emailConfigured] = await Promise.all([
+    canManage ? prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }) : null,
+    prisma.invoiceEvent.findMany({
+      where: { invoiceId: invoice.id },
+      include: { actor: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    defaultInvoiceRecipients(invoice.clientId),
+    isEmailConfigured(),
+  ]);
 
   return (
     <div>
@@ -78,6 +90,18 @@ export default async function InvoiceDetailPage({
                 <Download className="size-3.5" /> Download PDF
               </a>
             </Button>
+            {canManage && invoice.status !== "VOID" ? (
+              <EmailInvoiceDialog
+                invoiceId={invoice.id}
+                invoiceNumber={invoice.number}
+                recipients={recipients}
+                isDraft={isDraft}
+                emailConfigured={emailConfigured}
+              />
+            ) : null}
+            {!isDraft && invoice.status !== "VOID" ? (
+              <CopyClientLinkButton invoiceId={invoice.id} />
+            ) : null}
             {isDraft ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
             {invoice.status === "SENT" ? (
               <>
@@ -317,6 +341,20 @@ export default async function InvoiceDetailPage({
               </CardContent>
             </Card>
           )}
+
+          <Card className="mt-4 gap-0 overflow-hidden p-0">
+            <details className="group">
+              <summary className="cursor-pointer px-6 py-4 text-base font-medium select-none">
+                Preview PDF
+              </summary>
+              <iframe
+                src={`/invoices/${invoice.id}/pdf`}
+                title={`Invoice ${invoice.number} PDF`}
+                loading="lazy"
+                className="h-[75vh] min-h-[480px] w-full border-t border-border bg-muted"
+              />
+            </details>
+          </Card>
         </div>
 
         <div>
@@ -351,6 +389,18 @@ export default async function InvoiceDetailPage({
               </Link>
             </CardContent>
           </Card>
+
+          <InvoiceActivity
+            viewCount={invoice.viewCount}
+            events={events.map((e) => ({
+              id: e.id,
+              type: e.type,
+              recipients: e.recipients,
+              detail: e.detail,
+              actorName: e.actor?.name ?? null,
+              createdAt: e.createdAt,
+            }))}
+          />
 
           {quickBooksConnection ? (
             <Card className="mt-4">

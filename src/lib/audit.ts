@@ -55,6 +55,11 @@ const IGNORED_FIELDS = new Set([
   "lastRunAt",
   "lastInvoiceId",
   "lastRunNote",
+  "viewToken",
+  "firstViewedAt",
+  "lastViewedAt",
+  "viewCount",
+  "viewAlertedAt",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;

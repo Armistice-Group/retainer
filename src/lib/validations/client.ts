@@ -11,6 +11,7 @@ export const clientSchema = z.object({
   billingEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
   billingAddress: z.string().trim().max(500).optional().or(z.literal("")),
   paymentTerms: defaultPaymentTermsSchema,
+  invoiceReminders: z.boolean().default(true),
   status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
 });
 

@@ -18,6 +18,11 @@ import {
   QuickBooksError,
 } from "@/lib/services/quickbooks-sync";
 import type { ActionState } from "@/actions/auth";
+import {
+  emailInvoice,
+  invoiceLinks,
+  InvoiceDeliveryError,
+} from "@/lib/services/invoice-delivery";
 
 export async function generateInvoiceAction(
   _prevState: ActionState,
@@ -302,4 +307,60 @@ export async function syncQuickBooksStatusAction(
 
   revalidatePath(`/invoices/${invoiceId}`);
   return null;
+}
+
+export async function emailInvoiceAction(
+  invoiceId: string,
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, user, role } = await requireOrgContext();
+  if (role !== "OWNER" && role !== "ADMIN") return { error: "Only owners and admins can send invoices." };
+  const to = [
+    ...formData.getAll("to").map(String),
+    ...String(formData.get("extra") ?? "").split(/[\s,;]+/),
+  ].filter(Boolean);
+  try {
+    await emailInvoice({ orgId: org.id, actorId: user.id }, invoiceId, {
+      to,
+      message: (formData.get("message") as string | null) ?? null,
+    });
+  } catch (err) {
+    if (err instanceof InvoiceDeliveryError) return { error: err.message };
+    throw err;
+  }
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+  return { saved: true };
+}
+
+/** The client-facing link for a sent invoice, for sharing by hand. */
+export async function invoiceClientLinkAction(invoiceId: string): Promise<{ url?: string; error?: string }> {
+  const { org } = await requireOrgContext();
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
+  if (invoice.status === "DRAFT") return { error: "Send the invoice first." };
+  const { viewUrl } = await invoiceLinks(invoiceId);
+  return { url: viewUrl };
+}
+
+export async function saveReminderSettingsAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+  const parts = String(formData.get("reminderDays") ?? "")
+    .split(/[\s,;]+/)
+    .filter(Boolean);
+  const days = parts.map(Number);
+  if (days.some((d) => !Number.isInteger(d) || d < 1 || d > 365) || days.length > 10) {
+    return { fieldErrors: { reminderDays: ["Use up to 10 whole numbers of days, 1–365."] } };
+  }
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { overdueReminderDays: [...new Set(days)].sort((a, b) => a - b) },
+  });
+  revalidatePath("/settings/payments");
+  return { saved: true };
 }

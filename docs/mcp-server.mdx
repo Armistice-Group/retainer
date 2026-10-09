@@ -100,6 +100,8 @@ authentication.
 | `reject_expense` | Reject a pending expense. Owner/admin only. |
 | `list_invoices` | List invoices in the organization, optionally by status. Includes isOverdue/daysOverdue per invoice. |
 | `generate_invoice` | Generate a draft invoice from unbilled time, milestones, and/or expenses. Owner/admin only. |
+| `email_invoice` | Email an invoice to the client with a tracked link to view and pay it. |
+| `get_invoice_activity` | When an invoice was emailed, reminded, and opened, plus its client link. |
 | `mark_invoice_sent` | Mark a draft invoice as sent. |
 | `mark_invoice_paid` | Mark an invoice as paid, optionally with a payment method. |
 | `void_invoice` | Void an invoice. |

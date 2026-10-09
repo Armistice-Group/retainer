@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { FormSection, Field, FormActions } from "@/components/forms/form-section";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,6 +28,7 @@ type ClientFormValues = {
   billingEmail: string | null;
   billingAddress: string | null;
   paymentTerms: string | null;
+  invoiceReminders: boolean;
   status: "ACTIVE" | "INACTIVE";
 };
 
@@ -136,6 +139,17 @@ export function ClientForm({
             inheritLabel={`Organization default (${orgPaymentTerms})`}
           />
         </Field>
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="invoiceReminders"
+            name="invoiceReminders"
+            className="mt-0.5"
+            defaultChecked={initialValues?.invoiceReminders ?? true}
+          />
+          <Label htmlFor="invoiceReminders" className="text-sm font-normal">
+            Email overdue reminders (on the schedule in Settings → Payments)
+          </Label>
+        </div>
       </FormSection>
 
       <FormActions cancelHref={cancelHref}>

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
+import { recordInvoiceView } from "@/lib/services/invoice-delivery";
 import { getShareTokenInvoiceIfAuthorized } from "@/lib/services/project-share";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ token: string; invoiceId: string }> }
 ) {
   const { token, invoiceId } = await params;
@@ -12,6 +13,8 @@ export async function GET(
   if (!invoice) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
   }
+
+  await recordInvoiceView(invoice.id, "PDF_VIEWED", req);
 
   const pdfBuffer = await renderInvoicePdf(invoice);
 

@@ -17,6 +17,12 @@ import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import {
+  defaultInvoiceRecipients,
+  emailInvoice,
+  invoiceLinks,
+  InvoiceDeliveryError,
+} from "@/lib/services/invoice-delivery";
+import {
   pendingTimesheets,
   reviewTimesheet,
   submitTimesheet,
@@ -1013,6 +1019,62 @@ const handler = createMcpHandler(
           if (err instanceof InvoiceError) return errorResult(err.message);
           throw err;
         }
+      }
+    );
+
+    server.tool(
+      "email_invoice",
+      "Owner/admin only: email an invoice to the client with a link to view and pay it (opens are tracked and alert the org). A draft is marked sent. Recipients default to the client's invoice contacts, else its billing email.",
+      {
+        invoiceId: z.string(),
+        to: z.array(z.string().email()).max(20).optional(),
+        message: z.string().max(2000).optional(),
+      },
+      async ({ invoiceId, to, message }, extra) => {
+        const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can send invoices.");
+        }
+        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        try {
+          const recipients = to?.length ? to : await defaultInvoiceRecipients(invoice.clientId);
+          return text(
+            await emailInvoice({ orgId: ctx.orgId, actorId: ctx.actorId }, invoiceId, {
+              to: recipients,
+              message,
+            })
+          );
+        } catch (err) {
+          if (err instanceof InvoiceDeliveryError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "get_invoice_activity",
+      "When an invoice was emailed, reminded, and opened by the client, plus its client-facing link (sent invoices only).",
+      { invoiceId: z.string() },
+      async ({ invoiceId }, extra) => {
+        const ctx = ctxFrom(extra);
+        const invoice = await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          include: { events: { orderBy: { createdAt: "desc" }, take: 50 } },
+        });
+        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        return text({
+          clientLink: invoice.status === "DRAFT" ? null : (await invoiceLinks(invoice.id)).viewUrl,
+          firstViewedAt: invoice.firstViewedAt,
+          lastViewedAt: invoice.lastViewedAt,
+          viewCount: invoice.viewCount,
+          events: invoice.events.map((e) => ({
+            type: e.type,
+            recipients: e.recipients,
+            detail: e.detail,
+            at: e.createdAt,
+          })),
+        });
       }
     );
 

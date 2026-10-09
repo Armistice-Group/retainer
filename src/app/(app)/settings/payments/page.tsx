@@ -10,6 +10,8 @@ import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { describeIntegration } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
+import { isEmailConfigured } from "@/lib/email";
+import { RemindersCard } from "./reminders-card";
 
 export default async function PaymentsPage({
   searchParams,
@@ -110,6 +112,12 @@ export default async function PaymentsPage({
           connectStatus={connect}
         />
       ) : null}
+
+      <RemindersCard
+        days={org.overdueReminderDays}
+        readOnly={readOnly}
+        emailConfigured={await isEmailConfigured()}
+      />
 
       <MercuryConnectCard
         connected={!!mercuryConnection}
