@@ -4,6 +4,24 @@ import { QuickBooksCard } from "../quickbooks-card";
 import { LinearCard } from "../linear-card";
 import { FilesIntegrationsCard, type FileServiceSetup } from "../files-integrations-card";
 import { FilingCard } from "../filing-card";
+import { StorageCard } from "../storage-card";
+import { objectStorage } from "@/lib/object-storage";
+
+async function storageStatus() {
+  const store = await objectStorage();
+  if (!store) return { mode: "database" as const, bucket: null, reachable: true, error: null };
+  try {
+    await store.check();
+    return { mode: "object" as const, bucket: process.env.S3_BUCKET ?? null, reachable: true, error: null };
+  } catch (err) {
+    return {
+      mode: "object" as const,
+      bucket: process.env.S3_BUCKET ?? null,
+      reachable: false,
+      error: err instanceof Error ? err.name || err.message : null,
+    };
+  }
+}
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { EmailCard } from "../email-card";
 import { IntegrationCredentials } from "../integration-credentials";
@@ -135,6 +153,8 @@ export default async function IntegrationsPage({
       />
 
       <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />
+
+      <StorageCard {...(await storageStatus())} />
 
       <FilingCard
         readOnly={readOnly}

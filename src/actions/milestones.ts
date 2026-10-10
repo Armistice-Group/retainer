@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { deleteStoredFile, storeFile, type StoredFile } from "@/lib/file-storage";
+import { uploadLimitBytes } from "@/lib/services/documents";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
@@ -103,7 +105,6 @@ export async function deleteMilestoneAction(milestoneId: string, projectId: stri
   revalidatePath(`/projects/${projectId}`);
 }
 
-const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EVIDENCE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 
 export async function completeMilestoneAction(
@@ -131,17 +132,21 @@ export async function completeMilestoneAction(
 
   const file = formData.get("evidenceFile");
   let fileName: string | null = null;
-  let fileData: Buffer<ArrayBuffer> | null = null;
+  let stored: StoredFile = { fileData: null, storageKey: null };
   let fileContentType: string | null = null;
   if (file instanceof File && file.size > 0) {
     if (!ALLOWED_EVIDENCE_TYPES.has(file.type)) {
       return { error: "Evidence file must be a PNG, JPEG, WebP, or PDF." };
     }
-    if (file.size > MAX_EVIDENCE_BYTES) {
-      return { error: "Evidence file must be under 5MB." };
+    if (file.size > uploadLimitBytes()) {
+      return { error: `Evidence file must be under ${uploadLimitBytes() / 1024 / 1024}MB.` };
     }
     fileName = file.name;
-    fileData = Buffer.from(await file.arrayBuffer());
+    stored = await storeFile(Buffer.from(await file.arrayBuffer()), {
+      contentType: file.type,
+      keyPrefix: `orgs/${org.id}/milestones`,
+      fileName: file.name,
+    });
     fileContentType = file.type;
   }
 
@@ -153,7 +158,8 @@ export async function completeMilestoneAction(
       completionNote: parsed.data.completionNote,
       completionUrl: parsed.data.completionUrl || null,
       completionFileName: fileName,
-      completionFileData: fileData,
+      completionFileData: stored.fileData,
+      completionStorageKey: stored.storageKey,
       completionFileContentType: fileContentType,
     },
   });
@@ -179,9 +185,11 @@ export async function reopenMilestoneAction(milestoneId: string, projectId: stri
       completionUrl: null,
       completionFileName: null,
       completionFileData: null,
+      completionStorageKey: null,
       completionFileContentType: null,
     },
   });
+  await deleteStoredFile({ storageKey: milestone.completionStorageKey });
 
   revalidatePath(`/projects/${projectId}`);
 }

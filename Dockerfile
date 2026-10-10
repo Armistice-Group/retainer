@@ -35,6 +35,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+# One-off maintenance (moving uploads into S3-compatible storage).
+COPY --from=builder /app/scripts/move-files-to-object-storage.mts ./scripts/move-files-to-object-storage.mts
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 COPY --from=builder --chown=nextjs:nodejs /app/certs ./certs
 

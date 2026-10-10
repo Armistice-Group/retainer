@@ -555,6 +555,7 @@ model Milestone {
 
   completionFileName        String?
   completionFileData        Bytes?
+  completionStorageKey      String?
   completionFileContentType String?
 
   // Milestone-based invoicing: a completed milestone becomes its own line
@@ -705,6 +706,8 @@ model Expense {
 
   receiptFileName    String?
   receiptFileData    Bytes?
+  // Set instead of receiptFileData when uploads go to object storage.
+  receiptStorageKey  String?
   receiptContentType String?
 
   // Mirrors Milestone: an approved, unbilled expense becomes its own line

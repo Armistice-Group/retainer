@@ -60,12 +60,15 @@ export default async function ProjectDetailPage({
         take: 8,
       },
       externalLink: true,
+      // Not the files' bytes — the page only needs to know they exist.
       milestones: {
         include: { completedBy: true },
+        omit: { completionFileData: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       },
       expenses: {
         include: { submittedBy: true },
+        omit: { receiptFileData: true },
         orderBy: { incurredAt: "desc" },
       },
     },
@@ -160,7 +163,7 @@ export default async function ProjectDetailPage({
     completedByName: m.completedBy?.name ?? null,
     completionNote: m.completionNote,
     completionUrl: m.completionUrl,
-    hasEvidenceFile: !!m.completionFileData,
+    hasEvidenceFile: !!m.completionFileName,
     invoicedAt: m.invoicedAt ? m.invoicedAt.toISOString() : null,
   }));
 
@@ -172,7 +175,7 @@ export default async function ProjectDetailPage({
     incurredAt: e.incurredAt.toISOString(),
     status: e.status,
     submittedByName: e.submittedBy.name,
-    hasReceipt: !!e.receiptFileData,
+    hasReceipt: !!e.receiptFileName,
     invoicedAt: e.invoicedAt ? e.invoicedAt.toISOString() : null,
     canDelete: !e.invoiceLineItemId && (e.submittedById === user.id || canManage),
   }));

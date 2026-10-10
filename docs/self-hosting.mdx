@@ -63,6 +63,7 @@ To build from a checkout instead of pulling the image:
 | `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENVIRONMENT` | QuickBooks app credentials. |
 | `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET` | Linear OAuth app, and its webhook signing secret for live updates. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe, for collecting invoice payments. |
+| `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`, `S3_PREFIX` | Keep uploads in S3-compatible storage instead of the database — see [File storage](#file-storage). |
 | `GOOGLE_DRIVE_*`, `DROPBOX_*`, `MICROSOFT_*`, `NOTION_*` | File services people connect to link documents — see [Documents & files](/integrations/files). |
 
 The integration variables can all be left out: owners enter the same
@@ -85,6 +86,35 @@ an extra run never double-sends anything.
 
 Running the app some other way (Kubernetes, a PaaS)? Call the same endpoints
 on the same schedule with `Authorization: Bearer <CRON_SECRET>`.
+
+## File storage
+
+Uploaded files — client and project documents, expense receipts, milestone
+evidence — are stored in the database by default, up to 5MB each. To keep them
+in S3-compatible object storage instead (AWS S3, Cloudflare R2, MinIO,
+Backblaze B2, Wasabi…), with a 25MB limit, set:
+
+```bash
+S3_BUCKET=consultainer
+S3_REGION=us-east-1                 # R2: auto
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com   # omit for AWS
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_FORCE_PATH_STYLE=true            # MinIO and most self-hosted servers
+S3_PREFIX=                          # optional key prefix
+```
+
+The bucket stays private: Consultainer reads files back and serves them behind
+its own access checks. **Settings → Integrations → File storage** shows
+whether the bucket is reachable. New uploads go to the bucket; files already in
+the database keep working, or move them with:
+
+```bash
+docker compose exec consultainer-app node_modules/.bin/tsx scripts/move-files-to-object-storage.mts
+```
+
+(`--dry-run` just counts.) Documents *linked* from Drive, Dropbox, OneDrive
+or Notion don't use storage at all.
 
 ## Email
 
@@ -136,6 +166,6 @@ Back up the database and your `.env` (above all `INTEGRATION_ENCRYPTION_KEY`):
 docker compose exec -T consultainer-db pg_dump -U app consultainer > consultainer-$(date +%F).sql
 ```
 
-(Use your `POSTGRES_USER` and `POSTGRES_DB` values.) Uploaded files — client
-documents, receipts, logos — are stored in the database, so the dump has
-everything.
+(Use your `POSTGRES_USER` and `POSTGRES_DB` values.) Without object storage,
+uploaded files live in the database, so the dump has everything; with it, back
+up the bucket too.

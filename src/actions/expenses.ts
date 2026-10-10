@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { deleteStoredFile, storeFile, type StoredFile } from "@/lib/file-storage";
+import { uploadLimitBytes } from "@/lib/services/documents";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
@@ -15,7 +17,6 @@ async function requireProject(projectId: string, orgId: string, userId: string, 
   return project;
 }
 
-const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const ALLOWED_RECEIPT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "application/pdf"]);
 
 export async function logExpenseAction(
@@ -39,17 +40,21 @@ export async function logExpenseAction(
 
   const file = formData.get("receiptFile");
   let receiptFileName: string | null = null;
-  let receiptFileData: Buffer<ArrayBuffer> | null = null;
+  let stored: StoredFile = { fileData: null, storageKey: null };
   let receiptContentType: string | null = null;
   if (file instanceof File && file.size > 0) {
     if (!ALLOWED_RECEIPT_TYPES.has(file.type)) {
       return { error: "Receipt must be a PNG, JPEG, WebP, or PDF." };
     }
-    if (file.size > MAX_RECEIPT_BYTES) {
-      return { error: "Receipt must be under 5MB." };
+    if (file.size > uploadLimitBytes()) {
+      return { error: `Receipt must be under ${uploadLimitBytes() / 1024 / 1024}MB.` };
     }
     receiptFileName = file.name;
-    receiptFileData = Buffer.from(await file.arrayBuffer());
+    stored = await storeFile(Buffer.from(await file.arrayBuffer()), {
+      contentType: file.type,
+      keyPrefix: `orgs/${org.id}/receipts`,
+      fileName: file.name,
+    });
     receiptContentType = file.type;
   }
 
@@ -69,7 +74,8 @@ export async function logExpenseAction(
       approvedById: isManager && autoApproved ? user.id : null,
       approvedAt: isManager && autoApproved ? new Date() : null,
       receiptFileName,
-      receiptFileData,
+      receiptFileData: stored.fileData,
+      receiptStorageKey: stored.storageKey,
       receiptContentType,
     },
   });
@@ -128,5 +134,6 @@ export async function deleteExpenseAction(expenseId: string, projectId: string) 
   }
 
   await prisma.expense.delete({ where: { id: expenseId } });
+  await deleteStoredFile({ storageKey: expense.receiptStorageKey });
   revalidatePath(`/projects/${projectId}`);
 }
