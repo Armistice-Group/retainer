@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewDocument } from "@/lib/document-access";
 import { recordAuditEvent } from "@/lib/audit";
+import { readFile } from "@/lib/file-storage";
 
 // The file itself: inline by default (the in-app viewer embeds it),
 // ?download=1 to save. Restricted documents 404 for anyone not allowed, and
@@ -29,6 +30,21 @@ export async function GET(
   }
 
   const download = new URL(req.url).searchParams.has("download");
+  // Linked documents live elsewhere: log the open, then send them there.
+  if (document.source !== "UPLOAD") {
+    await recordAuditEvent(prisma, {
+      orgIds: [org.id],
+      actorId: user.id,
+      action: "view",
+      entityType: "ClientDocument",
+      entityId: document.id,
+      entityLabel: document.label || document.fileName,
+    });
+    if (!document.externalUrl) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.redirect(document.externalUrl);
+  }
+  const bytes = await readFile(document);
+  if (!bytes) return NextResponse.json({ error: "File missing" }, { status: 404 });
   await recordAuditEvent(prisma, {
     orgIds: [org.id],
     actorId: user.id,
@@ -39,9 +55,9 @@ export async function GET(
   });
 
   const fileName = document.fileName.replace(/["\r\n]/g, "");
-  return new NextResponse(new Uint8Array(document.fileData), {
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": document.contentType,
+      "Content-Type": document.contentType ?? "application/octet-stream",
       "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${fileName}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",

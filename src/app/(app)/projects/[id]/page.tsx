@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
+import { DocumentsCard } from "@/components/documents/documents-card";
+import { documentCardData } from "@/lib/services/documents";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { EditRateDialog } from "./edit-rate-dialog";
@@ -237,6 +239,16 @@ export default async function ProjectDetailPage({
               ) : null}
             </CardContent>
           </Card>
+
+          <DocumentsCard
+            clientId={project.clientId}
+            projectId={project.id}
+            viewerId={user.id}
+            {...(await documentCardData(
+              { orgId: org.id, userId: user.id, role },
+              { clientId: project.clientId, projectId: project.id }
+            ))}
+          />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

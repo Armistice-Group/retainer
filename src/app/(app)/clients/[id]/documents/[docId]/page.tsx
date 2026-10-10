@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Download, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -26,6 +26,7 @@ export default async function DocumentViewerPage({
       label: true,
       fileName: true,
       contentType: true,
+      source: true,
       uploadedAt: true,
       uploadedById: true,
       access: true,
@@ -44,7 +45,10 @@ export default async function DocumentViewerPage({
   }
 
   const src = `/api/clients/${id}/documents/${docId}`;
+  // Linked documents open where they live (the route logs it and redirects).
+  if (doc.source !== "UPLOAD") redirect(src);
   const isPdf = doc.contentType === "application/pdf";
+  const isImage = !!doc.contentType?.startsWith("image/");
 
   return (
     <div className="flex flex-col gap-4">
@@ -74,9 +78,13 @@ export default async function DocumentViewerPage({
       <Card className="overflow-hidden p-0">
         {isPdf ? (
           <iframe src={src} title={doc.fileName} className="h-[80vh] min-h-[480px] w-full bg-muted" />
-        ) : (
+        ) : isImage ? (
           // eslint-disable-next-line @next/next/no-img-element -- private file behind auth
           <img src={src} alt={doc.label || doc.fileName} className="mx-auto max-h-[80vh] object-contain" />
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">
+            This file type can&apos;t be previewed here — use Download to open it.
+          </p>
         )}
       </Card>
     </div>

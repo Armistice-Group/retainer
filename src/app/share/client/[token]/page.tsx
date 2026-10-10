@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
+import { SharedDocuments } from "@/components/documents/shared-documents";
+import { clientVisibleDocuments } from "@/lib/services/documents";
 
 export const metadata: Metadata = {
   title: "Client report",
@@ -90,6 +92,11 @@ export default async function SharedClientPage({ params }: { params: Promise<{ t
             </CardContent>
           </Card>
         ) : null}
+
+        <SharedDocuments
+          documents={await clientVisibleDocuments({ clientId: client.id })}
+          uploadHref={(id) => `/api/share/client/${token}/documents/${id}`}
+        />
 
         {invoices.length > 0 ? (
           <Card>

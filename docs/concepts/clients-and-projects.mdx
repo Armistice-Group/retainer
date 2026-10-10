@@ -20,15 +20,31 @@ A client is the company or person you're consulting for. Each client holds:
 
 ### Documents
 
-Attach W-9s, 1099s, contracts and other paperwork (PDF or image, up to 5MB).
-Click one to view it in the app; **Download** saves it.
+Clients and projects each have **Documents** — contracts, SOWs, proposals,
+reports, reference docs, W-9s. A client's list includes its projects'
+documents, labelled with the project.
 
-Each document has **Who can see it**: everyone in the organization, owners &
-admins, or specific people. Owners and whoever uploaded it can always see it;
-for everyone else a restricted document doesn't appear and its file can't be
-opened. Owners, the uploader, and admins who can see a document can change its
-access or delete it. Every view and download is recorded in the
-[audit log](/concepts/alerts-and-audit#audit-log).
+- **Link** a document from where it lives: paste a Google Drive / Docs, Dropbox,
+  OneDrive / SharePoint, Notion or Box link (or any URL). Consultainer
+  recognizes the service and whether it's a file, folder or page; the file stays
+  put and opens there, under that service's own sharing. See
+  [Documents & files](/integrations/files) for connecting your accounts so you
+  can browse to pick and see real titles.
+- **Upload** a file (PDF, image, Word, Excel, PowerPoint, text or CSV) to keep
+  it in Consultainer. PDFs and images open in an in-app viewer.
+
+Each document has two settings:
+
+- **Client can see it** — *internal only* (the default) or *on their client
+  links*, where it's listed for the client (links open where the file lives, so
+  the client needs access there too).
+- **Who on your team can see it** — everyone in the organization, owners &
+  admins, or specific people. Owners and whoever added it can always see it;
+  for everyone else a restricted document doesn't appear and can't be opened.
+
+Owners, whoever added it, and admins who can see a document can change these
+or remove it (removing a link never touches the file itself). Every open and
+download is recorded in the [audit log](/concepts/alerts-and-audit#audit-log).
 
 ## Projects
 

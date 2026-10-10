@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
+import { SharedDocuments } from "@/components/documents/shared-documents";
+import { clientVisibleDocuments } from "@/lib/services/documents";
 
 // In progress first, then to do, then done.
 const TASK_ORDER: Record<string, number> = { IN_PROGRESS: 0, TODO: 1, DONE: 2 };
@@ -203,6 +205,11 @@ export default async function SharedProjectPage({
             </CardContent>
           </Card>
         ) : null}
+
+        <SharedDocuments
+          documents={await clientVisibleDocuments({ clientId: project.clientId, projectId: project.id })}
+          uploadHref={(id) => `/api/share/${token}/documents/${id}`}
+        />
 
         {invoices.length > 0 ? (
           <Card>

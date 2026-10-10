@@ -12,24 +12,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/forms/submit-button";
-import { setDocumentAccessAction } from "@/actions/client-documents";
+import { setDocumentSharingAction } from "@/actions/client-documents";
 import { DocumentAccessFields, type DocumentMember } from "./document-access-fields";
+import { DocumentAudienceField } from "./document-audience-field";
 import type { ActionState } from "@/actions/auth";
 
-export function DocumentAccessDialog({
+export function DocumentSharingDialog({
   clientId,
   document,
   members,
   viewerId,
 }: {
   clientId: string;
-  document: { id: string; label: string | null; fileName: string; access: string; allowedUserIds: string[] };
+  document: { id: string; title: string; access: string; allowedUserIds: string[]; audience: string };
   members: DocumentMember[];
   viewerId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
-    const result = await setDocumentAccessAction(document.id, clientId, prev, formData);
+    const result = await setDocumentSharingAction(document.id, clientId, prev, formData);
     if (result?.saved) setOpen(false);
     return result;
   }, null);
@@ -37,13 +38,13 @@ export function DocumentAccessDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-7" aria-label="Who can see it">
+        <Button variant="ghost" size="icon" className="size-7" aria-label={`Sharing for ${document.title}`}>
           <Shield className="size-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Who can see “{document.label || document.fileName}”</DialogTitle>
+          <DialogTitle>Sharing — “{document.title}”</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="flex flex-col gap-4">
           {state?.error ? (
@@ -51,6 +52,7 @@ export function DocumentAccessDialog({
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           ) : null}
+          <DocumentAudienceField idPrefix={`doc-${document.id}`} defaultValue={document.audience} />
           <DocumentAccessFields
             members={members}
             viewerId={viewerId}

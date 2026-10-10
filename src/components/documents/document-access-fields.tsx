@@ -33,7 +33,7 @@ export function DocumentAccessFields({
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={`${idPrefix}-access`}>Who can see it</Label>
+      <Label htmlFor={`${idPrefix}-access`}>Who on your team can see it</Label>
       <Select name="access" value={access} onValueChange={setAccess}>
         <SelectTrigger id={`${idPrefix}-access`} className="w-full">
           <SelectValue />

@@ -28,6 +28,11 @@ enum ClientDocumentType {
   W9
   FORM_1099
   CONTRACT
+  NDA
+  SOW
+  PROPOSAL
+  REPORT
+  REFERENCE
   OTHER
 }
 
@@ -348,26 +353,63 @@ enum DocumentAccess {
   SELECTED
 }
 
+enum DocumentSource {
+  UPLOAD
+  LINK
+  GOOGLE_DRIVE
+  DROPBOX
+  ONEDRIVE
+  NOTION
+  BOX
+}
+
+enum DocumentAudience {
+  // Only people in the organization (subject to `access`).
+  INTERNAL
+  // Also listed on the client's share links.
+  CLIENT
+}
+
+// A client's (or one of its projects') document: either a file uploaded here,
+// or a link to where it lives — Google Drive, Dropbox, OneDrive, Notion, Box,
+// or any URL.
 model ClientDocument {
-  id             String             @id @default(cuid())
-  type           ClientDocumentType @default(OTHER)
-  label          String?
+  id                 String             @id @default(cuid())
+  type               ClientDocumentType @default(OTHER)
+  label              String?
   // Who can open it besides owners and the uploader: everyone in the org,
   // owners and admins, or only allowedUserIds (see lib/document-access).
-  access         DocumentAccess     @default(EVERYONE)
-  allowedUserIds String[]           @default([])
-  fileName       String
-  fileData       Bytes
-  contentType    String
-  uploadedAt     DateTime           @default(now())
+  access             DocumentAccess     @default(EVERYONE)
+  allowedUserIds     String[]           @default([])
+  audience           DocumentAudience   @default(INTERNAL)
+  source             DocumentSource     @default(UPLOAD)
+  // Uploads: the file's name. Links: the item's title.
+  fileName           String
+  // Uploads only (null when stored in external object storage — storageKey).
+  fileData           Bytes?
+  storageKey         String?
+  contentType        String?
+  sizeBytes          Int?
+  // Links: where it lives, and what the provider calls it.
+  externalUrl        String?
+  externalId         String?
+  // file | folder | page | database
+  externalKind       String?
+  externalModifiedAt DateTime?
+  uploadedAt         DateTime           @default(now())
 
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // Set for a project's documents; they show on the client too.
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   uploadedById String?
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([clientId])
+  @@index([projectId])
 }
 
 model Contact {
@@ -471,6 +513,7 @@ model Project {
   externalLink     ExternalProjectLink?
   activeTimers     ActiveTimer[]
   calendarEvents   CalendarEvent[]
+  documents        ClientDocument[]
 
   @@index([orgId])
   @@index([clientId])
