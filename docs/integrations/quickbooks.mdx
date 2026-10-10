@@ -1,27 +1,162 @@
 ---
 title: QuickBooks
-description: Push invoices to QuickBooks and sync their status back
+description: Push invoices to QuickBooks Online and sync their status back
 ---
 
-Connect QuickBooks from **Settings → Integrations**. An owner or admin
-authorizes access via OAuth; Consultainer requests the
-`com.intuit.quickbooks.accounting` scope.
+Send Consultainer invoices to QuickBooks Online so your books match, and pull
+back whether they've been sent or paid there.
 
-## Pushing an invoice
+Setting it up has two parts: an **owner** registers an Intuit developer app
+for the instance (once), then an **owner or admin** connects the
+organization's QuickBooks company.
 
-From an invoice's detail page, **Push to QuickBooks** creates the invoice in
-QuickBooks from Consultainer's line items.
+## Sandbox or production?
 
-## Syncing status back
+Intuit gives every app two sets of keys:
 
-QuickBooks doesn't notify Consultainer when an invoice's status changes
-there, so status sync is manual: **Sync status from QuickBooks** on the
-invoice page checks the invoice's balance and email status in QuickBooks and
-advances Consultainer's status accordingly (Draft → Sent → Paid). Status
-only ever moves forward — a sync never downgrades an invoice that's already
-further along in Consultainer than what QuickBooks reports.
+- **Development (sandbox)** keys only work with Intuit's test companies. Use
+  them to try the integration without touching real books.
+- **Production** keys work with real QuickBooks companies. Intuit only
+  issues them after you complete the app's production questionnaire, and
+  production redirect URIs must use `https://` on a real domain (no
+  `localhost`, no IP addresses).
+
+Whichever keys you use, set Consultainer's **Environment** to match. Sandbox
+keys with **Production** selected (or the reverse) fail when you push.
+
+## Set up the Intuit app (owner, once)
+
+<Steps>
+  <Step title="Copy the redirect URI from Consultainer">
+    Go to **Settings → Integrations** and find the **QuickBooks** card. Its
+    credentials form shows a **redirect URI** with a **Copy** button, like
+    `https://your-instance/api/integrations/quickbooks/callback`. Copy it.
+
+    The URI is built from the address you're browsing on, so open
+    Consultainer at the address everyone uses before copying.
+  </Step>
+  <Step title="Create an app on developer.intuit.com">
+    Sign in at [developer.intuit.com](https://developer.intuit.com) (any
+    Intuit account works) and open your **Dashboard**. Create an app for
+    **QuickBooks Online and Payments**, give it a name, and choose the
+    **Accounting** scope (`com.intuit.quickbooks.accounting`). That's the
+    only scope Consultainer uses.
+  </Step>
+  <Step title="Add the redirect URI">
+    In the app, open **Keys and credentials** (or **Settings → Redirect
+    URIs**) for the environment you're setting up — development or
+    production — and add the redirect URI from step 1. Save.
+  </Step>
+  <Step title="Copy the keys">
+    On the same page, copy the **Client ID** and **Client secret** for that
+    environment.
+  </Step>
+  <Step title="Paste them into Consultainer">
+    In the QuickBooks credentials form:
+
+    | Intuit | Consultainer field | Or in `.env` |
+    | --- | --- | --- |
+    | Client ID | **Client ID** | `QUICKBOOKS_CLIENT_ID` |
+    | Client secret | **Client secret** | `QUICKBOOKS_CLIENT_SECRET` |
+    | Development or production keys | **Environment**: *Sandbox* or *Production* | `QUICKBOOKS_ENVIRONMENT=sandbox` or `production` |
+
+    Click **Save credentials**. If no environment is set, Consultainer uses
+    sandbox.
+  </Step>
+</Steps>
+
+## Connect your QuickBooks company (owner or admin)
+
+<Steps>
+  <Step title="Click Connect">
+    On the QuickBooks card, click **Connect**.
+  </Step>
+  <Step title="Sign in to Intuit and pick the company">
+    Sign in with the Intuit account that has access to the QuickBooks
+    company, choose the company (with sandbox keys, pick your sandbox
+    company), and click **Connect**. You're sent back to **Settings →
+    Integrations**.
+  </Step>
+</Steps>
+
+**Check it worked:** the card says **Connected · company *ID***, and invoice
+pages show a **QuickBooks** card with **Push to QuickBooks**.
+
+To switch between sandbox and production, change the keys and
+**Environment**, then disconnect and connect again.
+
+## Push an invoice
+
+On an invoice's page, owners and admins see a **QuickBooks** card. Click
+**Push to QuickBooks**. Consultainer:
+
+1. Finds the QuickBooks customer whose display name matches the client's
+   name, or creates one (with the client's email). It remembers the match for
+   next time.
+2. Uses a service item called **Consulting Services**, creating it (on your
+   first income account) if it doesn't exist.
+3. Creates the invoice with the same invoice number, due date, and line items
+   (description, quantity, rate).
+
+Nothing is pushed automatically — each invoice is pushed by hand. Pushing
+and syncing are for owners and admins only; members don't see the card.
+
+Once pushed, the card shows **View in QuickBooks**. It opens the sandbox
+QuickBooks site unless **Environment** (or `QUICKBOOKS_ENVIRONMENT`) is set
+to production, so it matches the company you connected.
+
+### Push again after a change
+
+Click **Re-push to QuickBooks**. The invoice already in QuickBooks is updated
+in place (customer, number, due date, and its lines replaced with the current
+ones) rather than duplicated. If it was deleted in QuickBooks, a new one is
+created and the card links to that one instead.
+
+### Invoices with tax
+
+Line items go to QuickBooks without tax, so an invoice with tax would arrive
+showing a smaller total than the client was billed. Consultainer refuses to
+push those: you'll see *This invoice includes tax, which can't be pushed to
+QuickBooks yet — it would arrive without the tax and show a smaller total.
+Enter it in QuickBooks directly instead.* Enter that invoice in QuickBooks by
+hand.
+
+## Sync status back
+
+QuickBooks doesn't notify Consultainer when an invoice changes there, so this
+is manual. On a pushed invoice, **Sync status from QuickBooks** checks it:
+
+- Fully paid in QuickBooks (balance 0) → marked **Paid**.
+- Emailed from QuickBooks while still a draft here → marked **Sent**.
+
+Status only moves forward; a sync never downgrades an invoice.
 
 ## Disconnecting
 
-Disconnecting QuickBooks from Settings → Integrations stops future pushes
-and syncs; invoices already pushed aren't affected.
+**Disconnect** on the QuickBooks card (owner or admin) stops future pushes and
+syncs. Invoices already pushed keep their link to QuickBooks.
+
+## Troubleshooting
+
+- **"Only owners and admins can connect integrations."** — A member clicked
+  Connect. Ask an owner or admin.
+- **"QuickBooks isn't set up on this instance yet — add its credentials
+  below."** — The Client ID or Client secret is missing.
+- **"Couldn't connect to QuickBooks. Double-check your QuickBooks app
+  credentials and try again."** — Most often the redirect URI isn't
+  registered for the environment whose keys you used, or doesn't match
+  exactly (`http` vs `https`, host, port). Also check the Client secret, and
+  try again if you spent more than 10 minutes on Intuit's screens.
+- **"QuickBooks API request to … failed (401)"** or **(403)** when pushing —
+  the **Environment** doesn't match the keys (sandbox keys need *Sandbox*),
+  or access was revoked. Fix the environment, then disconnect and reconnect.
+- **"This invoice has no line items to push."** — Add line items first.
+- **"This invoice includes tax, which can't be pushed to QuickBooks yet …"**
+  — See [Invoices with tax](#invoices-with-tax).
+- **"Couldn't find an income account in QuickBooks to attach the default
+  service item to."** — Create an income account in QuickBooks (or a
+  *Consulting Services* service item yourself) and push again.
+- **"This invoice hasn't been pushed to QuickBooks yet."** — Push it before
+  syncing status.
+- **"This organization isn't connected to QuickBooks yet."** — Connect it in
+  **Settings → Integrations**.

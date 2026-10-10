@@ -3,41 +3,266 @@ title: Payments
 description: How clients pay you — payment methods, Stripe, and Mercury
 ---
 
+Everything about getting paid lives under **Settings → Payments**: the
+payment instructions printed on invoices, online payment through Stripe or
+Mercury, and overdue reminders. Owners and admins can change it; members can
+look.
+
+## How clients pay
+
+When you send an invoice (**Email to client**, or **Copy client link** —
+see [Invoicing](/concepts/invoicing#sending-invoices-and-tracking-opens)), the
+client opens its invoice page. There they can:
+
+- view and **Download PDF**,
+- read **How to pay** — your [payment methods](#payment-methods), and
+- click **Pay now**, if online payment is set up. The button only shows on
+  invoices with status **Sent**, and only once Stripe Connect has finished
+  onboarding or a Mercury deposit account is chosen.
+
+The same **Pay now** button appears next to open invoices on client and
+project share pages. If both Stripe and Mercury are connected, Mercury is
+used.
+
+An invoice is marked **Paid** only once the payment has actually gone
+through, and then you get an **invoice paid** alert. With a Stripe card
+payment that happens within seconds (through the webhook); a Stripe bank
+(ACH) payment takes a few business days to clear (see
+[below](#how-a-stripe-payment-works)); with Mercury, within the hour after
+Mercury reports it paid.
+
+When the client comes back from paying, the page they paid from (the invoice
+page or the share page) shows a confirmation: *Thanks — payment received.*,
+or, for a bank payment, *Thanks — your bank payment is processing.* If
+online payment can't start, they're sent back to the same page with an
+explanation instead of an error screen: *This invoice isn't open for
+payment.*, *A payment for this invoice is already processing.*, or
+otherwise *Online payment isn't available for this invoice right now* with a
+pointer to your other payment methods (or to contact you).
+
 ## Payment methods
 
-Under **Settings → Payments → Payment methods**, list how clients can pay:
-ACH, wire, check, a Stripe or PayPal link, Venmo, Zelle, crypto, or anything
-else. They appear on the client's invoice page and share links, and — if you
-choose **Show on invoice PDFs** — on the PDF. Bank details default to the
-online pages only, since a PDF can be forwarded anywhere.
+Payment methods are the instructions printed under **How to pay**: bank
+details, a mailing address for checks, a payment link, and so on.
 
-A client can have its own methods too (on the client page). By default a
-client is offered its own methods first, then the organization's; untick
-**Also offer the organization's payment methods**, or individual ones, to
-change that. Adding a method from a client page can save it for the whole
-organization instead.
+### Add an organization-wide method
 
-Changes to payment methods raise a **billing details changed**
-[alert](/concepts/alerts-and-audit).
+<Steps>
+  <Step title="Open Settings → Payments">
+    The **Payment methods** card is at the top.
+  </Step>
+  <Step title="Click Add payment method and pick a type">
+    **ACH bank transfer**, **Wire transfer**, **Check**, **Stripe payment
+    link**, **Paddle checkout**, **PayPal**, **Venmo**, **Zelle**,
+    **Crypto**, or **Other**.
+  </Step>
+  <Step title="Fill in the details">
+    Required fields are marked. **Nickname** is optional (e.g. *Operating
+    account*).
+  </Step>
+  <Step title="Choose whether it goes on the PDF">
+    **Show on invoice PDFs** puts it on the PDF as well as the online invoice
+    page. Bank transfers (ACH, wire) default to off, because a PDF can be
+    forwarded anywhere; the online page is only reachable through the
+    invoice's private link.
+  </Step>
+  <Step title="Click Add" />
+</Steps>
 
-## Collecting payments online
+Use the arrows to reorder methods, the pencil to edit, and the bin to remove.
 
-Connect one of these and sent invoices get a **Pay now** button on the
-client's invoice page and share links; the invoice is marked paid when the
-payment lands.
+### Give a client its own methods
 
-- **Stripe Connect** — **Settings → Payments → Connect Stripe** walks you
-  through Stripe's onboarding; clients pay by card or ACH into your Stripe
-  account. The instance needs Stripe credentials (secret key and webhook
-  signing secret, entered on the same page — it shows the webhook URL to
-  register).
-- **Mercury** — for organizations that bank with Mercury: paste a read-write
-  API token (app.mercury.com → Settings → Tokens) and choose the deposit
-  account. Clients pay from a Mercury-hosted page; payment status is checked
-  hourly.
+On a client's page, the **Payment methods** card works the same way. A
+client's own methods are listed first, followed by the organization's. Below
+them:
 
-## Getting invoices to clients
+- Untick **Also offer the organization's payment methods** to show only the
+  client's own.
+- Or leave it on and untick individual organization methods this client
+  shouldn't see.
 
-**Email to client** on an invoice sends it with a link to view, download and
-pay it, and you're told when they open it. Overdue reminders can go out on a
-schedule. See [Invoicing](/concepts/invoicing#sending-invoices-and-tracking-opens).
+When adding a method from a client page, tick **Add for the whole
+organization** to save it under **Settings → Payments** instead.
+
+Any change to payment methods raises a **billing details changed**
+[alert](/concepts/alerts-and-audit), so a tampered bank account doesn't go
+unnoticed.
+
+## Collect card and ACH payments with Stripe
+
+Consultainer uses **Stripe Connect**: the instance has one Stripe account
+(the *platform*), and each organization connects its own Stripe Express
+account to receive the money. On a single-company instance, the platform is
+usually your own Stripe account.
+
+### Add the Stripe keys (owner, once)
+
+<Steps>
+  <Step title="Turn on Connect in Stripe">
+    In the [Stripe Dashboard](https://dashboard.stripe.com), open
+    **Connect** and complete the setup Stripe asks for (it calls this your
+    *platform profile*). Organizations will onboard as **Express** accounts.
+  </Step>
+  <Step title="Copy the secret key">
+    In Stripe, open **Developers → API keys** and reveal the **Secret key**
+    (`sk_live_…`, or `sk_test_…` in test mode).
+  </Step>
+  <Step title="Copy the webhook URL from Consultainer">
+    In **Settings → Payments**, the **Stripe** card shows the **webhook
+    endpoint** with a **Copy** button:
+    `https://your-instance/api/webhooks/stripe`. It must be reachable from
+    the internet over HTTPS.
+  </Step>
+  <Step title="Add the webhook in Stripe">
+    In Stripe, open **Developers → Webhooks** and add an endpoint (Stripe may
+    call it an *event destination*):
+
+    - Listen to events on **Your account** (not connected accounts).
+    - Endpoint URL: paste the URL from the previous step.
+    - Events: select these three:
+      - **`checkout.session.completed`**
+      - **`checkout.session.async_payment_succeeded`**
+      - **`checkout.session.async_payment_failed`**
+
+    The two `async_payment` events are how Stripe reports that a bank (ACH)
+    payment cleared or bounced. Without them, ACH-paid invoices never get
+    marked **Paid**.
+
+    Save it, then reveal and copy its **Signing secret** (`whsec_…`).
+  </Step>
+  <Step title="Paste both into Consultainer">
+    | Stripe | Consultainer field | Or in `.env` |
+    | --- | --- | --- |
+    | Secret key | **Secret key** | `STRIPE_SECRET_KEY` |
+    | Webhook signing secret | **Webhook signing secret** | `STRIPE_WEBHOOK_SECRET` |
+
+    Click **Save credentials**.
+  </Step>
+</Steps>
+
+Test mode and live mode have separate keys and separate webhooks. Use the
+secret key and signing secret from the same mode.
+
+### Connect the organization's Stripe account (owner or admin)
+
+<Steps>
+  <Step title="Click Connect Stripe">
+    Once the keys are saved, **Settings → Payments** shows **Collect payments
+    (Stripe Connect)**. Click **Connect Stripe**.
+  </Step>
+  <Step title="Finish Stripe's onboarding">
+    Stripe asks for your business details and the bank account payouts go
+    to, then sends you back to **Settings → Payments**.
+  </Step>
+</Steps>
+
+**Check it worked:** the card shows a **Connected** badge and an **Open
+Stripe dashboard** button (payouts, tax forms, bank details). If it says
+*Almost there* or *Setup was started but isn't finished*, click **Continue
+setup** to give Stripe what's missing.
+
+### How a Stripe payment works
+
+**Pay now** opens a Stripe Checkout page for the invoice total in the
+invoice's currency. The payment methods offered are the ones turned on in
+your Stripe Dashboard's payment method settings. The charge is made on the
+platform account and the full amount is transferred to the organization's
+connected account, so Stripe's processing fees are billed to the platform
+account.
+
+What happens next depends on how the client pays:
+
+- **Card** — Stripe confirms the payment at checkout
+  (`checkout.session.completed`), and the invoice is marked **Paid** right
+  away.
+- **Bank debit (ACH)** — the payment takes a few business days to clear. In
+  the meantime the invoice stays **Sent**: its client page says *A bank
+  payment for this invoice is processing*, share pages show **Bank payment
+  processing** instead of **Pay now**, and the invoice's **Activity** card
+  shows *Client paid by bank transfer — waiting for it to clear*. **Pay
+  now** is hidden so the client can't pay twice.
+  - When Stripe reports the payment cleared
+    (`checkout.session.async_payment_succeeded`), the invoice is marked
+    **Paid**.
+  - If it fails (`checkout.session.async_payment_failed`), the invoice stays
+    (or goes back to) **Sent**, **Pay now** comes back so the client can try
+    again, the **Activity** card shows *Client's bank payment failed*, and
+    you get an alert (sent with your **invoice paid** alert settings) saying
+    the bank payment failed.
+
+## Collect payments with Mercury
+
+For organizations that bank with [Mercury](https://mercury.com). Clients pay
+on a Mercury-hosted page by card or ACH, straight into your Mercury account.
+There's no instance-wide setup; an owner or admin connects it per
+organization.
+
+<Steps>
+  <Step title="Create an API token in Mercury">
+    In Mercury, open **Settings → Tokens** and create an API token with
+    **Read and Write** access. Mercury asks which IP addresses may use a
+    read-write token: enter the public IP address your Consultainer server
+    connects to the internet from.
+  </Step>
+  <Step title="Paste it into Consultainer">
+    In **Settings → Payments → Collect payments (Mercury)**, paste the token
+    into **Mercury API token** and click **Connect Mercury**.
+  </Step>
+  <Step title="Choose the deposit account">
+    Pick the account under **Deposit invoice payments into** and click
+    **Save**. (The first active account is preselected.)
+  </Step>
+</Steps>
+
+**Check it worked:** the card shows a **Connected** badge and your accounts
+in the dropdown.
+
+The first time a client clicks **Pay now**, Consultainer creates a Mercury
+invoice (one line, *Invoice INV-0001*, for the total) and sends them to its pay
+page; later clicks reuse it. Mercury doesn't email the client itself. Every
+hour, the scheduler checks open Mercury invoices and marks the ones Mercury
+reports as paid. The client must have an email address on file.
+
+## Overdue reminders
+
+Under **Settings → Payments → Overdue reminders**, enter the numbers of days
+overdue at which clients get a reminder email, e.g. `3, 7, 14` (up to ten,
+1–365), and click **Save**. Leave it empty to turn reminders off.
+
+Reminders go out from the scheduler's daily job to the client's invoice
+recipients, with the invoice link. Each threshold is sent once, and turning
+reminders on doesn't send a backlog. To skip a client, untick **Email overdue
+reminders** on its edit page. Reminders need [email](/integrations/email).
+
+## Troubleshooting
+
+- **"Not set up on this instance yet. An owner can add the credentials
+  here."** — Only owners can enter Stripe keys.
+- **"Stripe isn't configured on this instance. Add your keys in Settings →
+  Payments."** — The secret key is missing.
+- Stripe onboarding errors out right away — Connect isn't turned on for the
+  platform account, or the platform profile isn't finished. Finish it under
+  **Connect** in the Stripe Dashboard.
+- Paid in Stripe but still **Sent** here — check the webhook in Stripe
+  (**Developers → Webhooks**) for failed deliveries. *Invalid signature*
+  means the signing secret in Consultainer is from a different endpoint or
+  mode; *Webhook not configured* means it's missing.
+- An ACH-paid invoice stays on **Bank payment processing** for more than a
+  week — check that the Stripe webhook also sends
+  **`checkout.session.async_payment_succeeded`** and
+  **`checkout.session.async_payment_failed`**. If it was added late, find
+  the payment in Stripe and mark the invoice paid yourself.
+- A client sees *Online payment isn't available for this invoice right now*
+  — usually Stripe onboarding isn't complete (click **Continue setup**) or,
+  with Mercury, the client has no email address on file (add one). If
+  neither applies, Stripe or Mercury refused to create the checkout; your
+  server log shows *[pay] Couldn't start checkout* with the reason.
+- **"Couldn't connect to Mercury with that token. Check it has read-write
+  access and try again."** — The token is read-only, mistyped, or the IP
+  address isn't allowed in Mercury.
+- **"No active Mercury checking accounts found on this token."** — The
+  token's Mercury account has no active Mercury checking or savings account.
+- **"Couldn't load Mercury accounts with the saved token — it may have been
+  revoked."** — Disconnect and connect again with a new token.
+- **"Use up to 10 whole numbers of days, 1–365."** — Fix the reminder days.

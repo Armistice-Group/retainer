@@ -1,36 +1,74 @@
 ---
 title: Expenses
-description: Logging and billing reimbursable costs like software or hardware
+description: Log reimbursable costs with receipts, get them approved, and bill them
 ---
 
-Expenses let you track and bill reimbursable costs on a project — a software
-license, a piece of hardware, travel — the same way time and milestones are
-tracked and billed.
+Expenses track costs you bill back to the client, such as a software
+license, hardware or travel. Each expense belongs to a project and goes on an
+invoice as its own line, like a milestone. Every project has an **Expenses**
+card, whatever its billing type.
 
-## Logging an expense
+## How to log an expense
 
-From a project's **Expenses** card, log a description, amount, date, an
-optional category, and an optional receipt (PDF, PNG, or JPEG).
+Anyone who can see the project can log an expense.
+
+1. Open the project and click **Log expense** on the **Expenses** card.
+2. Enter a **Description** (for example *Figma seat for this engagement*), the
+   **Amount** and the **Date** you incurred it.
+3. Optional: add a **Category**.
+4. Optional: attach a **Receipt**: PNG, JPEG, WebP or PDF, under 5 MB (25 MB
+   when uploads go to S3-compatible storage).
+5. Click **Log expense**.
+
+The expense appears on the card as **Approved** or **Pending** (see below).
+Click **Receipt** on an expense to open its receipt.
 
 ## Approval
 
-Expense approval is threshold-based, controlled by **Expense approval
-threshold** in Settings → General (defaults to $100):
+Expenses above a threshold need an owner or admin to approve them before they
+can be invoiced. Set the threshold under **Settings → General → Expense
+approval threshold** (owners and admins; $100 by default, in your default
+currency).
 
-- An owner or admin's own logged expense is **always auto-approved**,
-  regardless of amount.
-- A regular member's expense is **auto-approved** if it's at or under the
-  threshold.
-- A regular member's expense **above** the threshold is held **Pending**
-  until an owner or admin approves or rejects it from the project page.
+- An expense logged by an **owner or admin** is approved automatically,
+  whatever the amount.
+- An expense logged by a **member** is approved automatically if it's at or
+  under the threshold.
+- A member's expense **above** the threshold is **Pending** until an owner or
+  admin approves or rejects it.
 
-## Billing an expense
+### How to approve or reject an expense
 
-Only **Approved**, unbilled expenses are eligible to appear on a generated
-invoice — as their own line item, the same way a milestone is. Once
-invoiced, an expense is locked.
+1. Open the project. Pending expenses show **Approve** and **Reject** buttons
+   on the **Expenses** card (owners and admins only).
+2. Click **Approve** to make it billable, or **Reject** to mark it
+   **Rejected**. A rejected expense is never invoiced.
 
-## Deleting an expense
+<Note>
+No one is notified when an expense is waiting for approval, so check the
+**Expenses** card on your projects. The MCP `list_expenses` tool can list
+pending expenses across projects.
+</Note>
 
-The person who submitted an expense (or an owner/admin) can delete it, as
-long as it hasn't been invoiced yet.
+## How an expense gets billed
+
+Approved expenses that aren't on an invoice yet show up on **New invoice** for
+the project's client, and are picked up by the client's
+[billing cycle](/concepts/invoicing#billing-cycles) if it has one. Each
+becomes its own line: *Project — Expense: description*, quantity 1 at the
+expense's amount.
+
+Once it's on an invoice, an expense is locked and can't be deleted. If that
+invoice is a draft and gets deleted (or the line is removed), the expense
+becomes billable again.
+
+## How to delete an expense
+
+Click the bin icon on the expense and confirm. You can delete your own
+expenses; owners and admins can delete anyone's. Invoiced expenses can't be
+deleted.
+
+## Over MCP
+
+`list_expenses`, `log_expense`, `approve_expense` and `reject_expense`. See
+the [MCP server](/mcp-server).

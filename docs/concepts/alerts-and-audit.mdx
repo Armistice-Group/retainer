@@ -1,50 +1,244 @@
 ---
 title: Alerts & audit log
-description: What owners and admins are told about, where, and the record of who changed what
+description: What owners and admins are told about, where it goes, and the record of who changed what
 ---
 
-## Alerts
+Alerts tell owners and admins when something they should know about happens:
+a client opens an invoice, someone changes payment details, a project runs
+over budget. The audit log is the permanent record behind them: every change,
+who made it, and from where.
 
-Owners and admins always see alerts in Consultainer (the bell). Under
-**Settings → Alerts** they choose, per alert, whether it also goes to
-**Slack** and/or **email**, and who alert emails go to (by default, the
-organization's owners).
+**Who can do this:** owners and admins. Members don't see **Settings → Alerts**
+or **Settings → Audit log**.
 
-| Alert | When | Default |
+## Where alerts go
+
+Every alert goes to three places, depending on your settings:
+
+- **In the app (always).** Every owner and admin gets it under the bell in the
+  top bar and on the **Notifications** page. You can't turn this off. The
+  person who caused the alert (for example, the admin who changed a role)
+  isn't notified about their own change.
+- **Slack (optional).** Posted to one channel through a Slack incoming
+  webhook.
+- **Email (optional).** Sent to the addresses in **Send alert emails to**, or
+  to every owner if that box is empty.
+
+You choose Slack and email separately for each alert on **Settings → Alerts**.
+
+## The alerts
+
+| Alert | What triggers it | Default |
 | --- | --- | --- |
-| A client opens an invoice | The emailed invoice, its client link, or its PDF is opened by the client — first open, then again after a day. | Slack + email |
-| Billing or payment details change | Payment methods or instructions, billing contacts and emails, payment terms, bill or cost rates, billing cycles, recurring invoices, payment connections. Says who changed what, never the payment details themselves. | Slack + email |
-| Access or security settings change | Roles changed, members removed, invites, API keys created or revoked, single sign-on and sign-in rules, two-factor turned off, sign-in email changed, passkeys removed — and anyone deleting 20+ records within 10 minutes. | Slack + email |
-| An invoice is sent / paid | | Slack + email |
-| An invoice becomes overdue | | Slack |
-| Budget | A project reaches 80% / 100% of its hour budget, or a task passes its estimate (its assignee is told too). | Slack |
-| A timesheet is submitted | | In the app only |
-| Weekly digest | See below. | Email |
+| A client opens an invoice | Someone opens the invoice email, the invoice's client link, or its PDF. Drafts don't count, and neither do opens by someone signed in to your organization. You hear about the first open, then again only if it's opened more than 24 hours after the last alert. | Slack + email |
+| Billing or payment details change | Someone adds, changes or removes: organization or client payment methods and payment instructions; client billing email, billing address, payment terms or which payment methods they're offered; invoice contacts; a project's billing type, flat fee or payment terms; a member's bill rate on a project or cost rate; billing cycles; recurring invoices; the Mercury or QuickBooks connection; or the organization's currency, tax rate, overhead, payment terms, invoice prefix, external billing link or Stripe account. The alert says who changed what. Payment details, payment instructions and cost rates are never included, only that they changed. | Slack + email |
+| Access or security settings change | A member's role changes, a member is removed, someone is invited, an API key is created or revoked, single sign-on is set up, changed or removed, the sign-in domain or auto-join setting changes, two-factor is turned off, a sign-in email changes, or a passkey is removed. Also: one person deletes 20 or more records within 10 minutes (one alert per 10 minutes). | Slack + email |
+| An invoice is sent | A draft invoice is marked sent or emailed to the client, from the app or the MCP server, or by a recurring invoice or billing cycle set to mark its invoices sent automatically. | Slack + email |
+| An invoice is paid | Someone marks an invoice paid, a client's Stripe payment goes through (for a bank payment, when it clears), or Mercury sync finds the payment. A Stripe bank payment that fails is reported through this alert's settings too. | Slack + email |
+| An invoice becomes overdue | The daily job finds a sent invoice at least one day past its due date. Each invoice alerts once. | Slack |
+| A project nears its budget or a task passes its estimate | Logged hours reach 80% and then 100% of a project's hour budget, or a task's logged hours go over its estimate. The task's assignee is notified in the app too. Each level alerts once, and re-arms if hours drop back or the budget grows. | Slack |
+| Weekly digest (Mondays) | See [Weekly digest](#weekly-digest). Not shown in the app. | Email |
+| A timesheet is submitted for approval | A member submits a week of time. | In the app only |
+| Someone logs time | Anyone logs time. Not sent when the person logging is the only owner or admin, and never to the person who logged it. | Slack |
+| A recurring invoice or billing cycle creates a draft | A recurring invoice or billing cycle generates a draft for you to review and send. (Ones set to mark their invoices sent automatically use **An invoice is sent** instead.) | Slack |
 
-**Slack** needs an [incoming webhook](https://api.slack.com/messaging/webhooks)
-URL in **Settings → General**. **Email** needs email set up on the instance
-(see [Self-hosting](/self-hosting#email)).
+## How to connect Slack
 
-People also get their own notifications in the app — task assigned, comments
-and @mentions on tasks they watch, timesheets reviewed, meetings to sort.
+You need an owner or admin account in Consultainer and permission to add apps
+to your Slack workspace.
+
+<Steps>
+  <Step title="Create a Slack app">
+    Go to [api.slack.com/apps](https://api.slack.com/apps) and click **Create
+    New App**, then **From scratch**. Name it (for example, *Consultainer*),
+    pick your workspace, and click **Create App**.
+  </Step>
+  <Step title="Turn on incoming webhooks">
+    In the app's left sidebar, open **Incoming Webhooks** and switch
+    **Activate Incoming Webhooks** on.
+  </Step>
+  <Step title="Pick a channel">
+    At the bottom of the same page, click **Add New Webhook** (older
+    workspaces show **Add New Webhook to Workspace**). Choose the channel
+    alerts should go to and click **Allow**.
+  </Step>
+  <Step title="Copy the webhook URL">
+    Back on **Incoming Webhooks**, copy the new **Webhook URL**. It looks like
+    `https://hooks.slack.com/services/T000/B000/XXXX`. Treat it like a
+    password: anyone with it can post to that channel.
+  </Step>
+  <Step title="Paste it into Consultainer">
+    In Consultainer, go to **Settings → General**, paste the URL into **Slack
+    webhook URL**, and click **Save changes**. (The webhook lives on the
+    General page, not on Alerts.)
+  </Step>
+  <Step title="Choose which alerts go to Slack">
+    Go to **Settings → Alerts**, tick the **Slack** box for each alert you
+    want in Slack, and click **Save alerts**.
+  </Step>
+</Steps>
+
+**Check it worked:** the "Slack isn't connected" note at the top of
+**Settings → Alerts** is gone. There's no test button; to see a message,
+trigger an alert you've ticked for Slack, for example by marking a test
+invoice as sent.
+
+**Troubleshooting**
+
+- **"Enter the Slack webhook URL, e.g. https://hooks.slack.com/services/…"**
+  or **"Use the https:// webhook URL Slack gives you."** when saving: the
+  field only accepts a full URL starting with `https://`. Copy the whole
+  webhook URL again.
+- **Nothing arrives in Slack:** Consultainer only checks that the URL starts
+  with `https://` when you save it, and a failed post never shows an error in
+  the app. Check the app container's logs (`docker compose logs
+  consultainer-app`) for `Failed to post to Slack webhook:` followed by the
+  reason:
+  - *The server answered 404.* (or 403) — the webhook was removed or its
+    channel was archived. Create a new webhook and paste it in.
+  - *That address isn't reachable from here.* — the URL points at a private
+    or internal address, which is refused unless the server admin sets
+    `ALLOW_PRIVATE_FETCH=true` (see [Self-hosting](/self-hosting#optional)).
+  - *The server took too long.* or *Couldn't reach the server (…)* — the
+    server can't reach Slack within 5 seconds; check its outbound internet
+    access.
+- **Only some alerts arrive:** check that alert's **Slack** box on
+  **Settings → Alerts** and that you clicked **Save alerts**.
+
+## How to set up alert emails
+
+<Steps>
+  <Step title="Make sure email works on your instance">
+    Alert emails are sent with Resend. If **Settings → Alerts** says "Email
+    isn't set up on this instance", follow the **Email** card on **Settings →
+    Integrations** (or set `RESEND_API_KEY`; see
+    [Self-hosting](/self-hosting#email)).
+  </Step>
+  <Step title="Choose who gets them">
+    On **Settings → Alerts**, enter addresses in **Send alert emails to**,
+    separated by commas, spaces or new lines (up to 20). Leave it empty to
+    email the organization's owners.
+  </Step>
+  <Step title="Choose which alerts are emailed">
+    Tick the **Email** box for each alert you want by email, then click
+    **Save alerts**.
+  </Step>
+</Steps>
+
+**Check it worked:** you see **Saved.** next to the button, and the next
+alert you ticked arrives by email with a link back to Consultainer.
+
+**Troubleshooting**
+
+- **"Enter up to 20 valid email addresses."** One of the addresses is
+  malformed, or there are more than 20.
+- **Nothing arrives:** check that email is set up (above) and look in spam.
+  With no addresses entered, only owners are emailed, not admins.
+
+## Your own notifications
+
+Everyone, not just owners and admins, gets notifications in the app under the
+bell and on the **Notifications** page (click **Mark all read** to clear
+them). Besides the org alerts above (owners and admins only), you're notified
+when:
+
+- you're assigned a task, or added to a project;
+- someone comments on a task you're assigned to or watching, or @mentions you;
+- your timesheet is approved or sent back;
+- meetings from your connected calendar are waiting to be sorted;
+- (owners and admins) someone joins the organization.
+
+Personal notifications are in-app only. They don't go to Slack or email.
 
 ## Weekly digest
 
-Each Monday, last week in one email: hours (in total and per person,
-billable), invoiced, paid, not yet invoiced, overdue invoices, projects near or
-over budget, and timesheets waiting for approval. **Preview** on Settings →
-Alerts shows this week's.
+A summary of last week, for owners (or whoever is in **Send alert emails
+to**).
+
+**When it sends:** the scheduler's daily job sends it on Monday (UTC), or on
+Tuesday if Monday's run didn't happen, once per week. The daily job runs about
+a minute after the `scheduler` container starts and every 24 hours after
+that, so the exact time of day depends on when you started it.
+
+**What it covers** (Monday to Sunday of last week, UTC):
+
+- hours logged and billable hours;
+- invoiced (invoices issued last week) and paid (invoices paid last week);
+- not yet invoiced: all billable work not yet on an invoice;
+- hours by person;
+- overdue invoices;
+- active projects past 80% of their budget, or over it;
+- timesheets waiting for approval, if any.
+
+**How to preview it:** on **Settings → Alerts**, click **Preview** next to
+**Weekly digest (Mondays)**. It opens last week's digest email in a new tab.
+The email's **Open Reports** button opens [Reports](/concepts/reports) for
+that same week.
+
+**How to turn it on or off:** tick or untick **Email** and **Slack** on the
+**Weekly digest (Mondays)** row and click **Save alerts**. With both unticked
+it isn't sent. The Slack version is the same summary as a message.
 
 ## Audit log
 
-**Settings → Audit log** (owners and admins) records every change to
-organization data — clients, contacts, documents, projects, members, tasks,
-comments, time, expenses, invoices, payment methods, settings and
-integrations — plus sign-ins, document views and downloads, and audit log
-exports. Each entry has who made it (or *System* for scheduled jobs and
-webhooks), whether it came through the API or MCP, the IP address and browser,
-and for updates each field's before and after. Secrets show as `[redacted]`.
+**Settings → Audit log** records every change to your organization's data,
+newest first.
 
-Filter by person, action, record type and dates, and export to CSV. The log is
-also available over the [REST API](/api-reference/audit-log) and MCP
-(`list_audit_log`).
+**What's recorded**
+
+- Creates, updates and deletes of: the organization's settings, members and
+  invites, users' accounts and passkeys, API keys, single sign-on, QuickBooks,
+  Mercury and Linear connections, linked Linear projects, clients, contacts,
+  client documents, links, projects and project members, milestones, tasks and
+  task comments, time entries, timesheets, expenses, invoices, recurring
+  invoices, billing cycles and payment methods.
+- Sign-ins (with the sign-in method), client documents viewed and downloaded,
+  and audit log exports.
+
+Each entry shows who did it, what they did, the record (linked where it still
+exists), when (in UTC), and the IP address (hover it for the browser). For
+updates, click the field summary to see each field's before and after.
+
+- **System** means no person was involved: a scheduled job, or an incoming
+  webhook from Stripe or Linear.
+- An **API** badge means it was made with an API key, through the
+  [REST API](/api-reference/introduction) or the [MCP server](/mcp-server).
+- Passwords, tokens, secrets and similar fields show as `[redacted]`, and so
+  do payment-method details (account and routing numbers, IBANs and the
+  like) and payment instructions. The entry still shows that they changed.
+- Bookkeeping changes the app makes on its own (last-used times, view counts,
+  next invoice number and similar) aren't recorded.
+
+### How to find something
+
+<Steps>
+  <Step title="Pick your filters">
+    At the top of **Settings → Audit log**, choose **Who** (a person, or
+    **System**), **Action**, **Record** type, and a **From** and **To** date
+    (both inclusive).
+  </Step>
+  <Step title="Click Filter">
+    Results show 50 at a time. Use **Older →** and **← Newer** to page. Click
+    **Clear** to remove the filters.
+  </Step>
+</Steps>
+
+Links in alerts (for example, from a security alert about API keys) open the
+audit log already filtered.
+
+### How to export it
+
+Click **Export CSV**. The file uses your current filters and holds up to
+50,000 entries; narrow the dates for more. It has one row per entry with
+`time`, `actor`, `actor_email`, `via` (`web`, `api` or `system`), `action`,
+`summary`, `record_type`, `record_id`, `record`, `count`, `changes` (JSON),
+`ip_address` and `user_agent`. Each export is itself recorded in the log.
+
+### Retention
+
+Entries are kept until you delete them from the database. Consultainer never
+prunes the log. It starts empty: changes made before the audit log existed
+aren't in it.
+
+The log is also available over the [REST API](/api-reference/audit-log) and
+the MCP server (`list_audit_log`), for owner and admin keys.

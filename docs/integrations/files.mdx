@@ -1,68 +1,576 @@
 ---
 title: Documents & files
-description: Link documents from Google Drive, Dropbox, OneDrive, SharePoint and Notion
+description: Link documents from Google Drive, Dropbox, OneDrive, SharePoint and Notion, upload files, and file copies automatically
 ---
 
-Documents stay where your team already keeps them; Consultainer links to them
-from the client or project they belong to, and decides who sees each link —
-internally and on the client's share pages. (You can also upload files to
-keep them in Consultainer itself.) See
+Documents stay where your team already keeps them. Consultainer links to them
+from the client or project they belong to and controls who sees each link,
+inside your team and on the client's share pages. You can also upload files to
+keep them in Consultainer itself. See
 [Clients & projects → Documents](/concepts/clients-and-projects#documents)
-for how documents and their sharing work.
+for how document visibility works.
 
-## Linking without connecting
+You don't need to set anything up to link documents: pasting a link works for
+anything. Connecting a service adds three things:
 
-Pasting a link works for anything. Consultainer recognizes Google Drive and
-Docs, Dropbox, OneDrive and SharePoint, Notion and Box links and whether
-they're a file, folder or page; anything else is stored as a web link.
+- **Browse and search** it inside the **Add a document** dialog instead of
+  pasting links.
+- **Real titles and dates.** Pasted links to that service get the item's real
+  title, type and last-edited date.
+- **Filing.** Owners and admins can have Consultainer keep copies of invoices
+  and uploaded documents in Google Drive, Dropbox or OneDrive.
 
-## Connecting your accounts
+Setup has two parts:
 
-On **Profile → Files & docs**, connect Google Drive, Dropbox, OneDrive &
-SharePoint, or Notion. Then, when adding a document:
+1. **An owner registers an app** with each service once, for the whole
+   instance, and pastes its credentials into **Settings → Integrations → Files
+   & docs** (or sets them in `.env`). The guides below cover each service.
+2. **Each person connects their own account** under **Profile → Files &
+   docs**. Each connection uses that person's access only; nobody can browse a
+   service through someone else's connection.
 
-- **Browse and search** the connected service right in the dialog and pick a
-  file, folder or page (Dropbox picks get a shared link automatically).
-- Pasted links to it get their **real title**, type and **last-edited date**;
-  **Refresh** on a document updates them.
+## Before you start
 
-Each connection belongs to one person and uses their own access — nobody can
-browse a service through someone else's connection. Notion only shows the
-pages you chose to share with Consultainer when connecting. Disconnecting
-doesn't remove documents already linked.
+- **Who:** only an **owner** can enter or change the app credentials. Owners
+  and admins can set up filing. Anyone in the organization can connect their
+  own account and add documents.
+- **The redirect URI.** Each service needs a redirect URI, the address the
+  service sends people back to after they approve access. It is
+  `https://<your Consultainer address>/api/integrations/files/<service>/callback`,
+  where `<service>` is `google-drive`, `dropbox`, `onedrive` or `notion`. The
+  card under **Settings → Integrations → Files & docs** shows the exact value
+  for the address you're on. Open **How to set this up** under the service and
+  click **Copy**.
+- **One address per redirect URI.** Consultainer builds the redirect URI from
+  the address in your browser. If people reach Consultainer at more than one
+  address (for example `http://localhost:3113` and `https://consultainer.example.com`),
+  register a redirect URI for each one. Most services only accept `https://`
+  addresses, plus `http://localhost` for testing.
+- **Where credentials live.** Values you set in `.env` override anything saved
+  in the app. If all of a service's values come from `.env`, the card says
+  **Credentials set in the server environment** and can't be edited there.
+  Credentials saved in the app are encrypted with `INTEGRATION_ENCRYPTION_KEY`.
 
-## Setting up a service (owners)
-
-Each service needs an app registered with the provider, entered under
-**Settings → Integrations → Files & docs** (or in `.env`). The card shows the
-redirect URI to register for each.
-
-| Service | Where | What to set |
+| Service | `.env` variables | Fields in Consultainer |
 | --- | --- | --- |
-| Google Drive | Google Cloud → APIs & Services → Credentials | An OAuth client (Web application); enable the Google Drive API. `drive.readonly` is a restricted scope — use an **Internal** consent screen (Google Workspace) or keep the app in testing with your people as test users to avoid Google's verification. `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET` |
-| Dropbox | Dropbox App Console | Scoped access, Full Dropbox; permissions `account_info.read`, `files.metadata.read`, `files.content.read`, `files.content.write`, `sharing.read`, `sharing.write`. `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` |
-| OneDrive & SharePoint | Microsoft Entra → App registrations | Web platform; delegated permissions `User.Read`, `Files.ReadWrite.All`, `Sites.Read.All`, `offline_access`. Optionally a tenant ID to allow only your organization. `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
-| Notion | Notion → Integrations | A public integration with *read content* and *read user information including email addresses*. `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |
+| Google Drive | `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET` | **Client ID**, **Client secret** |
+| Dropbox | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` | **App key**, **App secret** |
+| OneDrive & SharePoint | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` (optional) | **Application (client) ID**, **Client secret**, **Directory (tenant) ID** |
+| Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` | **OAuth client ID**, **OAuth client secret** |
 
-## Filing copies automatically
+## Set up Google Drive
 
-Under **Settings → Integrations → Filing**, an owner or admin can have
-Consultainer keep copies of its own documents in Google Drive, Dropbox or
-OneDrive:
+Consultainer asks Google for these scopes: `openid`, `email`, `profile`,
+`https://www.googleapis.com/auth/drive.readonly` (browse and look up files,
+including shared drives) and `https://www.googleapis.com/auth/drive.file`
+(create and update the files it files itself).
 
-- **Invoices** — the PDF when it's sent, refreshed when it's paid or voided:
-  `<folder>/<Client>/Invoices/INV-0001.pdf`
-- **Uploaded documents** — `<folder>/<Client>/Documents/…`, or
-  `<folder>/<Client>/<Project>/Documents/…` for a project's.
+<Warning>
+`drive.readonly` is a **restricted** scope. A public ("In production") app
+that requests it has to pass Google's verification and a security
+assessment. Avoid that with one of these:
 
-Setting it up creates the folder (named *Consultainer* unless you change it)
-at the top of the admin's Drive, Dropbox or OneDrive; you can move it
-afterwards — into a Google shared drive, for example — and filing keeps
-working. Filing runs through the connection of the admin who set it up (they
-connect the service on their profile first); if they disconnect it, the card
-says so and filing pauses until someone sets it up again.
+- **Internal** audience: everyone signs in with an account in your Google
+  Workspace. Connections don't expire. This is the best option if you have
+  Workspace.
+- **External** audience left in **Testing**, with each person added as a test
+  user (up to 100). Google ends Testing-mode connections after **7 days**,
+  after which people reconnect on their profile.
+</Warning>
 
-Each item is filed when it happens; anything that fails (or changed since) is
-retried hourly by the scheduler (`/api/cron/filing`). **File everything now**
-catches up immediately — including invoices and documents from before filing
-was set up. An invoice's page links to its filed copy.
+<Steps>
+  <Step title="Create a Google Cloud project">
+    Go to [console.cloud.google.com](https://console.cloud.google.com/). In the
+    project picker at the top, click **New project**, name it (for example
+    *Consultainer*) and click **Create**. Make sure the new project is
+    selected.
+  </Step>
+  <Step title="Enable the Google Drive API">
+    Open **APIs & Services → Library**, search for **Google Drive API**, open
+    it and click **Enable**.
+  </Step>
+  <Step title="Configure the consent screen">
+    Open **Google Auth Platform** (in older consoles, **APIs & Services → OAuth
+    consent screen**) and click **Get started**. Enter an app name (people see
+    it when they connect) and a support email. For **Audience**, choose
+    **Internal** if everyone uses your Google Workspace, otherwise
+    **External**. Add a contact email, accept the policy and click **Create**.
+  </Step>
+  <Step title="Add test users (External only)">
+    Under **Audience**, leave the publishing status as **Testing**. Under
+    **Test users**, click **Add users** and enter the Google address of every
+    person who will connect Google Drive. Save.
+  </Step>
+  <Step title="Add the scopes">
+    Under **Data Access**, click **Add or remove scopes**. Add
+    `.../auth/drive.readonly` and `.../auth/drive.file` (paste them under
+    **Manually add scopes** if they aren't in the list), click **Update**, then
+    **Save**.
+  </Step>
+  <Step title="Create the OAuth client">
+    Under **Clients**, click **Create client**. For **Application type**,
+    choose **Web application** and give it a name. Under **Authorized redirect
+    URIs**, click **Add URI** and paste the redirect URI from Consultainer
+    (`.../api/integrations/files/google-drive/callback`). Click **Create**.
+  </Step>
+  <Step title="Copy the credentials into Consultainer">
+    Copy the **Client ID** and **Client secret** now (Google may not show the
+    secret again). In Consultainer, go to **Settings → Integrations → Files &
+    docs → Google Drive**, paste them into **Client ID** and **Client secret**,
+    and click **Save credentials**. Or set `GOOGLE_DRIVE_CLIENT_ID` and
+    `GOOGLE_DRIVE_CLIENT_SECRET` in `.env` and restart.
+  </Step>
+</Steps>
+
+**Check it worked:** a green check appears next to **Google Drive** on the
+card. Then [connect your account](#connect-your-account).
+
+**Troubleshooting**
+
+- **`Error 400: redirect_uri_mismatch`** (on Google's page): the redirect URI
+  in the OAuth client doesn't match the address you're on exactly. Copy it
+  again from the card and add it under **Authorized redirect URIs**. Changes
+  can take a few minutes to apply.
+- **`Error 403: access_denied`, or "has not completed the Google verification
+  process"**: the app is External and in Testing, and this person isn't a test
+  user. Add them under **Audience → Test users**.
+- **The picker says "The service refused: … An owner should check that
+  service's setup …" right after connecting** (the message mentions the API
+  not being used or being disabled): the Google Drive API isn't enabled in
+  the same project as the OAuth client. Enable it, then try again.
+- **The picker says "Token has been expired or revoked." after about a week:**
+  the app is External and in Testing. Disconnect and reconnect on your
+  profile, or switch to an Internal audience.
+- **`invalid_client`** (in the server log, while the profile shows *Couldn't
+  connect*): the client secret is wrong. Paste it again, or create a new one.
+
+## Set up Dropbox
+
+Consultainer asks Dropbox for these permissions: `account_info.read`,
+`files.metadata.read`, `files.content.read`, `files.content.write`,
+`sharing.read` and `sharing.write`. The sharing permissions let it make a
+shared link when you pick a file; the write permission is for filing.
+
+<Steps>
+  <Step title="Create the app">
+    Go to the [Dropbox App Console](https://www.dropbox.com/developers/apps)
+    and click **Create app**. Choose **Scoped access**, then **Full Dropbox**
+    (not *App folder*), name the app and click **Create app**.
+  </Step>
+  <Step title="Set the permissions">
+    Open the app's **Permissions** tab. Tick `account_info.read`,
+    `files.metadata.read`, `files.content.read`, `files.content.write`,
+    `sharing.read` and `sharing.write`, then click **Submit**.
+  </Step>
+  <Step title="Add the redirect URI">
+    Open the **Settings** tab. Under **OAuth 2 → Redirect URIs**, paste the
+    redirect URI from Consultainer (`.../api/integrations/files/dropbox/callback`)
+    and click **Add**.
+  </Step>
+  <Step title="Copy the credentials into Consultainer">
+    On the same **Settings** tab, copy the **App key** and the **App secret**
+    (click **Show**). In Consultainer, go to **Settings → Integrations → Files &
+    docs → Dropbox**, paste them into **App key** and **App secret**, and click
+    **Save credentials**. Or set `DROPBOX_APP_KEY` and `DROPBOX_APP_SECRET` in
+    `.env`.
+  </Step>
+</Steps>
+
+<Warning>
+Set the permissions **before** anyone connects. A connection keeps the
+permissions the app had when it was made, so if you change them later, each
+person has to **Disconnect** and **Connect** Dropbox again on their profile.
+</Warning>
+
+A new Dropbox app is in development status, which Dropbox allows for a limited
+number of users (see the app's **Settings** tab). That is usually plenty for
+one team; apply for production there if you need more.
+
+**Check it worked:** a green check appears next to **Dropbox** on the card.
+Then [connect your account](#connect-your-account).
+
+**Troubleshooting**
+
+- **"Invalid redirect_uri"** (on Dropbox's page): add the exact redirect URI
+  from the card under **OAuth 2 → Redirect URIs**.
+- **Dropbox refuses to connect over a scope (`invalid_scope`), or the picker
+  says "The service refused: … missing_scope …" right after connecting:** a
+  permission isn't ticked on the app. Tick all six on the
+  **Permissions** tab, click **Submit**, then disconnect and reconnect Dropbox
+  on your profile.
+- **"Dropbox wouldn't make a shared link for that item."** Your Dropbox team's
+  sharing policy may block shared links, or the permissions are missing
+  `sharing.write`. Paste a shared link you made in Dropbox instead.
+
+## Set up OneDrive & SharePoint
+
+This one app covers OneDrive (personal and work or school accounts) and
+SharePoint. Consultainer asks Microsoft for these delegated permissions:
+`openid`, `email`, `profile`, `offline_access`, `User.Read`,
+`Files.ReadWrite.All` and `Sites.Read.All`.
+
+<Steps>
+  <Step title="Register the app">
+    Go to the [Microsoft Entra admin center](https://entra.microsoft.com/) →
+    **App registrations** (under **Identity → Applications** or **Entra ID**)
+    and click **New registration**. Name it (for example *Consultainer*).
+  </Step>
+  <Step title="Choose who can sign in">
+    Under **Supported account types**, choose one:
+
+    - **Accounts in this organizational directory only (single tenant)** to
+      allow only your organization. You must then also enter the tenant ID in
+      Consultainer (step 6).
+    - The multitenant option that **includes personal Microsoft accounts** to
+      allow anyone, including personal OneDrive. Leave the tenant ID empty.
+  </Step>
+  <Step title="Add the redirect URI">
+    Under **Redirect URI**, choose the **Web** platform and paste the redirect
+    URI from Consultainer (`.../api/integrations/files/onedrive/callback`).
+    Click **Register**.
+  </Step>
+  <Step title="Create a client secret">
+    Open **Certificates & secrets → Client secrets** and click **New client
+    secret**. Pick an expiry and click **Add**. Copy the secret's **Value**
+    right away (not the **Secret ID**); it's only shown once.
+  </Step>
+  <Step title="Add the API permissions">
+    Open **API permissions → Add a permission → Microsoft Graph → Delegated
+    permissions**. Select `offline_access`, `User.Read`, `Files.ReadWrite.All`
+    and `Sites.Read.All` (plus `openid`, `email` and `profile` if they aren't
+    there already). Click **Add permissions**. If your organization doesn't let
+    users approve apps themselves, click **Grant admin consent for
+    &lt;your organization&gt;** (this needs an Entra admin).
+  </Step>
+  <Step title="Copy the credentials into Consultainer">
+    From the app's **Overview**, copy the **Application (client) ID** and, for
+    a single-tenant app, the **Directory (tenant) ID**. In Consultainer, go to
+    **Settings → Integrations → Files & docs → OneDrive & SharePoint** and fill
+    in **Application (client) ID**, **Client secret** (the Value from step 4)
+    and, if single tenant, **Directory (tenant) ID**. Click **Save
+    credentials**. Or set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` and
+    `MICROSOFT_TENANT_ID` in `.env`.
+  </Step>
+</Steps>
+
+<Warning>
+Client secrets expire (the longest option is 24 months). When the secret
+expires, nobody can connect and existing connections stop refreshing. Note
+the date and, before then, create a new secret and save it in Consultainer
+(**Edit credentials**) or `.env`.
+</Warning>
+
+**Check it worked:** a green check appears next to **OneDrive & SharePoint**
+on the card. Then [connect your account](#connect-your-account).
+
+**Troubleshooting**
+
+- **`AADSTS50011`** (redirect URI mismatch): add the exact redirect URI from
+  the card under the app's **Authentication → Web → Redirect URIs**.
+- **`AADSTS50194`** ("not configured as a multi-tenant application"): the app
+  is single tenant but Consultainer has no tenant ID. Enter the **Directory
+  (tenant) ID** in Consultainer, or change the app's supported account types.
+- **`AADSTS7000215`** (invalid client secret): you pasted the **Secret ID**
+  instead of the **Value**, or a typo. Create a new secret and paste its
+  Value.
+- **`AADSTS7000222`** (expired client secret): create a new secret and save
+  it.
+- **"Need admin approval"** or **`AADSTS65001`**: an Entra admin has to click
+  **Grant admin consent** under **API permissions**.
+- **Personal accounts can't sign in:** the app's supported account types
+  don't include personal Microsoft accounts, or a tenant ID is set.
+
+## Set up Notion
+
+Notion connects through a **public** integration. During connect, each person
+picks which pages and databases Consultainer may see. Only those can be
+browsed and looked up.
+
+<Steps>
+  <Step title="Create the integration">
+    Go to [notion.so/profile/integrations](https://www.notion.so/profile/integrations)
+    and click **New integration**. Choose the **Public** type, name it, pick
+    the workspace, and fill in the company details Notion asks for (website,
+    privacy policy and terms URLs, email).
+  </Step>
+  <Step title="Add the redirect URI">
+    Under **Redirect URIs**, paste the redirect URI from Consultainer
+    (`.../api/integrations/files/notion/callback`). Save.
+  </Step>
+  <Step title="Set the capabilities">
+    Under **Capabilities**, tick **Read content**. Under user capabilities,
+    choose **Read user information including email addresses**. Save.
+  </Step>
+  <Step title="Copy the credentials into Consultainer">
+    Copy the **OAuth client ID** and **OAuth client secret** from the
+    integration's settings. In Consultainer, go to **Settings → Integrations →
+    Files & docs → Notion**, paste them and click **Save credentials**. Or set
+    `NOTION_CLIENT_ID` and `NOTION_CLIENT_SECRET` in `.env`.
+  </Step>
+</Steps>
+
+**Check it worked:** a green check appears next to **Notion** on the card.
+Then [connect your account](#connect-your-account).
+
+**Troubleshooting**
+
+- **"Missing or invalid redirect_uri"** (on Notion's page): add the exact
+  redirect URI from the card to the integration.
+- **The picker is empty, or shows "Only pages you shared when connecting
+  Notion show up":** you didn't share any pages, or not the right ones.
+  Disconnect Notion on your profile and connect again; Notion lets you pick
+  pages again. You can also add the integration to a page from that page's
+  connections menu in Notion.
+- **A pasted Notion link gets no real title:** the page isn't shared with
+  your connection. Share it as above, then click the document's refresh
+  button.
+
+## Connect your account
+
+Anyone in the organization can do this, once an owner has set the service up.
+
+<Steps>
+  <Step title="Open your profile">
+    Click your name or avatar, then **Profile**. Find the **Files & docs**
+    card.
+  </Step>
+  <Step title="Click Connect">
+    Click **Connect** next to the service. If the service isn't set up yet, the
+    row says *Not set up on this instance* instead, and an owner has to follow
+    the setup guide above first.
+  </Step>
+  <Step title="Approve access">
+    Sign in to the service if asked, and approve. For Notion, choose the pages
+    Consultainer may see.
+  </Step>
+</Steps>
+
+**Check it worked:** you're back on your profile with *Connected*, and the
+service shows the account you connected (usually its email) with a green
+check.
+
+To disconnect, click **Disconnect**. Documents you already linked stay. If
+filing runs through your connection, it stops until an owner or admin sets it
+up again ([Set up filing](#set-up-filing)).
+
+**Troubleshooting**
+
+- **"Couldn't connect. Try again; if it keeps failing, ask an owner to check
+  that service's redirect URI and client secret …"** The service accepted the
+  sign-in but Consultainer couldn't finish it. Usually the client secret is wrong or
+  expired, or the redirect URI differs from the address you started on. The
+  server log has the details (`[files] Connect failed`). Also make sure you
+  stay signed in to Consultainer in the same browser during the round trip.
+- **"Not connected: the service refused."** followed by the service's own
+  reason (for example that admin consent is required, or a scope or redirect
+  URI is invalid): the service turned the request down. The reason usually
+  says what to fix; check that service's troubleshooting list above.
+- **"Not connected: you cancelled, or the service refused the request."** You
+  clicked cancel or deny, or the service refused without giving a reason.
+  If you didn't cancel, check that service's troubleshooting list above.
+- **"That service isn't set up on this instance yet."** An owner needs to save
+  its credentials first.
+- **"Your connection expired or was revoked — reconnect it on your
+  profile."** (in the picker): the service rejected the request (HTTP 401 or
+  403). Disconnect and connect again.
+- **"The service refused: … An owner should check that service's setup
+  under Settings → Integrations → Files & docs …"** (in the picker): the
+  service says the app is missing an API or permission (Google: Drive API not
+  enabled; Dropbox: a permission not ticked). An owner fixes the app, then
+  you reconnect on your profile.
+- **A message from the service in the picker, such as "Token has been expired
+  or revoked." or `invalid_grant`:** Consultainer couldn't renew your access.
+  Disconnect and connect again. If it fails for everyone, the app's client
+  secret may have expired or changed.
+
+## Link a document
+
+Anyone who can see a client or project can add documents to it.
+
+<Steps>
+  <Step title="Open Add a document">
+    On the client's or project's page, find the **Documents** card and click
+    **Add**. The **Link** tab is selected.
+  </Step>
+  <Step title="Pick or paste the document">
+    If you've connected services, a browser appears at the top: choose the
+    service, then search or scroll and click an item. Or paste a link into
+    **Link**. Below the field, Consultainer shows what it recognized, such as
+    *Google Docs file* or *SharePoint file*.
+  </Step>
+  <Step title="Fill in the details">
+    **Title** is optional; it's taken from the item when possible. Choose a
+    **Type**, and on a client's page, a **Project** (or *Whole client*). Choose
+    whether the client can see it and who on your team can.
+  </Step>
+  <Step title="Click Add link" />
+</Steps>
+
+**Check it worked:** the document appears in the **Documents** list with the
+service's icon and its title. Linked documents from a connected service show
+*edited &lt;date&gt;*, the item's last-edited date.
+
+What the browser shows for each service:
+
+| Service | With an empty search | Searching |
+| --- | --- | --- |
+| Google Drive | Your 25 most recently modified files and folders, including shared drives | Names containing your text |
+| Dropbox | The top level of your Dropbox | Dropbox search |
+| OneDrive | Your recent files | Your own OneDrive. For SharePoint, paste the link instead. |
+| Notion | The pages you shared, most recently edited first | Titles in those pages |
+
+Good to know:
+
+- **Recognized links:** Google Drive and Docs, Sheets, Slides, Forms and
+  Drawings; Dropbox shared links; OneDrive (`onedrive.live.com`, `1drv.ms`)
+  and SharePoint (`*.sharepoint.com`); Notion (`notion.so`, `notion.com`,
+  `*.notion.site`);
+  and Box. Anything else is stored as a plain web link. A link must start with
+  `https://` (or `http://`).
+- **Real titles need your connection.** Consultainer looks a pasted link up
+  with *your* connection to that service. Without one, or without access to
+  the item, it uses a title guessed from the link. Box and plain links are
+  never looked up.
+- **Refresh.** The refresh button on a linked document re-reads its title and
+  last-edited date with your connection. Only people who can manage the
+  document (owners, whoever added it, and admins who can see it) can use it.
+- **Dropbox picks make a shared link.** Picking a Dropbox item reuses its
+  shared link or creates one with your Dropbox's default sharing settings.
+  Check those if a file shouldn't be openable by anyone with the link.
+- **Access still comes from the service.** A link opens in the service, so
+  teammates and clients need access there too. Consultainer doesn't change
+  the service's sharing.
+- Removing a linked document only removes the link. The file isn't touched.
+
+**Troubleshooting**
+
+- **"Paste a full link, starting with https://."** The text isn't a URL. Copy
+  the full address from the browser or the service's **Share** dialog.
+- **"Connect it on your profile first."** or **"Connect Dropbox on your
+  profile first."** You don't have a connection to that service.
+- **"Couldn't search right now."** The service didn't respond. Try again.
+- **The title is a guess (for example a file name from the URL):** connect the
+  service, make sure you can open the item there, then click refresh.
+
+## Upload a document
+
+Use uploads for files that don't live in a shared service, such as a signed W-9.
+
+<Steps>
+  <Step title="Open Add a document">
+    On the client's or project's page, click **Add** on the **Documents** card,
+    then the **Upload** tab.
+  </Step>
+  <Step title="Choose the file">
+    Click the file field and choose a file. Optionally give it a **Title**.
+  </Step>
+  <Step title="Fill in the details and click Upload">
+    Choose the **Type**, the **Project** if any, and who can see it.
+  </Step>
+</Steps>
+
+**Check it worked:** the document appears in the list. Click it to open it in
+Consultainer (PDFs and images open in the viewer). If [filing](#set-up-filing)
+is on for uploaded documents, a copy also goes to the filing folder.
+
+**Allowed files:** PDF, PNG, JPEG, WebP, Word (`.docx`), Excel (`.xlsx`),
+PowerPoint (`.pptx`), plain text and CSV. The file picker only offers these
+types. Older Office formats (`.doc`, `.xls`,
+`.ppt`), GIF, HEIC and others are refused; convert them or link them instead.
+
+**Size limit:** 5MB per file when uploads are stored in the database (the
+default), or 25MB with S3-compatible storage. See
+[Self-hosting → File storage](/self-hosting#file-storage) to set that up. The
+dialog shows the current limit.
+
+**Troubleshooting**
+
+- **"Upload a PDF, image, Word, Excel, PowerPoint, text or CSV file — or link it
+  instead."** The file type isn't allowed (see above). If the browser reports
+  a wrong type for an allowed file (some report a `.csv` as Excel, or give no
+  type), Consultainer goes by the file's extension instead, so a file with
+  the right extension is accepted.
+- **"Files must be under 5MB — link larger ones from where they live
+  instead."** (or 25MB): the file is too big. Link it instead, or set up S3
+  storage to raise the limit to 25MB.
+- **"Choose a file to upload."** The file is empty.
+
+## Set up filing
+
+Filing keeps copies of Consultainer's own documents in Google Drive, Dropbox or
+OneDrive (not Notion):
+
+- **Invoices:** the PDF, filed when the invoice is sent and updated when it's
+  paid. A voided invoice's copy is updated by the next hourly run.
+  Path: `<folder>/<Client>/Invoices/INV-0001.pdf`.
+- **Uploaded documents:** `<folder>/<Client>/Documents/<file>`, or
+  `<folder>/<Client>/<Project>/Documents/<file>` for a project's. Linked
+  documents aren't copied.
+
+Filing writes through the connection of the owner or admin who sets it up, so
+the copies land in their Drive, Dropbox or OneDrive.
+
+<Steps>
+  <Step title="Connect the service on your profile">
+    As an owner or admin, [connect](#connect-your-account) Google Drive,
+    Dropbox or OneDrive under **Profile → Files & docs**.
+  </Step>
+  <Step title="Open the Filing card">
+    Go to **Settings → Integrations** and find **Filing**.
+  </Step>
+  <Step title="Choose where to file">
+    Under **File to**, pick the service. Under **Folder**, keep *Consultainer*
+    or type another name. The folder is created at the top level of your
+    Drive (My Drive), Dropbox or OneDrive; if a folder with that name already
+    exists there, it's reused.
+  </Step>
+  <Step title="Choose what to file">
+    Tick **Invoices**, **Uploaded documents**, or both.
+  </Step>
+  <Step title="Click Set up filing" />
+  <Step title="File what already exists">
+    Click **File everything now** to copy invoices (sent, paid or voided) and
+    uploaded documents from before filing was set up. Otherwise the hourly run
+    picks them up.
+  </Step>
+</Steps>
+
+**Check it worked:** the card says *Filing to &lt;service&gt; →
+&lt;folder&gt;* with **Open folder**. After a sent invoice or an upload, the
+file appears in the folder, and the invoice's page shows **Filed to
+&lt;service&gt; ↗**.
+
+**What happens automatically:** each item is filed when it happens. The
+scheduler container calls `/api/cron/filing` every hour, which files anything
+that failed or changed since. You can change **Invoices** and **Uploaded
+documents** later and click **Save**. **Turn off** stops filing; copies
+already filed stay where they are.
+
+<Note>
+**Moving the folder.** In Google Drive you can move the folder afterwards, for
+example into a shared drive, and filing keeps working. In Dropbox and OneDrive,
+filing writes by path: if you move or rename the folder, a new one is created
+at the original place. To file somewhere else there, **Turn off** and set
+filing up again with the new name.
+</Note>
+
+**Troubleshooting** (errors appear in red on the **Filing** card)
+
+- **"Connect that service on your profile first — filing uses your
+  connection."** You chose a service you haven't connected. Connect it first.
+- **"Couldn't create the folder: …"** The service refused. Check that your
+  connection still works (try the picker in **Add a document**). For Dropbox,
+  check `files.content.write` is ticked; for Microsoft, `Files.ReadWrite.All`.
+- **"The account filing was set up with has been disconnected — set filing up
+  again."** The person who set it up disconnected the service. Click **Turn
+  off**, then set filing up again with a connected account.
+- **"Google Drive upload failed (…)", "Dropbox upload failed (…)", "OneDrive
+  upload failed (…)":** the service rejected a file, for example because the
+  account is out of storage or lost access. Fix the cause; the hourly run
+  retries.
+- **"Filing failed — will retry within the hour."** An unexpected error; see
+  the server log (`[filing]`).
+
+An error clears from the card on its own as soon as the next copy is filed
+successfully. Once you've fixed the cause, click **File everything now**:
+it clears the error and only shows it again if something still fails.

@@ -9,9 +9,50 @@ description: List invoices and generate a draft
 GET /api/v1/invoices
 ```
 
+Any role. Returns the organization's invoices, newest first, each with its
+`client` (`{ id, name }`). Owner and admin keys get every invoice. A member's
+key doesn't get invoices with a line on a confidential project the member
+isn't on.
+
 <ParamField query="status" type="string">
-  Filter by `DRAFT`, `SENT`, `PAID`, or `VOID`.
+  Only `DRAFT`, `SENT`, `PAID`, or `VOID` invoices. Any other value is
+  ignored.
 </ParamField>
+
+```bash
+curl "https://<your-instance>/api/v1/invoices?status=SENT" \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "invoices": [
+    {
+      "id": "cm9...",
+      "number": "INV-0042",
+      "status": "SENT",
+      "issueDate": "2026-08-01T00:00:00.000Z",
+      "dueDate": "2026-08-31T00:00:00.000Z",
+      "paymentTerms": "NET30",
+      "subtotal": "5250",
+      "taxAmount": "0",
+      "total": "5250",
+      "currency": "USD",
+      "paidAt": null,
+      "firstViewedAt": "2026-08-02T16:40:12.000Z",
+      "viewCount": 3,
+      "client": { "id": "cm9...", "name": "Fintra Labs" },
+      "...": "..."
+    }
+  ]
+}
+```
+
+`paidAt` is when the invoice was marked paid (by hand, or when an online
+payment went through), or `null`. `firstViewedAt`, `lastViewedAt` and
+`viewCount` track when the client opened the invoice. To find overdue invoices, look for `SENT` invoices whose
+`dueDate` has passed (the MCP `list_invoices` tool returns `isOverdue` and
+`daysOverdue` for you).
 
 ## Generate an invoice
 
@@ -19,44 +60,64 @@ GET /api/v1/invoices
 POST /api/v1/invoices/generate
 ```
 
-Owner/admin only. Generates a draft from unbilled time entries, completed
-milestones, and/or approved expenses — the same as generating one from the
-UI.
+Owner/admin only. Creates a draft from unbilled time entries, completed
+milestones, and/or approved expenses, the same as **Generate invoice** in
+the app. Returns `201` with `{ "invoice": { ... } }`, including its `id`,
+`number` and computed `subtotal`, `taxAmount` and `total`. Review and send the draft in the app, or with the MCP
+`email_invoice` or `mark_invoice_sent` tools.
 
 <ParamField body="clientId" type="string" required />
 <ParamField body="timeEntryIds" type="string[]">
-  Unbilled, billable time entry IDs to include.
+  Billable time entries not yet on an invoice, on this client's projects. If
+  your organization requires timesheet approval, the time must be approved.
 </ParamField>
 <ParamField body="milestoneIds" type="string[]">
-  Completed, unbilled milestone IDs to include.
+  Completed milestones not yet on an invoice.
 </ParamField>
 <ParamField body="expenseIds" type="string[]">
-  Approved, unbilled expense IDs to include.
+  Approved expenses not yet on an invoice.
 </ParamField>
 <ParamField body="issueDate" type="string" required>
   `YYYY-MM-DD`.
 </ParamField>
 <ParamField body="dueDate" type="string">
-  `YYYY-MM-DD`. Defaults to `issueDate` plus the payment terms; required when `paymentTerms` is `CUSTOM`.
+  `YYYY-MM-DD`. Defaults to `issueDate` plus the payment terms. Required when
+  `paymentTerms` is `CUSTOM`.
 </ParamField>
 <ParamField body="paymentTerms" type="string">
-  `DUE_ON_RECEIPT`, `NET15`, `NET30`, `NET45`, `NET60`, `NET90`, or `CUSTOM`. Defaults to the project's terms when every item is from one project that sets them, otherwise the client's, otherwise the organization's default.
+  `DUE_ON_RECEIPT`, `NET15`, `NET30`, `NET45`, `NET60`, `NET90`, or `CUSTOM`.
+  Defaults to the project's terms when every item is from one project that
+  sets them, otherwise the client's, otherwise the organization's default.
 </ParamField>
-<ParamField body="poNumber" type="string" />
-<ParamField body="taxRate" type="number" default="0" />
-<ParamField body="notes" type="string" />
+<ParamField body="poNumber" type="string">Up to 100 characters.</ParamField>
+<ParamField body="taxRate" type="number" default="0">
+  Percent, 0 to 100.
+</ParamField>
+<ParamField body="notes" type="string">Up to 2,000 characters.</ParamField>
 
 At least one of `timeEntryIds`, `milestoneIds`, or `expenseIds` is required.
+IDs that don't qualify (already invoiced, not billable, on another client's
+project, and so on) are skipped. The invoice uses the organization's default
+currency.
 
 ```bash
 curl -X POST https://<your-instance>/api/v1/invoices/generate \
   -H "Authorization: Bearer ch_live_..." \
   -H "Content-Type: application/json" \
   -d '{
-    "clientId": "client_123",
-    "timeEntryIds": ["te_1", "te_2"],
+    "clientId": "cm9...",
+    "timeEntryIds": ["cm9...", "cm9..."],
     "issueDate": "2026-08-01",
-    "dueDate": "2026-08-31",
     "paymentTerms": "NET30"
   }'
 ```
+
+**Errors**
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `403` | `Only owners and admins can generate invoices.` | Use an owner or admin key. |
+| `422` | `{ "timeEntryIds": ["Select at least one time entry, milestone, or expense"] }` | Send at least one ID. |
+| `422` | `Client not found.` | Check `clientId`. |
+| `422` | `No eligible unbilled time entries, milestones, or expenses were selected.` | None of the IDs qualified. Check they're on this client's projects, billable, approved, and not already invoiced. |
+| `422` | `Custom payment terms need a due date.` | Send `dueDate` with `CUSTOM` terms. |

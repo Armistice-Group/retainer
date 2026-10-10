@@ -17,15 +17,32 @@ running locally).
 
 ## Structure
 
-- `docs.json` — Mintlify config: nav, theme, colors, logo.
+- `docs.json` — Mintlify config: nav, theme, colors, logo. A new page only
+  shows up once it's added to the `navigation` here.
 - `logo/` — **placeholder SVGs** (a plain text wordmark and a purple "C").
   Swap these for real brand assets before this goes live anywhere public.
-- `introduction.mdx`, `quickstart.mdx` — top-level onboarding.
-- `concepts/` — how clients, projects, time, invoicing, milestones, and
-  expenses actually work.
-- `integrations/` — QuickBooks and Linear.
-- `mcp-server.mdx` — connecting an AI coding agent via MCP.
+- `introduction.mdx`, `quickstart.mdx`, `self-hosting.mdx` — getting started:
+  what it is, the first hour, and installing/running/administering an
+  instance.
+- `concepts/` — how clients and projects, tasks, time, milestones, expenses,
+  invoicing, reports, alerts and the audit log, and team & security (roles,
+  SSO, 2FA, API keys) work.
+- `integrations/` — documents & files, Linear, calendars, payments (Stripe,
+  Mercury), QuickBooks.
+- `mcp-server.mdx` — connecting an AI agent via MCP.
 - `api-reference/` — the REST API (`/api/v1/*`).
+- `screenshots/` — images used by the repo README.
+
+These docs aren't hosted anywhere the app can link to yet, so in-app setup
+cards carry their own step-by-step instructions. Keep the two in step when
+you change either.
+
+## Writing style
+
+Plain, direct, second person, short sentences. Bold UI labels exactly as the
+app shows them (**Settings → Members**). Setup flows are numbered `<Steps>`,
+say which role can do them, and end with how to check it worked and the real
+error messages with their fixes.
 
 ## Keeping this accurate
 

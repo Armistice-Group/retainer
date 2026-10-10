@@ -3,55 +3,104 @@ title: Introduction
 description: What Consultainer is and how these docs are organized
 ---
 
-Consultainer runs client engagements for consultancies — clients, projects,
-tasks, time, milestones, expenses, and invoices in one place, self-hosted on
-your own server. It's built to plug into the tools you already work in
-(Linear, your calendar, Slack, QuickBooks, AI agents) rather than be another
-admin app to keep updated.
+Consultainer runs client engagements for consultancies: clients, projects,
+tasks, time, milestones, expenses and invoices in one place, self-hosted on
+your own server. It connects to the tools you already use (Linear, your
+calendar, Slack, QuickBooks, Stripe, Google Drive and others, AI agents)
+instead of being one more app to keep updated by hand.
 
-## What you can do
+It's open source (Apache-2.0) and self-hosted only: no per-seat pricing, no
+plan limits, no telemetry.
 
-<CardGroup cols={2}>
-  <Card title="Clients & projects" icon="building" href="/concepts/clients-and-projects">
-    Engagements, contacts, documents, and the projects under each client —
-    hourly, flat-fee, or milestone-based, with budgets and client links.
-  </Card>
-  <Card title="Tasks" icon="list-todo" href="/concepts/tasks">
-    A task list per project and across all of them, with comments, @mentions,
-    watchers, timers, and two-way Linear sync.
-  </Card>
-  <Card title="Time tracking" icon="clock" href="/concepts/time-tracking">
-    Log hours by hand, with a timer, or from your calendar's meetings — with
-    per-person rates and optional weekly timesheet approval.
-  </Card>
-  <Card title="Invoicing" icon="file-text" href="/concepts/invoicing">
-    Invoice unbilled time, milestones, and expenses; email a tracked link,
-    take payment online, send overdue reminders.
-  </Card>
-  <Card title="Reports" icon="chart-column" href="/concepts/reports">
-    Utilization, profit by project, unbilled work, and receivables.
-  </Card>
-  <Card title="Alerts & audit log" icon="bell" href="/concepts/alerts-and-audit">
-    Slack and email alerts you choose, a weekly digest, and a full audit log.
-  </Card>
-  <Card title="MCP server" icon="bot" href="/mcp-server">
-    Log time, run timers, and draft invoices straight from Claude Code,
-    Cursor, or any MCP-compatible agent.
+## Get started
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    From an empty server to your first sent invoice.
   </Card>
   <Card title="Self-hosting" icon="server" href="/self-hosting">
-    One compose file, your database, no per-seat pricing.
+    Install, HTTPS, scheduled jobs, storage, upgrades, backups and restore.
+  </Card>
+  <Card title="Team & security" icon="shield" href="/concepts/team-and-security">
+    Roles, invites, SSO, two-factor authentication and API keys.
   </Card>
 </CardGroup>
 
-## How these docs are organized
+## Running engagements
 
-- **Get started** — the [quickstart](/quickstart) and
-  [self-hosting](/self-hosting) reference.
-- **Core concepts** — clients and projects, tasks, time, invoicing,
-  milestones, expenses, reports, and alerts.
-- **Integrations** — Linear, calendars, payments (Stripe, Mercury),
-  QuickBooks, and Slack/email.
-- **API Reference** — the REST API for scripting or integrating Consultainer
-  with something else.
-- **MCP Server** — connecting an AI agent so it can read and write your
-  Consultainer data directly.
+<CardGroup cols={2}>
+  <Card title="Clients & projects" icon="building" href="/concepts/clients-and-projects">
+    Clients with contacts, links and access-controlled documents, and the
+    projects under them: hourly, flat-fee or milestone-based, with per-person
+    bill rates, hour budgets and client share links.
+  </Card>
+  <Card title="Tasks" icon="list-todo" href="/concepts/tasks">
+    A task list per project and across all of them, with comments,
+    @mentions, watchers and timers.
+  </Card>
+  <Card title="Time tracking" icon="clock" href="/concepts/time-tracking">
+    Log hours by hand, with a timer, or from calendar meetings, with
+    optional weekly timesheet approval.
+  </Card>
+  <Card title="Milestones" icon="flag" href="/concepts/milestones">
+    Deliverables you bill for when they're done, with evidence attached.
+  </Card>
+  <Card title="Expenses" icon="receipt" href="/concepts/expenses">
+    Expenses with receipts, approval above a threshold, and billing to the
+    client.
+  </Card>
+  <Card title="Invoicing" icon="file-text" href="/concepts/invoicing">
+    Invoice unbilled time, milestones and expenses; email a tracked link;
+    retainers and billing cycles on a schedule; overdue reminders.
+  </Card>
+  <Card title="Reports" icon="chart-column" href="/concepts/reports">
+    Utilization, profit by project, unbilled work and receivables.
+  </Card>
+  <Card title="Alerts & audit log" icon="bell" href="/concepts/alerts-and-audit">
+    Slack and email alerts you choose, a weekly digest, and a record of
+    every change.
+  </Card>
+</CardGroup>
+
+## Integrations
+
+<CardGroup cols={2}>
+  <Card title="Documents & files" icon="folder" href="/integrations/files">
+    Link documents from Google Drive, Dropbox, OneDrive and Notion, and file
+    invoices and documents into a folder automatically.
+  </Card>
+  <Card title="Linear" icon="git-branch" href="/integrations/linear">
+    Two-way sync of a project's tasks and comments with Linear.
+  </Card>
+  <Card title="Calendars" icon="calendar" href="/integrations/calendars">
+    Turn meetings from your calendar into time entries.
+  </Card>
+  <Card title="Payments" icon="credit-card" href="/integrations/payments">
+    Payment methods on invoices, and online payment with Stripe or Mercury.
+  </Card>
+  <Card title="QuickBooks" icon="link" href="/integrations/quickbooks">
+    Push invoices to QuickBooks Online and sync their status back.
+  </Card>
+</CardGroup>
+
+## Build with Consultainer
+
+<CardGroup cols={2}>
+  <Card title="MCP server" icon="bot" href="/mcp-server">
+    Log time, run timers and draft invoices from Claude Code, Claude
+    Desktop, Cursor or any MCP client.
+  </Card>
+  <Card title="REST API" icon="code" href="/api-reference/introduction">
+    Read and write clients, projects, tasks, time, invoices and the audit
+    log with an API key.
+  </Card>
+</CardGroup>
+
+## Who can do what
+
+Organizations have three roles. **Members** work on clients, projects,
+tasks and their own time. **Admins** also manage settings, people, reports,
+approvals and sending invoices. The **Owner**, who set the organization up,
+can also change instance-wide settings. The full list is in
+[Team & security](/concepts/team-and-security#roles). Setup guides in these
+docs say which role each step needs.

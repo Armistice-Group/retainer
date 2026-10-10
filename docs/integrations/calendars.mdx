@@ -3,62 +3,203 @@ title: Calendars
 description: Turn meetings into time entries, with a suggested project for each
 ---
 
-Each person can connect their own calendars, and their meetings become time
-to log — Consultainer suggests which project each one belongs to.
+Connect your calendar and the meetings you've had show up under **Time →
+Meetings**, each with a suggested project. One click logs a meeting as time.
 
-## Connecting a calendar
+Calendars are personal: every member connects their own on their profile, and
+only they see their meetings. Nothing needs setting up by an admin.
 
-On your **Profile → Calendars**, paste the calendar's secret iCal (.ics)
-link. Up to five per person.
+## Connect a calendar
 
-- **Google Calendar** — Settings → your calendar → *Integrate calendar* →
-  *Secret address in iCal format*.
-- **Outlook / Microsoft 365** — Settings → Calendar → *Shared calendars* →
-  *Publish a calendar* (can view all details) → ICS link.
-- **Apple iCloud** — in Calendar, share the calendar as a *Public Calendar*
-  and copy the `webcal://` link.
+You need your calendar's **secret iCal (.ics) link** — a private address that
+lets Consultainer read the calendar. Find it with the steps for your calendar
+app below, then:
 
-Anyone with that link can read the calendar, so it's stored encrypted and only
-used to fetch your meetings. Only you see your meetings in Consultainer.
+<Steps>
+  <Step title="Open Profile → Calendars">
+    Click your name in the corner and choose **Profile**, then scroll to
+    **Calendars**. (If you already have one connected, click **Connect a
+    calendar**.)
+  </Step>
+  <Step title="Paste the link">
+    Give it a **Name** (e.g. *Work calendar*) and paste the link into
+    **Secret iCal link**. `https://` and `webcal://` links both work.
+  </Step>
+  <Step title="Click Connect calendar">
+    Consultainer checks that the link returns a calendar and pulls in your
+    meetings from the last two weeks.
+  </Step>
+</Steps>
 
-## Sorting meetings
+**Check it worked:** you see *Calendar connected — recent meetings are under
+Time → Meetings*, and the calendar is listed with *Synced (date) · every
+hour*. You can connect up to five calendars.
 
-Right after connecting, and then every hour, meetings from the last two weeks
-that have ended show up under **Time → Meetings** (you're notified, at most
-daily, when there are some to sort). Left out: all-day events, blocks marked
-*free*, cancelled meetings, and meetings you declined. Meeting rooms don't
-count as attendees.
+Anyone with a secret link can read that calendar, so don't share it
+elsewhere. Consultainer stores it encrypted.
 
-Each meeting gets a suggested project, with the reason shown:
+### Google Calendar
 
-1. The project you logged earlier meetings in the **same recurring series**
-   to.
-2. A **client whose email domain matches the attendees** — taken from the
-   client's contacts, billing email and website (public domains like
-   gmail.com, and your own organization's domain, are ignored) — on the
-   project you've logged to most for that client.
-3. A **project or client named in the meeting title**.
+<Steps>
+  <Step title="Open your calendar's settings">
+    On [calendar.google.com](https://calendar.google.com), click the gear
+    icon → **Settings**. Under **Settings for my calendars** on the left,
+    click the calendar you want.
+  </Step>
+  <Step title="Copy the secret address">
+    Scroll to **Integrate calendar** and copy **Secret address in iCal
+    format** (click the eye icon to reveal it, or the copy icon).
+  </Step>
+</Steps>
 
-For each meeting:
+If there's no secret address, your Google Workspace admin has turned off
+external calendar sharing; ask them to allow it.
 
-- **Log** — adds the meeting's length as a time entry on the chosen project,
-  dated the meeting's day, described with its title; billable unless you
-  untick **Billable**.
-- **Ignore** — it isn't project work.
-- **Always for this series** — sort the rest of a recurring meeting the same
-  way: other unsorted occurrences now, and future ones automatically on each
-  sync. **Forget them all** on the Calendars card clears these.
+### Outlook / Microsoft 365
 
-**Log all suggested** accepts every suggestion at once.
+<Steps>
+  <Step title="Open shared calendar settings">
+    In Outlook on the web, click the gear icon → **Calendar** → **Shared
+    calendars**.
+  </Step>
+  <Step title="Publish the calendar">
+    Under **Publish a calendar**, choose the calendar and **Can view all
+    details**, then click **Publish**.
+  </Step>
+  <Step title="Copy the ICS link">
+    Copy the **ICS** link that appears (not the HTML one).
+  </Step>
+</Steps>
+
+If **Publish a calendar** is missing, your Microsoft 365 admin has turned off
+calendar publishing.
+
+### Apple iCloud
+
+<Steps>
+  <Step title="Share the calendar publicly">
+    In the Calendar app on a Mac, Control-click the calendar in the sidebar
+    and choose **Share Calendar**, then tick **Public Calendar**. (On
+    [icloud.com/calendar](https://www.icloud.com/calendar), click the share
+    icon next to the calendar and turn on **Public Calendar**.)
+  </Step>
+  <Step title="Copy the link">
+    Copy the `webcal://` link shown and paste it as is.
+  </Step>
+</Steps>
+
+### Fastmail
+
+In Fastmail, open **Settings → Calendars**, open the calendar, and turn on
+sharing it as a read-only iCalendar (.ics) link. Copy that link.
+
+### Nextcloud
+
+In the Nextcloud Calendar app, open the **⋯** menu next to the calendar and
+create a **Share link**. From the link's menu, choose **Copy subscription
+link**. Links that need a username and password aren't supported — use the
+share link.
+
+If your Nextcloud is on a private network, see
+[private addresses](#calendars-on-a-private-network).
+
+## Sort your meetings
+
+Open **Time → Meetings**. Meetings are grouped by day, each with its time,
+length, number of attendees and, when there is one, a suggested project and
+why (e.g. *Attendees from acme.com (Acme)*). For each meeting:
+
+- Pick or keep the project and click **Log** — adds the meeting's length as
+  a time entry on that project, dated the meeting's day and described with
+  its title. Untick **Billable** first if it isn't billable.
+- Click **Ignore** if it isn't project work.
+- Tick **Always for this series** (shown as **Same for this series (N)** when
+  several are waiting) before clicking Log or Ignore to sort every waiting
+  occurrence of a recurring meeting the same way, and future ones
+  automatically on each sync. Future ones are logged billable or not the
+  way you set **Billable** when you ticked it, and dated the meeting's day
+  in the event's own time zone (or UTC, if the calendar doesn't give one).
+
+When two or more meetings have suggestions, **Log all N suggested** logs them
+all as billable in one go.
+
+To stop sorting series automatically, click **Forget them all** on the
+Calendars card on your profile.
 
 Over MCP: `list_meetings`, `log_meeting`, `ignore_meeting`.
 
-## Self-hosting notes
+### Which meetings show up
 
-Calendar links are fetched by your server, so Consultainer only connects to
-public addresses: links to `localhost`, private networks, link-local / cloud
-metadata addresses and the like are refused — including through redirects or
-hostnames that resolve there. If your calendars are served from a private
-network (e.g. Nextcloud on your LAN), set `ALLOW_PRIVATE_FETCH=true` in
-`.env`. Syncing runs from the scheduler's hourly
-`/api/cron/calendar-sync` call — see [Self-hosting](/self-hosting).
+Meetings from the last 14 days that have already ended, between 5 minutes and
+10 hours long. Left out: all-day events, events marked *free*, cancelled
+meetings, and meetings you declined. Meeting rooms and resources don't count
+as attendees. An unsorted meeting that's deleted or cancelled in your
+calendar disappears from the list.
+
+Declines and "you" are recognized by the email address on your Consultainer
+account. If your calendar uses a different address, declined meetings still
+show up and you're counted as an attendee.
+
+### How the project is suggested
+
+From the active projects you can see, in this order:
+
+1. The project you logged earlier meetings of the **same recurring series**
+   to.
+2. A **client whose email domain matches an attendee** — from the client's
+   email, billing email, website and contacts (public domains like gmail.com,
+   and your own team's domains, are ignored) — on the project you've logged
+   to most recently for that client.
+3. A **project or client named in the meeting title** (names of four or more
+   characters).
+
+## When it syncs
+
+Every calendar is synced right after you connect it, then once an hour by the
+scheduler. To sync one now, click its refresh icon on the Calendars card.
+When there are meetings waiting, you get a notification at most about once a
+day.
+
+Removing a calendar (bin icon) deletes its unsorted meetings; time already
+logged stays.
+
+## Calendars on a private network
+
+Consultainer fetches calendar links from your server, and only from public
+addresses: `localhost`, private network ranges, link-local and cloud metadata
+addresses, and `.local` / `.internal` host names are refused, including
+through redirects or host names that resolve there. If your calendars are on
+your own network (e.g. Nextcloud on your LAN), add this to `.env` and run
+`docker compose up -d`:
+
+```bash
+ALLOW_PRIVATE_FETCH=true
+```
+
+This lets every member's calendar link reach your private network, so only
+turn it on if you trust everyone who can sign in.
+
+## Troubleshooting
+
+Errors show on the add form, or in red under the calendar's name after a
+sync.
+
+- **"That link didn't return a calendar. Use the calendar's secret iCal (.ics)
+  address."** — You pasted the calendar's web page or an embed link. Use the
+  iCal/ICS link.
+- **"Use an https:// (or webcal://) link."** / **"That isn't a valid
+  link."** — Check you copied the whole link.
+- **"Links with a username or password aren't supported."** — Use a share or
+  publish link instead.
+- **"That address isn't reachable from here."** — The link points to a
+  private address. See [private network](#calendars-on-a-private-network).
+- **"The calendar server answered 404."** (or 401, 403) — The secret link
+  was reset or unpublished. Copy the new one, remove the calendar and add it
+  again.
+- **"Couldn't reach the calendar (…)."**, **"The calendar server took too
+  long."** — The calendar server is down or unreachable from your server.
+  It's retried every hour.
+- **"The calendar is too large."** — Over 10 MB. Use a smaller calendar.
+- **"You can connect up to 5 calendars."** — Remove one first.
+- No meetings appear — Only meetings that have ended in the last two weeks
+  are shown. Check the meeting isn't all-day, marked free, or declined.

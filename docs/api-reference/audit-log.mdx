@@ -9,29 +9,75 @@ description: Read who changed what in your organization
 GET /api/v1/audit-log
 ```
 
-Owner and admin API keys only. Newest first.
+Owner and admin keys only. Newest first. This is the same data as
+**Settings → Audit log**; see [Audit log](/concepts/alerts-and-audit#audit-log)
+for what's recorded.
 
 <ParamField query="actor" type="string">
-  A user ID, or `system` for scheduled jobs and webhooks.
+  A user ID, or `system` for changes no person made (scheduled jobs and
+  incoming webhooks).
 </ParamField>
 <ParamField query="type" type="string">
-  Record type, e.g. `Invoice`, `Task`, `PaymentMethod`, `Membership`.
+  Record type: `ApiKey`, `Authenticator`, `Client`, `ClientBillingCycle`,
+  `ClientDocument`, `Contact`, `Expense`, `ExternalProjectLink`, `Invite`,
+  `Invoice`, `LinearConnection`, `Link`, `Membership`, `MercuryConnection`,
+  `Milestone`, `Organization`, `PaymentMethod`, `Project`, `ProjectMember`,
+  `QuickBooksConnection`, `RecurringInvoiceSchedule`, `SsoConnection`, `Task`,
+  `TaskComment`, `TimeEntry`, `Timesheet`, or `User`. Any other value is
+  ignored.
 </ParamField>
 <ParamField query="action" type="string">
   `create`, `update`, `delete`, `sign_in`, `view`, `download`, or `export`.
+  Any other value is ignored.
 </ParamField>
-<ParamField query="from" type="string">`YYYY-MM-DD`, inclusive.</ParamField>
-<ParamField query="to" type="string">`YYYY-MM-DD`, inclusive.</ParamField>
-<ParamField query="limit" type="number" default="50">Up to 200.</ParamField>
-<ParamField query="page" type="number" default="0" />
-
-Each entry has `at`, `actor` (`{ id, name, email }` or `null`), `via` (`web`,
-`api`, or `system`), `action`, `summary`, `entityType`, `entityId`,
-`entityLabel`, `count` (bulk changes), `changes` (`{ field: value }` on create,
-`{ field: { from, to } }` on update; secrets show as `[redacted]`), `ipAddress`
-and `userAgent`. `nextPage` is the next page number, or `null`.
+<ParamField query="from" type="string">`YYYY-MM-DD`, inclusive (UTC).</ParamField>
+<ParamField query="to" type="string">`YYYY-MM-DD`, inclusive (UTC).</ParamField>
+<ParamField query="limit" type="number" default="50">1 to 200.</ParamField>
+<ParamField query="page" type="number" default="0">
+  Zero-based page number.
+</ParamField>
 
 ```bash
 curl "https://<your-instance>/api/v1/audit-log?type=PaymentMethod&from=2026-10-01" \
   -H "Authorization: Bearer ch_live_..."
 ```
+
+```json
+{
+  "entries": [
+    {
+      "id": "cm9...",
+      "at": "2026-10-02T15:04:11.000Z",
+      "actor": { "id": "cm9...", "name": "Dana Ruiz", "email": "dana@example.com" },
+      "via": "web",
+      "action": "update",
+      "summary": "updated payment method",
+      "entityType": "PaymentMethod",
+      "entityId": "cm9...",
+      "entityLabel": "Operating account",
+      "count": null,
+      "changes": { "label": { "from": "Operating", "to": "Operating account" } },
+      "ipAddress": "203.0.113.7",
+      "userAgent": "Mozilla/5.0 ..."
+    }
+  ],
+  "nextPage": 1
+}
+```
+
+| Field | Description |
+| --- | --- |
+| `at` | When it happened (ISO, UTC). |
+| `actor` | `{ id, name, email }`, or `null` for system changes. |
+| `via` | `web` (the app), `api` (an API key, through the REST API or MCP), or `system`. |
+| `action` | One of the `action` values above. |
+| `summary` | A readable description, e.g. `deleted 3 time entries`. |
+| `entityType`, `entityId`, `entityLabel` | The record and its name or title at the time. `entityId` and `entityLabel` are `null` for bulk changes. |
+| `count` | How many records a bulk change touched; otherwise `null`. |
+| `changes` | On create, `{ field: value }`. On update, `{ field: { from, to } }`. `null` for deletes, sign-ins and views. Passwords, tokens and other secrets show as `[redacted]`, and so do payment-method `details` and `paymentInstructions`. |
+| `ipAddress`, `userAgent` | Where the request came from, when known. |
+
+To read every page, request `page=0`, then keep requesting `nextPage` until
+it's `null`.
+
+**Errors:** `403` `"Only owners and admins can read the audit log."`.

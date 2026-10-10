@@ -4,7 +4,7 @@
   "name": "Consultainer",
   "description": "Docs for Consultainer — self-hosted client, project, time, and invoice management for consultancies.",
   "colors": {
-    "primary": "#7c5cf4",
+    "primary": "#7550f0",
     "light": "#a78bfa",
     "dark": "#6d28d9"
   },
@@ -37,7 +37,8 @@
               "concepts/milestones",
               "concepts/expenses",
               "concepts/reports",
-              "concepts/alerts-and-audit"
+              "concepts/alerts-and-audit",
+              "concepts/team-and-security"
             ]
           },
           {
@@ -47,6 +48,7 @@
               "integrations/linear",
               "integrations/calendars",
               "integrations/payments",
+              "integrations/email",
               "integrations/quickbooks"
             ]
           },

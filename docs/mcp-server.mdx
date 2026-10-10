@@ -1,39 +1,151 @@
 ---
 title: MCP Server
-description: Connect an AI coding agent to your Consultainer data
+description: Connect Claude Code, Claude Desktop, Cursor or another AI agent to your Consultainer data
 ---
 
-Consultainer ships a real [MCP](https://modelcontextprotocol.io) server, so an
-AI coding agent can read and write your Consultainer data directly — check
-what's unbilled, log hours, or generate an invoice from what actually
-shipped, without opening a browser tab.
+Consultainer has a built-in [MCP](https://modelcontextprotocol.io) server. Connect
+an AI agent to it and the agent can read and change your Consultainer data
+directly: check what's unbilled, log hours, comment on a task, or generate an
+invoice, without opening a browser tab.
 
-## Endpoint
+**Who can do this:** anyone in the organization. The agent acts as you, so it
+sees what you see and can only do what your role allows (some tools are owner
+and admin only, see [Available tools](#available-tools)).
 
-```
-https://<your-instance>/api/mcp
-```
+## What you need
 
-Authenticated with a Bearer token — the same API key used for the
-[REST API](/api-reference/introduction). Create one under **Profile → API
-keys & AI agents**; that card also shows the exact setup for Claude Code,
-Cursor, and Claude Desktop, pre-filled with your instance URL and new key.
+- **The server URL:** your instance's address plus `/api/mcp`, for example
+  `https://consultainer.example.com/api/mcp`. The transport is Streamable
+  HTTP.
+- **An API key**, sent on every request as the header
+  `Authorization: Bearer <your API key>`. It's the same kind of key the
+  [REST API](/api-reference/introduction) uses.
 
-## Connecting a client
+## Create an API key
 
-**Claude Code**
+<Steps>
+  <Step title="Open your profile">
+    Click your avatar in the top-right corner and choose **Profile**.
+  </Step>
+  <Step title="Name the key">
+    In the **API keys & AI agents** card, type a name under **New key name**
+    (for example, *Claude Code on my laptop*) and click **Create key**.
+  </Step>
+  <Step title="Copy it now">
+    The key (it starts with `ch_live_`) is shown once. Click the copy button
+    next to it. If you lose it, revoke it and create a new one.
+  </Step>
+  <Step title="Copy your client's setup">
+    Below the key, **Connect an AI agent** shows the exact setup for **Claude
+    Code**, **Cursor**, **Claude Desktop** and **Other**, already filled in with
+    your instance's URL and the new key. Pick your client and click **Copy**.
+  </Step>
+</Steps>
 
-```bash
-claude mcp add --transport http consultainer https://<your-instance>/api/mcp \
-  --header "Authorization: Bearer <your API key>"
-```
+<Note>
+A key belongs to the organization you had open when you created it. If you're
+in more than one organization, switch to the right one first, and create a
+separate key for each.
+</Note>
 
-**Cursor** (`~/.cursor/mcp.json`)
+To revoke a key, click the trash icon next to it in the same card. It stops
+working immediately.
+
+## Connect a client
+
+In the examples below, replace `<your-instance>` with your instance's address
+and `<your API key>` with the key. The **Connect an AI agent** box in the app
+fills both in for you.
+
+### Claude Code
+
+<Steps>
+  <Step title="Add the server">
+    Run this in a terminal:
+
+    ```bash
+    claude mcp add --transport http consultainer https://<your-instance>/api/mcp \
+      --header "Authorization: Bearer <your API key>"
+    ```
+  </Step>
+  <Step title="Check it">
+    Start Claude Code and run `/mcp`. **consultainer** should be listed as
+    connected. Then ask, for example, "what's unbilled this month?".
+  </Step>
+</Steps>
+
+### Cursor
+
+<Steps>
+  <Step title="Edit the config">
+    Open `~/.cursor/mcp.json` (all projects) or `.cursor/mcp.json` in a
+    project, and add:
+
+    ```json
+    {
+      "mcpServers": {
+        "consultainer": {
+          "url": "https://<your-instance>/api/mcp",
+          "headers": { "Authorization": "Bearer <your API key>" }
+        }
+      }
+    }
+    ```
+
+    If the file already has an `mcpServers` object, add the `consultainer`
+    entry inside it.
+  </Step>
+  <Step title="Enable it">
+    Open Cursor's settings, find the MCP section, and make sure
+    **consultainer** is switched on. It should show a green dot and its list
+    of tools.
+  </Step>
+</Steps>
+
+### Claude Desktop
+
+Claude Desktop's config file only starts local servers, so it reaches
+Consultainer through the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote)
+bridge. You need [Node.js](https://nodejs.org) installed.
+
+<Steps>
+  <Step title="Open the config file">
+    In Claude Desktop, open **Settings → Developer** and click **Edit
+    Config**. This opens `claude_desktop_config.json`.
+  </Step>
+  <Step title="Add the server">
+    ```json
+    {
+      "mcpServers": {
+        "consultainer": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote", "https://<your-instance>/api/mcp",
+                   "--header", "Authorization:${CONSULTAINER_AUTH}"],
+          "env": { "CONSULTAINER_AUTH": "Bearer <your API key>" }
+        }
+      }
+    }
+    ```
+
+    The key goes in `env` so the space in `Bearer …` survives. If the file
+    already has an `mcpServers` object, add the `consultainer` entry inside
+    it.
+  </Step>
+  <Step title="Restart Claude Desktop">
+    Quit it fully and reopen it. **consultainer** appears under the tools
+    (connectors) menu in a new chat.
+  </Step>
+</Steps>
+
+### VS Code
+
+Add to `.vscode/mcp.json` in your workspace (or your user MCP configuration):
 
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "consultainer": {
+      "type": "http",
       "url": "https://<your-instance>/api/mcp",
       "headers": { "Authorization": "Bearer <your API key>" }
     }
@@ -41,75 +153,124 @@ claude mcp add --transport http consultainer https://<your-instance>/api/mcp \
 }
 ```
 
-**Claude Desktop** (`claude_desktop_config.json`) — its local config only
-speaks stdio, so bridge through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote):
+### Any other client
 
-```json
-{
-  "mcpServers": {
-    "consultainer": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://<your-instance>/api/mcp",
-               "--header", "Authorization:${CONSULTAINER_AUTH}"],
-      "env": { "CONSULTAINER_AUTH": "Bearer <your API key>" }
-    }
-  }
-}
-```
+Any MCP client that can connect to a remote server over Streamable HTTP and
+send a custom header works:
 
-If the instance sits behind an authenticating reverse proxy, let `/api/mcp`
-(and `/api/v1/*` for the REST API) through without it — the API key is the
-authentication.
+| Setting | Value |
+| --- | --- |
+| URL | `https://<your-instance>/api/mcp` |
+| Transport | Streamable HTTP |
+| Header | `Authorization: Bearer <your API key>` |
+
+Clients that can only sign in with OAuth, and can't send a custom header,
+can't connect. If your client only runs local (stdio) servers, use
+`mcp-remote` as in the Claude Desktop example.
+
+## Check it worked
+
+Ask the agent "list my Consultainer clients". It should call `list_clients`
+and answer with your clients. On **Profile**, the key now shows **last used**
+with today's date.
+
+## Troubleshooting
+
+- **401 / "Unauthorized" / the client says it needs to authenticate:** the
+  header is missing or wrong, or the key was revoked. Check the header is
+  exactly `Authorization: Bearer ch_live_…` and create a new key if needed.
+  A key also stops working if its owner is removed from the organization.
+- **Redirected to a login page, or HTML instead of JSON:** something in
+  front of Consultainer is asking for a login. If the instance sits behind an
+  authenticating reverse proxy (Cloudflare Access, oauth2-proxy and so on),
+  let `/api/mcp` (and `/api/v1/*` for the REST API) through without it. The
+  API key is the authentication.
+- **"Only owners and admins can …"**: that tool needs an owner or admin key.
+- **"Project not found." for a project you know exists:** it's a
+  confidential project you're not on, or the key belongs to a different
+  organization.
+- **Claude Desktop shows the server as failed:** check Node.js is installed
+  (`npx --version` in a terminal) and that the JSON is valid.
 
 ## Available tools
 
+Owner/admin-only tools say so. Everything else works for any role, limited to
+what that person can see.
+
+**Clients and projects**
+
 | Tool | What it does |
 | --- | --- |
-| `list_clients` | List all clients in the organization. |
-| `create_client` | Create a new client. |
-| `update_client` | Update an existing client's details. |
-| `list_projects` | List projects, optionally filtered by client. |
-| `create_project` | Create a new project for a client. |
-| `update_project` | Update an existing project's details. |
-| `list_my_tasks` | List your open (not-done) tasks, optionally filtered to one project. |
-| `create_task` | Create a new task on a project. |
-| `update_task` | Update a task's title, description, or hour estimate. |
-| `update_task_status` | Update a task's status (TODO / IN_PROGRESS / DONE). |
-| `list_task_comments` | List a task's internal comments. |
-| `add_task_comment` | Comment on a task (internal; also posted to Linear on linked tasks unless `postToLinear` is false). |
+| `list_clients` | List all clients in the organization. A member's key doesn't get the clients' `shareToken`; the same goes for every client and project tool below. |
+| `create_client` | Create a client. |
+| `update_client` | Update a client's details. |
+| `list_projects` | List projects you can see, optionally for one client. |
+| `create_project` | Create a project for a client. A member who makes it confidential is added to it so they keep access. |
+| `update_project` | Update a project's details. |
+| `list_members` | List the organization's members and their roles. |
+
+**Tasks**
+
+| Tool | What it does |
+| --- | --- |
+| `list_my_tasks` | Your open (not done) tasks, optionally for one project. |
+| `create_task` | Create a task on a project. An assignee must be able to see the project. |
+| `update_task` | Change a task's title, description or hour estimate. |
+| `update_task_status` | Set a task to `TODO`, `IN_PROGRESS` or `DONE`. |
+| `list_task_comments` | A task's comments, oldest first. |
+| `add_task_comment` | Comment on a task. Notifies the assignee and watchers; `@[Name](user:<userId>)` mentions someone. Internal unless `shareWithClient` is true. Also posted to Linear on linked tasks unless `postToLinear` is false. |
+| `delete_task_comment` | Delete a comment: your own, or any as an owner or admin. |
 | `watch_task` | Follow or stop following a task's comments. |
-| `delete_task_comment` | Delete a comment (your own, or any as owner/admin). |
-| `list_audit_log` | Owner/admin: who changed what, with filters. |
-| `log_time` | Log time against a project for yourself. |
-| `list_meetings` | Your unsorted calendar meetings, with a suggested project for each. |
-| `log_meeting` | Log a meeting as time on a project (optionally for its whole series). |
-| `ignore_meeting` | Mark a meeting as not project work. |
-| `start_timer` | Start a timer on a task or project (stops and logs any running timer first). |
-| `stop_timer` | Stop your running timer and log it as a time entry. |
+
+**Time**
+
+| Tool | What it does |
+| --- | --- |
+| `log_time` | Log time on a project for yourself. |
+| `list_time_entries` | Your time entries, optionally by date range or project. |
+| `update_time_entry` | Change one of your entries (not once it's invoiced). |
+| `delete_time_entry` | Delete one of your entries (not once it's invoiced). |
+| `start_timer` | Start a timer on a task or project. A running timer is stopped and logged first. |
+| `stop_timer` | Stop your timer and log it as a time entry. |
 | `get_active_timer` | Your running timer and how long it's been going, if any. |
 | `submit_timesheet` | Submit a week of your time for approval. |
 | `list_pending_timesheets` | Owner/admin: submitted timesheets waiting for review. |
-| `review_timesheet` | Owner/admin: approve a timesheet or send it back with a note. |
-| `list_time_entries` | List your logged time entries, optionally filtered. |
-| `update_time_entry` | Update one of your time entries (if not yet invoiced). |
-| `delete_time_entry` | Delete one of your time entries (if not yet invoiced). |
-| `list_milestones` | List fixed-price milestones for a project. |
-| `create_milestone` | Create a fixed-price milestone. |
-| `update_milestone` | Update a milestone (if not yet invoiced). |
-| `complete_milestone` | Mark a milestone complete with a note. Evidence file uploads aren't supported over MCP. |
-| `reopen_milestone` | Clear a milestone's completion (if not yet invoiced). |
-| `list_expenses` | List expenses, optionally filtered by project or status. |
-| `log_expense` | Submit an expense against a project. Receipt file uploads aren't supported over MCP. |
-| `approve_expense` | Approve a pending expense. Owner/admin only. |
-| `reject_expense` | Reject a pending expense. Owner/admin only. |
-| `list_invoices` | List invoices in the organization, optionally by status. Includes isOverdue/daysOverdue per invoice. |
-| `generate_invoice` | Generate a draft invoice from unbilled time, milestones, and/or expenses. Owner/admin only. |
-| `email_invoice` | Email an invoice to the client with a tracked link to view and pay it. |
-| `get_invoice_activity` | When an invoice was emailed, reminded, and opened, plus its client link. |
-| `mark_invoice_sent` | Mark a draft invoice as sent. |
-| `mark_invoice_paid` | Mark an invoice as paid, optionally with a payment method. |
-| `void_invoice` | Void an invoice. |
-| `list_members` | List the organization's team members and their roles. |
+| `review_timesheet` | Owner/admin: approve a timesheet, or send it back with a note. |
+| `list_meetings` | Unsorted meetings from your connected calendars (last two weeks), each with a suggested project. |
+| `log_meeting` | Log a meeting as time on a project, optionally for the whole recurring series. |
+| `ignore_meeting` | Mark a meeting as not project work, optionally for the whole series. |
+
+**Milestones and expenses**
+
+| Tool | What it does |
+| --- | --- |
+| `list_milestones` | A project's fixed-price milestones. |
+| `create_milestone` | Owner/admin: create a milestone. |
+| `update_milestone` | Owner/admin: change a milestone (not once it's invoiced). |
+| `complete_milestone` | Owner/admin: mark a milestone complete with a note. Evidence files can only be uploaded in the app. |
+| `reopen_milestone` | Owner/admin: undo a milestone's completion (not once it's invoiced). |
+| `list_expenses` | List expenses, optionally by project or status. |
+| `log_expense` | Submit an expense. Receipts can only be uploaded in the app. Auto-approved for owners and admins, or under the organization's approval threshold. |
+| `approve_expense` | Owner/admin: approve a pending expense. |
+| `reject_expense` | Owner/admin: reject a pending expense. |
+
+**Invoices**
+
+| Tool | What it does |
+| --- | --- |
+| `list_invoices` | List invoices, optionally by status, with `isOverdue` and `daysOverdue`. A member doesn't see invoices with a line on a confidential project they're not on (the invoice tools answer *Invoice not found.* for those). |
+| `generate_invoice` | Owner/admin: create a draft invoice from unbilled time, completed milestones and approved expenses. |
+| `email_invoice` | Owner/admin: email an invoice to the client with a tracked link to view and pay it. A draft is marked sent. |
+| `get_invoice_activity` | When an invoice was emailed, reminded and opened, plus its client link. |
+| `mark_invoice_sent` | Owner/admin: mark a draft invoice as sent (it needs at least one line item). |
+| `mark_invoice_paid` | Owner/admin: mark a sent invoice as paid, optionally with the payment method. |
+| `void_invoice` | Owner/admin: void a draft or sent invoice (not a paid one). |
+
+**Audit**
+
+| Tool | What it does |
+| --- | --- |
+| `list_audit_log` | Owner/admin: who changed what, newest first, filtered by person, record type, action and dates. |
 
 ## Example
 
@@ -118,5 +279,8 @@ authentication.
 Auth flow security review, API migration (2 open tasks)
 
 > Log 3.5 hours on the API migration
-✓ Logged 3.50h to Fintra Labs — API migration
+Logged 3.50h to Fintra Labs — API migration
 ```
+
+Changes made through MCP are in the [audit log](/concepts/alerts-and-audit#audit-log)
+with an **API** badge, under your name.

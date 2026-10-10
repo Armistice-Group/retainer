@@ -9,11 +9,35 @@ description: List and create clients
 GET /api/v1/clients
 ```
 
-Returns every client in your organization.
+Any role. Returns every client in the organization, sorted by name.
+
+`shareToken` (the secret in the client's all-projects
+[client link](/concepts/clients-and-projects#client-links), or `null`) is
+only included for owner and admin keys. A member's key gets each client
+without it, here and when creating a client.
 
 ```bash
 curl https://<your-instance>/api/v1/clients \
   -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "clients": [
+    {
+      "id": "cm9...",
+      "name": "Fintra Labs",
+      "email": "hello@fintralabs.com",
+      "phone": null,
+      "address": null,
+      "billingEmail": null,
+      "paymentTerms": null,
+      "status": "ACTIVE",
+      "createdAt": "2026-08-01T14:02:11.000Z",
+      "...": "..."
+    }
+  ]
+}
 ```
 
 ## Create a client
@@ -22,18 +46,25 @@ curl https://<your-instance>/api/v1/clients \
 POST /api/v1/clients
 ```
 
+Any role. Returns `201` with `{ "client": { ... } }`.
+
 <ParamField body="name" type="string" required>
-  Client name.
+  Up to 200 characters.
 </ParamField>
 <ParamField body="email" type="string">
-  General contact email.
+  General contact email. Must be a valid address.
 </ParamField>
-<ParamField body="phone" type="string" />
-<ParamField body="address" type="string" />
-<ParamField body="description" type="string" />
+<ParamField body="phone" type="string">Up to 50 characters.</ParamField>
+<ParamField body="address" type="string">Up to 500 characters.</ParamField>
+<ParamField body="description" type="string">Up to 2,000 characters.</ParamField>
 <ParamField body="status" type="string" default="ACTIVE">
   `ACTIVE` or `INACTIVE`.
 </ParamField>
+
+Only these fields are saved; anything else in the body is ignored. Set the
+website, billing email and address, and payment terms in the app or with the
+MCP `update_client` tool, and payment methods and invoice reminders in the
+app.
 
 ```bash
 curl -X POST https://<your-instance>/api/v1/clients \
@@ -41,3 +72,7 @@ curl -X POST https://<your-instance>/api/v1/clients \
   -H "Content-Type: application/json" \
   -d '{"name": "Fintra Labs", "email": "hello@fintralabs.com"}'
 ```
+
+**Errors:** `422` with field errors, for example
+`{ "error": { "name": ["Name is required"] } }` or
+`{ "error": { "email": ["Enter a valid email"] } }`.

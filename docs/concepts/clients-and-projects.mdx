@@ -1,98 +1,303 @@
 ---
 title: Clients & Projects
-description: How engagements, contacts, documents, and projects fit together
+description: Set up clients, contacts, projects, rates, budgets, documents and client links
 ---
 
-## Clients
+A **client** is the company or person you consult for. A **project** is one
+engagement for a client, with its own team, bill rates and billing type. Time,
+tasks, milestones and expenses all hang off a project; invoices go to a client.
 
-A client is the company or person you're consulting for. Each client holds:
+Anyone in your organization can create and edit clients and projects.
+Deleting them, managing a project's team and bill rates, and a few other
+things are for owners and admins only, and are marked below.
 
-- **Contacts** — people at the client, with email, phone, title and role. Mark
-  one as primary, and tick **receives invoices** on whoever invoice emails
-  should go to.
-- **Billing** — billing email and address (default to the client's own),
-  default **payment terms** (or the organization's), whether they get
-  **overdue reminders**, and their **payment methods** (see
-  [Payments](/integrations/payments)).
-- **Links** — staging URLs, shared docs, Drive folders.
-- **Documents** — see below.
-- **Billing cycle** and **retainers** — see [Invoicing](/concepts/invoicing).
+## How to add a client
 
-### Documents
+1. Go to **Clients** and click **Add client** (or **Import** to bring in a CSV
+   of clients and projects — see [Importing](#how-to-import-clients-and-projects)).
+2. Fill in **Company name**. Everything else is optional:
+   - **Contact** — the company's general email, phone and address.
+   - **Billing** — **Billing email** and **Billing address**, if invoices go
+     somewhere other than the contact details. Leave them blank to use the
+     contact details.
+   - **Payment terms** — leave it on **Organization default** unless this
+     client has its own terms. See [Payment terms](#payment-terms).
+   - **Email overdue reminders** — on by default. Untick it to never send this
+     client [overdue reminders](/concepts/invoicing#overdue-reminders).
+3. Click **Create client**. You land on the client page, with a prompt to add
+   the people you work with there.
 
-Clients and projects each have **Documents** — contracts, SOWs, proposals,
-reports, reference docs, W-9s. A client's list includes its projects'
-documents, labelled with the project.
+To change any of this later, click **Edit** on the client page. Set **Status**
+to **Inactive** for a client you no longer work with.
 
-- **Link** a document from where it lives: paste a Google Drive / Docs, Dropbox,
-  OneDrive / SharePoint, Notion or Box link (or any URL). Consultainer
-  recognizes the service and whether it's a file, folder or page; the file stays
-  put and opens there, under that service's own sharing. See
-  [Documents & files](/integrations/files) for connecting your accounts so you
-  can browse to pick and see real titles.
-- **Upload** a file (PDF, image, Word, Excel, PowerPoint, text or CSV) to keep
-  it in Consultainer. PDFs and images open in an in-app viewer.
+<Warning>
+**Delete** on a client page (owners and admins) removes the client together
+with all of its projects, time entries **and invoices**, including paid ones.
+It can't be undone. To retire a client, set its status to **Inactive** instead.
+</Warning>
 
-Each document has two settings:
+## How to add contacts
 
-- **Client can see it** — *internal only* (the default) or *on their client
-  links*, where it's listed for the client (links open where the file lives, so
-  the client needs access there too).
-- **Who on your team can see it** — everyone in the organization, owners &
-  admins, or specific people. Owners and whoever added it can always see it;
-  for everyone else a restricted document doesn't appear and can't be opened.
+Contacts are the people you work with at the client.
 
-Owners, whoever added it, and admins who can see a document can change these
-or remove it (removing a link never touches the file itself). Every open and
-download is recorded in the [audit log](/concepts/alerts-and-audit#audit-log).
+1. On the client page, click **Add contact** (in **Points of contact**).
+2. Enter **Name** and, optionally, **Title**, **Role**, **Email** and **Phone**.
+3. Tick **Primary contact** for your main contact. Only one contact can be
+   primary; ticking it on someone else moves it.
+4. Tick **Include on invoice emails** for everyone who should get invoices.
+5. Click **Add contact**.
 
-## Projects
+Who gets invoice emails and overdue reminders:
 
-A project belongs to a client and has its own team, bill rates, billing type,
-[tasks](/concepts/tasks), milestones and expenses.
+1. Every contact with **Include on invoice emails** ticked (and an email).
+2. If there are none, the client's **Billing email**.
+3. If that's blank too, the client's main **Email**.
+
+The client page's **Billing** card shows who that is right now. The primary
+contact is also who gets the email asking them to approve a contractor (see
+[Team & bill rates](#how-to-add-people-and-set-bill-rates)).
+
+## How to add a project
+
+1. Click **New project** on the client page (the client is picked for you) or
+   under **Projects**.
+2. Fill in **Project name** and **Client**.
+3. Pick a **Billing type** (see [Billing types](#billing-types)). For **Flat
+   fee**, enter the **Flat fee amount**.
+4. Optionally set **Budget (hours)**, **Payment terms**, **Start date** and
+   **End date**, and tick **Confidential** (see
+   [Confidential projects](#confidential-projects)).
+5. Click **Create project**.
+
+**Status** (Active, On hold, Completed, Archived) is for your own tracking; it
+doesn't stop anyone logging time.
+
+<Warning>
+**Delete** on a project page (owners and admins) removes the project and all
+of its time entries,
+tasks, milestones and expenses. Set the status to **Completed** or
+**Archived** instead if you might need the history.
+</Warning>
 
 ### Billing types
 
-| Type | How it bills |
+| Type | How it gets invoiced |
 | --- | --- |
-| **Hourly** | From logged, billable time entries at each team member's rate. |
-| **Flat fee** | A single fixed amount for the whole project. |
-| **Milestone-based** | Per deliverable — each milestone has its own amount and is billed once marked complete. |
+| **Hourly** | From logged, billable time at each person's rate on the project. |
+| **Milestone-based** | Each [milestone](/concepts/milestones) is billed for its amount once it's marked complete. Time is still tracked, and billable time can still be invoiced. |
+| **Flat fee** | The amount is shown on the project's **Billing** card and client link. It is **not** added to invoices for you: bill it by adding a line to a draft invoice (see [Editing a draft](/concepts/invoicing#how-to-edit-a-draft)) or with a [retainer](/concepts/invoicing#retainers). |
 
-A project can also override the client's **payment terms** for invoices of
-just its work.
+Every project can also have [expenses](/concepts/expenses), whatever its
+billing type.
 
-### Team & bill rates
+## How to add people and set bill rates
 
-Each person on a project has their own bill rate and currency, independent of
-their rate on any other project. A time entry uses that rate unless a rate
-override is set on the entry.
+**Who can do this:** owners and admins. Members see the project's team and
+rates but can't change them.
 
-### Confidential projects
+Each person on a project has their own hourly rate there, independent of any
+other project. Billable time is invoiced at that rate unless an owner or admin
+sets a **Rate override** on the entry.
 
-A confidential project is visible only to its members plus owners and admins —
-useful for engagements under an NDA.
+1. On the project page, click **Add team member** (in **Team & bill rates**).
+2. Pick the **Team member**, enter their **Hourly rate** and check the
+   **Currency**.
+3. If they're a contractor, you can tick **Email the client to approve this
+   contractor before they start**. The client's primary contact is emailed a
+   link to approve or reject them, and the person shows as **Pending** until
+   they answer. Owners and admins can also copy that link with **Review link**.
+   Approval is a record for you and the client; it doesn't block anyone from
+   logging time.
+4. Click **Add to project**. They're notified that they were added.
 
-### Budgets
+To change a rate, click the pencil next to it (**Edit rate**). Rate changes
+apply to time not yet invoiced. To take someone off, click the bin icon.
 
-An hourly project can have a budget in hours. The project page shows hours
-logged against it and flags when it's close to or over. Owners and admins are
-[alerted](/concepts/alerts-and-audit) the first time a project reaches 80% and
-100% of its budget, and when a task's hours pass its estimate (the task's
-assignee is told too). Each alert can fire again if hours drop back under or
-the budget grows.
+<Note>
+Tasks can only be added once someone is on the project. In a one-person
+organization you're added to every project automatically.
+</Note>
+
+<Note>
+Invoices are always in your organization's **Default currency** (Settings →
+General). The currency next to a rate is a label; amounts aren't converted.
+</Note>
+
+## Budgets
+
+A project can have a **Budget (hours)**: a not-to-exceed cap on hours.
+
+- The project's **Billing** card shows hours logged against the budget, and
+  changes color at 80% (showing hours remaining) and again once it's over (showing hours over). The project's client link shows the same bar.
+- Every hour logged on the project counts, billable or not.
+- Owners and admins get a **budget alert** the first time the project reaches
+  80% and again at 100%, through whatever channels are on for *A project nears
+  its budget or a task passes its estimate* under
+  [Settings → Alerts](/concepts/alerts-and-audit).
+- A task with **Estimated hours** works the same way: the first time its
+  logged hours pass the estimate, owners, admins and the task's assignee are
+  alerted.
+- An alert can fire again if hours drop back under (an entry is deleted) or
+  the budget or estimate is raised and then reached again.
+
+To set or change a budget, click **Edit** on the project page and fill in
+**Budget (hours)**.
+
+## Payment terms
+
+Payment terms decide an invoice's due date: **Due on receipt**, **Net 15**,
+**Net 30**, **Net 45**, **Net 60** or **Net 90**. You can set a default at
+three levels; the most specific one wins:
+
+1. **Project** — **Payment terms** on the project's edit page. Used only when
+   every item on the invoice comes from that one project.
+2. **Client** — **Payment terms** on the client's edit page.
+3. **Organization** — **Default payment terms** under **Settings → General**
+   (Net 30 unless you change it).
+
+Each level shows what it falls back to: a client's form says **Organization
+default (Net 30)**, a project's says **Same as client (Net 30)**.
+
+On **New invoice**, the terms start from that default and the due date
+follows. You can still pick other terms, or **Custom** to type a due date
+yourself, for that one invoice. The REST API and MCP server use the same
+defaults when you don't pass terms or a due date. A
+[billing cycle](/concepts/invoicing#billing-cycles) has its own terms, which
+start from the client's.
+
+## Confidential projects
+
+Tick **Confidential** on a project to make it need-to-know, for example under
+an NDA.
+
+- **Who can see it:** owners, admins, and the people on its **Team & bill
+  rates** list. Everyone else doesn't see it anywhere: not in project lists, the client page,
+  tasks, time or invoice generation. Its tasks can only be assigned to people
+  who can see it.
+- **Invoices:** a member who isn't on the project doesn't see any invoice
+  with a line for it either (not in **Invoices**, on the dashboard or the
+  client page, and its page and PDF read as not found), because the
+  invoice's lines and total would show the project's work.
+- If a member (not an admin) creates or marks a project confidential, they're
+  added to its team automatically so they don't lock themselves out.
+- **@mentions** on its tasks only reach people who can see it.
+- Its documents are hidden from people who can't see the project.
+- The client's [all-projects client link](#client-links) leaves it out
+  entirely, along with any invoice that includes its work.
+
+## Documents
+
+Clients and projects each have a **Documents** card for contracts, SOWs,
+proposals, reports, W-9s and reference docs. A client's card also lists its
+projects' documents, labelled with the project.
+
+### How to add a document
+
+1. On the client or project page, click **Add** on the **Documents** card.
+2. Choose **Link** or **Upload**:
+   - **Link** — paste a Google Drive, Dropbox, OneDrive / SharePoint, Notion
+     or Box link, or any `https://` URL. The file stays where it is and opens
+     there, under that service's own sharing. If you've connected an account
+     under **Profile**, you can browse and pick instead of pasting. Setting up
+     those connections is covered in [Documents & files](/integrations/files).
+   - **Upload** — choose a PDF, PNG, JPEG, WebP, Word (`.docx`), Excel
+     (`.xlsx`), PowerPoint (`.pptx`), text or CSV file to keep in
+     Consultainer. The file picker only offers those types. Files must be
+     under 5 MB, or 25 MB when the instance stores uploads in S3-compatible
+     storage.
+3. Optionally give it a **Title** and a **Type**. On a client, pick a
+   **Project**, or leave **Whole client**.
+4. Choose **Client can see it** (see below).
+5. Choose **Who on your team can see it** (see below).
+6. Click **Add link** or **Upload**.
+
+### Who can see a document
+
+**Client can see it**
+
+- **No — internal only** (the default). Never shown to the client.
+- **Yes — on their client links.** Listed on the client's
+  [share pages](#client-links), badged **Client can see** in the app. An
+  uploaded file can be opened from the share page. A linked file opens where
+  it lives, so the client also needs access there.
+
+**Who on your team can see it**
+
+- **Everyone in the organization** (the default).
+- **Owners & admins.**
+- **Specific people** — tick who.
+
+Owners and whoever added the document can always see it. For everyone else, a
+document they're not allowed to see doesn't appear and can't be opened.
+
+To change either setting later, click the shield icon next to the document.
+Owners, whoever added it, and admins who can see it can change these settings
+or remove the document. Removing a link never touches the file itself.
+
+### Viewing documents
+
+Click an uploaded document to open its page in Consultainer. PDFs and images
+are shown right there; other file types can't be previewed, so use
+**Download**. Linked documents open in a new
+tab at the provider. Every open and download, of uploads and links alike, is
+recorded in the [audit log](/concepts/alerts-and-audit#audit-log).
 
 ## Client links
 
-Owners and admins can give a client a read-only page — no login, no internal
-rates — and regenerate or revoke it at any time:
+A client link is a read-only web page you send the client. It needs no login
+and never shows internal rates, costs or comments. Only owners and admins can
+create, regenerate or revoke one.
 
-- **Project link** (on the project page) — status, hours vs. budget, billing
-  totals, milestones, invoices (with **Pay now** when online payments are set
-  up) and how to pay. Turn on **Show tasks** to add the task list (titles and
-  status). Comments stay internal unless marked **Share with client**; only
-  those appear under their task.
-- **Client link** (on the client page) — the same across every
-  non-confidential project for that client.
+There are two kinds:
 
-Opening an invoice PDF from either counts as the client opening the invoice.
+| | Project link | Client link (all projects) |
+| --- | --- | --- |
+| Where | **Links** card on the project page | **Client link (all projects)** card on the client page |
+| Covers | One project | Every non-confidential project for the client |
+| Shows | Hours logged (against the budget, if set), billed to date, flat fee, milestones, invoices, documents marked for the client, how to pay | Hours logged and billed to date across projects, each project and its status, invoices, documents marked for the client, how to pay |
+| Tasks | Optional: turn on **Show tasks** | No |
+
+On both, the invoice list only has sent and paid invoices (never drafts), each
+with its PDF and, when [online payments](/integrations/payments) are set up, a
+**Pay now** button. Opening an invoice PDF from a client link counts as the
+client opening that invoice (see
+[tracking opens](/concepts/invoicing#tracking-opens)). An invoice that includes
+any confidential project's work is never listed.
+
+While a client's bank payment is clearing, the invoice shows **Bank payment
+processing** instead of **Pay now**. After paying, the client comes back to
+the same page with a confirmation for that invoice at the top. Amounts on
+both pages are in your organization's **Default currency**.
+
+### How to share a project with the client
+
+1. Open the project and find the **Links** card.
+2. Click **Generate client link**.
+3. Optional: turn on **Show tasks** to list task titles and their status. Task
+   comments stay hidden unless you mark one **Share with client** (see
+   [Tasks](/concepts/tasks#how-to-share-a-comment-with-the-client)).
+4. Click **Copy link** and send the link to the client.
+
+To check it worked, open the link in a private browser window: you should see
+the project without signing in.
+
+To cut off access, click **Revoke** (the link stops working at once) or
+**Regenerate** (the old link stops working and you get a new one to send).
+
+### How to share all of a client's projects
+
+1. Open the client and find **Client link (all projects)**.
+2. Click **Generate client link**, then **Copy link**.
+
+**Regenerate** and **Revoke** work the same as for a project link.
+
+## How to import clients and projects
+
+1. Go to **Clients** and click **Import**.
+2. Click **Download CSV template** and fill it in, one row per project (leave
+   the project name blank for a client with no projects yet).
+3. Choose the file under **CSV file** and click **Import**.
+
+A client name that already exists is matched rather than duplicated, so
+running the same file again is safe. Rows with problems are listed after the
+import so you can fix and re-run them.

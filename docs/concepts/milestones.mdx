@@ -1,24 +1,71 @@
 ---
 title: Milestones
-description: Billing a project by deliverable instead of by the hour
+description: Bill a project by deliverable instead of by the hour
 ---
 
-Milestones are available on projects with the **Milestone-based** billing
-type. Each milestone has a name, description, amount, and optional due date.
+Milestones let you bill a project per deliverable: each one has a fixed
+amount, and becomes billable once you mark it complete with evidence of what
+was delivered. They're available on projects whose **Billing type** is
+**Milestone-based** (set it with **Edit** on the project page).
 
-## Completing a milestone
+Only owners and admins add, edit, complete, reopen and delete milestones, in
+the app and over an API key or the MCP server alike. Members see them
+read-only.
 
-Marking a milestone complete requires evidence of completion: a required
-note describing what was delivered or how completion was verified, plus an
-optional link and/or file attachment. This creates a record of what was
-actually delivered, not just a checkbox.
+## How to add a milestone
 
-A completed milestone can be reopened later — as long as it hasn't been
-invoiced yet.
+1. Open the project and find the **Milestones** card.
+2. Click **Add milestone**.
+3. Enter a **Name**, an optional **Description**, the **Amount**, and an
+   optional **Due date**.
+4. Click **Add milestone**. It shows as **Pending**.
 
-## Billing a milestone
+To change a milestone's name, amount or due date, delete it and add it again
+(or use the `update_milestone` MCP tool). Once it's invoiced it can't be
+changed.
 
-Once completed, a milestone becomes eligible to appear on a generated
-invoice as its own line item (quantity 1, rate = the milestone amount).
-After it's been pulled onto an invoice, it's locked — it can no longer be
-edited, reopened, or deleted.
+## How to complete a milestone
+
+Completing a milestone records what was actually delivered, not just a tick.
+
+1. Click **Mark complete** on the milestone.
+2. Under **Evidence of completion**, describe what was delivered and how it
+   was verified (required), for example *Signed off by client on call 3/14,
+   deployed to production*.
+3. Optional: add a **Link** (deployed URL, PR, doc) and/or **Attach a file**
+   (PNG, JPEG, WebP or PDF; under 5 MB, or 25 MB when uploads go to
+   S3-compatible storage).
+4. Click **Mark complete**. It shows as **Completed**.
+
+Click **View evidence** on a completed milestone to see the note, link and
+file.
+
+## How to reopen a milestone
+
+Click the reopen (circular arrow) button on a completed milestone. It goes
+back to **Pending** and its evidence is cleared. You can only reopen a
+milestone that hasn't been invoiced.
+
+## How a milestone gets billed
+
+A completed milestone that isn't on an invoice yet shows up on **New invoice**
+for the project's client (and is picked up by the client's
+[billing cycle](/concepts/invoicing#billing-cycles), if it has one). It
+becomes its own line: *Project — Milestone: name*, quantity 1 at the
+milestone's amount.
+
+Once it's on an invoice it shows as **Invoiced** and is locked: it can't be
+edited, reopened or deleted. If the invoice is a draft that gets deleted, or
+the line is removed from the draft, the milestone goes back to **Completed**.
+
+## How to delete a milestone
+
+Click the bin icon on the milestone and confirm. Invoiced milestones can't be
+deleted.
+
+## Over MCP
+
+`list_milestones` (any role), and `create_milestone`, `update_milestone`,
+`complete_milestone` and `reopen_milestone` (owner and admin keys; a member's
+key gets *Only owners and admins can manage milestones.*). See the
+[MCP server](/mcp-server).

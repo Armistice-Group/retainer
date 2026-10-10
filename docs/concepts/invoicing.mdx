@@ -1,88 +1,351 @@
 ---
 title: Invoicing
-description: Generating, sending, and getting paid for invoices
+description: Generate invoices from unbilled work, send them, track opens, and get paid
 ---
 
-## Generating an invoice
+An invoice bills one client for work you've already recorded: billable time,
+completed milestones and approved expenses. You generate a draft, check it,
+send it, and mark it paid (or let online payments do that).
 
-From **Invoices → New**, pick a client. Consultainer shows everything for
-that client currently eligible to bill:
+**Who can do what:** in the app, anyone in the organization can generate
+invoices, edit drafts, and mark invoices sent, paid or void. Emailing an
+invoice, deleting a draft, pushing to QuickBooks, and setting up billing
+cycles and retainers are for owners and admins. Over an API key or the
+[MCP server](/mcp-server), generating, emailing and changing an invoice's
+status are for owner and admin keys only.
 
-- Unbilled, billable time entries (approved ones, if
-  [timesheet approval](/concepts/time-tracking#timesheet-approval) applies —
-  the page says how many hours are still waiting)
-- Completed, unbilled milestones
-- Approved, unbilled expenses
+**Who sees which invoices:** owners and admins see every invoice. Members
+don't see an invoice that has a line on a
+[confidential project](/concepts/clients-and-projects#confidential-projects)
+they aren't on, because its lines and total would show that project's work.
+For them it's left out of **Invoices**, the dashboard, and the client's page,
+and its page and PDF read as not found.
 
-Select what to include, set the issue date, payment terms, tax rate, PO
-number and notes, then generate a draft. Hourly time is grouped by project,
-person and rate into line items; milestones and expenses each become their
-own line.
+## How to generate an invoice
 
-## Payment terms
+1. Go to **Invoices** and click **New invoice** (or click it on a client's
+   invoices card, which picks the client for you).
+2. Pick the client. Consultainer lists everything for that client that's ready
+   to bill:
+   - Billable time not on an invoice yet. If
+     [timesheet approval](/concepts/time-tracking#timesheet-approval) is on,
+     only approved time is listed and a note says how many hours are still
+     waiting.
+   - Completed milestones not on an invoice yet.
+   - Approved expenses not on an invoice yet.
+3. Tick what to include. Everything starts ticked.
+4. Check the details:
+   - **Issue date** — today by default.
+   - **Payment terms** and **Due date** — start from the
+     [default terms](/concepts/clients-and-projects#payment-terms) and move
+     together. Pick **Custom** to type a due date yourself.
+   - **PO number** (optional), **Tax rate (%)** (starts at **Default tax
+     rate** from Settings → General) and **Notes** (shown on the invoice).
+5. Click **Generate invoice**. You land on the new **Draft**.
 
-Due on receipt, Net 15/30/45/60/90, or Custom. A new invoice starts from the
-most specific default: the **project's** terms when everything selected is
-from one project that sets them, otherwise the **client's**, otherwise the
-**organization's** (Settings → General, Net 30 unless changed). Changing the
-terms recomputes the due date; Custom lets you set it yourself. The REST API
-and MCP follow the same defaults when terms or a due date aren't given.
+If the client has nothing to bill you'll see **Nothing to invoice** instead.
 
-## Editing a draft
+How items become lines:
 
-While an invoice is a **Draft**, its line items, dates, tax rate, payment
-terms, PO number and notes are editable. Once it's sent, line items lock.
-**Preview PDF** on the invoice shows it as the client will see it.
+- **Time** is grouped by project, person and rate: one line per group, for
+  example *Website redesign — Ana Ruiz*, 12.5 × $150. The rate is the person's
+  rate on the project, or the entry's rate override, plus any
+  [overhead](/concepts/time-tracking#overhead).
+- **Each milestone** becomes one line: *Project — Milestone: name*.
+- **Each expense** becomes one line: *Project — Expense: description*.
 
-## Statuses
+Everything you include is marked as billed, so it can't be invoiced twice.
+Invoices are in your organization's **Default currency**.
 
-`Draft → Sent → Paid`, or `Void` before Paid. Marking an invoice paid can
-record how (e.g. Wire, ACH, Check); online payments through Stripe or Mercury
-mark it paid automatically.
+### Invoice numbers
+
+Numbers are your **Invoice number prefix** (Settings → General, `INV` by
+default), a dash, and a four-digit counter: `INV-0001`, `INV-0002`, and so on.
+Numbers are never reused, so deleting a draft leaves a gap.
+
+## How to edit a draft
+
+While an invoice is a **Draft** you can change everything:
+
+- **Line items** — edit a line's description, quantity or rate and click
+  **Save** on that line; click the bin icon to remove it (time, milestones and
+  expenses on it go back to unbilled). Editing a line doesn't change the time
+  entries behind it.
+- **Add a line** — fill in the empty row at the bottom (description, qty,
+  rate) and click **Add**. Use this for a flat fee, a discount (negative rate)
+  or anything else that isn't tracked as time, milestones or expenses.
+- **Details** — **Issue date**, **Due date**, **Payment terms**, **PO
+  number**, **Tax rate (%)** and **Notes**, then click **Save details**.
+  Changing the terms here doesn't move the due date; set both.
+
+Click **Download PDF** to see exactly what the client will get.
+
+To throw a draft away, an owner or admin clicks **Delete**. Its time,
+milestones and expenses become unbilled again.
+
+Once an invoice is sent, it can't be edited.
+
+### Status changes
+
+An invoice only moves forward:
+
+- **Draft → Sent** (it needs at least one line: *Add at least one line item
+  before sending.*),
+- **Sent → Paid**,
+- **Draft or Sent → Void** (in the app, **Void** is on sent invoices; throw
+  away a draft with **Delete** instead).
+
+Nothing goes back to **Draft**, and a paid invoice can't be voided. Trying
+anyway says, for example, *Only sent invoices can be marked paid.* or *Paid
+invoices can't be voided.*
+
+## How to send an invoice
+
+You have three options. All of them change a draft to **Sent**, which locks
+it, sends the *invoice sent* alert, and
+[files the PDF](/integrations/files) if filing is set up.
+
+### Email it from Consultainer (owners and admins)
+
+This needs email set up on your instance (**Settings → Integrations**).
+
+1. On the invoice, click **Email to client** (**Email again** on an invoice
+   that's already sent).
+2. Under **To**, untick anyone who shouldn't get it, and add anyone else
+   (comma-separated, up to 20 in total). The defaults are the client's
+   contacts with **Include on invoice emails** ticked, else its billing email,
+   else its main email.
+3. Optional: add a **Message**.
+4. Click **Send invoice**.
+
+The email has the invoice number, total, due date and a link to the
+[client invoice page](#the-client-invoice-page). Replies go to your email
+address. It shows under **Activity** as *Ana Ruiz emailed it to …* (with your name).
+
+If email isn't set up, the dialog says so; use **Copy client link** instead.
+
+### Send the link yourself
+
+1. Click **Mark as sent** on the draft.
+2. Click **Copy client link** and paste the link into your own email or
+   message.
+
+Opens through that link are tracked the same way.
+
+### Mark as sent without sending anything
+
+Click **Mark as sent** if you delivered the invoice some other way (for
+example from [QuickBooks](/integrations/quickbooks)).
+
+## The client invoice page
+
+Every sent invoice has a private page at `https://<your-instance>/i/<token>`,
+which is what **Email to client** and **Copy client link** give the client. No
+login is needed. It shows:
+
+- Your logo (or name), the invoice number, total, issue date and status.
+- **Due** date, and how many days overdue it is if it's late. A paid invoice
+  says *Paid — thank you*; a void one says *This invoice was voided*.
+- **Download PDF**, and the PDF itself on the page.
+- **Pay now**, if [online payments](/integrations/payments) are set up and the
+  invoice is unpaid. While a bank payment the client made is clearing, the
+  page says *A bank payment for this invoice is processing* instead, and
+  after paying the client sees a confirmation at the top of the page.
+- **How to pay**: your [payment methods](/integrations/payments) for this
+  client.
+
+Drafts have no client page. The link keeps working after the invoice is paid
+or voided.
+
+## Tracking opens
+
+Consultainer records three kinds of client activity and lists them under
+**Activity** on the invoice, with a count (*Opened 3 times by the client*):
+
+- **Client opened the email** — the email's tracking image loaded.
+- **Client viewed the invoice** — the client invoice page was opened in a
+  browser.
+- **Client opened the PDF** — the PDF was opened or downloaded, from the
+  invoice page or from a [client link](/concepts/clients-and-projects#client-links).
+
+The first open sends an *invoice opened* alert (**A client opens an invoice**
+under [Settings → Alerts](/concepts/alerts-and-audit)). Later opens alert
+again only if a day has passed since the last alert.
+
+Things to know:
+
+- **Your own team's views don't count.** If you're signed in to Consultainer
+  in the browser you open the link in, nothing is recorded. Open it in a
+  private window to test it as a client would, and that view will count.
+- **Email opens are best-effort.** Some mail apps block the tracking image
+  (no open recorded), and some privacy features load it for everyone (an open
+  recorded even if no one read it).
+- Link scanners that fetch the page without running it don't count as views.
+
+## Getting paid
+
+### How to mark an invoice paid
+
+1. On a sent invoice, click **Mark as paid**.
+2. Optional: enter the **Payment method** (for example Wire, ACH, Check).
+3. Click **Mark as paid**.
+
+This sends the *invoice paid* alert and, if filing is set up, updates the
+filed PDF. Invoices paid online through Stripe or Mercury are marked paid
+automatically once the payment has gone through (a bank payment through
+Stripe takes a few business days); see [Payments](/integrations/payments).
+
+### Overdue invoices
+
+A sent invoice is overdue the day after its due date. Once a day, Consultainer
+sends one *invoice overdue* alert per newly overdue invoice (**An invoice
+becomes overdue** under Settings → Alerts). Overdue invoices show the days
+overdue in the app and on the client page.
+
+### Overdue reminders
+
+Consultainer can email clients reminders about overdue invoices. It's off
+until you turn it on, and needs email set up on your instance.
+
+1. Go to **Settings → Payments → Overdue reminders** (owners and admins).
+2. In **Days overdue**, list when to send a reminder, for example `3, 7, 14`
+   (up to 10 whole numbers from 1 to 365). Leave it empty to turn reminders
+   off.
+3. Click **Save**.
+
+How reminders work:
+
+- They're checked once a day. Each reminder goes to the same people as
+  **Email to client** would by default, with the subject *Reminder: invoice
+  INV-0042 from Your Org is overdue* and a link to the invoice page.
+- Each threshold is sent once per invoice. If an invoice is already past
+  several thresholds when you turn reminders on, only the latest one goes
+  out, so clients don't get a backlog.
+- They stop when the invoice is paid or voided.
+- Each one shows under **Activity** as *Reminder (7 days overdue) sent to …*.
+
+To stop reminders for one client, open the client, click **Edit**, untick
+**Email overdue reminders**, and save.
+
+## How to void an invoice
+
+Click **Void** on a sent invoice and confirm. Voiding can't be undone. A
+voided invoice stays in your list (and its client page says it was voided) but
+stops counting as outstanding. If filing is set up, the filed PDF is replaced
+with the void version.
+
+<Warning>
+Voiding doesn't release the time, milestones or expenses on the invoice: they
+stay marked as billed and won't show up on **New invoice** again. To bill the work again, add lines by hand to the
+client's next draft invoice (a new invoice needs at least one unbilled item). If the invoice is still a draft, delete it instead: that
+does release its items.
+</Warning>
 
 ## Billing cycles
 
-A client can be invoiced on a schedule — weekly, every two weeks, monthly and
-so on — from the **Billing cycle** card on the client page. Each run puts
-everything unbilled for that client (billable time, completed milestones,
-approved expenses dated before the run) on one invoice, using the cycle's
-payment terms (which start from the client's). A run with nothing to bill
-creates nothing. Invoices are left as drafts to review unless the cycle is set
-to send automatically, which marks them sent. Cycles can be paused.
+A billing cycle invoices a client on a schedule for everything unbilled, so
+you don't have to remember to. Owners and admins set it up on the client page.
+
+### How to set up a billing cycle
+
+1. Open the client and find the **Billing cycle** card.
+2. Click **Set up billing cycle**.
+3. Pick a **Frequency**: Weekly, Every 2 weeks, Twice a month (1st & 15th),
+   Monthly, Quarterly or Yearly.
+4. Set the **First invoice date**.
+5. Check the **Payment terms** (they start from the client's default).
+6. Optional: tick **Mark as sent automatically instead of leaving a draft to
+   review (doesn't email the client)** (see the note below).
+7. Click **Start billing cycle**.
+
+What each run does:
+
+- It invoices all of the client's billable time, completed milestones and
+  approved expenses dated **before** the run date, on one invoice, with the
+  note *Services through* the day before. Time waiting for timesheet approval
+  waits for the next run.
+- It uses the cycle's payment terms and your default tax rate.
+- If there's nothing to bill, it creates nothing and **Last run** says
+  *Nothing unbilled — no invoice created*.
+- Without **Mark as sent automatically**, the invoice is left as a draft and
+  owners and admins get the **A recurring invoice or billing cycle creates a
+  draft** alert to review and send it. With it, they get **An invoice is
+  sent** instead, and the PDF is filed if filing is set up. (See
+  [Alerts](/concepts/alerts-and-audit) for where each goes.)
+- If the server was down over several run dates, the next run bills once, up
+  to the latest date, then carries on.
+- If a run fails, owners and admins are notified and the work rolls into the
+  next run.
+
+Use **Edit** to change the cycle, the pause button to pause or resume it, and
+the bin icon to stop it. Invoices already generated aren't affected.
+
+<Warning>
+**Mark as sent automatically** marks the invoice as sent. It does **not**
+email it to the client. Send it yourself afterwards with **Email again** or
+**Copy client link**. If [overdue reminders](#overdue-reminders) are on, a
+client who was never sent the invoice will still get reminders once it's
+overdue.
+</Warning>
 
 ## Retainers
 
-A **recurring invoice** (on the client page) bills a fixed amount on a
-schedule — a monthly retainer, say — independent of logged time. Give it the
-hours it covers to track billed-vs-logged hours on the client page. Like
-billing cycles, it creates drafts unless set to send automatically.
+A retainer bills a fixed amount on a schedule (a monthly retainer, say),
+whatever time is logged. Owners and admins set them up on the client page; a
+client can have several.
 
-## Sending invoices and tracking opens
+### How to set up a retainer
 
-**Email to client** (on an invoice) emails it to the client's contacts marked
-*receives invoices* (or its billing email), with an optional message. Replies
-go to you. The email links to the invoice's client page, where they can view
-the PDF in the browser, download it, see how to pay, and pay online if Stripe or
-Mercury is connected. Sending a draft marks it sent.
+1. Open the client and find the **Retainers** card.
+2. Click **New retainer**.
+3. Enter a **Description** (it becomes the invoice line, for example *Monthly
+   retainer*) and the **Amount**.
+4. Pick a **Frequency**.
+5. Optional: enter **Retainer hours** if the amount covers a block of hours.
+   The client's invoices card then shows hours billed against hours logged.
+6. Set the **First invoice date** and **Due (days after issue)** (30 by
+   default).
+7. Optional: tick **Mark as sent automatically instead of leaving a draft to
+   review (doesn't email the client)** (see the note below). The retainer
+   then shows *Marks sent automatically* instead of *Drafts for review*.
+8. Click **Create schedule**.
 
-Prefer your own email? **Copy client link** gives you the same tracked link.
+Each run creates an invoice with one line for the amount and no tax. A draft
+raises the **A recurring invoice or billing cycle creates a draft** alert; an
+invoice marked sent automatically raises **An invoice is sent** and is filed
+like any other sent invoice.
+Use the pause and bin buttons on the retainer to pause, resume or delete it;
+invoices already generated aren't affected.
 
-Consultainer records when the client opens the email, views the invoice, or
-opens its PDF (including from a client or project share page), and shows it
-under **Activity** on the invoice. The first open — and any open after a day
-has passed — sends an **invoice opened** alert (Settings → Alerts). Opens by
-people in your organization don't count. Email opens are best-effort: some mail
-apps block the tracking image, and some privacy features load it for everyone.
+<Warning>
+**Mark as sent automatically** only marks the invoice as sent. It doesn't
+email the client. Send it yourself with **Email again** or **Copy client
+link**.
+</Warning>
 
-## Overdue reminders
+## When scheduled invoicing runs
 
-Under **Settings → Payments → Overdue reminders**, list the days overdue at
-which clients get a reminder email (e.g. `3, 7, 14`). Each reminder goes out
-once; turning reminders on doesn't send a backlog for invoices already past
-several thresholds. A client can be opted out on its edit page.
+Billing cycles, retainers, overdue alerts and overdue reminders all run in one
+daily job, driven by the `scheduler` service in `docker-compose.yml`. It runs
+about a minute after the scheduler starts and then every 24 hours, so the
+time of day depends on when the stack was last started. A run date means
+"the first daily run on or after that date". If the scheduler isn't running
+(or `CRON_SECRET` doesn't match), nothing scheduled happens; see
+[Self-hosting](/self-hosting).
 
-## PDF and QuickBooks
+## PDFs, filing and QuickBooks
 
-Every invoice can be downloaded as a PDF. If QuickBooks is connected, an
-invoice can be pushed to QuickBooks and its status synced back — see
-[QuickBooks](/integrations/quickbooks).
+- **Download PDF** on any invoice opens its PDF.
+- If filing is set up, each invoice's PDF is saved to your Drive, Dropbox or
+  OneDrive folder (under the client's name, in *Invoices*) when it's sent,
+  and replaced with the paid (or void) version when that changes, and the invoice
+  shows **Filed to …**. See [Documents & files](/integrations/files).
+- If QuickBooks is connected, you can push an invoice to QuickBooks and sync
+  its status back. See [QuickBooks](/integrations/quickbooks).
+
+## Over MCP
+
+`list_invoices`, `generate_invoice`, `email_invoice`, `get_invoice_activity`,
+`mark_invoice_sent`, `mark_invoice_paid` and `void_invoice`. Generating,
+emailing and the three status tools need an owner or admin key. See the
+[MCP server](/mcp-server).

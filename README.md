@@ -29,8 +29,9 @@ More at [consultainer.app](https://consultainer.app); full documentation in [`do
 Requires Node 20+, Docker, and npm.
 
 ```bash
-cp .env.example .env        # then edit values, or generate a fresh AUTH_SECRET:
-#   npx auth secret --raw >> .env   (or: openssl rand -base64 32)
+cp .env.example .env        # then fill in AUTH_SECRET and INTEGRATION_ENCRYPTION_KEY
+#   (openssl rand -base64 32 for each), CRON_SECRET (openssl rand -hex 32),
+#   and uncomment DATABASE_URL pointing at the database below
 
 docker run -d --name consultainer-dev-db -p 5433:5432 \
   -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=consultainer postgres:16-alpine
@@ -57,13 +58,13 @@ curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.en
 docker compose up -d
 ```
 
-This starts Postgres, the app, and a small scheduler for the hourly syncs (Linear, calendars, Mercury) and daily billing jobs (recurring invoices, billing cycles, overdue reminders, the weekly digest). The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (every change to main — what compose runs by default), and `X.Y.Z` / `X.Y` release tags to pin with `CONSULTAINER_VERSION` in `.env`. To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+This starts Postgres, the app, and a small scheduler for the hourly jobs (Linear, calendar and Mercury sync, filing catch-up) and daily billing jobs (recurring invoices, billing cycles, overdue reminders, the weekly digest). The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (every change to main — what compose runs by default), and `X.Y.Z` / `X.Y` release tags to pin with `CONSULTAINER_VERSION` in `.env`. To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
-**First run.** Open the app (port `APP_PORT`, 3113 by default). On an empty database every route sends you to `/setup`, where you create the organization and its local admin (owner) account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
+**First run.** Open the app (port `APP_PORT`, 3113 by default). On an empty database every route sends you to `/setup`, where you create the organization and its owner account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 
 **No public signup.** People join by invite (Settings → Members), by SSO auto-provisioning, or via Google sign-in on an org's auto-join domain.
 
-**Integrations are configured in the app.** Owners add email (Resend), QuickBooks, Linear, and Stripe credentials under Settings → Integrations / Payments — each card shows the callback and webhook URLs to register. Environment variables still work and take precedence. Every setting, the scheduled jobs, which paths to leave open behind an authenticating proxy, upgrades and backups are in [docs/self-hosting.mdx](docs/self-hosting.mdx).
+**Integrations are configured in the app.** The owner adds email (Resend), QuickBooks, Linear, Stripe, and file-service (Google Drive, Dropbox, OneDrive, Notion) credentials under Settings → Integrations / Payments — each card shows the callback and webhook URLs to register. Environment variables still work and take precedence. Every setting, HTTPS with Caddy or nginx, the scheduled jobs, S3-compatible file storage, which paths to leave open behind an authenticating proxy, upgrades, backups and restore are in [docs/self-hosting.mdx](docs/self-hosting.mdx).
 
 **Email is optional.** Without it, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, email changes apply immediately after a password check, and email-only features (emailing invoices to clients, overdue reminders, email alerts, the weekly digest) are off — invoices can still be shared with a tracked client link.
 
@@ -73,13 +74,13 @@ To try it with realistic demo data (on an empty database): `docker compose exec 
 
 ## Single sign-on (OIDC)
 
-Settings → Security → Single sign-on. Works with any OpenID Connect provider (Okta, Entra ID, Google Workspace, Authentik, Keycloak, Zitadel, Auth0):
+Settings → Security → Single sign-on (owners and admins). Works with any OpenID Connect provider (Okta, Entra ID, Google Workspace, Authentik, Keycloak, Zitadel, Auth0):
 
 1. Create a confidential "web" OIDC client in your IdP, with the **redirect URI** shown on the settings card (`<your URL>/api/sso/callback` — open the settings page on the address people will sign in from) and scopes `openid email profile`.
 2. Paste the issuer URL, client ID, and client secret. Endpoints come from the issuer's `/.well-known/openid-configuration`.
 3. Optionally set a button label, restrict allowed email domains, choose whether first-time users get an account automatically (and with which role), and **require SSO** — this blocks password, passkey, magic-link, and Google login for everyone except owners, who keep local login as a break-glass path.
 
-Once enabled, a "Sign in with …" button appears on the login page. The flow uses PKCE, a nonce, and a state value bound to the browser that started it. Identities are matched to accounts by email, and an IdP that reports `email_verified: false` is refused.
+Once enabled, a "Sign in with …" button appears on the login page. The flow uses PKCE, a nonce, and a state value bound to the browser that started it. Identities are matched to accounts by email, and an email the IdP reports as `email_verified: false` is refused unless "Trust email addresses from this provider" is on (needed for Authentik 2025.10+). Step-by-step guides for Google Workspace, Microsoft Entra ID and Okta, plus what each role can do, are in [docs/concepts/team-and-security.mdx](docs/concepts/team-and-security.mdx).
 
 ## Data model
 
@@ -95,7 +96,7 @@ Once enabled, a "Sign in with …" button appears on the login page. The flow us
 
 ## Alerts: Slack + email
 
-Owners and admins always get alerts in the app; **Settings → Alerts** chooses which also go to Slack (an [incoming webhook](https://api.slack.com/messaging/webhooks) set in Settings → General) and email: a client opening an invoice, billing/payment details changing, access and security changes, invoices sent/paid/overdue, budgets, timesheets, and a Monday digest. See [docs/concepts/alerts-and-audit.mdx](docs/concepts/alerts-and-audit.mdx).
+Owners and admins always get alerts in the app; **Settings → Alerts** chooses which also go to Slack (an [incoming webhook](https://api.slack.com/messaging/webhooks) set in Settings → General) and email: a client opening an invoice, billing/payment details changing, access and security changes, invoices sent/paid/overdue, budgets, timesheets, time logged, recurring drafts, and a Monday digest. See [docs/concepts/alerts-and-audit.mdx](docs/concepts/alerts-and-audit.mdx).
 
 ## REST API + MCP
 
@@ -116,11 +117,11 @@ The same key works as an **MCP server** at `/api/mcp` (Streamable HTTP) for Clau
 
 ## QuickBooks Online integration
 
-An owner/admin connects QuickBooks under Settings → Integrations, then pushes invoices from their detail page as real QBO invoices (the customer and a "Consulting Services" item are created on first use). **Sync status from QuickBooks** pulls an invoice's sent/paid status back.
+An owner/admin connects QuickBooks under Settings → Integrations, then pushes invoices from their detail page as real QBO invoices (the customer and a "Consulting Services" item are created on first use). Re-pushing updates the same QBO invoice; invoices with tax aren't pushed, since the tax wouldn't carry over. **Sync status from QuickBooks** pulls an invoice's sent/paid status back.
 
 Setup:
 1. Register a free app at [developer.intuit.com](https://developer.intuit.com) and add `<your-domain>/api/integrations/quickbooks/callback` as its redirect URI.
-2. Enter its client ID and secret under Settings → Integrations (or set `QUICKBOOKS_CLIENT_ID` / `QUICKBOOKS_CLIENT_SECRET`). `QUICKBOOKS_ENVIRONMENT=sandbox` works immediately against Intuit's sandbox; real companies need Intuit's app review first.
+2. The owner enters its client ID and secret under Settings → Integrations (or set `QUICKBOOKS_CLIENT_ID` / `QUICKBOOKS_CLIENT_SECRET`). `QUICKBOOKS_ENVIRONMENT=sandbox` works immediately against Intuit's sandbox; real companies need Intuit's app review first.
 3. Click Connect, authorize, and push an invoice.
 
 **Why QuickBooks and not Found.com, Novo, or Bill.com:** researched directly against each vendor before building anything. Found.com and Novo are banking apps with invoicing as a built-in feature — neither exposes a public developer API; their "partners" programs are referral/reseller relationships, not integration platforms. Bill.com does have a real API, but its core AR/AP endpoints authenticate via the user's actual BILL.com username/password (no OAuth, no org-scoped key) — storing or handling that felt like the wrong security tradeoff for a self-hosted tool, so it was set aside in favor of QuickBooks' genuine OAuth 2.0 flow.

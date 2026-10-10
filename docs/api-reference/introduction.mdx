@@ -1,11 +1,15 @@
 ---
 title: Getting Started
-description: Authentication and conventions for the Consultainer REST API
+description: Base URL, authentication, errors and conventions for the Consultainer REST API
 ---
+
+The REST API lets scripts and other tools read and change your Consultainer
+data. Everything it can do, it does as a person in your organization, with
+their permissions.
 
 ## Base URL
 
-Your instance's address, plus `/api/v1`:
+Your instance's address plus `/api/v1`:
 
 ```
 https://<your-instance>/api/v1
@@ -13,34 +17,82 @@ https://<your-instance>/api/v1
 
 ## Authentication
 
-Generate an API key from **Profile → API keys & AI agents**. Send it as a
-Bearer token on every request:
+Every request needs an API key, sent as a Bearer token.
 
-```bash
-curl https://<your-instance>/api/v1/clients \
-  -H "Authorization: Bearer ch_live_..."
-```
+<Steps>
+  <Step title="Create a key">
+    In Consultainer, click your avatar in the top-right corner, choose
+    **Profile**, and find the **API keys & AI agents** card. Type a name under
+    **New key name** and click **Create key**.
+  </Step>
+  <Step title="Copy it">
+    The key starts with `ch_live_` and is shown only once. Copy it and store
+    it somewhere safe.
+  </Step>
+  <Step title="Send it on every request">
+    ```bash
+    curl https://<your-instance>/api/v1/clients \
+      -H "Authorization: Bearer ch_live_..."
+    ```
+  </Step>
+</Steps>
 
-A key acts as the person who created it — it sees what they see (respecting
-confidential-project visibility) and can only do what their role allows. A
-key with a `MEMBER` role, for example, can't generate invoices.
+Anyone in the organization can create a key. A key:
 
-## Responses
+- acts as the person who created it, in the organization they had open when
+  they created it;
+- sees what they see (confidential projects, and invoices with a line on
+  one, included only if they're on them) and can do only what their role
+  allows. A `MEMBER` key can't generate, email, send, mark paid or void
+  invoices, manage milestones, or read the audit log, for example, and never
+  gets client or project `shareToken`s;
+- stops working when it's revoked (the trash icon next to it on **Profile**)
+  or when its owner leaves the organization.
 
-Successful responses are JSON, wrapped under a key naming the resource:
+Changes made with a key appear in the
+[audit log](/concepts/alerts-and-audit#audit-log) under the key owner's name,
+with an **API** badge.
 
-```json
-{ "clients": [ { "id": "...", "name": "Acme Co", "...": "..." } ] }
-```
+If your instance sits behind an authenticating reverse proxy, let `/api/v1/*`
+through without it. The API key is the authentication.
 
-Validation errors return `422` with field-level messages:
+## Requests and responses
 
-```json
-{ "error": { "name": ["Name is required"] } }
-```
+- Send request bodies as JSON with `Content-Type: application/json`.
+- Responses are JSON, wrapped in a key naming what's returned:
 
-An invalid or missing key returns `401`. A request for something the key's
-role can't do returns `403`.
+  ```json
+  { "clients": [ { "id": "cm9...", "name": "Acme Co", "...": "..." } ] }
+  ```
+
+- IDs are strings. Dates and times are ISO 8601 strings. Money and hour
+  amounts (for example `hours`, `total`, `rateOverride`) are decimal
+  **strings** such as `"3.5"`, so they don't lose precision.
+- Records include all their stored fields; the endpoint pages list the ones
+  you'll usually need.
+
+## Errors
+
+Errors return a JSON body with an `error` key.
+
+| Status | When | Body |
+| --- | --- | --- |
+| `401` | The `Authorization` header is missing, the key is wrong or revoked, or its owner left the organization. | `{ "error": "Missing or invalid API key." }` |
+| `403` | The key's role can't do this. | `{ "error": "Only owners and admins can generate invoices." }` |
+| `404` | The record doesn't exist, belongs to another organization, or is a confidential project the key can't see. | `{ "error": "Project not found." }` |
+| `422` | The body failed validation. | Field errors: `{ "error": { "name": ["Name is required"] } }` |
+| `422` | The request was valid but can't be done. | A message: `{ "error": "This entry has already been invoiced and can't be edited." }` |
+
+<Note>
+A `422` body's `error` is either an object of field errors (each field maps
+to a list of messages) or a single string. Check its type before reading it.
+</Note>
+
+## Pagination
+
+Only the [audit log](/api-reference/audit-log) is paginated (`limit`, `page`
+and `nextPage`). Every other list endpoint returns all matching records in one
+response; use its filters (dates, project, client, status) to narrow it.
 
 ## Resources
 
@@ -54,5 +106,5 @@ role can't do returns `403`.
 </CardGroup>
 
 The same key also works with the [MCP server](/mcp-server), which covers more
-than the REST API (timers, timesheets, meetings, milestones, expenses,
-invoice email).
+than the REST API: timers, timesheets, meetings, milestones, expenses,
+invoice status changes and invoice email.

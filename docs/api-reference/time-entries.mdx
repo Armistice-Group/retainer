@@ -9,7 +9,9 @@ description: List, log, update, and delete time entries
 GET /api/v1/time-entries
 ```
 
-Returns the authenticated key's own entries by default.
+Any role. Returns the key owner's own entries, newest date first, each with
+its `project` (including its `client`) and `task` (or `null`). Owners and
+admins can ask for someone else's with `userId`.
 
 <ParamField query="from" type="string">
   `YYYY-MM-DD`, inclusive.
@@ -17,10 +19,42 @@ Returns the authenticated key's own entries by default.
 <ParamField query="to" type="string">
   `YYYY-MM-DD`, inclusive.
 </ParamField>
-<ParamField query="projectId" type="string" />
+<ParamField query="projectId" type="string">Only this project's entries.</ParamField>
 <ParamField query="userId" type="string">
-  Owner/admin only — view another team member's entries.
+  Owner/admin only: another member's entries. Ignored for members.
 </ParamField>
+
+```bash
+curl "https://<your-instance>/api/v1/time-entries?from=2026-08-01&to=2026-08-31" \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+A `from` or `to` that isn't a date returns `422` with
+`{ "error": { "from": ["Use an ISO date, e.g. 2026-07-23."] } }`.
+
+```json
+{
+  "timeEntries": [
+    {
+      "id": "cm9...",
+      "date": "2026-08-05T00:00:00.000Z",
+      "hours": "3.5",
+      "description": "API migration",
+      "billable": true,
+      "rateOverride": null,
+      "approvedAt": null,
+      "invoiceLineItemId": null,
+      "userId": "cm9...",
+      "projectId": "cm9...",
+      "taskId": null,
+      "project": { "id": "cm9...", "name": "API migration", "client": { "id": "cm9...", "name": "Fintra Labs", "...": "..." }, "...": "..." },
+      "task": null
+    }
+  ]
+}
+```
+
+`invoiceLineItemId` is set once the entry is on an invoice.
 
 ## Log time
 
@@ -28,38 +62,81 @@ Returns the authenticated key's own entries by default.
 POST /api/v1/time-entries
 ```
 
-<ParamField body="projectId" type="string" required />
-<ParamField body="taskId" type="string" />
+Any role. Returns `201` with `{ "timeEntry": { ... } }`. Logging time can
+trigger [budget alerts](/concepts/alerts-and-audit#the-alerts).
+
+<ParamField body="projectId" type="string" required>
+  A project the key's owner can see.
+</ParamField>
+<ParamField body="taskId" type="string">A task on that project.</ParamField>
 <ParamField body="date" type="string" required>
   `YYYY-MM-DD`.
 </ParamField>
 <ParamField body="hours" type="number" required>
   Greater than 0, up to 24.
 </ParamField>
-<ParamField body="description" type="string" />
+<ParamField body="description" type="string">Up to 2,000 characters.</ParamField>
 <ParamField body="billable" type="boolean" default="true" />
 <ParamField body="userId" type="string">
-  Owner/admin only — log on another team member's behalf.
+  Owner/admin only: log the time for another member of the organization.
+  Ignored for members.
 </ParamField>
 <ParamField body="rateOverride" type="number">
-  Owner/admin only — override the project member's standard rate for this
-  entry.
+  Owner/admin only: bill this entry at this hourly rate instead of the
+  member's rate on the project. Ignored for members.
 </ParamField>
 
 ```bash
 curl -X POST https://<your-instance>/api/v1/time-entries \
   -H "Authorization: Bearer ch_live_..." \
   -H "Content-Type: application/json" \
-  -d '{"projectId": "proj_123", "date": "2026-08-05", "hours": 3.5, "description": "API migration"}'
+  -d '{"projectId": "cm9...", "date": "2026-08-05", "hours": 3.5, "description": "API migration"}'
 ```
 
-## Update or delete a time entry
+## Update a time entry
 
 ```
 PATCH /api/v1/time-entries/{id}
+```
+
+Takes the same body as logging time, and replaces the entry with it: send
+every field, not just the ones you're changing (`projectId`, `date` and
+`hours` are required). Returns `{ "timeEntry": { ... } }`.
+
+- Members can update only their own entries; owners and admins can update
+  anyone's, and can move an entry to another member with `userId`.
+- Moving an entry to a different `projectId` needs a project the key's owner
+  can see.
+- When an owner or admin updates an entry without `rateOverride`, any
+  existing override is cleared.
+
+## Delete a time entry
+
+```
 DELETE /api/v1/time-entries/{id}
 ```
 
-Takes the same body as logging time. Only the person who logged the entry
-(or an owner/admin) can update or delete it, and only before it's been
-pulled onto an invoice.
+Returns `{ "ok": true }`. Members can delete only their own entries; owners
+and admins can delete anyone's.
+
+## Rules and errors
+
+An entry can't be changed or deleted once it's on an invoice. If your
+organization requires timesheet approval, a member can't add, change or
+remove time in a week they've submitted or that's been approved; owners and
+admins can.
+
+Every failure below returns `422` with `{ "error": "<message>" }`, except
+validation errors, which return field errors such as
+`{ "error": { "hours": ["Hours must be greater than zero"] } }`.
+
+| Message | Fix |
+| --- | --- |
+| `Project not found.` | Check `projectId`. Confidential projects need the key's owner on the project (this applies when moving an entry too). |
+| `That person isn't a member of this organization.` | `userId` must be a member of the key's organization. |
+| `Task not found.` | The task doesn't exist or is on a different project. |
+| `Entry not found.` | Check the entry ID. |
+| `You can only edit your own time entries.` / `You can only delete your own time entries.` | Use the entry owner's key, or an owner or admin key. |
+| `This entry has already been invoiced and can't be edited.` (or `deleted`) | If the invoice is still a draft, remove the entry's line item from it in the app first. |
+| `That week's timesheet is waiting for approval. Recall it to make changes.` | Recall the week on the **Time** page, or ask an admin. |
+| `That week's timesheet has been approved, so its time is locked.` | Ask an owner or admin to make the change. |

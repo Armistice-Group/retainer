@@ -1,54 +1,155 @@
 ---
 title: Tasks
-description: Task lists, the task sheet, comments, mentions, and timers
+description: Add and assign tasks, track time on them, and discuss them with your team
 ---
 
-Every project has a task list, and **Tasks** in the sidebar shows them across
-all your projects, grouped by project. Filter by **Mine / Everyone** and
-**Open / Done / All**; in-progress tasks come first. **New task** lets you pick
-the project.
+Tasks break a project into pieces of work you can assign, time and discuss.
+Every project has a task list on its page, and **Tasks** in the sidebar shows
+tasks across all the projects you can see. Anyone who can see a project can
+add, edit, assign and delete its tasks. A task can only be assigned to
+someone who can see its project too: on a
+[confidential project](/concepts/clients-and-projects#confidential-projects),
+that's the people on it, plus owners and admins.
+
+## How to add a task
+
+1. Open the project and click **Add task** on the **Tasks** card, or click
+   **New task** under **Tasks** and pick the **Project**.
+2. Enter a **Title** and, optionally, a **Description**.
+3. Optional: set **Estimated hours**. You're alerted when logged time passes
+   it (see [Estimates](#estimates)).
+4. Optional: pick an **Assignee**. They're notified.
+5. Click **Add task**.
+
+<Note>
+A project needs at least one person on its team before it can have tasks. If
+the **Tasks** card says **Add a team member first**, an owner or admin adds
+someone under **Team & bill rates** (see
+[Clients & Projects](/concepts/clients-and-projects#how-to-add-people-and-set-bill-rates)).
+</Note>
+
+## How to find your tasks
+
+Go to **Tasks** in the sidebar. Tasks are grouped by project.
+
+- **Mine** shows tasks assigned to you; **Everyone** shows all tasks.
+- **Open** shows tasks that aren't done; **Done** and **All** do what they
+  say.
+
+## How to change status or assignee
+
+A task is **To do**, **In progress** or **Done**.
+
+- **On the project page:** click a task's status badge to move it to the next
+  one (To do → In progress → Done → To do). Click the assignee name to pick
+  someone else or **Unassigned**.
+- **On the task sheet:** use the **Status** and **Assignee** menus.
+
+Assigning someone notifies them. If the project is linked to Linear with
+changes sent back, status and assignee changes go to the issue too.
+
+To edit a task's title, description or estimate, click the pencil on its row
+(**Edit task**). To delete it, click the bin icon and confirm. Deleting a
+task also deletes its comments. Time logged on it is kept, just no longer
+linked to a task.
+
+If you pick someone who can't see the project, you'll get *That person can't
+be assigned tasks on this project.* An owner or admin can add them to the
+project's team first.
 
 ## The task sheet
 
-Click a task (on its project page or under Tasks) to open its sheet:
+Click a task's title (on its project page or under **Tasks**) to open its
+sheet. It shows:
 
-- **Status** and **assignee** — change them right there. Assigning someone
-  notifies them.
-- **Hours** — logged against the task, next to its estimate. Task lists show
-  hours in red once they pass the estimate, and the assignee and admins are
-  alerted.
-- **Linear** — the issue key (e.g. `RING-12`) linking to it, for tasks synced
-  with [Linear](/integrations/linear).
-- **Time** — **Start timer** (or **Stop timer** when it's running on this
-  task) and **Log time**, plus the entries logged so far.
-- **Comments** — see below.
+- **Status** and **Assignee**, which you can change right there.
+- **Hours** logged on the task next to its estimate, marked **over estimate**
+  once it passes.
+- **Linear**: the issue key (for example `RING-12`) and **Open issue**, for a
+  task synced with [Linear](/integrations/linear).
+- **Time**: **Start timer** / **Stop timer**, **Log time**, and every entry
+  logged on the task.
+- **Comments**.
 
-The sheet's URL (`?task=…`) can be shared; it opens straight to the task.
+The page URL gets `?task=…` while the sheet is open. Copy it to send someone
+straight to the task.
 
-## Timers
+## How to track time on a task
 
-Every task row has a play button: it starts a timer on that task, stopping
-and logging whatever timer was running, and turns into a stop button while
-it's the running one. The running timer also shows in the top bar. Over MCP:
-`start_timer`, `stop_timer`, `get_active_timer`.
+- **Timer:** click the play button on the task's row, or **Start timer** on
+  its sheet. Click the same button (now a stop button) or **Stop** in the top
+  bar to stop it; the time is logged against the task.
+- **By hand:** click **Log time** on the sheet. The project and task are
+  filled in for you.
+
+Only one timer runs at a time: starting one on another task stops the running
+one and logs its time first. Timer details are in
+[Time Tracking](/concepts/time-tracking#how-to-use-the-timer).
+
+### Estimates
+
+When the hours logged on a task first pass its **Estimated hours**, owners,
+admins and the task's assignee get an alert (*A project nears its budget or a
+task passes its estimate* under [Settings → Alerts](/concepts/alerts-and-audit)).
+Hours on the task list turn red. If hours drop back under, or you raise the
+estimate, the alert can fire again.
 
 ## Comments
 
-Comments are internal by default — clients never see them unless you choose
-to share one.
+Comments are internal: the client never sees them unless you share a specific
+one.
 
-- **@mentions** — type `@` to pick someone who can see the project. They're
-  notified directly. (Mentions of people who can't see a confidential project
-  are ignored.)
-- **Watchers** — the assignee and watchers are notified of new comments.
-  Commenting or being mentioned makes you a watcher; **Watch / Unwatch** on
-  the sheet changes it.
-- **Linear** — on a task linked to a Linear issue, comments are posted there
-  too (untick **Also post to Linear** to keep one internal), and comments
-  made in Linear show up here marked **From Linear**.
-- **Share with client** — when the project's client link shows tasks, tick
-  this to show a comment there. Shared comments are badged **Client can see**,
-  and their author or an admin can change it later.
+### How to comment and @mention someone
 
-Authors can delete their own comments; owners and admins can delete any. A
-copy already posted to Linear stays there.
+1. Open the task sheet.
+2. Type in **Add a comment…** at the bottom. Type `@` and pick a name to
+   mention someone. Only people who can see the project are offered.
+3. Click **Comment** (or press Ctrl+Enter / Cmd+Enter).
+
+Who gets notified:
+
+- **People you @mention** get a "mentioned you" notification.
+- **The assignee and the task's watchers** get a "commented on" notification.
+- You're never notified about your own comment.
+
+Commenting on a task, or being mentioned on it, makes you a watcher.
+
+### How to watch or stop watching a task
+
+On the task sheet, click **Watch** next to **Comments** to be notified of new
+comments, or **Unwatch** to stop. The assignee is always notified and sees
+**Notified as assignee** instead.
+
+### How to share a comment with the client
+
+This works once the project has a client link with **Show tasks** turned on
+(see [Client links](/concepts/clients-and-projects#how-to-share-a-project-with-the-client)).
+
+1. Write your comment and tick **Share with client (shown on the project's
+   client link)**.
+2. Click **Comment**.
+
+The comment is badged **Client can see** and appears under its task on the
+client link. To change an existing comment, hover over it and click **Share
+with client** or **Hide from client**. The comment's author, owners and admins
+can do this.
+
+### Comments and Linear
+
+On a task linked to a Linear issue, your comment is also posted on the issue.
+Untick **Also post to Linear** before you click **Comment** to keep it in
+Consultainer only. Comments made in Linear show up on the task marked **From
+Linear**. See [Linear](/integrations/linear).
+
+### Deleting comments
+
+Hover over a comment and click the bin icon. Authors can delete their own
+comments; owners and admins can delete any. A copy already posted to Linear
+stays there.
+
+## Over MCP
+
+AI agents connected through the [MCP server](/mcp-server) can use
+`list_my_tasks`, `create_task`, `update_task`, `update_task_status`,
+`list_task_comments`, `add_task_comment`, `delete_task_comment`, `watch_task`,
+`start_timer` and `stop_timer`.

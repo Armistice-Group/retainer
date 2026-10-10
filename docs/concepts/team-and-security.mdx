@@ -1,0 +1,411 @@
+---
+title: Team & security
+description: Roles, invites, cost rates, single sign-on, two-factor authentication and API keys
+---
+
+Everyone in Consultainer belongs to an **organization** with one of three
+roles: **Owner**, **Admin** or **Member**. This page covers what each role
+can do, how people join, and how to secure sign-in with single sign-on
+(SSO), two-factor authentication and passkeys.
+
+## Roles
+
+| | Member | Admin | Owner |
+| --- | :---: | :---: | :---: |
+| Clients, contacts and links: add and edit | Yes | Yes | Yes |
+| Projects: create and edit | Yes (projects they can see) | Yes | Yes |
+| Delete clients and projects | | Yes | Yes |
+| Add or remove a project's team members, set bill rates | | Yes | Yes |
+| Create a confidential project, or mark one confidential | | Yes | Yes |
+| See confidential projects | Only ones they're on | All | All |
+| Tasks (add, edit, assign, delete) on projects they can see, comments, own time entries and timers | Yes | Yes | Yes |
+| Edit or delete other people's task comments | | Yes | Yes |
+| Log expenses | Yes (need approval above the org's threshold) | Yes (auto-approved) | Yes (auto-approved) |
+| Approve or reject expenses | | Yes | Yes |
+| See the whole team's time, log time for others, approve timesheets | | Yes | Yes |
+| Add, edit, complete, reopen and delete milestones | | Yes | Yes |
+| See invoices | All except ones with a line on a confidential project they're not on | All | All |
+| Generate draft invoices, edit line items, **Mark as sent**, **Mark as paid**, **Void** (in the app) | Yes | Yes | Yes |
+| **Email to client**, delete a draft invoice, push to QuickBooks | | Yes | Yes |
+| Client and project share links, retainers, billing cycles | | Yes | Yes |
+| **Reports**, **Settings → Alerts**, **Settings → Audit log** | | Yes | Yes |
+| Change settings under General, Payments, Security, Members | View only | Yes | Yes |
+| Connect Stripe, Mercury, QuickBooks, Linear; set up filing | | Yes | Yes |
+| Invite people, change roles, set cost rates, remove people (not owners; see [The owner](#the-owner)) | | Yes | Yes |
+| Enter instance-wide integration credentials (**Settings → Integrations** and **Payments** credential fields) | | | Yes |
+| Change the **Instance URL** (**Settings → General**) | | | Yes |
+| Keep password sign-in when SSO is required | | | Yes |
+| Create their own API keys | Yes | Yes | Yes |
+
+Over the [REST API](/api-reference/introduction) and [MCP server](/mcp-server)
+a key acts as the person who made it, with their role, with some extra
+limits: generating invoices, emailing invoices, marking invoices sent or paid,
+voiding them, approving expenses, reading pending timesheets and reading the
+audit log need an Admin or Owner key. A member's key also never sees the
+client or project `shareToken` (the secret in client links).
+
+[Client documents](/concepts/clients-and-projects) have their own access
+setting: **Everyone**, **Owners & admins**, or **Specific people**. The Owner
+and whoever uploaded a document can always open it.
+
+### The owner
+
+The person who completes `/setup` becomes the organization's **Owner**. There
+is one owner, and the role can't be granted, changed or removed in the app
+(invites and SSO only create Admins and Members, and **Make admin** / **Make
+member** never grant Owner). The server enforces this too: admins can't
+change or remove an owner, and an organization's last owner can't be demoted
+or removed (*An organization needs at least one owner.*). The owner:
+
+- always keeps password sign-in, so a broken identity provider can't lock
+  everyone out;
+- receives alert emails when **Settings → Alerts** has no email list;
+- is the only person who can change instance-wide settings, because they
+  affect every organization on the server.
+
+## Invite people
+
+Who can do it: **Owner**, **Admin**.
+
+<Steps>
+  <Step title="Open Members">
+    Go to **Settings → Members** and click **Invite member**.
+  </Step>
+  <Step title="Enter their email and role">
+    Type their email address, pick **Member** or **Admin** under **Role**, and
+    click **Create invite**.
+  </Step>
+  <Step title="Get the link to them">
+    If [email](/self-hosting#email) is set up, they're emailed an invite.
+    Either way the dialog shows the invite link with a **Copy** button, so you
+    can send it yourself. The link expires in 14 days.
+  </Step>
+  <Step title="They accept">
+    The link opens **Join &lt;your organization&gt;**. New people set their name
+    and a password (at least 10 characters, with a letter and a number).
+    Someone who already has an account on this server just accepts.
+  </Step>
+</Steps>
+
+**Check it worked:** until it's used, the invite is listed under **Pending
+invites** on **Settings → Members**, with a copy button for the link and an
+**×** to revoke it. Once accepted, the person appears under **Members** and
+owners and admins get a notification.
+
+There's no public sign-up. Besides invites, people can join through
+[SSO with automatic account creation](#single-sign-on-sso) or
+[auto-join by email domain](#auto-join-by-email-domain).
+
+## Manage members
+
+Who can do it: **Owner**, **Admin**. On **Settings → Members**, open the
+**⋯** menu next to a person to:
+
+- **Make admin** / **Make member**: change their role.
+- **Mark as contractor** / **Mark as employee**: contractors get a
+  **Contractor** badge. Contractors can be asked to confirm their rate on a
+  project, and **Timesheet approval → Contractors** (Settings → General)
+  applies only to them.
+- **Remove**: takes them out of the organization. Their time entries and
+  other work stay. Their API keys stop working for this organization.
+
+The owner's row has no menu.
+
+### Cost rates
+
+Each member row shows a **Cost** field: what an hour of that person's time
+costs you (salary or contractor rate), per hour. Type a number and press
+Enter or click away to save. Leave it empty if you don't track it.
+
+Cost rates are only shown to owners and admins. [Reports](/concepts/reports)
+use them, together with **Overhead (%)** from Settings → General, to work out
+profit per project. They never appear on invoices; what clients pay comes
+from each person's bill rate on the project.
+
+## Auto-join by email domain
+
+Who can do it: **Owner**, **Admin**. This only applies to **Continue with
+Google** sign-in, which the server admin turns on with `AUTH_GOOGLE_ID` and
+`AUTH_GOOGLE_SECRET` (see [Self-hosting](/self-hosting#optional)). For other
+identity providers use [SSO](#single-sign-on-sso).
+
+<Steps>
+  <Step title="Set the organization domain">
+    Go to **Settings → Security**. In the **Domain** card, enter your
+    company's email domain (for example `acme.com`) under **Organization
+    domain**. It must match the domain of your own email address, can't be a
+    free email provider, and can't already belong to another organization on
+    the server.
+  </Step>
+  <Step title="Turn on auto-join">
+    Tick **Auto-join teammates with a matching email domain** and click
+    **Save changes**.
+  </Step>
+</Steps>
+
+Anyone who signs in with a Google account on that domain and has no account
+yet joins as a **Member**, and owners and admins are notified.
+
+## Single sign-on (SSO)
+
+Consultainer supports single sign-on with any **OpenID Connect (OIDC)**
+provider: Google Workspace, Microsoft Entra ID, Okta, Authentik, Keycloak,
+Zitadel, Auth0 and others. SAML isn't supported; most providers that offer
+SAML also offer OIDC.
+
+Who can do it: **Owner**, **Admin**. Each organization has one SSO
+connection.
+
+### How it works
+
+- Once a connection is enabled, the login page shows a **Sign in with
+  &lt;Button label&gt;** button.
+- Sign-ins are matched to accounts by **email address**. Someone already in
+  the organization (invited, or the owner) signs in to their existing
+  account.
+- With **Create accounts on first sign-in** on, anyone your identity
+  provider lets through (and whose email domain is allowed) gets an account
+  the first time, with the role under **New accounts join as**. Owners and
+  admins are notified. With it off, only people already in the organization
+  can sign in with SSO.
+- With **Require SSO** on, password, magic-link, passkey and Google sign-in
+  are blocked for everyone in the organization **except the owner**.
+- Consultainer asks for the scopes `openid email profile`, uses PKCE and a
+  nonce, and sends the client secret in the token request body
+  (`client_secret_post`).
+
+### Set up SSO
+
+<Steps>
+  <Step title="Copy the redirect URI">
+    Open **Settings → Security** on the address people will sign in from (for
+    example `https://time.example.com`, not `localhost`). In the **Single
+    sign-on (OIDC)** card, click **Copy** next to **Redirect URI**. It looks
+    like `https://time.example.com/api/sso/callback`.
+  </Step>
+  <Step title="Create an OIDC app in your identity provider">
+    Follow the steps for your provider below. You come away with an
+    **issuer URL**, a **client ID** and a **client secret**.
+  </Step>
+  <Step title="Enter the details in Consultainer">
+    Back in the **Single sign-on (OIDC)** card, fill in **Issuer URL**,
+    **Client ID** and **Client secret**. Optionally set:
+
+    - **Button label**: the name on the login button, such as `Okta`.
+    - **Allowed email domains**: for example `acme.com, acme.co.uk`. Leave it
+      blank to accept any verified email the provider returns.
+    - **Create accounts on first sign-in** and **New accounts join as**.
+    - **Trust email addresses from this provider**: leave off unless sign-in
+      fails with an unverified-email error (see Troubleshooting).
+    - **Require SSO**: leave off until you've tested a sign-in.
+  </Step>
+  <Step title="Connect">
+    Click **Connect**. Consultainer fetches
+    `<issuer>/.well-known/openid-configuration` to find the provider's
+    endpoints. If that fails, you'll see an error and nothing is saved.
+  </Step>
+  <Step title="Test it">
+    In a private browser window, open the login page, click **Sign in with
+    …**, and sign in as a test user.
+  </Step>
+  <Step title="Require SSO (optional)">
+    Once a test sign-in works, click **Edit**, tick **Require SSO**, and
+    click **Save**.
+  </Step>
+</Steps>
+
+**Check it worked:** the card shows a summary with a green check next to the
+issuer, **Enabled** ticked, and the **New users**, **Domains**,
+**Unverified emails** and **Enforced** settings. Untick **Enabled** to hide
+the login button without deleting the connection.
+
+### Google Workspace
+
+<Steps>
+  <Step title="Open Google Cloud console">
+    Go to [console.cloud.google.com](https://console.cloud.google.com) with a
+    Workspace admin account and create or pick a project.
+  </Step>
+  <Step title="Configure the consent screen">
+    Open **APIs & Services → OAuth consent screen** (shown as **Google Auth
+    Platform** in newer consoles). Set the app name and support email, and
+    choose the **Internal** audience so only users in your Workspace can sign
+    in.
+  </Step>
+  <Step title="Create the client">
+    Go to **Clients** (or **APIs & Services → Credentials → Create credentials
+    → OAuth client ID**), choose application type **Web application**, and
+    add the Consultainer redirect URI under **Authorized redirect URIs**.
+    Click **Create**.
+  </Step>
+  <Step title="Copy the values">
+    - **Issuer URL**: `https://accounts.google.com`
+    - **Client ID** and **Client secret**: from the dialog Google shows after
+      creating the client.
+  </Step>
+</Steps>
+
+<Warning>
+  Google's issuer is the same for every Google account, including personal
+  Gmail. Always fill **Allowed email domains** with your Workspace domain
+  (for example `acme.com`), especially with **Create accounts on first
+  sign-in** on.
+</Warning>
+
+### Microsoft Entra ID
+
+<Steps>
+  <Step title="Register an app">
+    In the [Microsoft Entra admin center](https://entra.microsoft.com), go to
+    **Identity → Applications → App registrations → New registration**. Give
+    it a name, choose **Accounts in this organizational directory only**,
+    and under **Redirect URI** pick **Web** and paste the Consultainer
+    redirect URI. Click **Register**.
+  </Step>
+  <Step title="Note the IDs">
+    On the app's **Overview**, copy the **Application (client) ID** and the
+    **Directory (tenant) ID**.
+  </Step>
+  <Step title="Create a client secret">
+    Go to **Certificates & secrets → Client secrets → New client secret**,
+    pick an expiry, and click **Add**. Copy the secret's **Value** (not the
+    Secret ID) straight away; it's only shown once.
+  </Step>
+  <Step title="Add the email claim">
+    Go to **Token configuration → Add optional claim**, choose token type
+    **ID**, tick **email**, and click **Add**. If asked, also tick the option
+    to add the Microsoft Graph email permission. Users need an email address
+    set on their Entra account.
+  </Step>
+  <Step title="Copy the values">
+    - **Issuer URL**: `https://login.microsoftonline.com/<Directory (tenant) ID>/v2.0`
+    - **Client ID**: the Application (client) ID.
+    - **Client secret**: the secret's Value.
+  </Step>
+</Steps>
+
+<Note>
+  Entra client secrets expire (at most after 24 months). Put a reminder in
+  your calendar to create a new one and paste it in with **Edit** before the
+  old one expires, or SSO sign-in stops working.
+</Note>
+
+### Okta
+
+<Steps>
+  <Step title="Create an app integration">
+    In the Okta Admin Console, go to **Applications → Applications → Create
+    App Integration**. Choose **OIDC - OpenID Connect** and **Web
+    Application**, then click **Next**.
+  </Step>
+  <Step title="Configure it">
+    Name it, keep the **Authorization Code** grant type, and paste the
+    Consultainer redirect URI into **Sign-in redirect URIs**. Under
+    **Assignments**, choose who can use it (for example everyone, or a
+    group). Click **Save**.
+  </Step>
+  <Step title="Copy the values">
+    - **Issuer URL**: your Okta domain, for example
+      `https://your-org.okta.com`. If you use a custom authorization server,
+      use its issuer instead (for example
+      `https://your-org.okta.com/oauth2/default`).
+    - **Client ID** and **Client secret**: on the app's **General** tab under
+      **Client Credentials**.
+  </Step>
+</Steps>
+
+Okta only lets assigned users sign in, so assignments are where you control
+access.
+
+### Other providers
+
+Create a confidential (server-side) OIDC client with the authorization code
+flow, the Consultainer redirect URI, and the scopes `openid email profile`.
+Use the provider's issuer URL: the address that serves
+`/.well-known/openid-configuration`. For Authentik that's the provider's
+**OpenID Configuration Issuer**.
+
+The issuer URL must start with `https://`. Plain `http://` is only accepted
+for a test provider on `localhost`, `127.0.0.1` or `[::1]`.
+
+### SSO troubleshooting
+
+| What you see | What to do |
+| --- | --- |
+| *Must start with https:// (http:// only for localhost).* under **Issuer URL** | Use the provider's `https://` issuer URL. |
+| **Connect** fails with *Couldn't reach &lt;issuer&gt;/.well-known/openid-configuration.* or *Couldn't fetch OIDC discovery document (404).* | The issuer URL is wrong, or the server can't reach the provider. Open that URL in a browser; it should return JSON. |
+| *OIDC discovery document is missing required endpoints.* | The URL isn't an OIDC issuer. Use the provider's issuer, not its login page. |
+| The provider shows a redirect URI mismatch | Register exactly the URI shown in the card. If it starts with `http://` behind HTTPS, fix your [proxy headers](/self-hosting#put-it-behind-a-domain-with-https). |
+| Login page: *SSO sign-in failed. Try again or contact your admin.* | The token exchange or ID token check failed; the app log (`docker compose logs consultainer-app`) has the reason after `[sso] Sign-in failed`. Common causes: wrong or expired client secret; the provider didn't return an email (Entra: add the **email** optional claim); the provider requires a different client authentication method than sending the secret in the request body. |
+| *Your identity provider marked your email as unverified. …* | The provider sent `email_verified: false`. Tick **Trust email addresses from this provider** only if users can't change their own email in the provider. Authentik 2025.10 and later need this. |
+| *Your email domain isn't allowed to sign in with this SSO provider.* | Add the domain to **Allowed email domains**, or clear the list. |
+| *You don't have an account yet. Ask an admin to invite you.* | **Create accounts on first sign-in** is off and the person isn't in the organization. Invite them, or turn it on. |
+| *Your organization requires signing in with SSO.* | **Require SSO** is on. Use the SSO button. The owner can still sign in with their password. |
+
+## Two-factor authentication and passkeys
+
+Each person sets these up for their own account, on **Profile**. There's no
+organization-wide setting that forces two-factor authentication; to
+enforce stronger sign-in for everyone, use [Require SSO](#single-sign-on-sso)
+with an identity provider that requires MFA.
+
+### Turn on two-factor authentication
+
+<Steps>
+  <Step title="Start">
+    Go to **Profile**, find **Two-factor authentication**, and click **Enable
+    2FA**.
+  </Step>
+  <Step title="Add it to your authenticator app">
+    Click **Open in authenticator app**, or type the **Manual entry key**
+    into 1Password, Authy, Google Authenticator or similar.
+  </Step>
+  <Step title="Confirm">
+    Enter the **6-digit code** the app shows and click **Verify and enable**.
+  </Step>
+  <Step title="Save your recovery codes">
+    Copy the recovery codes somewhere safe. Each works once in place of a
+    code, and they're only shown this one time. Click **Done**.
+  </Step>
+</Steps>
+
+From then on, password sign-in asks for a code. To turn it off, enter your
+password under **Confirm password** and click **Disable 2FA**.
+
+### Passkeys
+
+On **Profile**, add a passkey to sign in with your device's fingerprint, face
+or PIN instead of a password. Passkeys are tied to the domain you created
+them on; if the instance moves to a new domain, add them again.
+
+## API keys
+
+Anyone can create API keys for the [REST API](/api-reference/introduction)
+and the [MCP server](/mcp-server).
+
+<Steps>
+  <Step title="Name the key">
+    Go to **Profile → API keys & AI agents**, enter a **New key name** (for
+    example `Claude Desktop`), and click **Create key**.
+  </Step>
+  <Step title="Copy it">
+    Click **Copy API key**. It starts with `ch_live_` and is only shown once.
+  </Step>
+</Steps>
+
+A key acts as you, in the organization you were in when you created it,
+with your role and project visibility. The list shows each key's first
+characters, when it was created and when it was last used. Click the bin
+icon to revoke one. Keys stop working when you're removed from the
+organization.
+
+## Security settings at a glance
+
+| Where | What |
+| --- | --- |
+| **Settings → Security → Domain** | Organization domain and Google auto-join. |
+| **Settings → Security → Single sign-on (OIDC)** | SSO connection, automatic accounts, allowed domains, Require SSO. |
+| **Settings → Members** | Roles, contractor flag, cost rates, invites. |
+| **Settings → Audit log** | Every change to organization data, and every sign-in. See [Alerts & audit log](/concepts/alerts-and-audit). |
+| **Settings → Alerts** | Which access and security changes reach Slack or email. |
+| **Profile** | Your password, two-factor authentication, passkeys and API keys. |

@@ -1,72 +1,162 @@
 ---
 title: Time Tracking
-description: Logging hours against a project and task
+description: Log hours with a timer or by hand, and submit weekly timesheets for approval
 ---
 
-## Logging time
+Time entries are what hourly work is invoiced from. Each entry is hours on a
+project (and optionally a task) on a given day. You can log time with a timer
+or by hand, from the **Time** page, a task, or an AI agent over MCP.
 
-From **Time**, log an entry against a project and, optionally, a task. Each
-entry has:
+## How to log time by hand
 
-- **Date and hours** (up to 24 in a single entry)
-- **Description** (optional)
-- **Billable** — on by default; turn off for internal or non-billable work
-- **Rate override** — an owner or admin can set a specific rate for that
-  entry instead of the project member's standard rate
+1. Go to **Time** and click **Log time** (or click **Log time** on a task's
+   sheet, which fills in the project and task).
+2. Pick the **Project** and, optionally, the **Task**.
+3. Set the **Date** and **Hours** (decimal hours, up to 24 in one entry; for
+   example `1.5` for an hour and a half).
+4. Optional: add a **Description**. It appears in exports and timesheet
+   reviews.
+5. Leave **Billable** ticked for client work. Untick it for internal or
+   non-billable work: it still counts toward budgets and utilization but never
+   goes on an invoice.
+6. Owners and admins also see:
+   - **Assigned to** — log the time for someone else. It has to be someone
+     in your organization (*That person isn't a member of this
+     organization.*).
+   - **Rate override** — bill this entry at a different hourly rate. Leave it
+     blank to use the person's rate on the project.
+7. Click **Log time**. The entry appears under its day.
 
-## Timers
+Each time someone logs time, the other owners and admins get the **Someone
+logs time** alert: in the app always, and in Slack (on by default) or email
+as chosen under [Settings → Alerts](/concepts/alerts-and-audit). It isn't
+sent when the only owner or admin logs their own time.
 
-**Start timer** in the top bar, or the play button on any task, runs a timer;
-stopping it logs the elapsed time as an entry, rounded to 0.01h (a timer
-stopped within 36 seconds logs nothing). Only one timer runs at a time: starting another stops and logs the
-first. Timers also work over MCP (`start_timer`, `stop_timer`).
+## How to use the timer
 
-## My time vs. team time
+1. Click **Start timer** in the top bar, pick the **Project** (and optionally
+   a **Task**, **Description** and **Billable**), and click **Start timer**.
+   Or click the play button on any task to start a timer on that task.
+2. The running time shows in the top bar.
+3. Click **Stop**. The elapsed time is logged as an entry dated today,
+   rounded to the nearest 0.01 hour (36 seconds).
 
-Everyone sees their own week by default. Owners and admins can switch to a
-team view, see everyone's logged hours, and filter by person.
+- **Only one timer runs at a time.** Starting a new one stops the running one
+  and logs its time first.
+- **Discard:** the **X** next to the running timer throws it away without
+  logging anything.
+- A timer stopped after less than about 18 seconds logs nothing.
+- If the time can't be logged (for example the week is
+  [locked](#timesheet-approval)), you see the error and the timer keeps
+  running, so nothing is lost.
 
-## Editing and deleting entries
+Over MCP: `start_timer`, `stop_timer`, `get_active_timer`.
 
-A time entry can be edited or deleted by the person who logged it (or an
-owner/admin) — but only until it's been pulled onto an invoice, and (for
-people covered by timesheet approval) while its week isn't submitted. Once
-invoiced, an entry is locked to keep the invoice and the underlying hours in
-sync.
+## How to see your week, or the team's
 
-## Exporting
+**Time** shows one week at a time, Monday to Sunday, with the total logged.
+Use the arrows to move between weeks and **This week** to come back.
 
-The Time page has an **Export CSV** button that respects whatever filters
-are active (week, team/person view) — it opens cleanly in Excel or Google
-Sheets.
+Owners and admins also get tabs (members see the **Meetings** tab once
+they've connected a calendar):
+
+- **My time** — your own entries.
+- **Team** — everyone's entries, with a person filter.
+- **Approvals** — timesheets waiting for review, when
+  [timesheet approval](#timesheet-approval) is on.
+- **Meetings** — see [Logging meetings](#logging-meetings-from-your-calendar).
+
+Entries are badged **Non-billable**, **Rate override**, **Approved** or
+**Invoiced** where that applies.
+
+## How to edit or delete an entry
+
+Click the pencil on the entry to edit it, or the bin icon to delete it (you're
+asked to confirm). You can change your own entries; owners and admins can
+change anyone's from the **Team** tab. You can only move an entry to a
+project you can see.
+
+An entry can't be changed or deleted once it's on an invoice: it shows
+**Invoiced** and has no pencil or bin. To change invoiced time, delete the
+draft invoice (or remove its line) first, which makes the time unbilled again.
+Once an invoice is sent, its time stays locked.
+
+If [timesheet approval](#timesheet-approval) covers you, you also can't change
+time in a week that's submitted or approved.
+
+## How to export time
+
+Click **Export CSV** on the **Time** page. It exports the week you're looking
+at, and on the **Team** tab respects the person filter. The file opens in
+Excel, Numbers or Google Sheets.
 
 ## Overhead
 
-An organization can set an overhead percentage (Settings → General, default
-0%). It's applied to the billed rate on hourly invoice line items at
-generation time — baked directly into the rate shown on the invoice, not
-broken out as a separate line.
+Under **Settings → General → Overhead (%)** (default 0), an owner or admin can
+add a percentage to hourly rates on invoices. It's applied when an invoice is
+generated and baked into the rate shown on each hourly line, not added as a
+separate line. Time entries and project rates don't change.
 
 ## Timesheet approval
 
-Under **Settings → General → Timesheet approval**, an organization can require
-people to submit their time each week before it's invoiced — for
-**Contractors** only, or **Everyone except admins**. It's off by default.
+Timesheet approval makes people submit each week's time, and an owner or admin
+approve it, before that time can be invoiced. It's off by default.
 
-- On **Time**, people it covers see the week's status and a **Submit week**
-  button. A submitted week is locked; **Recall** takes it back to edit.
-- Owners and admins review under **Time → Approvals**: **Approve**, or
-  **Request changes** with a note the person sees.
-- Only approved time (plus time from people approval doesn't cover) shows up
-  when generating invoices, manually or on a billing cycle. New invoice notes
-  how many hours are still waiting.
-- Admins can still edit time in an approved week; sending an approved week back
-  reopens it (time already invoiced stays invoiced).
+### How to turn it on
+
+1. Go to **Settings → General** (owners and admins).
+2. Set **Timesheet approval** to:
+   - **Contractors** — only members whose employment type is Contractor
+     (set under **Settings → Members**).
+   - **Everyone except admins** — every member who isn't an owner or admin.
+3. Save.
+
+Owners and admins never need approval for their own time.
+
+### How to submit your week
+
+If approval covers you, the **Time** page shows a **Timesheet** bar for the
+week you're viewing.
+
+1. Log the week's time.
+2. Click **Submit week**. The bar shows **Waiting for approval**, and owners
+   and admins get a *timesheet submitted* alert.
+3. While it's waiting, the week is locked. To change something, click
+   **Recall**, edit, and submit again.
+4. When it's reviewed you get a notification:
+   - **Approved** — the week stays locked and its billable time can now be
+     invoiced.
+   - **Changes requested** — the reviewer's note shows in the bar. Fix the
+     time and click **Resubmit week**.
+
+You can't submit a week with no time logged.
+
+### How to approve timesheets
+
+1. Go to **Time → Approvals** (owners and admins).
+2. Each submitted week shows the person, the week, total and billable hours,
+   and every entry.
+3. Click **Approve**, or **Request changes**, type what needs changing (they
+   see it), and click **Send back**.
+
+### What approval changes
+
+- **New invoice** and [billing cycles](/concepts/invoicing#billing-cycles)
+  only pick up approved time, plus time from people approval doesn't cover.
+  **New invoice** says how many hours are still waiting for approval. A
+  billing cycle leaves unapproved time for its next run.
+- Owners and admins can still add or edit time in an approved week; what they
+  add counts as approved.
+- An approved week can be sent back (reopened) with the MCP
+  `review_timesheet` tool. Time from it that's already invoiced stays
+  invoiced.
 
 Over MCP: `submit_timesheet`, `list_pending_timesheets`, `review_timesheet`.
 
 ## Logging meetings from your calendar
 
-Connect your calendar on your **Profile** and your meetings show up under
-**Time → Meetings**, each with a suggested project, to log or ignore. See
+Connect your calendar's private iCal (.ics) link on your **Profile** and
+your meetings appear under **Time → Meetings**, each with a suggested project.
+Logging one adds its length as time on that project, dated the meeting's day;
+you can also ignore it. Setup and details are in
 [Calendars](/integrations/calendars).

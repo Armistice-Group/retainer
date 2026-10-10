@@ -9,14 +9,42 @@ description: List projects
 GET /api/v1/projects
 ```
 
-Returns projects visible to the authenticated key — respecting confidential
-project visibility.
+Any role. Returns the projects the key's owner can see, newest first.
+Confidential projects are included only for owners, admins, and members of
+that project. `shareToken` (the secret in the project's
+[client link](/concepts/clients-and-projects#client-links), or `null`) is only
+included for owner and admin keys.
 
 <ParamField query="clientId" type="string">
-  Filter to a single client's projects.
+  Only this client's projects.
 </ParamField>
 
 ```bash
-curl "https://<your-instance>/api/v1/projects?clientId=..." \
+curl "https://<your-instance>/api/v1/projects?clientId=cm9..." \
   -H "Authorization: Bearer ch_live_..."
 ```
+
+```json
+{
+  "projects": [
+    {
+      "id": "cm9...",
+      "name": "API migration",
+      "status": "ACTIVE",
+      "billingType": "HOURLY",
+      "budgetHours": "120",
+      "confidential": false,
+      "clientId": "cm9...",
+      "client": { "id": "cm9...", "name": "Fintra Labs" },
+      "...": "..."
+    }
+  ]
+}
+```
+
+`status` is `ACTIVE`, `ON_HOLD`, `COMPLETED` or `ARCHIVED`. `billingType` is
+`HOURLY`, `FLAT_FEE` or `MILESTONE`.
+
+To create or change projects, use the app or the MCP server's
+`create_project` and `update_project` tools. For a project's tasks, see
+[Tasks](/api-reference/tasks).

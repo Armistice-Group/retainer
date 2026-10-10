@@ -3,67 +3,191 @@ title: Linear
 description: Sync a project's tasks with Linear issues, both ways
 ---
 
-## Connecting
+Link a Consultainer project to a Linear team and its issues become tasks you
+can log time against. Tasks you add or edit in Consultainer go back to Linear
+as issues, and comments flow both ways.
 
-In **Settings → Integrations**, an owner adds the instance's Linear OAuth app
-credentials (the card shows the callback URL to register), then an owner or
-admin clicks **Connect**. Consultainer asks for read and write access.
+Setting it up has three parts: an **owner** registers a Linear OAuth app for
+the instance (once), an **owner or admin** connects the organization's Linear
+workspace, and then an owner or admin links each project.
 
-## Linking a project
+## Set up the Linear OAuth app (owner, once)
 
-On a project's page, **Link Linear** picks:
+<Steps>
+  <Step title="Open the credentials form in Consultainer">
+    Go to **Settings → Integrations** and find the **Linear** card. Under it
+    is a credentials form with a **callback URL** and a **Copy** button. Copy
+    it — it looks like `https://your-instance/api/integrations/linear/callback`.
 
-- **Team** — required.
-- **Linear project** — optional. Only issues in that Linear project sync.
-- **Labels** — optional. Only issues with at least one of them sync.
+    The callback URL is built from the address you're browsing on. Open
+    Consultainer at the address everyone uses (your real domain, not
+    `localhost`) before copying it.
+  </Step>
+  <Step title="Create the OAuth application in Linear">
+    In Linear, open **Settings → API** and, under **OAuth applications**,
+    create a new application. (The link in the Linear card opens this page.)
+    Fill in:
 
-Several Consultainer projects can link to the same team — one per client,
-say — each narrowed by its own Linear project or labels. If an issue matches
-more than one, it stays with the project that pulled it in first.
+    - **Application name** — e.g. *Consultainer*.
+    - **Developer name** and **Developer URL** — your company and website.
+    - **Callback URLs** — paste the callback URL from step 1.
 
-**Sync now** pulls matching issues in as tasks and updates ones already
-pulled in (title, description, status, assignee — matched by email). It also
-pulls in comments from those issues, and sends open tasks that don't have an
-issue yet. Linked projects also sync on their own every hour.
+    If the workspace you'll connect isn't the one you're creating the app in,
+    turn on the app's **Public** option so other workspaces can authorize it.
+  </Step>
+  <Step title="(Optional) Turn on webhooks for live updates">
+    Without webhooks, linked projects still sync every hour. To see Linear
+    changes within seconds instead, turn on **Webhooks** on the same OAuth
+    application:
 
-## Issue keys and comments
+    - **Webhook URL** — `https://your-instance/api/webhooks/linear`. Once
+      Linear is connected, the **Live updates** box on the Linear card shows
+      this exact URL with a **Copy** button.
+    - **Events** — tick **Issues** and **Comments**.
 
-Linked tasks show their Linear key (e.g. `RING-12`) on the project page, on
-**Tasks**, in the task sheet (linking to the issue), and in the MCP
-`list_my_tasks` output. Comments go both ways: a comment on a linked task is
-posted to the issue too (untick **Also post to Linear** to keep it internal),
-and comments made in Linear appear on the task marked **From Linear**,
-notifying its assignee and watchers. See [Tasks](/concepts/tasks).
+    Linear has to be able to reach this URL from the internet over HTTPS.
+  </Step>
+  <Step title="Create the app and copy its keys">
+    Save the application. Linear shows its **Client ID**, **Client secret**
+    and, if you turned on webhooks, a **webhook signing secret**.
+  </Step>
+  <Step title="Paste the keys into Consultainer">
+    Back in the Linear card's credentials form, paste:
 
-## Live updates (webhooks)
+    | Linear | Consultainer field | Or in `.env` |
+    | --- | --- | --- |
+    | Client ID | **Client ID** | `LINEAR_CLIENT_ID` |
+    | Client secret | **Client secret** | `LINEAR_CLIENT_SECRET` |
+    | Webhook signing secret | **Webhook signing secret (optional, for live updates)** | `LINEAR_WEBHOOK_SECRET` |
 
-To see Linear changes right away instead of on the next sync, turn on
-webhooks in your Linear OAuth app:
+    Click **Save credentials**. To add the signing secret later, click **Edit
+    credentials** on the Linear card. Values are stored encrypted. A value set in
+    `.env` always wins and shows as *Set in the server environment*.
+  </Step>
+</Steps>
 
-1. In Linear, open the OAuth app (**Settings → API → OAuth applications**) and
-   enable **Webhooks** with the URL shown under **Live updates** in
-   Consultainer's Linear settings (`https://your-instance/api/webhooks/linear`).
-2. Subscribe to **Issues** and **Comments**.
-3. Copy the app's **webhook signing secret** into the Linear credentials in
-   Consultainer (**Webhook signing secret**), or set `LINEAR_WEBHOOK_SECRET`.
+## Connect your workspace (owner or admin)
 
-New and edited issues then update tasks within seconds, and Linear comments
-appear on the task — labelled **From Linear**, notifying the assignee.
-Deliveries are verified against the signing secret and rejected if older than
-a minute.
+<Steps>
+  <Step title="Click Connect">
+    On **Settings → Integrations**, the Linear card now has a **Connect**
+    button. Click it.
+  </Step>
+  <Step title="Authorize in Linear">
+    Linear asks you to allow Consultainer **read and write** access to the
+    workspace. Approve it. You're sent back to **Settings → Integrations**.
+  </Step>
+</Steps>
 
-## Sending changes to Linear
+**Check it worked:** the Linear card says **Connected · *your workspace
+name***. If you set up webhooks, a **Live updates** box appears with the
+webhook URL; once Linear sends its first event it shows **Last event *date***.
 
-With **Send task changes to Linear** on (the default), a task created in
-Consultainer — in the app, the REST API, or over MCP — becomes a Linear issue
-in the linked team, with the link's Linear project and labels applied.
-Title, description, status, and assignee edits are sent back too. If Linear
-is unreachable, the change still saves in Consultainer.
+## Link a project
 
-Connections made before write access was requested are read-only; reconnect
-from Settings → Integrations to enable this.
+<Steps>
+  <Step title="Open the project">
+    On the project's page, find the **Linear** card and click **Link Linear**.
+  </Step>
+  <Step title="Choose what to sync">
+    - **Team** — required.
+    - **Linear project** — optional. Only issues in that Linear project sync.
+    - **Labels** — optional. Only issues with at least one of them sync.
+    - **Send task changes to Linear** — on by default. See
+      [what syncs](#what-syncs-and-when) below.
+  </Step>
+  <Step title="Click Link, then Sync now">
+    Click **Link**. Then **Sync now** (on the project's Linear card) pulls
+    matching issues in right away. Anyone who can see the project can click
+    **Sync now**; linking, editing the link and unlinking are for owners and
+    admins.
+  </Step>
+</Steps>
+
+**Check it worked:** after **Sync now**, the card reports something like
+*12 new, 0 updated, 3 comments pulled in*, and the issues appear as tasks
+showing their Linear key (e.g. `RING-12`).
+
+Several Consultainer projects can link to the same team — one per client, say
+— each narrowed by its own Linear project or labels. If an issue matches more
+than one, it stays with the project that pulled it in first (the sync reports
+it as *skipped (already in another project)*).
+
+If you narrow a link later, tasks pulled in earlier that no longer match are
+counted on the card with a **Remove** button. Removing them deletes the tasks
+in Consultainer only; tasks with time logged are kept.
+
+## What syncs, and when
+
+**From Linear to Consultainer** (every sync and every webhook delivery):
+
+- New issues that match the link become tasks.
+- Title, description, status and assignee are updated on tasks already
+  pulled in. The assignee is matched by email to a member of your
+  organization; no match leaves the task unassigned.
+- Linear status types map to task statuses: *Triage*, *Backlog* and
+  *Unstarted* → **To do**; *Started* → **In progress**; *Completed* and
+  *Canceled* → **Done**.
+- Comments on linked issues appear on the task marked **From Linear** and
+  notify its assignee and watchers. The first sync of a project brings in
+  existing comments without notifying anyone.
+
+**From Consultainer to Linear** (only with **Send task changes to Linear**
+on):
+
+- A task created in Consultainer — in the app, the REST API or over MCP —
+  becomes a Linear issue in the linked team, with the link's Linear project
+  and labels applied.
+- Title, description, status and assignee edits are sent to the issue.
+  Statuses go to the first workflow state of the matching type in that team.
+- Comments on a linked task are posted to the issue too. Untick **Also post
+  to Linear** under the comment box to keep one internal.
+- Open tasks that never got an issue (created before the link, or while
+  Linear was unreachable) are sent on the next sync.
+
+If Linear is unreachable, the change still saves in Consultainer.
+
+**Automatically:** the scheduler syncs every linked project whose
+Consultainer project is **Active** or **On hold** once an hour (and about a
+minute after the app starts). With webhooks on, issue and comment changes in
+Linear arrive within seconds.
+
+Linked tasks show their key on the project page, on **Tasks**, in the task
+sheet (linking to the issue), and in the MCP `list_my_tasks` output. See
+[Tasks](/concepts/tasks).
 
 ## Disconnecting
 
-Disconnecting Linear stops syncing in both directions; tasks already pulled in
-stay as they are.
+**Disconnect** on the Linear card (owner or admin) stops syncing in both
+directions. Tasks already pulled in stay as they are, and project links are
+kept, so reconnecting picks up where it left off.
+
+## Troubleshooting
+
+- **"Only owners and admins can connect integrations."** — A member clicked
+  Connect. Ask an owner or admin.
+- **"Linear isn't set up on this instance yet — add its credentials below."**
+  — The Client ID or Client secret is missing. An owner adds them in the
+  credentials form (or `.env`).
+- **"Couldn't connect to Linear. Double-check your Linear OAuth app
+  credentials and try again."** — Usually the callback URL registered in
+  Linear doesn't exactly match the one Consultainer shows (check `http` vs
+  `https`, the host name, and the port), or the Client secret is wrong. It
+  also appears if you took more than 10 minutes on Linear's consent screen —
+  just try again.
+- **"Read-only access — reconnect so new tasks and edits can be sent to
+  Linear."** — The workspace was connected before Consultainer asked for
+  write access. Click **Reconnect**.
+- **"This project isn't linked to Linear, or Linear isn't connected."** —
+  Linear was disconnected. Reconnect it in **Settings → Integrations**.
+- **"Couldn't pull issues from Linear. Try reconnecting in Settings →
+  Integrations."** — The connection's access was revoked in Linear, or
+  Linear is down. Reconnect.
+- **"Couldn't send N tasks to Linear: …"** — The reason from Linear follows
+  the colon. These tasks are retried on every sync.
+- **Live updates never shows a last event** — Check that webhooks are on
+  for **Issues** and **Comments** in the Linear OAuth app, that the webhook
+  URL is reachable from the internet, and that the signing secret saved in
+  Consultainer is the app's current one (a wrong secret is rejected with
+  *Bad signature*). Deliveries older than a minute are rejected as *Stale
+  delivery*, so the server's clock must be accurate.

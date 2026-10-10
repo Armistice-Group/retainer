@@ -1,0 +1,98 @@
+---
+title: Email
+description: Send invites, login links, invoices and alerts through Resend
+---
+
+Consultainer sends email through [Resend](https://resend.com). Email is
+optional: without it, Consultainer shows you links to share yourself, and
+email-only features are off. An **owner** sets it up once for the instance.
+
+## What Consultainer emails
+
+| Email | Sent to | When |
+| --- | --- | --- |
+| Invitation | The person invited | An owner or admin invites someone under **Settings → Members**. |
+| Login link | The person signing in | They click **Email me a login link** on the login page (valid 15 minutes). |
+| Confirm your new email | The new address | Someone changes their email on **Profile**. |
+| Invoice | The client's invoice recipients | Someone clicks **Email to client** (or **Email again**) on an invoice. Replies go to the sender. |
+| Overdue reminder | The client's invoice recipients | Daily, at the days set under **Settings → Payments → Overdue reminders**. |
+| Contractor review | The client's primary contact | A contractor is added to a project with client approval requested. |
+| Alerts | Alert recipients (default: owners) | Events set to email under **Settings → Alerts**. |
+| Weekly digest | Alert recipients | Mondays, if the digest is on under **Settings → Alerts**. |
+
+**Without email:** invites and contractor reviews give you a link to copy,
+the login page hides **Email me a login link**, email changes apply after a
+password check, and invoice emails, overdue reminders, email alerts and the
+weekly digest are off. Invoices can still be shared with **Copy client link**.
+
+## Set it up
+
+<Steps>
+  <Step title="Create a Resend account">
+    Sign up at [resend.com](https://resend.com).
+  </Step>
+  <Step title="Add your sending domain">
+    In Resend, open **Domains** and add the domain you'll send from. A
+    subdomain such as `mail.example.com` keeps this separate from your normal
+    mail. Pick the region closest to your server.
+  </Step>
+  <Step title="Add the DNS records">
+    Resend lists the records to add at your DNS provider — an **MX** and a
+    **TXT** (SPF) record for sending, and a **TXT** record for DKIM. Add each
+    one exactly as shown, then click Resend's button to verify the records.
+    DNS changes can take from minutes to a few hours; wait until the domain
+    shows **Verified**.
+  </Step>
+  <Step title="Create an API key">
+    In Resend, open **API Keys** and create a key with **Sending access**
+    (you can limit it to your domain). Copy it — it starts with `re_` and is
+    only shown once.
+  </Step>
+  <Step title="Enter it in Consultainer">
+    Go to **Settings → Integrations** and find the **Email** card. Fill in:
+
+    | Consultainer field | What to enter | Or in `.env` |
+    | --- | --- | --- |
+    | **Resend API key** | The `re_…` key | `RESEND_API_KEY` |
+    | **From address** | An address on your verified domain, e.g. `Acme Consulting <billing@mail.example.com>` | `RESEND_FROM_EMAIL` |
+
+    Click **Save credentials**. A value set in `.env` always wins.
+  </Step>
+</Steps>
+
+<Warning>
+  Always set a **From address** on your verified domain. If it's left empty,
+  Consultainer sends from Resend's test address `onboarding@resend.dev`,
+  which only delivers to your own Resend account's email.
+</Warning>
+
+Links in emails point to your instance's public URL — `AUTH_URL` if set,
+otherwise the URL confirmed under **Settings → General**. Make sure that's
+the address people can reach. See [Self-hosting](/self-hosting#urls).
+
+## Check it worked
+
+The Email card says *Sending invites, login links, and invoice notices by
+email*. To test delivery, sign out and use **Email me a login link** on the
+login page, or invite a second address of your own under **Settings →
+Members** — the dialog says *We emailed them an invite* when Resend accepted
+it.
+
+## Troubleshooting
+
+Consultainer logs Resend's reason in the app's logs (`docker compose logs
+consultainer-app`), as *Resend returned an error* or *Failed to send email via
+Resend*. In the app you'll see:
+
+- **"The email couldn't be sent. Try again."** (emailing an invoice) — Resend
+  refused it. Usual causes: the from address isn't on a verified domain, the
+  domain isn't verified yet, or the API key was deleted.
+- The invite dialog says *Share this link with them* instead of *We emailed
+  them an invite* — same causes.
+- **"Email isn't configured on this instance."** or **"Email isn't set up on
+  this instance. Copy the client link instead, or set up email under Settings
+  → Integrations."** — No API key is saved.
+- Emails only arrive at your own address — the from address is empty, so
+  Resend's test sender is used. Set **From address**.
+- Emails land in spam — check all of Resend's DNS records show as verified,
+  and consider adding a DMARC record for the domain.

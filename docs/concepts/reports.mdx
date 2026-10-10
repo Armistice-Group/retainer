@@ -3,23 +3,53 @@ title: Reports
 description: Utilization, profit by project, unbilled work, and receivables
 ---
 
-Owners and admins get **Reports** in the sidebar. Pick a range — this month,
-last month, this quarter, year to date, the last 12 months, or any dates —
-and every section can be downloaded as CSV.
+**Reports** answers four questions: who's busy on billable work, which
+projects make money, what's done but not yet invoiced, and who owes you.
+Owners and admins see **Reports** in the sidebar; members don't.
 
-| Section | What it shows |
-| --- | --- |
-| **Utilization** | Per person: hours, billable hours, billable share of capacity (8 hours per weekday in the range), the billable value of their time, and what it cost. |
-| **Profit by project** | Invoiced (sent or paid invoices issued in the range) minus labor cost and approved expenses in the range, with margin. |
-| **Unbilled work** | Per client, as of now: billable time, completed milestones and approved expenses not on an invoice yet. |
-| **Receivables** | Per client, as of now: sent, unpaid invoices by days overdue (current, 1–30, 31–60, 61–90, 90+). |
+## How to run a report
 
-## Costs
+1. Click **Reports** in the sidebar.
+2. Pick a range: **This month**, **Last month**, **This quarter**, **Year to
+   date** or **Last 12 months**. For any other range, set the two dates and
+   click **Apply**.
+3. Read the totals at the top (**Hours logged**, **Invoiced**, **Profit**,
+   **Outstanding**) and the four sections below.
+4. Click **CSV** on a section to download it. The file opens in Excel, Numbers
+   or Google Sheets.
 
-Profit needs to know what an hour of each person's time costs you. Set it
-under **Settings → Members** (the **Cost** field next to each person — what
-you pay them per hour, or an hourly equivalent of their salary). Only owners
-and admins see it. If time was logged by someone without a cost, the page
-says so and their labor counts as zero.
+## What each section shows
 
-The same numbers feed the [weekly digest](/concepts/alerts-and-audit#weekly-digest).
+| Section | What it shows | Range |
+| --- | --- | --- |
+| **Utilization** | Per person: hours, billable hours, billable hours as a share of capacity (8 hours per weekday in the range), the billable value of their time, and what it cost you. | The range you picked |
+| **Profit by project** | Invoiced (sent or paid invoices issued in the range) minus labor cost and approved expenses in the range, with margin. | The range you picked |
+| **Unbilled work** | Per client: billable time, completed milestones and approved expenses that aren't on an invoice yet. | All time, as of now |
+| **Receivables** | Per client: sent, unpaid invoices by days overdue (current, 1–30, 31–60, 61–90, 90+). | As of now |
+
+Draft and void invoices never count as invoiced or outstanding.
+
+## How to set costs
+
+Profit and utilization cost need to know what an hour of each person costs
+you.
+
+1. Go to **Settings → Members** (owners and admins).
+2. In the **Cost** field next to each person, enter what you pay them per
+   hour, or an hourly equivalent of their salary.
+
+Only owners and admins see costs. If someone logged time in the range without
+a cost set, the page says so, their labor counts as zero, and the affected
+labor figures are marked with `*`.
+
+## Project budgets
+
+Budget tracking lives on each project rather than here: see
+[Budgets](/concepts/clients-and-projects#budgets).
+
+## Weekly digest
+
+The same numbers feed the
+[weekly digest](/concepts/alerts-and-audit#weekly-digest), a Monday summary sent to whoever
+your alert settings name for it. Its **Open Reports** button opens this page
+for the week the digest covers.

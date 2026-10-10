@@ -1,73 +1,178 @@
 ---
 title: Quickstart
-description: Install Consultainer, set up your organization, and bill your first client
+description: Your first hour — install, set up your organization, invite your team, log time and send your first invoice
 ---
 
-## 1. Install it
+This walks you from an empty server to a sent invoice. Each step names the
+exact buttons in the app.
 
-Consultainer is self-hosted: Postgres, the app and a small scheduler, from one
-compose file.
+<Steps>
+  <Step title="Install Consultainer">
+    On a server with Docker:
 
-```bash
-curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
-# fill in the Required section of .env (AUTH_SECRET, INTEGRATION_ENCRYPTION_KEY,
-# CRON_SECRET, POSTGRES_PASSWORD) — and SETUP_TOKEN if it's on the internet
-docker compose up -d
-```
+    ```bash
+    curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
+    curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.env.example
+    ```
 
-See [Self-hosting](/self-hosting) for every setting, upgrades, and putting it
-behind a domain.
+    Open `.env` and fill in the **Required** section:
 
-## 2. Create your organization
+    ```bash
+    openssl rand -base64 32   # paste as AUTH_SECRET
+    openssl rand -base64 32   # paste as INTEGRATION_ENCRYPTION_KEY (keep a copy somewhere safe)
+    openssl rand -hex 32      # paste as CRON_SECRET
+    ```
 
-Open the app (port 3113 by default). A fresh install sends you to `/setup` to
-create the organization and your owner account, then to a short checklist.
-There's no public signup: invite your team from **Settings → Members**, or set
-up single sign-on under **Settings → Security**.
+    Also change `POSTGRES_PASSWORD`, and if the server is reachable from the
+    internet, set `SETUP_TOKEN` (`openssl rand -hex 16`). Then:
 
-## 3. Add a client
+    ```bash
+    docker compose up -d
+    ```
 
-From **Clients**, add the client you're billing. Add contacts, and tick
-**receives invoices** on the people invoice emails should go to. Set the
-client's default payment terms (Net 30 unless you change it) and how they pay
-you under **Payment methods**.
+    [Self-hosting](/self-hosting) explains every setting, HTTPS with a
+    domain, backups and upgrades.
+  </Step>
 
-## 4. Create a project
+  <Step title="Create your workspace">
+    Open `http://<your-server>:3113`. A new install sends you to `/setup`.
+    Enter the **Setup token** (if you set one), your **Organization name**,
+    the **Instance URL** people will use to reach the app, and your name,
+    email and password. Click **Create workspace**.
 
-From **Projects**, create a project under that client and pick a billing type:
+    You're now the organization's **Owner**, and you land on a checklist of
+    next steps. It stays available at `/welcome`.
+  </Step>
 
-- **Hourly** — billed from logged time.
-- **Flat fee** — a fixed price for the whole engagement.
-- **Milestone-based** — billed per deliverable as milestones are completed.
+  <Step title="Set your organization defaults">
+    Go to **Settings → General**. In the **Organization** card, check:
 
-Add teammates with a bill rate, and optionally an hour budget (you're alerted
-at 80% and 100%). If your organization has one member, you're added to new
-projects automatically.
+    - **Invoice number prefix**, **Default currency**, **Default tax rate (%)**
+      and **Default payment terms** (Net 30 unless you change it). New
+      clients and invoices start from these.
+    - **Timesheet approval**: **Off**, **Contractors**, or **Everyone except
+      admins**. When on, covered people submit each week from **Time**, and
+      their time can't be invoiced until an admin approves it.
+    - **Expense approval threshold**: members' expenses above this need
+      approval before they can be invoiced.
 
-## 5. Track the work
+    Click **Save changes**. On the right, under **Logo & branding**, upload
+    your logo; it appears on invoice PDFs and share pages.
 
-Add [tasks](/concepts/tasks), or pull them in from [Linear](/integrations/linear).
-Log time from **Time**, with the play button on any task, by
-[connecting your calendar](/integrations/calendars) so meetings become time,
-or from an AI agent over [MCP](/mcp-server).
+    Then go to **Settings → Payments** and, under **Payment methods**, add how
+    clients can pay you (ACH, wire, a payment link…). They're shown on
+    invoices. See [Payments](/integrations/payments) to take card and ACH
+    payments online.
+  </Step>
 
-## 6. Invoice
+  <Step title="Invite your team">
+    Go to **Settings → Members** and click **Invite member**. Enter their
+    email, choose **Member** or **Admin**, and click **Create invite**. Copy
+    the link and send it to them (it's also emailed if
+    [email](/self-hosting#email) is set up). They set a name and password and
+    they're in.
 
-From **Invoices → New**, pick the client. Consultainer shows everything
-eligible to bill — unbilled billable time, completed milestones, approved
-expenses — and starts from the project's or client's payment terms. Generate a
-draft, check the line items, then **Email to client**: they get a link to view
-the invoice, download the PDF and pay, and you're told when they open it.
+    In the member list, fill in each person's **Cost** (what an hour of
+    their time costs you) so [Reports](/concepts/reports) can show profit.
+
+    Prefer single sign-on? Set it up under **Settings → Security** instead;
+    see [Team & security](/concepts/team-and-security) for what each role can
+    do and step-by-step SSO setup for Google Workspace, Microsoft Entra ID
+    and Okta.
+  </Step>
+
+  <Step title="Add your first client">
+    Go to **Clients** and click **Add client**. Enter the **Company name** and,
+    under billing, a **Billing email** and **Payment terms** if they differ
+    from your defaults. Click **Create client**.
+
+    On the client's page, click **Add contact** for the people you work with.
+    Tick **Include on invoice emails** for whoever should receive invoices.
+
+    Have many clients already? **Clients → Import** takes a CSV.
+  </Step>
+
+  <Step title="Create a project and set bill rates">
+    On the client's page, click **New project** (or **Projects → New
+    project**). Enter a **Project name**, pick a **Billing type**:
+
+    - **Hourly**: billed from logged time.
+    - **Flat fee**: a fixed **Flat fee amount** for the engagement.
+    - **Milestone-based**: billed per deliverable as
+      [milestones](/concepts/milestones) are completed.
+
+    Optionally set **Budget (hours)** to get alerts at 80% and 100%. Click
+    **Create project**.
+
+    On the project page, in **Team & bill rates**, click **Add team member**,
+    pick a person, enter their **Hourly rate**, and click **Add to project**.
+    Do this for everyone who will log time here.
+
+    <Warning>
+      Billable time is invoiced at the person's rate on the project. If
+      you're the only person in the organization, you're added to new
+      projects automatically at **$0/hr**: click the pencil next to your
+      rate and set it before you invoice.
+    </Warning>
+  </Step>
+
+  <Step title="Log time">
+    Go to **Time** and click **Log time**. Choose the **Project**, the
+    **Date** and **Hours**, add a **Description** of the work, keep
+    **Billable** ticked, and click **Log time**. On the invoice, time is
+    grouped into one line per project and person at their rate.
+
+    You can also start a timer from any [task](/concepts/tasks),
+    [connect your calendar](/integrations/calendars) so meetings become time
+    entries, or log time from an AI agent over [MCP](/mcp-server). See
+    [Time tracking](/concepts/time-tracking).
+  </Step>
+
+  <Step title="Create your first invoice">
+    Go to **Invoices** and click **New invoice**. Pick the client. You see
+    everything ready to bill: unbilled billable time, completed milestones
+    and approved expenses. Tick what to include, check **Issue date**,
+    **Payment terms** and **Due date**, and click **Generate invoice**.
+
+    The draft opens. Check the line items; you can edit them, or add a manual
+    line, while it's a draft.
+  </Step>
+
+  <Step title="Send it">
+    With email set up, click **Email to client**, check the recipients, add
+    an optional message, and click **Send invoice**. The client gets a link
+    to view, download and pay it, the invoice is marked as sent, and you're
+    alerted when they open it. (Owners and admins can email invoices.)
+
+    Without email, click **Mark as sent**, then **Copy client link** and send
+    the link yourself. Opens are still tracked.
+
+    When the money arrives, click **Mark as paid** (or let
+    [Stripe or Mercury](/integrations/payments) do it for you).
+  </Step>
+</Steps>
+
+## Check it worked
+
+- **Invoices** lists your invoice as **Sent**.
+- The time entries you invoiced show as billed on **Time** and can no longer
+  be edited.
+- **Dashboard** shows your outstanding balance.
 
 ## Next steps
 
 <CardGroup cols={2}>
+  <Card title="Team & security" icon="shield" href="/concepts/team-and-security">
+    Roles, SSO, two-factor authentication and API keys.
+  </Card>
   <Card title="Alerts & audit log" icon="bell" href="/concepts/alerts-and-audit">
     Choose what reaches Slack and email, and see who changed what.
   </Card>
   <Card title="Get paid online" icon="credit-card" href="/integrations/payments">
     Stripe or Mercury for card and ACH payments, plus manual methods.
+  </Card>
+  <Card title="Recurring billing" icon="repeat" href="/concepts/invoicing">
+    Retainers and billing cycles that invoice on a schedule.
   </Card>
   <Card title="Connect QuickBooks" icon="link" href="/integrations/quickbooks">
     Push invoices and sync their status back.

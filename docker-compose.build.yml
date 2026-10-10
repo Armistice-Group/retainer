@@ -1,6 +1,12 @@
-# Build the app image from this checkout instead of pulling it from GHCR:
+# Build the app image from this checkout instead of pulling it from GHCR.
+# Use it together with docker-compose.yml (which still provides the database,
+# the scheduler and every setting from .env):
 #
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Re-run the same command after pulling new code to rebuild and restart.
+# CONSULTAINER_VERSION is ignored while this file is in use, and the version
+# at the bottom of the sidebar ends in "· dev".
 
 services:
   consultainer-app:
