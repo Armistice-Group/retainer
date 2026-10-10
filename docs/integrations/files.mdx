@@ -1,0 +1,45 @@
+---
+title: Documents & files
+description: Link documents from Google Drive, Dropbox, OneDrive, SharePoint and Notion
+---
+
+Documents stay where your team already keeps them; Consultainer links to them
+from the client or project they belong to, and decides who sees each link —
+internally and on the client's share pages. (You can also upload files to
+keep them in Consultainer itself.) See
+[Clients & projects → Documents](/concepts/clients-and-projects#documents)
+for how documents and their sharing work.
+
+## Linking without connecting
+
+Pasting a link works for anything. Consultainer recognizes Google Drive and
+Docs, Dropbox, OneDrive and SharePoint, Notion and Box links and whether
+they're a file, folder or page; anything else is stored as a web link.
+
+## Connecting your accounts
+
+On **Profile → Files & docs**, connect Google Drive, Dropbox, OneDrive &
+SharePoint, or Notion. Then, when adding a document:
+
+- **Browse and search** the connected service right in the dialog and pick a
+  file, folder or page (Dropbox picks get a shared link automatically).
+- Pasted links to it get their **real title**, type and **last-edited date**;
+  **Refresh** on a document updates them.
+
+Each connection belongs to one person and uses their own access — nobody can
+browse a service through someone else's connection. Notion only shows the
+pages you chose to share with Consultainer when connecting. Disconnecting
+doesn't remove documents already linked.
+
+## Setting up a service (owners)
+
+Each service needs an app registered with the provider, entered under
+**Settings → Integrations → Files & docs** (or in `.env`). The card shows the
+redirect URI to register for each.
+
+| Service | Where | What to set |
+| --- | --- | --- |
+| Google Drive | Google Cloud → APIs & Services → Credentials | An OAuth client (Web application); enable the Google Drive API. `drive.readonly` is a restricted scope — use an **Internal** consent screen (Google Workspace) or keep the app in testing with your people as test users to avoid Google's verification. `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET` |
+| Dropbox | Dropbox App Console | Scoped access, Full Dropbox; permissions `account_info.read`, `files.metadata.read`, `files.content.read`, `files.content.write`, `sharing.read`, `sharing.write`. `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` |
+| OneDrive & SharePoint | Microsoft Entra → App registrations | Web platform; delegated permissions `User.Read`, `Files.ReadWrite.All`, `Sites.Read.All`, `offline_access`. Optionally a tenant ID to allow only your organization. `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
+| Notion | Notion → Integrations | A public integration with *read content* and *read user information including email addresses*. `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |

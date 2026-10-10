@@ -42,8 +42,7 @@ const ALLOWED_UPLOAD_TYPES = new Set([
 
 /** Storage providers this person has connected (for browsing to link). */
 async function connectedProviders(userId: string): Promise<{ provider: string }[]> {
-  void userId; // Provider connections come with the browse feature.
-  return [];
+  return prisma.userConnection.findMany({ where: { userId }, select: { provider: true } });
 }
 
 export function uploadLimitBytes() {

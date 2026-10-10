@@ -43,6 +43,7 @@
           {
             "group": "Integrations",
             "pages": [
+              "integrations/files",
               "integrations/linear",
               "integrations/calendars",
               "integrations/payments",

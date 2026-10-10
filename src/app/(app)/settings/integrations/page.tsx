@@ -2,6 +2,8 @@ import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { QuickBooksCard } from "../quickbooks-card";
 import { LinearCard } from "../linear-card";
+import { FilesIntegrationsCard, type FileServiceSetup } from "../files-integrations-card";
+import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { EmailCard } from "../email-card";
 import { IntegrationCredentials } from "../integration-credentials";
 import { canWrite, isLinearConfigured } from "@/lib/integrations/linear";
@@ -36,6 +38,53 @@ export default async function IntegrationsPage({
   ]);
   // OAuth redirects come back to the address the admin is browsing on.
   const origin = await getRequestOrigin();
+  const fileServices: FileServiceSetup[] = await Promise.all(
+    (
+      [
+        {
+          integration: "googleDrive",
+          id: "GOOGLE_DRIVE",
+          appUrl: "https://console.cloud.google.com/apis/credentials",
+          appLabel: "Google Cloud → APIs & Services → Credentials (OAuth client, Web application)",
+          notes:
+            "Enable the Google Drive API in the same project. drive.readonly is a restricted scope: make the OAuth consent screen Internal (Google Workspace) or keep it in testing with your people as test users to skip Google's verification.",
+        },
+        {
+          integration: "dropbox",
+          id: "DROPBOX",
+          appUrl: "https://www.dropbox.com/developers/apps",
+          appLabel: "Dropbox → App Console (Scoped access, Full Dropbox)",
+          notes:
+            "Permissions: account_info.read, files.metadata.read, files.content.read, files.content.write, sharing.read, sharing.write.",
+        },
+        {
+          integration: "microsoft",
+          id: "ONEDRIVE",
+          appUrl: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+          appLabel: "Microsoft Entra → App registrations (Web platform)",
+          notes:
+            "Delegated API permissions: User.Read, Files.ReadWrite.All, Sites.Read.All, offline_access. Set a tenant ID to allow only your organization's accounts.",
+        },
+        {
+          integration: "notion",
+          id: "NOTION",
+          appUrl: "https://www.notion.so/profile/integrations",
+          appLabel: "Notion → Integrations (Public integration)",
+          notes:
+            "Capabilities: read content, read user information including email addresses. People choose which pages Consultainer can see when they connect.",
+        },
+      ] as const
+    ).map(async (s) => ({
+      integration: s.integration,
+      label: PROVIDERS[s.id].label,
+      configured: await PROVIDERS[s.id].configured(),
+      fields: await describeIntegration(s.integration),
+      callbackUrl: `${origin}/api/integrations/files/${SLUG_FOR[s.id]}/callback`,
+      appUrl: s.appUrl,
+      appLabel: s.appLabel,
+      notes: s.notes,
+    }))
+  );
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -83,6 +132,8 @@ export default async function IntegrationsPage({
           />
         }
       />
+
+      <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />
 
       <EmailCard
         configured={emailConfigured}

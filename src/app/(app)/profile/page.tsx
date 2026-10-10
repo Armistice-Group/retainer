@@ -10,9 +10,17 @@ import { TwoFactorCard } from "./two-factor-card";
 import { PasskeysCard } from "./passkeys-card";
 import { ContractorProfileCard } from "./contractor-profile-card";
 import { CalendarsCard } from "./calendars-card";
+import { FileConnectionsCard } from "./file-connections-card";
+import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
+import { FILE_PROVIDERS } from "@/lib/integrations/storage/types";
 
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ files?: string }>;
+}) {
   const { user, org } = await requireOrgContext();
+  const { files: filesStatus } = await searchParams;
   const [dbUser, membership] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -35,6 +43,24 @@ export default async function ProfilePage() {
     orderBy: { createdAt: "desc" },
     select: { id: true, name: true, keyPrefix: true, createdAt: true, lastUsedAt: true },
   });
+
+  const fileConnections = await prisma.userConnection.findMany({
+    where: { userId: user.id },
+    select: { provider: true, accountEmail: true, accountName: true },
+  });
+  const fileServices = await Promise.all(
+    FILE_PROVIDERS.map(async (id) => {
+      const provider = PROVIDERS[id];
+      const c = fileConnections.find((x) => x.provider === id);
+      return {
+        id,
+        slug: SLUG_FOR[id],
+        label: provider.label,
+        configured: await provider.configured(),
+        account: c ? (c.accountEmail ?? c.accountName ?? "Connected") : null,
+      };
+    })
+  );
 
   const [calendarFeeds, rememberedCount] = await Promise.all([
     prisma.calendarFeed.findMany({
@@ -92,6 +118,8 @@ export default async function ProfilePage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <FileConnectionsCard services={fileServices} status={filesStatus} />
+
           <CalendarsCard
             feeds={calendarFeeds.map((f) => ({
               id: f.id,

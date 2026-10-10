@@ -242,6 +242,7 @@ model User {
   calendarFeeds               CalendarFeed[]
   calendarEvents              CalendarEvent[]
   calendarRules               CalendarRule[]
+  connections                 UserConnection[]
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
@@ -865,6 +866,28 @@ model CalendarRule {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, kind, value])
+}
+
+// A person's own connection to a file/doc service, used to browse and look up
+// what they link (with their own permissions — never shared with others).
+model UserConnection {
+  id           String    @id @default(cuid())
+  // GOOGLE_DRIVE | DROPBOX | ONEDRIVE | NOTION
+  provider     String
+  accountEmail String?
+  accountName  String?
+  // Encrypted.
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  scope        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
 }
 
 model ActiveTimer {

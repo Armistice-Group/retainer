@@ -16,6 +16,23 @@ export const INTEGRATION_FIELDS = {
       secret: true,
     },
   ],
+  googleDrive: [
+    { key: "GOOGLE_DRIVE_CLIENT_ID", label: "Client ID", secret: false },
+    { key: "GOOGLE_DRIVE_CLIENT_SECRET", label: "Client secret", secret: true },
+  ],
+  dropbox: [
+    { key: "DROPBOX_APP_KEY", label: "App key", secret: false },
+    { key: "DROPBOX_APP_SECRET", label: "App secret", secret: true },
+  ],
+  microsoft: [
+    { key: "MICROSOFT_CLIENT_ID", label: "Application (client) ID", secret: false },
+    { key: "MICROSOFT_CLIENT_SECRET", label: "Client secret", secret: true },
+    { key: "MICROSOFT_TENANT_ID", label: "Directory (tenant) ID — optional, for one organization", secret: false },
+  ],
+  notion: [
+    { key: "NOTION_CLIENT_ID", label: "OAuth client ID", secret: false },
+    { key: "NOTION_CLIENT_SECRET", label: "OAuth client secret", secret: true },
+  ],
   quickbooks: [
     { key: "QUICKBOOKS_CLIENT_ID", label: "Client ID", secret: false },
     { key: "QUICKBOOKS_CLIENT_SECRET", label: "Client secret", secret: true },
