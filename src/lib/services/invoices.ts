@@ -12,6 +12,7 @@ import { projectVisibilityWhere } from "@/lib/project-access";
 import { sendAlert } from "@/lib/alerts";
 import { formatCurrency } from "@/lib/format";
 import { daysOverdue } from "@/lib/invoice-aging";
+import { balanceDue } from "@/lib/invoice-balance";
 
 export class InvoiceError extends Error {}
 
@@ -64,6 +65,19 @@ export function invoiceStatusChangeError(
   return null;
 }
 
+/** Why a draft or sent invoice can't be voided because money is recorded
+ * against it, or null. Payments and applied credit stay on the books; a
+ * balance that won't be paid is written off with a credit note instead. */
+export function invoiceVoidBlockedReason(invoice: {
+  amountPaid: Prisma.Decimal | number;
+  creditApplied: Prisma.Decimal | number;
+}): string | null {
+  if (Number(invoice.amountPaid) > 0 || Number(invoice.creditApplied) > 0) {
+    return "This invoice has payments or credit recorded, so it can't be voided. Delete them first if they were a mistake, or issue a credit note for the rest of the balance.";
+  }
+  return null;
+}
+
 /** Unlinks the time entries, milestones and expenses billed on an invoice
  * (or on one of its line items) so they're unbilled again. The line items
  * themselves are left alone. */
@@ -93,6 +107,8 @@ export async function voidInvoice(orgId: string, invoiceId: string) {
     if (!invoice) throw new InvoiceError("Invoice not found.");
     const statusError = invoiceStatusChangeError(invoice.status, "VOID");
     if (statusError) throw new InvoiceError(statusError);
+    const voidBlock = invoiceVoidBlockedReason(invoice);
+    if (voidBlock) throw new InvoiceError(voidBlock);
     // Conditional on the status we checked, so a concurrent payment or void
     // can't slip in between.
     const { count } = await tx.invoice.updateMany({
@@ -129,8 +145,8 @@ export async function notifyNewlyOverdueInvoices(now = new Date()) {
   const newlyOverdue = sentInvoices.filter((inv) => daysOverdue(inv.dueDate, now) >= 1);
 
   for (const invoice of newlyOverdue) {
-    const total = formatCurrency(invoice.total, invoice.currency);
-    const message = `Invoice ${invoice.number} for ${invoice.client.name} is now overdue (${total}).`;
+    const due = formatCurrency(balanceDue(invoice), invoice.currency);
+    const message = `Invoice ${invoice.number} for ${invoice.client.name} is now overdue (${due} due).`;
 
     await prisma.invoice.update({
       where: { id: invoice.id },

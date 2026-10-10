@@ -1,6 +1,6 @@
 # Build the app image from this checkout instead of pulling it from GHCR.
 # Use it together with docker-compose.yml (which still provides the database,
-# the scheduler and every setting from .env):
+# the scheduler, the nightly backup and every setting from .env):
 #
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 #

@@ -33,12 +33,15 @@
               "concepts/clients-and-projects",
               "concepts/tasks",
               "concepts/time-tracking",
+              "concepts/estimates",
               "concepts/invoicing",
+              "concepts/deposits-and-credit",
               "concepts/milestones",
               "concepts/expenses",
               "concepts/reports",
               "concepts/alerts-and-audit",
-              "concepts/team-and-security"
+              "concepts/team-and-security",
+              "concepts/import-export"
             ]
           },
           {
@@ -49,7 +52,8 @@
               "integrations/calendars",
               "integrations/payments",
               "integrations/email",
-              "integrations/quickbooks"
+              "integrations/quickbooks",
+              "integrations/agreements"
             ]
           },
           {
@@ -76,6 +80,7 @@
               "api-reference/projects",
               "api-reference/tasks",
               "api-reference/time-entries",
+              "api-reference/estimates",
               "api-reference/invoices",
               "api-reference/audit-log"
             ]

@@ -10,6 +10,11 @@ export const paymentTermsValues = [
   "CUSTOM",
 ] as const;
 
+const isoDate = z
+  .string()
+  .min(1)
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), "Use an ISO date, e.g. 2026-07-23.");
+
 const defaultTermsValues = ["DUE_ON_RECEIPT", "NET15", "NET30", "NET45", "NET60", "NET90"] as const;
 
 export const generateInvoiceSchema = z
@@ -18,10 +23,10 @@ export const generateInvoiceSchema = z
     timeEntryIds: z.array(z.string()).default([]),
     milestoneIds: z.array(z.string()).default([]),
     expenseIds: z.array(z.string()).default([]),
-    issueDate: z.string().min(1),
+    issueDate: isoDate,
     // Both optional over the API: terms default to the project's, client's
     // or org's, and the due date follows from the terms.
-    dueDate: z.string().min(1).optional(),
+    dueDate: isoDate.optional(),
     paymentTerms: z.enum(paymentTermsValues).optional(),
     poNumber: z.string().trim().max(100).optional().or(z.literal("")),
     taxRate: z.coerce.number().min(0).max(100).default(0),
@@ -44,8 +49,8 @@ export const lineItemSchema = z.object({
 
 export const updateInvoiceSchema = z.object({
   invoiceId: z.string().min(1),
-  issueDate: z.string().min(1),
-  dueDate: z.string().min(1),
+  issueDate: isoDate,
+  dueDate: isoDate,
   taxRate: z.coerce.number().min(0).max(100),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),

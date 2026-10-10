@@ -5,7 +5,7 @@ import { requireOrgContext } from "@/lib/org-context";
 import { invoiceVisibilityWhere } from "@/lib/project-access";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { StatusBadge } from "@/components/status-badge";
+import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -84,7 +84,7 @@ export default async function InvoicesPage() {
                 </TableCell>
                 <TableCell className="p-0">
                   <Link href={`/invoices/${invoice.id}`} className="block p-2">
-                    <StatusBadge status={invoice.status} />
+                    <InvoiceStatusBadge invoice={invoice} />
                   </Link>
                 </TableCell>
                 <TableCell className="p-0">

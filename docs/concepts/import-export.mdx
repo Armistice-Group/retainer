@@ -1,0 +1,286 @@
+---
+title: Import and export
+description: Bring your history over from Harvest, Toggl Track or Clockify, and take all of your data with you
+---
+
+**Settings → Import** brings in time entries (and lists of clients or
+projects) from Harvest, Toggl Track, Clockify or any other CSV.
+**Settings → Export** downloads everything as a ZIP: one CSV and one JSON
+file per kind of record, every uploaded file, and every invoice as a PDF.
+
+| | Who can do it |
+| --- | --- |
+| Import, and undo an import | Owners and admins |
+| Export everything | Owners |
+| Export one client's records | Owners and admins |
+
+## Import
+
+### Export the file from your old tool
+
+<Tabs>
+  <Tab title="Harvest">
+    <Steps>
+      <Step title="Open the detailed time report">
+        In Harvest, go to **Reports → Detailed time**.
+      </Step>
+      <Step title="Pick what to include">
+        Choose the timeframe (**All time** for your whole history) and leave
+        the filters empty to include every client, project and person.
+      </Step>
+      <Step title="Export as CSV">
+        Click **Export** and choose **CSV**. If your plan offers **Export →
+        Custom**, keep at least Date, Client, Project, Task, Notes, Hours,
+        Billable?, Invoiced?, First Name, Last Name and Billable Rate.
+      </Step>
+    </Steps>
+    Harvest's time export has no email column, so people are matched by
+    name. Harvest's project list export (Client, Project, Project Code, Start
+    Date, End Date, Project Notes) also imports, as a list of projects.
+  </Tab>
+  <Tab title="Toggl Track">
+    <Steps>
+      <Step title="Open the detailed report">
+        In Toggl Track, go to **Reports → Detailed**.
+      </Step>
+      <Step title="Pick the date range">
+        Choose the range to bring over and clear any filters.
+      </Step>
+      <Step title="Download the CSV">
+        Click the export (download) button and choose **Download CSV**.
+      </Step>
+    </Steps>
+    The detailed report has User, Email, Client, Project, Task, Description,
+    Billable, Start date, Duration and Amount columns. It has no rate, so the
+    rate is worked out as amount ÷ hours. Durations can be `hh:mm:ss` or
+    decimal.
+  </Tab>
+  <Tab title="Clockify">
+    <Steps>
+      <Step title="Open the detailed report">
+        In Clockify, go to **Reports → Detailed**.
+      </Step>
+      <Step title="Pick the date range">
+        Choose the range to bring over and clear any filters.
+      </Step>
+      <Step title="Export as CSV">
+        Click **Export** and choose **Save as CSV**. Clockify's CSV export
+        needs a paid plan (or a trial).
+      </Step>
+    </Steps>
+    The hours come from **Duration (decimal)** (or **Duration (h)**), the
+    rate from **Billable Rate**. Clockify writes dates in your profile's
+    date format; the preview works out which (see [Dates](#dates)).
+  </Tab>
+  <Tab title="Any other CSV">
+    Any CSV with a header row and, per row, a **date**, **hours** (or a
+    duration, or a start and end time) and a **project** works. Commas or
+    semicolons both work. On the preview you match each column to what it
+    holds.
+  </Tab>
+</Tabs>
+
+Files can be up to **20 MB** and **50,000 rows**. For more, export a shorter
+date range and import the files one after another.
+
+### How to import
+
+<Steps>
+  <Step title="Open Settings → Import">
+    You need to be an owner or admin.
+  </Step>
+  <Step title="Choose the file and click Read file">
+    Nothing is imported yet. The preview shows which tool the file came from
+    and whether it holds time entries, projects or clients; change either if
+    it guessed wrong.
+  </Step>
+  <Step title="Check the columns">
+    Open **Columns** to see which column each value is read from. For a
+    Harvest, Toggl Track or Clockify export they're filled in for you; for
+    any other CSV, pick them. Time entries need at least **Date**, **Hours**
+    (or **Duration**, or **Start time** and **End time**) and **Project**.
+  </Step>
+  <Step title="Match people">
+    Under **People**, everyone in the file is matched to a member of your
+    organization by email, then by name (a *by email* or *by name* badge
+    shows how). Pick a member for anyone unmatched, or leave **Skip these
+    rows**. **Assign everyone unmatched to** sets them all at once. If the
+    file has no person column and you're the only member, everything is
+    yours.
+  </Step>
+  <Step title="Update the preview">
+    After changing anything, click **Update preview** to see the new counts.
+  </Step>
+  <Step title="Import">
+    Click **Import N time entries** (or **Import N clients and N
+    projects**).
+  </Step>
+</Steps>
+
+**Check it worked:** the page says *Imported N time entries (… h), N new
+projects and N new clients*, and the import is listed under **Past imports**.
+Open **Time → Team** for those weeks to see the entries.
+
+### What gets created
+
+- **Clients** are matched by name, ignoring case; a client that doesn't
+  exist yet is created. Rows with no client go to a client called **No
+  client**.
+- **Projects** are matched by name under their client. New projects are
+  hourly and not confidential.
+- **People on projects:** everyone with time on a project is put on its
+  team (if they aren't already), at the rate they used most in the file, or
+  their usual bill rate if the file has none.
+- **Time entries** get the row's date, hours (rounded to 0.01), notes,
+  billable flag and rate:
+  - The **task** goes in front of the notes: *Design: Homepage wireframes*.
+  - **Billable** reads yes/no, true/false or 1/0; with no billable column,
+    every entry is billable.
+  - The **rate** is set on the entry itself (like an owner's rate
+    override), so it's what the entry is invoiced at. With no rate, the
+    project's rate for that person applies as usual.
+  - If [timesheet approval](/concepts/time-tracking) is on, imported entries
+    count as approved.
+- A **projects** file creates the clients and projects only. Its rates are
+  used only when you're the only member (you're put on each new project at
+  that rate); otherwise set rates on each project's team.
+- A **clients** file creates clients, with their email, address and phone
+  if the file has them.
+
+Rows the old tool had **already invoiced** (Harvest's *Invoiced?* column)
+are imported as **non-billable** by default, so they're never billed twice.
+Under **Rows already invoiced in the old tool** you can skip them or import
+them as they are instead.
+
+Amounts are imported as numbers. If the file is in another currency than
+your organization's, the preview says so; nothing is converted.
+
+### Dates
+
+Dates are read as calendar days, never shifted by time zone: a row dated
+March 2 is logged on March 2. `2026-03-31`, `03/31/2026`, `31/03/2026` and
+`31.03.2026` all work. Whether the file is day-first or month-first is worked
+out from the whole column; if every date would read either way, the preview
+says *Every date in the file would read either way* and assumes month-first
+(day-first for dotted dates). Change **Dates in the file are** if that's
+wrong.
+
+### Importing again
+
+Importing the same file again only adds rows that aren't in yet: each row is
+remembered, so the preview counts them under **Already imported (skipped)**.
+Two identical rows in one file are both imported. If you delete an imported
+entry, importing the file again brings that row back.
+
+A row that changed in the old tool since the last import (a different date,
+hours, notes, person, client, project, billable flag or rate) counts as a new
+row, and the earlier version stays. To replace an earlier import with a
+fresh export, undo the earlier import first.
+
+### Undo an import
+
+Under **Past imports**, click **Undo** on an import. It deletes the time
+entries that import created, then the people it put on projects, and the
+projects and clients it created, unless something else uses them now (later
+time entries, invoices, documents, contacts and so on). Undoing doesn't
+touch clients, projects or entries that were already there.
+
+An import can't be undone once any of its entries is on an invoice: void or
+delete that invoice first.
+
+**Check it worked:** the import shows **Undone**, and the message says what
+was removed and what was kept.
+
+### Troubleshooting
+
+| Message | What to do |
+| --- | --- |
+| *That file is over 20 MB.* / *That file has more than 50,000 rows.* | Export a shorter date range and import it in parts. |
+| *That's not a CSV file. Export the report as CSV, not Excel or PDF.* | Export again and choose CSV. |
+| *That doesn't look like a CSV with a header row.* | The first line must hold the column names. |
+| *Pick the column that holds each entry's date.* (or the project, or hours) | Open **Columns** and choose it. |
+| *Everything in this file has already been imported.* | Nothing to do: every row is already in. |
+| *Nothing in this file can be imported. Check the rows with problems and the people mapping.* | Every row has a problem or belongs to a skipped person. |
+| *N of this import's time entries is on an invoice. Void or delete that invoice first, then undo.* | Void or delete the invoice, then undo. |
+
+Rows with problems are listed under **N rows can't be imported** with their
+line number, for example *No project. Every time entry here needs one.*,
+*"2026-02-30" isn't a date in the chosen format.*, *"abc" isn't a number of
+hours.*, *Zero hours (a running or empty timer).* or *… hours in one entry —
+more than a day.* Fix them in the file and import it again; rows already in
+are skipped.
+
+## Export
+
+### Everything
+
+<Steps>
+  <Step title="Open Settings → Export">
+    You need to be the owner.
+  </Step>
+  <Step title="Click Download everything">
+    The ZIP is built as it downloads, so a large organization takes a while.
+  </Step>
+</Steps>
+
+### One client
+
+Useful when handing a client's records over.
+
+<Steps>
+  <Step title="Open Settings → Export">
+    Owners and admins.
+  </Step>
+  <Step title="Choose the client and click Download ZIP" />
+</Steps>
+
+It holds that client and its contacts, links, projects, project teams,
+milestones, tasks, comments, time entries, expenses, invoices (with lines,
+events, payments and credit), estimates, agreements, documents, retainer
+schedule and billing cycle, and the people who worked on it: their name,
+email, role, employment type and title, but not their cost or default bill rate, bio
+or résumé.
+
+### What's in the ZIP
+
+| Path | What |
+| --- | --- |
+| `README.txt` | What the export is and when it was made. |
+| `data/<name>.csv`, `data/<name>.json` | One pair per kind of record: `organization`, `clients`, `contacts`, `links`, `projects`, `members`, `project-members`, `milestones`, `tasks`, `task-comments`, `time-entries`, `timesheets`, `expenses`, `invoices`, `invoice-line-items`, `invoice-events`, `payments`, `credit-notes`, `credit-applications`, `estimates`, `estimate-line-items`, `agreements`, `documents`, `recurring-invoices`, `billing-cycles`, `payment-methods`, `imports`, `audit-log`. |
+| `files/documents/`, `files/receipts/`, `files/milestones/`, `files/agreements/`, `files/resumes/` | The uploaded files themselves. Each CSV's `exportedFile` column gives the path. |
+| `invoices/<number>.pdf` | Every invoice, rendered as it looks today. |
+| `manifest.json` | Row counts, and anything that couldn't be exported (`problems`). |
+
+Records point at each other by id (`clientId`, `projectId`, `userId`, …).
+Time entries also carry `project.name` and `user.name`, and members their
+`user.name` and `user.email`. Money and hours are exact decimals, calendar
+dates are `YYYY-MM-DD`, and times are UTC. The JSON files hold exact values;
+in the CSV files, text that starts with `=`, `+`, `-` or `@` gets a leading
+`'` so a spreadsheet doesn't run it as a formula.
+
+The timesheets, payment methods, imports and audit log, and résumés, are in
+the whole-organization export only.
+
+**Never included:** passwords, two-factor secrets and recovery codes, API
+keys, share, invoice and estimate links, staffing-review links, integration
+tokens and credentials (QuickBooks, Mercury, Linear, file services,
+e-signature, SSO), calendar links and the Slack webhook. Values like these
+are also blanked inside the audit log's recorded changes.
+
+Every export is recorded in the [audit log](/concepts/alerts-and-audit):
+*exported all of the organization's data* or *exported a client's records*.
+Imports show as *imported data* and *undid an import*.
+
+**Check it worked:** open the ZIP. `manifest.json` lists the row counts, and
+`problems` is empty.
+
+### Troubleshooting
+
+- **The download stops part-way:** the archive is built while it streams; a
+  timeout in a proxy in front of the app can cut a large one off. Raise the
+  proxy's read timeout, or export one client at a time.
+- **A file is missing from `files/`:** `manifest.json → problems` says
+  which and why (for example, it couldn't be read from S3-compatible
+  storage).
+- **Only owners can export the whole organization.** Ask an owner, or export
+  one client at a time as an admin.

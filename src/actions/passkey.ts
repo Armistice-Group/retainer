@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
 } from "@simplewebauthn/browser";
 import { auth, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { signOutOtherSessions } from "@/lib/sessions";
 import {
   buildRegistrationOptions,
   verifyRegistration,
@@ -52,8 +54,15 @@ export async function finishPasskeyRegistrationAction(
 
 export async function deletePasskeyAction(id: string) {
   const userId = await requireUserId();
-  await prisma.authenticator.deleteMany({ where: { id, userId } });
-  revalidatePath("/profile");
+  const { count } = await prisma.authenticator.deleteMany({ where: { id, userId } });
+  if (count === 0) {
+    revalidatePath("/profile");
+    return;
+  }
+  // A removed passkey is often a lost or old device: sign out everything
+  // else too, keeping this session (lib/sessions).
+  await signOutOtherSessions(userId);
+  redirect("/profile?security=passkey-removed");
 }
 
 export async function startPasskeyLoginAction() {

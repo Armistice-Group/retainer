@@ -27,8 +27,11 @@ import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { ContactDialog } from "./contact-dialog";
 import { DocumentsCard } from "@/components/documents/documents-card";
 import { documentCardData } from "@/lib/services/documents";
+import { AgreementsCard } from "@/components/agreements/agreements-card";
+import { agreementsCardData } from "@/lib/services/agreements";
 import { ClientShareLinkCard } from "./client-share-link-card";
 import { ClientInvoicesCard } from "./client-invoices-card";
+import { ClientCreditCard } from "./client-credit-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
 import { BillingCycleCard } from "./billing-cycle-card";
 import { PaymentMethodsEditor, type EditableMethod } from "@/components/payment-methods-editor";
@@ -90,7 +93,10 @@ export default async function ClientDetailPage({
     status: inv.status,
     dueDate: inv.dueDate.toISOString(),
     total: Number(inv.total),
+    amountPaid: Number(inv.amountPaid),
+    creditApplied: Number(inv.creditApplied),
     currency: inv.currency,
+    kind: inv.kind,
   }));
 
   const entitledHours = Number(retainerAgg._sum.retainerHoursIncluded ?? 0);
@@ -98,6 +104,10 @@ export default async function ClientDetailPage({
     entitledHours > 0 ? { entitledHours, loggedHours: Number(loggedAgg._sum.hours ?? 0) } : null;
 
   const documentsCard = await documentCardData(
+    { orgId: org.id, userId: user.id, role },
+    { clientId: client.id }
+  );
+  const agreementsCard = await agreementsCardData(
     { orgId: org.id, userId: user.id, role },
     { clientId: client.id }
   );
@@ -393,6 +403,14 @@ export default async function ClientDetailPage({
             viewerId={user.id}
             {...documentsCard}
           />
+
+          {agreementsCard.show ? (
+            <AgreementsCard
+              agreements={agreementsCard.agreements}
+              canManage={agreementsCard.canManage}
+              showProject
+            />
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -440,6 +458,21 @@ export default async function ClientDetailPage({
             invoices={invoiceItems}
             retainerBalance={retainerBalance}
           />
+
+          {canManage ? (
+            <ClientCreditCard
+              clientId={client.id}
+              defaultCurrency={org.defaultCurrency}
+              projects={client.projects.map((p) => ({
+                id: p.id,
+                name: p.name,
+                flatFeeAmount: p.flatFeeAmount === null ? null : Number(p.flatFeeAmount),
+              }))}
+              openInvoices={invoices
+                .filter((inv) => inv.status === "SENT" || inv.status === "PAID")
+                .map((inv) => ({ id: inv.id, number: inv.number, status: inv.status, kind: inv.kind }))}
+            />
+          ) : null}
 
           {canManage ? (
             <ClientShareLinkCard

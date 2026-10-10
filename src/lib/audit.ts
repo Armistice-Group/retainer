@@ -19,6 +19,8 @@ export const AUDITED_MODELS = [
   "QuickBooksConnection",
   "MercuryConnection",
   "LinearConnection",
+  "AgreementConnection",
+  "Agreement",
   "ExternalProjectLink",
   "Client",
   "Contact",
@@ -33,9 +35,13 @@ export const AUDITED_MODELS = [
   "Timesheet",
   "Expense",
   "Invoice",
+  "Estimate",
   "RecurringInvoiceSchedule",
   "ClientBillingCycle",
   "PaymentMethod",
+  "Payment",
+  "CreditNote",
+  "CreditApplication",
 ] as const;
 const AUDITED = new Set<string>(AUDITED_MODELS);
 
@@ -51,6 +57,8 @@ const IGNORED_FIELDS = new Set([
   "approvedAt",
   // Bookkeeping the app updates on its own.
   "nextInvoiceNumber",
+  "nextCreditNoteNumber",
+  "nextEstimateNumber",
   "nextRunAt",
   "lastRunAt",
   "lastInvoiceId",
@@ -65,9 +73,10 @@ const IGNORED_FIELDS = new Set([
   "lastError",
   "lastNudgedAt",
   "filingLastError",
+  "syncCursor",
 ]);
 // Recorded as "changed" without the value.
-const REDACTED_PATTERN = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;
+const REDACTED_PATTERN = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter|webhook/i;
 // Bank and payment details (account/routing numbers, IBANs): kept out of the
 // log like secrets; the entry still shows that they changed. Billing-change
 // alerts hide the same fields.
@@ -148,7 +157,13 @@ function plain(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "string") return value.length > 500 ? `${value.slice(0, 500)}…` : value;
   if (typeof value === "number" || typeof value === "boolean") return value;
-  if (Array.isArray(value)) return value.length > 20 ? `[${value.length} items]` : value.map(plain);
+  // Objects inside arrays (Json columns, e.g. a list of signers) as JSON text.
+  if (Array.isArray(value)) {
+    if (value.length > 20) return `[${value.length} items]`;
+    const items = value.map(stored);
+    // An element with no scalar form (e.g. an included relation): not a column.
+    return items.some((v) => v === undefined) ? undefined : items;
+  }
   // Prisma Decimal
   if (typeof value === "object" && "toFixed" in value && typeof value.toString === "function") {
     return value.toString();

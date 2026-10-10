@@ -20,6 +20,7 @@ import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { CopyButton } from "@/components/copy-button";
 import { saveSsoConnectionAction, disconnectSsoAction, setSsoEnabledAction } from "@/actions/sso";
 import type { ActionState } from "@/actions/auth";
+import { DocsLink } from "@/components/docs-link";
 
 export type SsoConnectionSummary = {
   issuer: string;
@@ -153,6 +154,7 @@ function SetupGuide() {
             </li>
           </ol>
         </div>
+        <DocsLink page="concepts/team-and-security#set-up-sso" />
       </div>
     </details>
   );

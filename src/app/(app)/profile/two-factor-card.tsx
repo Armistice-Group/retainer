@@ -19,9 +19,13 @@ import type { ActionState } from "@/actions/auth";
 
 export function TwoFactorCard({
   enabled,
+  hasPassword = true,
   doneHref,
 }: {
   enabled: boolean;
+  /** Without a password (Google, SSO or passkey only), turning 2FA off is
+   * confirmed with an authenticator code instead. */
+  hasPassword?: boolean;
   /** Where "Done" goes after saving recovery codes (default: reload). Set on
    * the required-2FA setup page. */
   doneHref?: string;
@@ -81,15 +85,32 @@ export function TwoFactorCard({
               </Alert>
             ) : null}
             <p className="text-sm text-muted-foreground">
-              Disabling removes the authenticator requirement and your recovery codes.
+              Disabling removes the authenticator requirement and your recovery codes, and signs
+              you out everywhere else.
             </p>
-            <div className="flex flex-col gap-2 sm:max-w-xs">
-              <Label htmlFor="disable-password">Confirm password</Label>
-              <Input id="disable-password" name="password" type="password" />
-              {disableState?.fieldErrors?.password ? (
-                <p className="text-sm text-destructive">{disableState.fieldErrors.password[0]}</p>
-              ) : null}
-            </div>
+            {hasPassword ? (
+              <div className="flex flex-col gap-2 sm:max-w-xs">
+                <Label htmlFor="disable-password">Confirm password</Label>
+                <Input id="disable-password" name="password" type="password" />
+                {disableState?.fieldErrors?.password ? (
+                  <p className="text-sm text-destructive">{disableState.fieldErrors.password[0]}</p>
+                ) : null}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 sm:max-w-xs">
+                <Label htmlFor="disable-code">Authentication code</Label>
+                <Input
+                  id="disable-code"
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456 or a recovery code"
+                />
+                {disableState?.fieldErrors?.code ? (
+                  <p className="text-sm text-destructive">{disableState.fieldErrors.code[0]}</p>
+                ) : null}
+              </div>
+            )}
             <SubmitButton variant="outline" className="self-start" pendingText="Disabling...">
               Disable 2FA
             </SubmitButton>

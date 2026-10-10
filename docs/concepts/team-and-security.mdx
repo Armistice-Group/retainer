@@ -153,8 +153,9 @@ from each person's bill rate on the project.
 ## Password resets
 
 There are two ways to reset a forgotten password: the person asks for an
-email themselves, or an owner or admin creates a link and hands it over. The
-second also works on a server without [email](/integrations/email).
+email themselves, or an owner or admin creates a link and emails it or hands
+it over. Handing it over also works on a server without
+[email](/integrations/email).
 
 ### Reset your own password
 
@@ -187,14 +188,24 @@ Who can do it: **Owner**, **Admin** (admins can't do it for owners).
     Go to **Settings → Members** and open the **⋯** menu next to the person.
   </Step>
   <Step title="Create the link">
-    Click **Create password reset link**. A dialog shows the link with a
-    **Copy** button.
+    Click **Create password reset link**.
   </Step>
   <Step title="Send it to them">
-    Send it yourself, by chat or in person. It isn't emailed. It works once
-    and expires in 24 hours.
+    If [email](/integrations/email) is set up, the dialog offers **Email it to
+    them** and **Copy a link instead**. **Email it to them** sends the
+    **Reset your Consultainer password** email to their address, naming you
+    and your organization, and the dialog shows *Emailed a reset link to*
+    their address.
+
+    Without email, or after **Copy a link instead**, the dialog shows the link
+    with a **Copy** button: send it yourself, by chat or in person.
+
+    Either way the link works once and expires in 24 hours.
   </Step>
 </Steps>
+
+If sending fails, the dialog says *Couldn't send the email. Copy the link and
+send it to* the person *yourself.* and shows the link to copy.
 
 **Check it worked:** **Settings → Audit log** shows *created a password reset
 link for* the person, and later *reset their password* once they've used
@@ -204,8 +215,8 @@ it. Both also raise the **Access or security settings change** alert.
 
 - **Only the newest link works.** Asking for or creating a new link cancels
   any older unused one.
-- **Everyone is signed out.** The person's other sessions, on every device,
-  end straight away, and unused login links stop working.
+- **Everyone is signed out.** The person's sessions, on every device, end
+  straight away, and unused login links stop working. API keys keep working.
 - **Two-factor authentication stays on.** A reset never removes the
   authenticator app or passkeys, so the next password login still asks for
   a code. Someone who has lost their authenticator too uses a recovery
@@ -214,9 +225,40 @@ it. Both also raise the **Access or security settings change** alert.
   who have to use SSO get no reset email, and the **⋯** menu has no reset
   link for them. Reset their password in your identity provider. Owners
   keep password sign-in, so they can still reset theirs.
-- **Limits.** One account gets at most 3 reset emails an hour, and one
-  network address can ask 10 times an hour. Extra requests show the same
-  message but send nothing.
+- **Limits.** One account gets at most 3 reset emails an hour from **Forgot
+  password?**, and one network address can ask 10 times an hour. Extra
+  requests show the same message but send nothing. The per-address count is
+  kept in memory, so restarting the app resets it; the per-account limit is
+  stored in the database. Links an owner or admin creates don't count
+  towards either.
+
+## Change your password and sign out other sessions
+
+Anyone can do this for their own account, on **Profile**.
+
+<Steps>
+  <Step title="Change your password">
+    In the **Password** card, enter your **Current password**, then the new
+    one under **New password** and **Confirm new password** (at least 10
+    characters, with a letter and a number). Click **Update password**.
+  </Step>
+  <Step title="Check the notice">
+    The page shows *Password updated. Your other sessions were signed out.*
+    You stay signed in where you are.
+  </Step>
+</Steps>
+
+To sign out everywhere else without changing your password, click **Sign out
+other sessions** in the **Sessions** card and confirm. The page shows
+*Signed out of every other browser and device. You're still signed in here.*
+
+Your other sessions are also signed out when you **Disable 2FA** or remove a
+passkey. In each case:
+
+- Other browsers and devices land on the login page with *You've been signed
+  out. Log in again to continue.* the next time they load a page.
+- **API keys keep working.** Revoke them under **API keys & AI agents** if
+  you need to.
 
 ## Auto-join by email domain
 
@@ -464,9 +506,46 @@ for everyone in the organization.
   </Step>
 </Steps>
 
-From then on, signing in with your password or an emailed login link asks
-for a code. To turn it off, enter your
-password under **Confirm password** and click **Disable 2FA**.
+From then on, signing in with your password, an emailed login link or
+**Continue with Google** asks for a code (see
+[Which sign-ins ask for the code](#which-sign-ins-ask-for-the-code)).
+
+To turn it off, enter your password under **Confirm password** and click
+**Disable 2FA**. If your account has no password (you only sign in with
+Google, SSO or a passkey), enter a code from your authenticator app or a
+recovery code under **Authentication code** instead. Turning it off signs out
+your other sessions.
+
+### Which sign-ins ask for the code
+
+| Sign-in | Asks for the authenticator code? |
+| --- | --- |
+| Email and password | Yes, on the login form. |
+| Emailed login link | Yes, after you open the link. |
+| **Continue with Google** | Yes. After Google, you land on a page that asks for the code; you aren't signed in until you enter it. |
+| Passkey | No. A passkey sign-in needs your device's fingerprint, face or PIN, which is already a second factor. |
+| Organization SSO | No. Your identity provider handles the second factor. |
+
+#### Continue with Google with two-factor on
+
+<Steps>
+  <Step title="Sign in with Google">
+    On the login page click **Continue with Google** and pick your account.
+  </Step>
+  <Step title="Enter the code">
+    Consultainer shows *Google confirmed your account. Enter the 6-digit code
+    from your authenticator app to finish signing in.* Enter the code (or a
+    recovery code) and click **Verify**.
+  </Step>
+</Steps>
+
+Nothing is signed in until the code is accepted, so the app, the REST API
+and the MCP server can't be reached from that step. The code page works once
+and for 10 minutes, and stops after 5 wrong codes. After that the login page
+shows *That sign-in step expired or had too many wrong codes. Continue with
+Google again.*, and the code page itself says *This sign-in step expired or
+had too many wrong codes. Go back to log in and continue with Google again.*
+Wrong codes show *Invalid code. Try again.*
 
 ### Require two-factor authentication
 
@@ -497,9 +576,9 @@ What people without an authenticator app see:
   the dashboard.
 - If they belong to several organizations and any of them requires
   two-factor authentication, the requirement applies everywhere.
-- Only an **authenticator app** counts. Passkeys don't, because password
-  sign-in never asks for one, so someone with only a passkey is asked to add
-  an authenticator app too.
+- Only an **authenticator app** counts. Having a passkey doesn't, because
+  password sign-in never asks for one, so someone with only a passkey is
+  asked to add an authenticator app too.
 - People who signed in with the organization's **SSO** are exempt, because
   the identity provider handles their second factor. Turn on MFA in your
   identity provider.
@@ -513,7 +592,8 @@ raises the **Access or security settings change** alert.
 
 On **Profile**, add a passkey to sign in with your device's fingerprint, face
 or PIN instead of a password. Passkeys are tied to the domain you created
-them on; if the instance moves to a new domain, add them again.
+them on; if the instance moves to a new domain, add them again. Removing a passkey (the bin icon next to it) also signs out your other
+sessions.
 
 ## API keys
 
@@ -546,5 +626,5 @@ organization.
 | **Settings → Members** | Roles, contractor flag, default bill rates, cost rates, invites, password reset links, **No 2FA** badges. |
 | **Settings → Audit log** | Every change to organization data, and every sign-in. See [Alerts & audit log](/concepts/alerts-and-audit). |
 | **Settings → Alerts** | Which access and security changes reach Slack or email. |
-| **Profile** | Your password, two-factor authentication, passkeys and API keys. |
+| **Profile** | Your password, two-factor authentication, passkeys, **Sign out other sessions** and API keys. |
 | **Login page → Forgot password?** | Email yourself a password reset link. |

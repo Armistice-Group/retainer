@@ -76,3 +76,51 @@ curl -X POST https://<your-instance>/api/v1/clients \
 **Errors:** `422` with field errors, for example
 `{ "error": { "name": ["Name is required"] } }` or
 `{ "error": { "email": ["Enter a valid email"] } }`.
+
+## List signed agreements for a client
+
+```
+GET /api/v1/clients/{id}/agreements
+```
+
+Any role. Returns the client's [signed agreements](/integrations/agreements)
+(pulled from DocuSign, Documenso or Ironclad), newest signature first:
+client-wide ones, plus those linked to its projects. Agreements on a
+confidential project are only included if the key's user can see that
+project. Agreements that haven't been linked to a client yet aren't
+returned.
+
+<ParamField query="projectId" type="string">
+  Only that project's agreements.
+</ParamField>
+
+```bash
+curl https://<your-instance>/api/v1/clients/cm9.../agreements \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "agreements": [
+    {
+      "id": "cmv...",
+      "provider": "DOCUSIGN",
+      "title": "Fintra Labs MSA",
+      "status": "completed",
+      "signedAt": "2026-03-01T17:04:12.697Z",
+      "signers": [{ "name": "Dana Ortiz", "email": "dana@fintralabs.com" }],
+      "projectId": null,
+      "projectName": null,
+      "url": "https://app.docusign.com/documents/details/93be49ab-...",
+      "hasSignedCopy": true
+    }
+  ]
+}
+```
+
+`url` opens the agreement in the provider (the person needs access there).
+The signed copy itself is only downloadable in the app.
+
+**Errors:** `404` `{ "error": "Client not found." }` for a client in
+another organization or that doesn't exist.
+

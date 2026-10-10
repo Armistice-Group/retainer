@@ -8,6 +8,7 @@ import {
   ListTodo,
   Timer,
   Send,
+  Receipt,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -18,7 +19,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { isOverdue } from "@/lib/invoice-aging";
+import { balanceDue } from "@/lib/invoice-balance";
 import { MaximizeValueCard, type MaximizeValueItem } from "./maximize-value-card";
+import { pendingExpenses } from "@/lib/services/expense-alerts";
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -57,7 +60,7 @@ export default async function DashboardPage() {
       }),
       prisma.invoice.findMany({
         where: { orgId: org.id, status: { in: ["SENT", "DRAFT"] }, ...invoiceVisibilityWhere(user.id, role) },
-        select: { total: true, status: true, dueDate: true },
+        select: { total: true, amountPaid: true, creditApplied: true, status: true, dueDate: true },
       }),
       prisma.timeEntry.findMany({
         where: { orgId: org.id, userId: user.id },
@@ -89,14 +92,18 @@ export default async function DashboardPage() {
         .then((u) => !!u?.setupCardDismissedAt),
     ]);
 
+  // Owners/admins approve expenses (and can see every project).
+  const expensesToApprove = canManage ? await pendingExpenses(org.id) : null;
+
   const outstandingTotal = outstandingInvoices
     .filter((i) => i.status === "SENT")
-    .reduce((sum, i) => sum + Number(i.total), 0);
+    // What's still owed: part payments and applied credit come off.
+    .reduce((sum, i) => sum + balanceDue(i), 0);
   const draftInvoices = outstandingInvoices.filter((i) => i.status === "DRAFT");
   const draftCount = draftInvoices.length;
   const draftTotal = draftInvoices.reduce((sum, i) => sum + Number(i.total), 0);
   const overdueInvoices = outstandingInvoices.filter((i) => isOverdue(i.status, i.dueDate));
-  const overdueTotal = overdueInvoices.reduce((sum, i) => sum + Number(i.total), 0);
+  const overdueTotal = overdueInvoices.reduce((sum, i) => sum + balanceDue(i), 0);
 
   const unbilledHours = unbilledEntries.reduce((sum, e) => sum + Number(e.hours), 0);
   const unbilledProjectMembers = await prisma.projectMember.findMany({
@@ -230,6 +237,44 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {expensesToApprove && expensesToApprove.count > 0 ? (
+        <Card className="mt-4">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Receipt className="size-4 text-muted-foreground" />
+              Expenses waiting for approval ({expensesToApprove.count})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col divide-y divide-border">
+              {expensesToApprove.items.map((e) => (
+                <Link
+                  key={e.id}
+                  href={`/projects/${e.project.id}#expenses`}
+                  className="flex items-center justify-between gap-2 py-3 text-sm hover:underline"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{e.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {e.project.name} · {e.submittedBy.name} · {formatDate(e.incurredAt)}
+                    </p>
+                  </div>
+                  <span className="tabular-figures shrink-0">
+                    {formatCurrency(Number(e.amount), org.defaultCurrency)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            {expensesToApprove.count > expensesToApprove.items.length ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Showing the oldest {expensesToApprove.items.length}. Approve or reject them on each
+                project&apos;s Expenses card.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

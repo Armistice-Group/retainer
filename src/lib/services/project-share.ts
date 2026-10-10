@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { paidShare } from "@/lib/invoice-balance";
 import { mentionsToPlain } from "@/lib/mentions";
 
 export function generateShareToken() {
@@ -22,12 +23,17 @@ export async function getProjectByShareToken(token: string) {
   const [loggedAgg, billedAgg, paidAgg, invoices] = await Promise.all([
     prisma.timeEntry.aggregate({ where: { projectId: project.id }, _sum: { hours: true } }),
     prisma.invoiceLineItem.aggregate({
-      where: { projectId: project.id, invoice: { status: { in: ["SENT", "PAID"] } } },
+      where: { projectId: project.id, invoice: { kind: "STANDARD", status: { in: ["SENT", "PAID"] } } },
       _sum: { amount: true },
     }),
-    prisma.invoiceLineItem.aggregate({
-      where: { projectId: project.id, invoice: { status: "PAID" } },
-      _sum: { amount: true },
+    // Paid so far, part payments and applied credit included: each line's
+    // share of what's been settled on its invoice.
+    prisma.invoiceLineItem.findMany({
+      where: { projectId: project.id, invoice: { kind: "STANDARD", status: { in: ["SENT", "PAID"] } } },
+      select: {
+        amount: true,
+        invoice: { select: { total: true, amountPaid: true, creditApplied: true } },
+      },
     }),
     // A client should only ever see invoices that have actually been sent —
     // never drafts — and a project-scoped link only shows invoices with a
@@ -48,6 +54,9 @@ export async function getProjectByShareToken(token: string) {
         issueDate: true,
         dueDate: true,
         total: true,
+        amountPaid: true,
+        creditApplied: true,
+        kind: true,
         currency: true,
         stripePaymentIntentId: true,
       },
@@ -98,7 +107,7 @@ export async function getProjectByShareToken(token: string) {
     project,
     loggedHours: Number(loggedAgg._sum.hours ?? 0),
     totalBilled: Number(billedAgg._sum.amount ?? 0),
-    totalPaid: Number(paidAgg._sum.amount ?? 0),
+    totalPaid: paidShare(paidAgg),
     invoices,
   };
 }

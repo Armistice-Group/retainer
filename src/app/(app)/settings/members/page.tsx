@@ -10,6 +10,7 @@ import { CopyButton } from "@/components/copy-button";
 import { revokeInviteAction } from "@/actions/org";
 import { X } from "lucide-react";
 import { getOrigin } from "@/lib/url";
+import { isEmailConfigured } from "@/lib/email";
 import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 
@@ -39,6 +40,7 @@ export default async function MembersPage() {
     select: { enabled: true, enforced: true },
   });
   const ssoOnly = (memberRole: string) => !!sso?.enabled && sso.enforced && memberRole !== "OWNER";
+  const emailEnabled = canManage && (await isEmailConfigured());
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,6 +122,7 @@ export default async function MembersPage() {
                       role={m.role}
                       employmentType={m.employmentType}
                       canResetPassword={m.userId !== user.id && !ssoOnly(m.role)}
+                      emailEnabled={emailEnabled}
                     />
                   ) : null}
                 </div>

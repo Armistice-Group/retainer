@@ -28,3 +28,56 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: consultainer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d consultainer_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Test-only values for a throwaway database; nothing here is a secret.
+      # Email, Stripe, S3 and every other integration stay unconfigured.
+      DATABASE_URL: postgresql://app:app@localhost:5432/consultainer_test?schema=public
+      AUTH_SECRET: e2e-auth-secret-not-for-production-use
+      INTEGRATION_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      CRON_SECRET: e2e-cron-secret
+      E2E_PORT: '3130'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**') }}
+          restore-keys: next-${{ hashFiles('package-lock.json') }}-
+      - run: npx next build
+      - run: npx playwright install --with-deps chromium
+      # The "setup" project seeds the database (tests/e2e/seed.ts) and logs
+      # each role in before the other tests run.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

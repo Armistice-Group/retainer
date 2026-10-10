@@ -12,6 +12,7 @@ import { describeIntegration } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
 import { isEmailConfigured } from "@/lib/email";
 import { RemindersCard } from "./reminders-card";
+import { DocsLink } from "@/components/docs-link";
 
 export default async function PaymentsPage({
   searchParams,
@@ -120,6 +121,7 @@ export default async function PaymentsPage({
                     account.
                   </li>
                 </ol>
+                <DocsLink page="integrations/payments#collect-card-and-ach-payments-with-stripe" />
               </details>
             ) : null}
             <IntegrationCredentials

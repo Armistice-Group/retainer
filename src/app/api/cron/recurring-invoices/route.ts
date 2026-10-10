@@ -4,6 +4,7 @@ import { notifyNewlyOverdueInvoices } from "@/lib/services/invoices";
 import { runDueBillingCycles } from "@/lib/services/billing-cycles";
 import { sendOverdueReminders } from "@/lib/services/invoice-delivery";
 import { sendWeeklyDigests } from "@/lib/services/weekly-digest";
+import { expireEstimates } from "@/lib/services/estimates";
 
 // Triggered daily by the compose `scheduler` service, not a human —
 // authenticated with a shared secret rather than a user session, since
@@ -23,6 +24,8 @@ export async function POST(req: Request) {
   const newlyOverdueCount = await notifyNewlyOverdueInvoices();
   const reminders = await sendOverdueReminders();
   const digests = await sendWeeklyDigests();
+  // Also done whenever an estimate is read; this catches the rest.
+  const estimatesExpired = await expireEstimates();
   return NextResponse.json({
     ran: results.length,
     results,
@@ -30,5 +33,6 @@ export async function POST(req: Request) {
     newlyOverdueCount,
     remindersSent: reminders.sent,
     digestsSent: digests.sent,
+    estimatesExpired,
   });
 }

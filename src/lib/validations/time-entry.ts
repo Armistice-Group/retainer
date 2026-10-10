@@ -3,7 +3,10 @@ import { z } from "zod";
 export const timeEntrySchema = z.object({
   projectId: z.string().min(1, "Project is required"),
   taskId: z.string().optional().or(z.literal("")),
-  date: z.string().min(1, "Date is required"),
+  date: z
+    .string()
+    .min(1, "Date is required")
+    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Use an ISO date, e.g. 2026-07-23."),
   hours: z.coerce
     .number()
     .positive("Hours must be greater than zero")

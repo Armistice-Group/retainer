@@ -94,6 +94,12 @@ enum NotificationType {
   BILLING_CHANGED
   SECURITY_ALERT
   MEETINGS_TO_SORT
+  ESTIMATE_ACCEPTED
+  ESTIMATE_DECLINED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  EXPENSE_SUBMITTED
+  EXPENSE_REVIEWED
 }
 
 enum Plan {
@@ -112,6 +118,10 @@ model Organization {
   autoJoinDomain             Boolean               @default(true)
   invoicePrefix              String                @default("INV")
   nextInvoiceNumber          Int                   @default(1)
+  // Estimates are numbered EST-0001, EST-0002, … per organization.
+  nextEstimateNumber         Int                   @default(1)
+  // Credit notes are numbered CN-0001, CN-0002, … per organization.
+  nextCreditNoteNumber       Int                   @default(1)
   defaultCurrency            String                @default("USD")
   defaultTaxRate             Decimal               @default(0) @db.Decimal(5, 2)
   // Hourly bill rate for anyone without their own (Membership.billRate),
@@ -217,6 +227,13 @@ model Organization {
   ssoConnection             SsoConnection?
   expenses                  Expense[]
   activeTimers              ActiveTimer[]
+  agreementConnections      AgreementConnection[]
+  agreements                Agreement[]
+  importBatches             ImportBatch[]
+  estimates                 Estimate[]
+  payments                  Payment[]
+  creditNotes               CreditNote[]
+  creditApplications        CreditApplication[]
 }
 
 model User {
@@ -261,6 +278,11 @@ model User {
   calendarRules               CalendarRule[]
   connections                 UserConnection[]
   passwordResetTokens         PasswordResetToken[]
+  twoFactorLoginTickets       TwoFactorLoginTicket[]
+  estimatesResponded          Estimate[]             @relation("EstimateRespondedBy")
+  paymentsRecorded            Payment[]              @relation("PaymentRecordedBy")
+  creditNotesIssued           CreditNote[]           @relation("CreditNoteCreatedBy")
+  creditApplications          CreditApplication[]    @relation("CreditApplicationAppliedBy")
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
@@ -368,9 +390,14 @@ model Client {
   projects                  Project[]
   invoices                  Invoice[]
   documents                 ClientDocument[]
+  agreements                Agreement[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
   billingCycle              ClientBillingCycle?
   paymentMethods            PaymentMethod[]
+  estimates                 Estimate[]
+  payments                  Payment[]
+  creditNotes               CreditNote[]
+  creditApplications        CreditApplication[]
 
   @@index([orgId])
 }
@@ -490,6 +517,23 @@ model PasswordResetToken {
   @@index([userId, createdAt])
 }
 
+// The second step of a "Continue with Google" sign-in for an account with an
+// authenticator app: Google said who they are, but no session exists until
+// the code is entered on /login/two-factor/<token>. Single use, short-lived,
+// and dropped after a few wrong codes. Only the SHA-256 of the token is kept.
+model TwoFactorLoginTicket {
+  id             String   @id @default(cuid())
+  tokenHash      String   @unique
+  userId         String
+  failedAttempts Int      @default(0)
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model MagicLinkToken {
   id        String    @id @default(cuid())
   token     String    @unique
@@ -560,6 +604,8 @@ model Project {
   activeTimers     ActiveTimer[]
   calendarEvents   CalendarEvent[]
   documents        ClientDocument[]
+  agreements       Agreement[]
+  estimates        Estimate[]
 
   @@index([orgId])
   @@index([clientId])
@@ -784,6 +830,7 @@ model TimeEntry {
 
   externalLink  ExternalTimeEntryLink?
   calendarEvent CalendarEvent?
+  importRecord  ImportRecord?
 
   @@index([orgId])
   @@index([projectId])
@@ -1028,6 +1075,15 @@ model Invoice {
   // invoice instead of creating duplicates.
   mercuryInvoiceId        String?       @unique
   mercuryInvoiceSlug      String?
+  // What the Mercury invoice above asks for (the balance when it was made),
+  // so a changed balance gets a fresh Mercury invoice.
+  mercuryInvoiceAmount    Decimal?      @db.Decimal(12, 2)
+  kind                    InvoiceKind   @default(STANDARD)
+  // Sums of Payment.amount and CreditApplication.amount for this invoice,
+  // kept in step by src/lib/services/payments.ts. Balance due is
+  // total − amountPaid − creditApplied.
+  amountPaid              Decimal       @default(0) @db.Decimal(12, 2)
+  creditApplied           Decimal       @default(0) @db.Decimal(12, 2)
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
@@ -1045,6 +1101,9 @@ model Invoice {
   recurringScheduleId String?
   recurringSchedule   RecurringInvoiceSchedule? @relation(fields: [recurringScheduleId], references: [id], onDelete: SetNull)
   events              InvoiceEvent[]
+  payments            Payment[]
+  creditApplications  CreditApplication[]
+  creditNotes         CreditNote[]
 
   @@unique([orgId, number])
   @@index([orgId])
@@ -1183,6 +1242,114 @@ model InvoiceLineItem {
   milestone   Milestone?
   expense     Expense?
 
+  @@index([invoiceId])
+}
+
+// An ordinary invoice, or a deposit/advance billed up front whose payments
+// become client credit (CreditApplication spends it on later invoices).
+enum InvoiceKind {
+  STANDARD
+  DEPOSIT
+}
+
+enum PaymentSource {
+  MANUAL
+  STRIPE
+  MERCURY
+  QUICKBOOKS
+}
+
+// Money received against an invoice. Invoice.amountPaid is the sum of these
+// (kept in step by src/lib/services/payments.ts); an invoice is PAID once
+// total − amountPaid − creditApplied reaches zero.
+model Payment {
+  id         String        @id @default(cuid())
+  amount     Decimal       @db.Decimal(12, 2)
+  currency   String
+  receivedAt DateTime      @db.Date
+  source     PaymentSource @default(MANUAL)
+  // Free text: "Wire", "Check #1042", …
+  method     String?
+  reference  String?
+  note       String?
+  // Idempotency key for payments recorded by an integration, e.g.
+  // "stripe:pi_123" or "mercury:<invoice id>". Null for manual payments.
+  externalId String?       @unique
+  createdAt  DateTime      @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  recordedById String?
+  recordedBy   User?   @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([orgId, receivedAt])
+  @@index([invoiceId])
+  @@index([clientId])
+}
+
+enum CreditNoteStatus {
+  ISSUED
+  VOID
+}
+
+// Credit given to a client (CN-0001, …), optionally against an invoice.
+// Adds to the client's available credit until applied to an invoice.
+model CreditNote {
+  id        String           @id @default(cuid())
+  number    String
+  amount    Decimal          @db.Decimal(12, 2)
+  currency  String
+  reason    String           @db.Text
+  issueDate DateTime         @db.Date
+  status    CreditNoteStatus @default(ISSUED)
+  voidedAt  DateTime?
+  createdAt DateTime         @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("CreditNoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([orgId, number])
+  @@index([clientId])
+}
+
+// Client credit (deposit payments, credit notes, overpayments) spent on an
+// invoice. Invoice.creditApplied is the sum of these.
+model CreditApplication {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(12, 2)
+  currency  String
+  note      String?
+  createdAt DateTime @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  appliedById String?
+  appliedBy   User?   @relation("CreditApplicationAppliedBy", fields: [appliedById], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
   @@index([invoiceId])
 }
 
@@ -1530,4 +1697,234 @@ model PaymentMethod {
   client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([orgId, clientId])
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+// A quote for a client: line items, scope text and (optionally) the billing
+// the resulting project would have. Once accepted it can become a project
+// (projectId), with milestones from the lines flagged as milestones.
+model Estimate {
+  id          String         @id @default(cuid())
+  number      String
+  title       String
+  // Scope / intro text; light markdown (headings, lists, bold, links),
+  // rendered as React elements, never as raw HTML.
+  intro       String?        @db.Text
+  status      EstimateStatus @default(DRAFT)
+  issueDate   DateTime       @db.Date
+  // Last day the client can accept; null = never expires.
+  expiresAt   DateTime?      @db.Date
+  currency    String         @default("USD")
+  subtotal    Decimal        @default(0) @db.Decimal(12, 2)
+  taxRate     Decimal        @default(0) @db.Decimal(5, 2)
+  taxAmount   Decimal        @default(0) @db.Decimal(12, 2)
+  total       Decimal        @default(0) @db.Decimal(12, 2)
+
+  // What the project created from this estimate gets. Null budget = the
+  // estimate's subtotal; null billing type = milestone-based when any line
+  // is a milestone, else flat fee.
+  proposedBillingType BillingType?
+  // Hourly rate for an hourly project (budget hours = budget / rate).
+  proposedRate        Decimal?     @db.Decimal(10, 2)
+  proposedBudget      Decimal?     @db.Decimal(12, 2)
+
+  // Unguessable token for the client-facing page (/e/<token>), created when
+  // the estimate is first sent or its link copied.
+  viewToken String?   @unique
+  sentAt    DateTime?
+
+  // The client's (or a manual) accept/decline: who, an optional note, and
+  // for the client page, where from.
+  respondedAt       DateTime?
+  responderName     String?
+  responseNote      String?
+  responseIp        String?
+  responseUserAgent String?
+  // Set when someone in the org marked it accepted/declined by hand.
+  respondedById     String?
+  respondedBy       User?     @relation("EstimateRespondedBy", fields: [respondedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // The existing project this quotes for, or the one created from it
+  // (projectCreatedAt set). Estimates on a confidential project follow that
+  // project's visibility.
+  projectCreatedAt DateTime?
+  projectId        String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  lineItems EstimateLineItem[]
+
+  @@unique([orgId, number])
+  @@index([orgId])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+model EstimateLineItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Decimal @db.Decimal(8, 2)
+  rate        Decimal @db.Decimal(10, 2)
+  amount      Decimal @db.Decimal(12, 2)
+  sortOrder   Int     @default(0)
+
+  // Becomes a milestone (amount = this line's amount) on the project
+  // created from the estimate. Due either on a date, or N days after the
+  // estimate is accepted.
+  isMilestone      Boolean   @default(false)
+  milestoneDueDate DateTime? @db.Date
+  milestoneDueDays Int?
+
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+}
+
+// One run of Settings → Import (a Harvest, Toggl, Clockify or generic CSV).
+// Remembers what it created so it can be undone, and — through its
+// ImportRecords — which rows of the file are already in, so importing the
+// same file again adds nothing.
+model ImportBatch {
+  id                      String    @id @default(cuid())
+  // harvest | toggl | clockify | generic
+  source                  String
+  // time | projects | clients
+  kind                    String
+  fileName                String
+  rowCount                Int       @default(0)
+  entriesCreated          Int       @default(0)
+  clientsCreated          Int       @default(0)
+  projectsCreated         Int       @default(0)
+  rowsSkipped             Int       @default(0)
+  // What this import added besides time entries, for "Undo import".
+  createdClientIds        String[]  @default([])
+  createdProjectIds       String[]  @default([])
+  createdProjectMemberIds String[]  @default([])
+  // No relation on purpose: the batch outlives the person who ran it.
+  createdById             String?
+  undoneAt                DateTime?
+  createdAt               DateTime  @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  records ImportRecord[]
+
+  @@index([orgId, createdAt])
+}
+
+// A file row that became a time entry. rowHash is stable for the same row
+// in the same file, so a re-import skips it. Deleting the entry deletes
+// this too (the row can then be imported again).
+model ImportRecord {
+  id      String @id @default(cuid())
+  orgId   String
+  rowHash String
+
+  batchId String
+  batch   ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  timeEntryId String    @unique
+  timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, rowHash])
+  @@index([batchId])
+}
+
+// ── Signed agreements (DocuSign, Documenso, Ironclad) ───────────────────────
+// A one-way, read-only pull of completed envelopes/documents/records (see
+// lib/services/agreements.ts). One connection per provider per org.
+model AgreementConnection {
+  id                   String    @id @default(cuid())
+  // DOCUSIGN | DOCUMENSO | IRONCLAD
+  provider             String
+  // DocuSign: account id/name from /oauth/userinfo. Ironclad: the region.
+  accountId            String?
+  accountName          String?
+  // DocuSign: the account's base_uri. Documenso: the instance URL.
+  // Ironclad: the host (ironcladapp.com, eu1.ironcladapp.com, ...).
+  baseUrl              String?
+  // Encrypted. DocuSign: OAuth access token. Documenso: the API key.
+  // Ironclad: the current client-credentials access token.
+  accessToken          String?
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
+  // Ironclad client credentials (the secret encrypted), and whose behalf
+  // API calls are made on (x-as-user-email).
+  clientId             String?
+  clientSecret         String?
+  actAsEmail           String?
+  // Where the next pull starts (provider-side time), and how the last went.
+  syncCursor           DateTime?
+  lastSyncedAt         DateTime?
+  lastError            String?
+  connectedById        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, provider])
+}
+
+// One signed agreement pulled from a provider. Lands unmatched (clientId
+// null) in the Agreements inbox until an owner/admin links it to a client
+// (and optionally a project) or dismisses it; syncs never undo either.
+model Agreement {
+  id                String    @id @default(cuid())
+  provider          String
+  externalId        String
+  title             String
+  // The provider's own status word (completed, COMPLETED, executed).
+  status            String
+  signedAt          DateTime?
+  // [{ name, email }]
+  signers           Json      @default("[]")
+  // Opens it in the provider.
+  externalUrl       String?
+  // Cached signed PDF (see lib/file-storage).
+  fileName          String?
+  fileData          Bytes?
+  storageKey        String?
+  contentType       String?
+  sizeBytes         Int?
+  // Best guess from signer email domains; only a suggestion.
+  suggestedClientId String?
+  dismissedAt       DateTime?
+  dismissedById     String?
+  linkedAt          DateTime?
+  linkedById        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  // Unlinking (or deleting the client/project) puts it back in the inbox.
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@unique([orgId, provider, externalId])
+  @@index([orgId, clientId])
+  @@index([clientId])
+  @@index([projectId])
 }

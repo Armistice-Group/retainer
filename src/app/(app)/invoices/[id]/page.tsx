@@ -4,7 +4,7 @@ import { Download, Plus, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { PageHeader } from "@/components/layout/page-header";
-import { StatusBadge } from "@/components/status-badge";
+import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,11 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
 import { SendInvoiceButton } from "./send-invoice-button";
 import { MarkPaidDialog } from "./mark-paid-dialog";
+import { ApplyCreditDialog, RecordPaymentDialog } from "./payment-dialogs";
+import { InvoicePaymentsCard } from "./invoice-payments-card";
+import { balanceDue } from "@/lib/invoice-balance";
+import { clientCreditCents, invoiceLedger } from "@/lib/services/payments";
+import { invoiceVoidBlockedReason } from "@/lib/services/invoices";
 import { SyncQuickBooksStatusButton } from "./sync-quickbooks-status-button";
 import { EmailInvoiceDialog, CopyClientLinkButton } from "./email-invoice-dialog";
 import { InvoiceActivity } from "./invoice-activity";
@@ -73,6 +78,15 @@ export default async function InvoiceDetailPage({
 
   const isDraft = invoice.status === "DRAFT";
   const canManage = role === "OWNER" || role === "ADMIN";
+
+  const [ledger, clientCredit] = await Promise.all([
+    invoiceLedger(invoice.id),
+    canManage ? clientCreditCents(prisma, invoice.clientId) : null,
+  ]);
+  const balance = balanceDue(invoice);
+  const availableCredit = Math.max(0, (clientCredit?.get(invoice.currency) ?? 0) / 100);
+  const voidBlocked = invoiceVoidBlockedReason(invoice);
+  const hasLedger = ledger.payments.length > 0 || ledger.credits.length > 0 || ledger.creditNotes.length > 0;
 
   const [quickBooksConnection, events, recipients, emailConfigured, filedCopy, quickBooksEnvironment] = await Promise.all([
     canManage ? prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }) : null,
@@ -124,16 +138,32 @@ export default async function InvoiceDetailPage({
             {isDraft && canManage ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
             {invoice.status === "SENT" && canManage ? (
               <>
-                <MarkPaidDialog invoiceId={invoice.id} />
-                <form action={setInvoiceStatusAction.bind(null, invoice.id, "VOID")}>
-                  <ConfirmSubmitButton
-                    variant="outline"
-                    size="sm"
-                    confirmMessage="Void this invoice? This can't be undone. Its time entries, milestones and expenses become unbilled again so you can invoice them on a new invoice; the voided invoice keeps its lines as a record."
-                  >
-                    Void
-                  </ConfirmSubmitButton>
-                </form>
+                <RecordPaymentDialog invoiceId={invoice.id} balance={balance} currency={invoice.currency} />
+                {invoice.kind === "STANDARD" && availableCredit > 0 && balance > 0 ? (
+                  <ApplyCreditDialog
+                    invoiceId={invoice.id}
+                    balance={balance}
+                    available={availableCredit}
+                    currency={invoice.currency}
+                  />
+                ) : null}
+                <MarkPaidDialog
+                  invoiceId={invoice.id}
+                  balanceLabel={formatCurrency(balance, invoice.currency)}
+                />
+                {/* Once money is recorded the invoice can't be voided; the
+                    payments card says why. */}
+                {!voidBlocked ? (
+                  <form action={setInvoiceStatusAction.bind(null, invoice.id, "VOID")}>
+                    <ConfirmSubmitButton
+                      variant="outline"
+                      size="sm"
+                      confirmMessage="Void this invoice? This can't be undone. Its time entries, milestones and expenses become unbilled again so you can invoice them on a new invoice; the voided invoice keeps its lines as a record."
+                    >
+                      Void
+                    </ConfirmSubmitButton>
+                  </form>
+                ) : null}
               </>
             ) : null}
             {isDraft && canManage ? (
@@ -152,7 +182,7 @@ export default async function InvoiceDetailPage({
       />
 
       <div className="mb-6 flex items-center gap-2">
-        <StatusBadge status={invoice.status} />
+        <InvoiceStatusBadge invoice={invoice} />
         {isOverdue(invoice.status, invoice.dueDate) ? (
           <span className="text-sm font-medium text-destructive">
             {daysOverdue(invoice.dueDate)} day{daysOverdue(invoice.dueDate) === 1 ? "" : "s"} overdue
@@ -400,6 +430,28 @@ export default async function InvoiceDetailPage({
                   {formatCurrency(invoice.total, invoice.currency)}
                 </span>
               </div>
+              {Number(invoice.amountPaid) > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Paid</span>
+                  <span className="tabular-figures">
+                    −{formatCurrency(invoice.amountPaid, invoice.currency)}
+                  </span>
+                </div>
+              ) : null}
+              {Number(invoice.creditApplied) > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Credit applied</span>
+                  <span className="tabular-figures">
+                    −{formatCurrency(invoice.creditApplied, invoice.currency)}
+                  </span>
+                </div>
+              ) : null}
+              {invoice.status === "SENT" || invoice.status === "PAID" ? (
+                <div className="flex justify-between border-t border-border pt-2 text-sm font-semibold">
+                  <span>Balance due</span>
+                  <span className="tabular-figures">{formatCurrency(balance, invoice.currency)}</span>
+                </div>
+              ) : null}
               <Link
                 href={`/clients/${invoice.clientId}`}
                 className="mt-3 text-sm text-brand hover:underline"
@@ -418,6 +470,42 @@ export default async function InvoiceDetailPage({
               ) : null}
             </CardContent>
           </Card>
+
+          {hasLedger || invoice.kind === "DEPOSIT" ? (
+            <InvoicePaymentsCard
+              invoiceId={invoice.id}
+              clientId={invoice.clientId}
+              clientName={invoice.client.name}
+              currency={invoice.currency}
+              isDeposit={invoice.kind === "DEPOSIT"}
+              canManage={canManage}
+              voidBlocked={invoice.status === "SENT" ? voidBlocked : null}
+              payments={ledger.payments.map((p) => ({
+                id: p.id,
+                amount: Number(p.amount),
+                receivedAt: p.receivedAt,
+                source: p.source,
+                method: p.method,
+                reference: p.reference,
+                note: p.note,
+                recordedBy: p.recordedBy?.name ?? null,
+              }))}
+              credits={ledger.credits.map((c) => ({
+                id: c.id,
+                amount: Number(c.amount),
+                createdAt: c.createdAt,
+                note: c.note,
+                appliedBy: c.appliedBy?.name ?? null,
+              }))}
+              creditNotes={ledger.creditNotes.map((n) => ({
+                id: n.id,
+                number: n.number,
+                amount: Number(n.amount),
+                status: n.status,
+                reason: n.reason,
+              }))}
+            />
+          ) : null}
 
           <InvoiceActivity
             viewCount={invoice.viewCount}

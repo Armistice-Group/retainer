@@ -1,0 +1,206 @@
+---
+title: Estimates
+description: Quote a client, let them accept online, and turn the accepted estimate into a project
+---
+
+An estimate is a quote for a client: a title, optional scope text, line items
+with quantities and unit prices, and an optional expiry date. You send it, the
+client accepts or declines it on a private page, and once it's accepted you
+create the project it describes, with its budget, billing type and milestones,
+in one click.
+
+**Who can do what:** owners and admins create, edit, send, duplicate and
+delete estimates, mark them accepted or declined, and create projects from
+them. Members can open **Estimates** and read estimates and their PDFs, but
+don't see those buttons. Over an API key or the [MCP server](/mcp-server),
+creating estimates is for owner and admin keys only.
+
+**Who sees which estimates:** owners and admins see every estimate. Members
+see every estimate that isn't tied to a project, and estimates tied to a
+project they can see. An estimate for a
+[confidential project](/concepts/clients-and-projects#confidential-projects)
+they aren't on is left out of their list, and its page and PDF read as not
+found.
+
+## How to write an estimate
+
+<Steps>
+  <Step title="Start a new estimate">
+    Go to **Estimates** in the sidebar and click **New estimate**.
+  </Step>
+  <Step title="Pick the client and, optionally, a project">
+    Choose the **Client**. Leave **Existing project** on **None: a new project
+    once accepted** if the work is a new project. Pick one of the client's
+    projects if you're quoting extra work on a project that already exists;
+    then no project is created when it's accepted.
+  </Step>
+  <Step title="Add a title and scope">
+    The **Title** becomes the project's name. **Scope** is optional text shown
+    above the pricing. Plain text works; you can also use simple markdown:
+    `# Heading`, `- list item`, `1. numbered item`, `**bold**`, `*italic*` and
+    `[link text](https://example.com)`. Only `http`, `https` and `mailto`
+    links become links. Nothing else is interpreted, so HTML shows as text.
+  </Step>
+  <Step title="Set the dates">
+    **Date** is today by default. **Valid until** starts 30 days out; the
+    client can accept through the end of that day. Clear it for an estimate
+    that never expires.
+  </Step>
+  <Step title="Add line items">
+    Each line has a **Description**, **Qty** and **Unit price**; the amount is
+    qty × unit price, rounded to cents. Click **Add line** for more. Set **Tax
+    (%)** under the lines if you charge tax (it starts at your **Default tax
+    rate** from Settings → General).
+
+    Tick **Becomes a milestone** on a line to make it a milestone on the
+    project. Then choose when it's due: **No due date**, **Due on a date**, or
+    **Due days after acceptance** (for example 14 days after the client
+    accepts).
+  </Step>
+  <Step title="Optionally, set the project's billing">
+    Under **Project once accepted**:
+    - **Billing type**: **Automatic** (milestone-based if any line is a
+      milestone, otherwise flat fee), **Hourly**, **Flat fee** or
+      **Milestone-based**.
+    - **Hourly rate**: for an hourly project.
+    - **Budget**: defaults to the estimate's subtotal (before tax).
+  </Step>
+  <Step title="Save">
+    Click **Create estimate**. It's saved as a **Draft** and numbered
+    `EST-0001`, `EST-0002`, and so on. Each organization has its own sequence,
+    and numbers are never reused, so deleting a draft leaves a gap.
+  </Step>
+</Steps>
+
+Estimates use your organization's **Default currency**.
+
+### Check it worked
+
+The estimate opens with a **Draft** badge, its number and title at the top,
+and its lines and total. Click **Preview PDF** to see what the client gets.
+
+## How to edit or delete a draft
+
+On a draft, click **Edit**, change anything, and click **Save estimate**.
+Click **Delete** to remove a draft. Once an estimate is sent it can't be
+edited or deleted: what the client accepts is what they were sent. To change a
+sent estimate, click **Duplicate** and send the copy.
+
+## How to send an estimate
+
+You can email it from Consultainer, or copy its link and send it yourself.
+
+**Email it:**
+
+1. Click **Email to client**.
+2. Tick who gets it. The list is the client's contacts with an email address;
+   its primary contacts start ticked (or all contacts, if none is primary, or
+   the client's own email if it has no contacts). Add anyone else, comma
+   separated.
+3. Optionally add a message, then click **Send estimate**.
+
+The estimate is marked **Sent**. Replies go to your email address. Email has
+to be [set up on the instance](/integrations/email) for this.
+
+**Copy the link:** click **Copy client link**. On a draft this asks to mark it
+sent first. The link is long and random; anyone with it can view, accept or
+decline the estimate, so send it only to the client.
+
+## What the client sees
+
+The link opens a page with your logo or name, the estimate's title, total,
+scope, pricing and expiry, and a **Download PDF** button. It shows nothing
+else from Consultainer: no project, team, notes, or other estimates.
+
+While the estimate is open, the client clicks **Accept estimate** or
+**Decline**, types their name and an optional note, and confirms. Consultainer
+records the name, note, time, IP address and browser with the response. A
+second click, a refresh, or someone else opening the same link later can't
+record a second response: only the first one counts.
+
+Once the estimate is accepted, declined or expired, the buttons are gone and
+the page says which.
+
+## Expiry
+
+A sent estimate whose **Valid until** date has passed becomes **Expired**.
+That happens whenever the estimate is opened (in the app, the client page,
+the API or MCP) and once a day by the scheduler. An expired estimate can't be
+accepted from the client page. If the client still wants it, either click
+**Mark accepted** yourself or **Duplicate** it and send the copy.
+
+You can't send a draft whose expiry date has already passed; edit the date
+first.
+
+## Marking accepted or declined by hand
+
+If the client answered by email or on a call, click **Mark accepted** or
+**Mark declined** on the estimate. You can add who answered and a note. This
+works on drafts, sent and expired estimates, and can't be undone. You're
+recorded as the person who marked it.
+
+## Who hears about it
+
+When an estimate is accepted or declined, from the client page or by hand,
+owners and admins get an alert in the app, and by Slack and email per
+**Settings → Alerts** (**A client accepts an estimate** and **A client
+declines an estimate**, both Slack + email by default). Whoever marked it by
+hand doesn't get the in-app alert. See
+[Alerts and audit log](/concepts/alerts-and-audit).
+
+## How to create the project
+
+On an accepted estimate that isn't tied to a project, a card at the top says
+what the project will be. Click **Create project** and confirm. The project
+gets:
+
+- **Name**: the estimate's title, for the same client.
+- **Billing type**: the one you chose, or **Automatic** as described above.
+- **Budget**:
+  - Flat fee: the budget becomes the project's flat fee.
+  - Hourly: budget hours = budget ÷ hourly rate (no budget hours without a
+    rate).
+  - Milestone-based: one milestone per line marked **Becomes a milestone**,
+    with that line's amount and due date. Days after acceptance count from
+    the day it was accepted.
+- **Team**: if you're the only person in the organization, you're added at
+  the estimate's hourly rate (or your default bill rate). Otherwise add
+  people on the project page as usual.
+
+Lines marked as milestones only become milestones on a milestone-based
+project, because milestones are billed on their own and would otherwise bill
+the same work twice.
+
+You land on the new project, which shows **Created from estimate EST-…**
+under its title. The estimate's **Project** card links back to it. Each
+estimate creates at most one project.
+
+An estimate written for an existing project doesn't create a project or add
+milestones to it when accepted; the project page lists it under its title.
+
+## Duplicating
+
+**Duplicate** makes a new draft with the same client, title, scope, lines and
+proposed billing, dated today, and valid for as many days as the original
+was. It keeps the project the original was written for, but not a project
+created from it. You land on the copy's edit page.
+
+## Over the API and MCP
+
+`GET /api/v1/estimates`, `GET /api/v1/estimates/{id}` and
+`POST /api/v1/estimates`; see the [API reference](/api-reference/estimates).
+MCP tools: `list_estimates` (any key) and `create_estimate` (owner and admin
+keys). Sending, accepting and creating the project are done in the app.
+
+## Troubleshooting
+
+| Message | What it means |
+| --- | --- |
+| *Only owners and admins can manage estimates.* | You're a member. Ask an owner or admin. |
+| *Only draft estimates can be edited.* | It's been sent. Duplicate it and edit the copy. |
+| *This estimate's expiry date has passed. Duplicate it, or edit the draft's expiry date, before sending.* | Set **Valid until** to today or later. |
+| *Email isn't set up on this instance. Copy the client link instead, or set up email under Settings → Integrations.* | Use **Copy client link**, or [set up email](/integrations/email). |
+| *That project belongs to a different client.* | Pick a project of the estimate's client. |
+| *Only accepted estimates can be turned into a project.* | Mark it accepted first. |
+| *This estimate is already linked to a project.* | It was written for an existing project, or a project was already created from it. |
+| The client says the link shows a 404 page | The estimate is still a draft (send it or copy its link, which marks it sent), or it was deleted. |

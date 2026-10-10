@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/status-badge";
+import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
@@ -14,7 +14,10 @@ export type ClientInvoiceItem = {
   status: string;
   dueDate: string;
   total: number;
+  amountPaid: number;
+  creditApplied: number;
   currency: string;
+  kind: string;
 };
 
 export function ClientInvoicesCard({
@@ -75,7 +78,7 @@ export function ClientInvoicesCard({
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{invoice.number}</span>
-                    <StatusBadge status={invoice.status} />
+                    <InvoiceStatusBadge invoice={invoice} />
                   </div>
                   <div className="flex items-center gap-3">
                     <span

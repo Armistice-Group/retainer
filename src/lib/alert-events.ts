@@ -22,13 +22,33 @@ export const ALERT_EVENTS = {
   },
   INVOICE_PAID: {
     label: "An invoice is paid",
-    hint: null,
+    hint: "Paid in full: by hand, online, through a bank sync, or with credit.",
+    defaults: { email: true, slack: true },
+  },
+  PAYMENT_RECEIVED: {
+    label: "A part payment is received",
+    hint: "Money toward an invoice that still has a balance due.",
+    defaults: { email: false, slack: true },
+  },
+  PAYMENT_FAILED: {
+    label: "An online payment fails",
+    hint: "A bank (ACH) payment made through \"Pay now\" bounced after it was submitted.",
     defaults: { email: true, slack: true },
   },
   INVOICE_OVERDUE: {
     label: "An invoice becomes overdue",
     hint: null,
     defaults: { email: false, slack: true },
+  },
+  ESTIMATE_ACCEPTED: {
+    label: "A client accepts an estimate",
+    hint: "On the estimate's client page, or marked accepted by hand.",
+    defaults: { email: true, slack: true },
+  },
+  ESTIMATE_DECLINED: {
+    label: "A client declines an estimate",
+    hint: null,
+    defaults: { email: true, slack: true },
   },
   BUDGET_ALERT: {
     label: "A project nears its budget or a task passes its estimate",
@@ -44,6 +64,11 @@ export const ALERT_EVENTS = {
     label: "A timesheet is submitted for approval",
     hint: null,
     defaults: { email: false, slack: false },
+  },
+  EXPENSE_SUBMITTED: {
+    label: "An expense is waiting for approval",
+    hint: "A member logs an expense over the approval threshold. On a confidential project, Slack and email leave out the project and description.",
+    defaults: { email: true, slack: true },
   },
   TIME_LOGGED: {
     label: "Someone logs time",

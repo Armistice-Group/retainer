@@ -208,6 +208,7 @@ what that person can see.
 | `create_project` | Create a project for a client. A member who makes it confidential is added to it so they keep access. |
 | `update_project` | Update a project's details. |
 | `list_members` | List the organization's members and their roles. For owner and admin keys, also each person's default `billRate`. |
+| `list_agreements` | A client's signed agreements pulled from DocuSign, Documenso or Ironclad: title, signed date, signers, provider link, and whether a signed copy is stored. Includes its projects' agreements you can see; pass `projectId` for one project. See [Signed agreements](/integrations/agreements). |
 
 **Tasks**
 
@@ -254,17 +255,26 @@ what that person can see.
 | `approve_expense` | Owner/admin: approve a pending expense. |
 | `reject_expense` | Owner/admin: reject a pending expense. |
 
+**Estimates**
+
+| Tool | What it does |
+| --- | --- |
+| `list_estimates` | List estimates, optionally by status or client, with their line items. A member doesn't see estimates for a confidential project they're not on. |
+| `create_estimate` | Owner/admin: create a draft estimate for a client with line items, optional scope text, expiry and proposed billing. Send it from the app. See [Estimates](/concepts/estimates). |
+
 **Invoices**
 
 | Tool | What it does |
 | --- | --- |
-| `list_invoices` | List invoices, optionally by status, with `isOverdue` and `daysOverdue`. A member doesn't see invoices with a line on a confidential project they're not on (the invoice tools answer *Invoice not found.* for those). |
+| `list_invoices` | List invoices, optionally by status, with `isOverdue`, `daysOverdue`, `kind` (`STANDARD` or `DEPOSIT`), `amountPaid`, `creditApplied` and `balanceDue` (a partly paid invoice stays `SENT` until its balance is 0). A member doesn't see invoices with a line on a confidential project they're not on (the invoice tools answer *Invoice not found.* for those). |
 | `generate_invoice` | Owner/admin: create a draft invoice from unbilled time, completed milestones and approved expenses. |
 | `email_invoice` | Owner/admin: email an invoice to the client with a tracked link to view and pay it. A draft is marked sent. |
 | `get_invoice_activity` | When an invoice was emailed, reminded and opened, plus its client link. |
 | `mark_invoice_sent` | Owner/admin: mark a draft invoice as sent (it needs at least one line item). |
-| `mark_invoice_paid` | Owner/admin: mark a sent invoice as paid, optionally with the payment method. |
-| `void_invoice` | Owner/admin: void a draft or sent invoice (not a paid one). Its time entries, milestones and expenses go back to unbilled so they can be invoiced again (the result's `released` gives the counts); the voided invoice keeps its lines as a record. |
+| `mark_invoice_paid` | Owner/admin: mark a sent invoice as paid by recording a payment for its whole balance due (dated today), optionally with the payment method. |
+| `record_invoice_payment` | Owner/admin: record money received against a sent invoice: `amount` (up to the balance due), optional `receivedAt` (`YYYY-MM-DD`, default today), `method`, `reference`, `note`. The invoice becomes paid when its balance reaches 0. |
+| `list_invoice_payments` | An invoice's payments, credit applied to it and credit notes issued against it, with its balance. |
+| `void_invoice` | Owner/admin: void a draft or sent invoice (not a paid one, and not one with payments or credit recorded). Its time entries, milestones and expenses go back to unbilled so they can be invoiced again (the result's `released` gives the counts); the voided invoice keeps its lines as a record. |
 
 **Audit**
 

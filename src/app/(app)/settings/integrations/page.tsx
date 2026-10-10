@@ -4,6 +4,8 @@ import { QuickBooksCard } from "../quickbooks-card";
 import { LinearCard } from "../linear-card";
 import { FilesIntegrationsCard, type FileServiceSetup } from "../files-integrations-card";
 import { FilingCard } from "../filing-card";
+import { AgreementsPointerCard } from "../agreements/pointer-card";
+import { AGREEMENT_PROVIDER_LABELS, type AgreementProviderId } from "@/lib/integrations/agreements/parse";
 import { StorageCard } from "../storage-card";
 import { objectStorage } from "@/lib/object-storage";
 
@@ -172,6 +174,13 @@ export default async function IntegrationsPage({
             appLabel="Linear → Settings → API → OAuth applications"
           />
         }
+      />
+
+      <AgreementsPointerCard
+        readOnly={readOnly}
+        connected={(
+          await prisma.agreementConnection.findMany({ where: { orgId: org.id }, select: { provider: true } })
+        ).map((c) => AGREEMENT_PROVIDER_LABELS[c.provider as AgreementProviderId] ?? c.provider)}
       />
 
       <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isPaymentProcessing, PaymentReturnBanner, PROCESSING_NOTE } from "@/components/payment-return-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatusBadge } from "@/components/status-badge";
+import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
+import { balanceDue, isPartlyPaid } from "@/lib/invoice-balance";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
 import { getInvoiceByViewToken } from "@/lib/services/invoice-delivery";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
@@ -41,6 +42,7 @@ export default async function ClientInvoicePage({
     !paymentProcessing &&
     (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
   const overdue = isOverdue(invoice.status, invoice.dueDate);
+  const partlyPaid = isPartlyPaid(invoice);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -64,10 +66,21 @@ export default async function ClientInvoicePage({
               {invoice.client.name} · Issued {formatDate(invoice.issueDate)}
             </p>
             <h1 className="tabular-figures mt-1 text-3xl font-semibold tracking-tight">
-              {formatCurrency(invoice.total, invoice.currency)}
+              {formatCurrency(partlyPaid ? balanceDue(invoice) : invoice.total, invoice.currency)}
             </h1>
+            {partlyPaid ? (
+              <p className="tabular-figures text-sm text-muted-foreground">
+                due of {formatCurrency(invoice.total, invoice.currency)}
+                {Number(invoice.amountPaid) > 0
+                  ? ` · ${formatCurrency(invoice.amountPaid, invoice.currency)} paid`
+                  : ""}
+                {Number(invoice.creditApplied) > 0
+                  ? ` · ${formatCurrency(invoice.creditApplied, invoice.currency)} credit applied`
+                  : ""}
+              </p>
+            ) : null}
             <div className="mt-2 flex items-center gap-2 text-sm">
-              <StatusBadge status={invoice.status} />
+              <InvoiceStatusBadge invoice={invoice} />
               {invoice.status === "VOID" ? (
                 <span className="text-muted-foreground">This invoice was voided.</span>
               ) : invoice.status === "PAID" ? (

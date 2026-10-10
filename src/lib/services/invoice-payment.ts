@@ -7,6 +7,7 @@ import {
   createInvoice as createMercuryInvoiceRecord,
   payPageUrl as mercuryPayPageUrl,
 } from "@/lib/integrations/mercury";
+import { balanceCents, toCents } from "@/lib/invoice-balance";
 import type { Invoice, Organization, Client } from "@/generated/prisma/client";
 
 /** `reason` is what the client-facing invoice page shows after a failed
@@ -41,6 +42,10 @@ export async function createInvoicePaymentCheckoutUrl(
   if (invoice.stripePaymentIntentId) {
     throw new InvoicePaymentError("A payment for this invoice is already processing.", "processing");
   }
+  // Online payment is for what's still due, not the original total.
+  if (balanceCents(invoice) <= 0) {
+    throw new InvoicePaymentError("This invoice isn't open for payment.", "not_open");
+  }
 
   const mercuryConnection = await prisma.mercuryConnection.findUnique({
     where: { orgId: invoice.orgId },
@@ -63,7 +68,14 @@ async function createMercuryInvoicePaymentUrl(
   // instead of creating a duplicate on Mercury's side every time the link
   // is clicked (Mercury has no concept of an abandonable checkout session
   // the way Stripe does — every create call makes a real, visible invoice).
-  if (invoice.mercuryInvoiceSlug) {
+  // Only while it still asks for the current balance, though: after a part
+  // payment recorded here, a fresh one for the rest replaces it (the old one
+  // should be cancelled in Mercury). One made before amounts were tracked
+  // asked for the full total.
+  const balance = balanceCents(invoice);
+  const askedFor =
+    invoice.mercuryInvoiceAmount != null ? toCents(invoice.mercuryInvoiceAmount) : toCents(invoice.total);
+  if (invoice.mercuryInvoiceSlug && askedFor === balance) {
     return mercuryPayPageUrl(invoice.mercuryInvoiceSlug);
   }
 
@@ -90,16 +102,17 @@ async function createMercuryInvoicePaymentUrl(
   const created = await createMercuryInvoiceRecord(token, {
     customerId,
     destinationAccountId: connection.destinationAccountId,
-    lineItems: [{ name: `Invoice ${invoice.number}`, unitPrice: Number(invoice.total), quantity: 1 }],
+    lineItems: [{ name: lineName(invoice), unitPrice: balance / 100, quantity: 1 }],
     invoiceDate: invoice.issueDate,
     dueDate: invoice.dueDate,
-    invoiceNumber: invoice.number,
+    // Mercury needs a fresh number for a replacement invoice.
+    invoiceNumber: invoice.mercuryInvoiceId ? `${invoice.number}-${Date.now().toString(36)}` : invoice.number,
     currencyCode: invoice.currency,
   });
 
   await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { mercuryInvoiceId: created.id, mercuryInvoiceSlug: created.slug },
+    data: { mercuryInvoiceId: created.id, mercuryInvoiceSlug: created.slug, mercuryInvoiceAmount: balance / 100 },
   });
 
   return mercuryPayPageUrl(created.slug);
@@ -122,7 +135,7 @@ async function createStripeInvoicePaymentCheckoutUrl(
   }
 
   const stripe = await getStripe();
-  const amountCents = Math.round(Number(invoice.total) * 100);
+  const amountCents = balanceCents(invoice);
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -132,7 +145,7 @@ async function createStripeInvoicePaymentCheckoutUrl(
           currency: invoice.currency.toLowerCase(),
           unit_amount: amountCents,
           product_data: {
-            name: `Invoice ${invoice.number}`,
+            name: lineName(invoice),
             description: `${invoice.client.name} — ${invoice.org.name}`,
           },
         },
@@ -150,6 +163,13 @@ async function createStripeInvoicePaymentCheckoutUrl(
 
   if (!session.url) throw new InvoicePaymentError("Stripe did not return a checkout URL.");
   return session.url;
+}
+
+/** "Invoice INV-0042", or "… (balance due)" once part of it is paid. */
+function lineName(invoice: Invoice) {
+  const settled = toCents(invoice.amountPaid) + toCents(invoice.creditApplied);
+  const kind = invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice";
+  return `${kind} ${invoice.number}${settled > 0 ? " (balance due)" : ""}`;
 }
 
 function withParam(url: string, key: string, value: string) {

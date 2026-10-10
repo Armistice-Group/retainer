@@ -1,0 +1,363 @@
+---
+title: Signed agreements
+description: Pull signed agreements from DocuSign, Documenso and Ironclad onto clients and projects
+---
+
+See every signed MSA, SOW and NDA where you work: on the client's page
+("Acme MSA · Signed Mar 1, 2026 · Jane Buyer") and on the project it's for,
+with a link to open it in the e-signature service and a stored copy of the
+signed PDF.
+
+Consultainer only reads from these services. It pulls agreements that are
+fully signed (completed) and never creates, sends or changes anything there.
+
+**Who can do what**
+
+| | Owner | Admin | Member |
+| --- | --- | --- | --- |
+| Save the DocuSign app credentials for the instance | Yes | | |
+| Connect or disconnect DocuSign, Documenso, Ironclad | Yes | Yes | |
+| Link, unlink and dismiss agreements; **Sync now** | Yes | Yes | |
+| See linked agreements on clients and projects | Yes | Yes | Yes, see [Who sees an agreement](#who-sees-an-agreement) |
+
+Everything below happens in **Settings → Agreements**, a tab only owners and
+admins see. **Settings → Integrations** has a **Signed agreements** card that
+links to it.
+
+## How it works
+
+1. Every hour (and when you click **Sync now**), Consultainer asks each
+   connected service for agreements completed since the last sync.
+2. Each new agreement lands in the **Agreements inbox**, with its title,
+   signed date, signers, and a suggested client when one matches (see
+   [Suggested clients](#suggested-clients)). Its signed PDF is downloaded and
+   stored with your other uploads.
+3. An owner or admin links it to a client, and optionally one of that
+   client's projects, or dismisses it.
+4. Linked agreements show in a **Signed agreements** card on the client's
+   page (including its projects' agreements, labelled) and on the project's
+   page.
+
+Syncing again never creates duplicates, and never undoes a link or a
+dismissal. If the title or signers change in the service, the next sync
+updates them.
+
+## Connect DocuSign
+
+DocuSign needs an app (an "integration key") registered once for the
+instance by an **owner**; then an **owner or admin** connects the
+organization's DocuSign account.
+
+### Demo or production?
+
+DocuSign has two separate environments:
+
+- **Demo** (`account-d.docusign.com`, `appdemo.docusign.com`): free developer
+  accounts. Use it to try the integration. It only sees demo envelopes.
+- **Production** (`account.docusign.com`, `app.docusign.com`): your real
+  account. DocuSign only lets an app use production after it passes
+  DocuSign's go-live review.
+
+Set **Environment** in Consultainer (or `DOCUSIGN_ENVIRONMENT`) to match.
+If it isn't set, Consultainer uses demo.
+
+### Register the app (owner, once)
+
+<Steps>
+  <Step title="Copy the redirect URI">
+    Open Consultainer at the address your team uses (not `localhost`), go to
+    **Settings → Agreements** and open **How to set this up** on the
+    **DocuSign** card. Step 4 shows the redirect URI with a **Copy** button,
+    like `https://your-instance/api/integrations/docusign/callback`.
+  </Step>
+  <Step title="Create the app in DocuSign">
+    Sign in to **Apps and Keys**:
+    [admindemo.docusign.com/apps-and-keys](https://admindemo.docusign.com/apps-and-keys)
+    for demo (a free developer account from
+    [developers.docusign.com](https://developers.docusign.com) works), or
+    [admin.docusign.com/apps-and-keys](https://admin.docusign.com/apps-and-keys)
+    for production. Click **Add App and Integration Key** and name it
+    Consultainer.
+  </Step>
+  <Step title="Choose Authorization Code Grant and add a secret key">
+    Under **Authentication**, answer **Yes** to "Is your application able to
+    securely store a client secret?" (Authorization Code Grant). Click
+    **Add Secret Key** and copy it now. DocuSign only shows it once.
+  </Step>
+  <Step title="Add the redirect URI">
+    Under **Additional settings → Redirect URIs**, click **Add URI**, paste
+    the redirect URI from step 1, and click **Save**.
+  </Step>
+  <Step title="Save the credentials in Consultainer">
+    In the DocuSign card's credentials form:
+
+    | DocuSign | Consultainer field | Or in `.env` |
+    | --- | --- | --- |
+    | Integration Key | **Integration key** | `DOCUSIGN_CLIENT_ID` |
+    | Secret key | **Secret key** | `DOCUSIGN_CLIENT_SECRET` |
+    | Demo or production | **Environment** | `DOCUSIGN_ENVIRONMENT=demo` or `production` |
+
+    Click **Save credentials**. Values set in `.env` win and show as
+    read-only.
+  </Step>
+</Steps>
+
+### Connect the account (owner or admin)
+
+<Steps>
+  <Step title="Click Connect">
+    On the DocuSign card, click **Connect**.
+  </Step>
+  <Step title="Sign in and allow access">
+    Sign in to DocuSign and click **Allow access**. Consultainer asks for the
+    `signature` scope (to read envelopes) and `extended` (so the connection
+    keeps working without signing in again). You're sent back to
+    **Settings → Agreements**.
+  </Step>
+  <Step title="Pull agreements">
+    Click **Sync now**. The first sync looks back three years.
+  </Step>
+</Steps>
+
+Consultainer uses the DocuSign account marked as your default (from
+DocuSign's user info), and reads the completed envelopes the person who
+connected can see in that account. Envelopes other users sent may not be
+visible to them; connect with a DocuSign admin, or someone who sends your
+agreements, if some are missing.
+
+**Going to production:** in Apps and Keys, start the app's go-live review
+(DocuSign requires a number of successful demo API calls first; a few syncs
+cover it). Once approved, open the app in your production account, add a
+secret key and the redirect URI there, switch **Environment** to
+**Production** in Consultainer with the new secret key, and click
+**Reconnect**.
+
+## Connect Documenso
+
+Documenso works with its cloud (`app.documenso.com`) or your own
+self-hosted instance. It uses an API key, so there's no app to register.
+
+<Steps>
+  <Step title="Create an API token in Documenso">
+    In Documenso, open the team whose documents you want and go to **Team
+    settings → API tokens** (or **Settings → API tokens** for personal
+    documents). Enter the name Consultainer, choose an expiry (or none), and
+    click **Create token**. Copy it now; Documenso only shows it once.
+  </Step>
+  <Step title="Connect">
+    In **Settings → Agreements → Documenso**, leave **Documenso URL** as
+    `https://app.documenso.com`, or enter the address you open your own
+    Documenso at. Paste the token as **API key** and click **Connect
+    Documenso**.
+
+    Consultainer reads one document to check the key works before saving it
+    (encrypted). To change the URL or key later, fill the form in again and
+    click **Update**.
+  </Step>
+</Steps>
+
+Documenso can't be asked for "completed since a date", so each sync reads
+the list of completed documents (up to 5,000) and keeps the ones that
+changed since the last sync. Consultainer uses Documenso's v2 `document`
+API (`/api/v2/document`), which Documenso has marked as being replaced by
+its newer envelope API but still serves; it's also what older self-hosted
+versions have.
+
+A self-hosted Documenso on a private network (a LAN address, `.local`,
+`localhost`) is blocked unless the server sets `ALLOW_PRIVATE_FETCH=true`,
+the same switch calendar links use.
+
+## Connect Ironclad
+
+Ironclad uses OAuth client credentials: an Ironclad admin registers a client
+app in your Ironclad account, and Consultainer gets its own tokens with it.
+Your Ironclad plan needs API access.
+
+<Steps>
+  <Step title="Register a client app in Ironclad">
+    In Ironclad, register an OAuth client app for Consultainer that uses the
+    **Client Credentials** grant, with the scopes
+    `public.records.readRecords` and `public.records.readAttachments` only.
+    Copy its client ID and client secret.
+  </Step>
+  <Step title="Connect">
+    In **Settings → Agreements → Ironclad**, pick the Ironclad site you sign
+    in at (`ironcladapp.com`, `eu1.ironcladapp.com` or
+    `demo.ironcladapp.com`), paste the client ID and secret, and enter the
+    email of the Ironclad user Consultainer reads as. Ironclad answers API
+    calls made with client credentials as that person (`x-as-user-email`),
+    so Consultainer sees the records they can see. Click **Connect
+    Ironclad**.
+  </Step>
+</Steps>
+
+Every Ironclad record counts as a signed agreement (records are Ironclad's
+executed-contract repository). Consultainer reads:
+
+- the record's name as the title;
+- the signed date from the record's `executedDate`, `signedDate` or
+  `agreementDate` property, whichever it finds first;
+- any email addresses in the record's properties as signers (Ironclad
+  records don't have a standard signer list);
+- `counterpartyName`, to suggest a client by name;
+- the `signedCopy` attachment as the signed PDF.
+
+<Note>
+Ironclad's public API docs didn't let us confirm every detail. These parts
+are best effort and may need adjusting for your account: the link
+**Open in Ironclad** uses (`https://<site>/records/<record id>`), which
+properties hold signer emails and the signed date (property names vary per
+Ironclad account), and the `signedCopy` attachment key. If they don't fit
+your account, agreements still arrive; link them by hand.
+</Note>
+
+## Check it worked
+
+- Each connected service's card says **Connected** and, after a sync,
+  **Last synced** with a date. A failed sync shows its error in red
+  under it (see [Troubleshooting](#troubleshooting)).
+- The **Agreements inbox** lists completed agreements with **Open**, and
+  **Signed copy** where the PDF was stored.
+- After you link one, the client's page shows it under **Signed
+  agreements**.
+
+## Link agreements to clients and projects
+
+In the **Agreements inbox**, each agreement has a client picker, already set
+to the suggested client if there is one. Pick the client and, if the
+agreement is for one project, the project (**Whole client** otherwise), and
+click **Link**. Click **Dismiss** for anything that doesn't belong to a
+client (an employment contract, a vendor agreement). Dismissed agreements are
+listed under **Dismissed** at the bottom of the inbox, with **Back to
+inbox** to undo; later syncs don't bring them back.
+
+To move an agreement, unlink it (the unlink icon on the client or project
+page) and link it again from the inbox. Deleting a client sends its
+agreements back to the inbox; deleting a project keeps its agreements on the
+client, client-wide.
+
+### Paste a link instead
+
+To link one specific agreement without waiting for the inbox, open the
+client's or project's **Documents → Add**, choose **Link**, and paste the
+agreement's address:
+
+- DocuSign: `https://app.docusign.com/documents/details/<envelope id>` (or
+  `appdemo.docusign.com`).
+- Documenso: `https://app.documenso.com/t/<team>/documents/<id>`, or the same
+  path on your self-hosted Documenso.
+- Ironclad: any `ironcladapp.com` address with the record's id in it.
+
+When an owner or admin adds it, Consultainer fetches that agreement through
+the organization's connection and links it to the client (and project)
+under **Signed agreements**, instead of adding a plain link. It must be
+completed. For a member, the address is added as an ordinary linked
+document.
+
+### Suggested clients
+
+Consultainer compares each signer's email address with every client's
+email, billing email, contacts' emails and website:
+
+- a signer whose email is one of a client's contacts counts most;
+- a signer at the same company domain as a client's contact or website
+  (`jane@acme.io` and `acme.io`, including subdomains) counts next;
+- for Ironclad, a counterparty name that matches a client's name (ignoring
+  Inc., LLC and the like) counts too.
+
+Free email domains (`gmail.com`, `outlook.com` and similar) and your own
+organization's domains (the organization domain and your members' email
+domains) never count, since your own signature is on every agreement. When
+two clients match equally well there's no suggestion. It's only a
+suggestion: nothing is linked until you click **Link**.
+
+## Who sees an agreement
+
+- **Unlinked** agreements (the inbox) are only visible to owners and admins.
+- **Client-wide** agreements are visible to everyone who can see the
+  client, which is everyone in the organization.
+- Agreements **linked to a project** follow the project: on a confidential
+  project, only owners, admins and the people on that project see them, on
+  the client page too.
+
+**Open in DocuSign** (or Documenso, Ironclad) takes people to the agreement
+in that service, so they need access there too. **Download signed copy**
+serves the stored PDF from Consultainer, with the same visibility as above.
+Opening or downloading is recorded in the audit log, and so are links,
+unlinks and dismissals.
+
+The [API](/api-reference/clients#list-signed-agreements-for-a-client)
+(`GET /api/v1/clients/{id}/agreements`) and the MCP `list_agreements` tool
+return the same agreements the key's user can see.
+
+## The stored signed copy
+
+For each completed agreement, Consultainer downloads the signed PDF once:
+
+- DocuSign: all of the envelope's documents combined into one PDF (without
+  the certificate of completion).
+- Documenso: the signed version of the document.
+- Ironclad: the record's signed copy.
+
+It's stored where uploads are stored (the database, or your S3 bucket if
+[object storage](/self-hosting) is set up). PDFs over 25 MB aren't stored;
+those still open in the service.
+
+If [filing](/integrations/files) is on with **Uploaded documents** ticked,
+each linked agreement's PDF is also filed to
+`<root>/<Client>/Agreements/<title>.pdf`. It's filed once, when it's linked
+(or by the hourly filing catch-up); linking it to a different client later
+doesn't move the filed copy.
+
+## Disconnecting
+
+**Disconnect** on a service's card (owner or admin) deletes the saved
+tokens or key. Agreements already pulled stay linked where they are, with
+their stored PDFs; new ones stop arriving. To revoke access on the
+service's side as well, remove the app's access in DocuSign, delete the API
+token in Documenso, or delete the client app in Ironclad.
+
+## Troubleshooting
+
+- **"DocuSign isn't set up on this instance yet. Add its credentials
+  below."**: the integration key or secret key isn't saved. An owner adds
+  them on the DocuSign card.
+- **"Couldn't connect to DocuSign. Check the integration key, secret key,
+  environment and redirect URI, then try again."**: most often the redirect
+  URI in DocuSign doesn't match exactly (`http` vs `https`, host, port), or
+  **Environment** doesn't match the account you signed in to (a demo key
+  only works with **Demo**). Also try again if you spent more than 10
+  minutes on DocuSign's screens.
+- **"DocuSign access wasn't granted. Click Connect and choose Allow
+  access."**: you clicked Cancel on DocuSign's consent screen.
+- **"DocuSign access expired. Reconnect DocuSign."** under the card: the
+  connection's refresh token stopped working (revoked, or unused for
+  about 30 days). Click **Reconnect**.
+- **"DocuSign answered 401"** or **403** after switching to production: the
+  app hasn't passed go-live yet, or the production secret key or redirect
+  URI is missing on the production account.
+- **"Couldn't connect: Documenso answered 401."**: the API key is wrong,
+  expired or deleted. Create a new token.
+- **"Couldn't connect: Documenso didn't answer with JSON. Check the URL
+  points at your Documenso instance."**: the URL opens something else (a
+  login page, a proxy). Use the address you open Documenso at, without a
+  path.
+- **"Couldn't connect: That address isn't reachable from here."**: the
+  Documenso URL is on a private network. Set `ALLOW_PRIVATE_FETCH=true` on
+  the server, or use its public address.
+- **"Couldn't connect: Ironclad answered 401"** (or 400): the client ID or
+  secret is wrong, the app isn't a Client Credentials app, or it's missing
+  a scope. **403** usually means the **Read as** user doesn't exist or
+  can't see records.
+- **"Connect DocuSign under Settings → Agreements first."** (or Documenso,
+  Ironclad) when pasting a link: that service isn't connected.
+- **"DocuSign doesn't have a completed agreement at that link that this
+  connection can see."**: the agreement isn't fully signed yet, belongs to
+  another account, or the connected user can't see it.
+- An agreement is missing from the inbox: check it's completed in the
+  service and visible to the connected user (DocuSign, Ironclad) or the
+  token's team (Documenso), then click **Sync now**. Check **Dismissed**
+  too.
+- **Download signed copy** is missing: the PDF was over 25 MB, or
+  downloading it failed; the server log says why. The next sync that sees
+  the agreement change tries again.

@@ -31,6 +31,9 @@ export async function sendAlert(params: {
   link: string;
   /** Extra lines for email and Slack (e.g. what changed). */
   details?: string[];
+  /** Slack/email text instead of `message` (and no `details`) — for alerts
+   * about a confidential project, which shouldn't be named outside the app. */
+  externalMessage?: string;
   /** Skip this user's in-app notification (they did the thing). */
   excludeUserId?: string | null;
   /** In-app recipients beyond owners/admins (e.g. a task's assignee). */
@@ -55,11 +58,12 @@ export async function sendAlert(params: {
       link: params.link,
     });
 
-    const details = params.details ?? [];
+    const details = params.externalMessage ? [] : (params.details ?? []);
+    const message = params.externalMessage ?? params.message;
     if (channels.slack) {
       await postToSlack(
         org.slackWebhookUrl,
-        [params.message, ...details.map((d) => `• ${d}`)].join("\n")
+        [message, ...details.map((d) => `• ${d}`)].join("\n")
       );
     }
     if (channels.email) {
@@ -68,11 +72,11 @@ export async function sendAlert(params: {
       for (const to of await alertRecipients(params.orgId, org.alertEmails)) {
         await sendEmail({
           to,
-          subject: params.message.slice(0, 150),
+          subject: message.slice(0, 150),
           react: AlertEmail({
             orgName: org.name,
             headline: headlineFor(params.event),
-            message: params.message,
+            message,
             details,
             url,
             origin,
@@ -95,10 +99,18 @@ function headlineFor(event: AlertEvent) {
       return "Invoice sent";
     case "INVOICE_PAID":
       return "Invoice paid";
+    case "PAYMENT_RECEIVED":
+      return "Payment received";
+    case "PAYMENT_FAILED":
+      return "Payment failed";
     case "INVOICE_OVERDUE":
       return "Invoice overdue";
     case "BUDGET_ALERT":
       return "Budget alert";
+    case "ESTIMATE_ACCEPTED":
+      return "Estimate accepted";
+    case "ESTIMATE_DECLINED":
+      return "Estimate declined";
     case "TIMESHEET_SUBMITTED":
       return "Timesheet submitted";
     case "SECURITY_ALERT":
@@ -109,5 +121,7 @@ function headlineFor(event: AlertEvent) {
       return "Time logged";
     case "RECURRING_INVOICE_GENERATED":
       return "Invoice generated";
+    case "EXPENSE_SUBMITTED":
+      return "Expense to approve";
   }
 }

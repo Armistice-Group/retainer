@@ -8,6 +8,8 @@ import { ApiKeysCard } from "./api-keys-card";
 import { getOrigin } from "@/lib/url";
 import { TwoFactorCard } from "./two-factor-card";
 import { PasskeysCard } from "./passkeys-card";
+import { SessionsCard } from "./sessions-card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ContractorProfileCard } from "./contractor-profile-card";
 import { CalendarsCard } from "./calendars-card";
 import { FileConnectionsCard } from "./file-connections-card";
@@ -17,10 +19,18 @@ import { FILE_PROVIDERS } from "@/lib/integrations/storage/types";
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ files?: string; reason?: string }>;
+  searchParams: Promise<{ files?: string; reason?: string; security?: string }>;
 }) {
   const { user, org } = await requireOrgContext();
-  const { files: filesStatus, reason: filesReason } = await searchParams;
+  const { files: filesStatus, reason: filesReason, security } = await searchParams;
+  const securityNotice: Record<string, string> = {
+    "password-changed": "Password updated. Your other sessions were signed out.",
+    "signed-out-others": "Signed out of every other browser and device. You're still signed in here.",
+    "two-factor-off":
+      "Two-factor authentication is off. Your other sessions were signed out.",
+    "passkey-removed": "Passkey removed. Your other sessions were signed out.",
+  };
+  const notice = security ? securityNotice[security] : undefined;
   const [dbUser, membership] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -74,6 +84,11 @@ export default async function ProfilePage({
   return (
     <div>
       <PageHeader title="Profile" />
+      {notice ? (
+        <Alert className="mb-6">
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           <Card>
@@ -139,7 +154,9 @@ export default async function ProfilePage({
             }))}
           />
 
-          <TwoFactorCard enabled={dbUser.twoFactorEnabled} />
+          <TwoFactorCard enabled={dbUser.twoFactorEnabled} hasPassword={!!dbUser.passwordHash} />
+
+          <SessionsCard />
 
           <ApiKeysCard apiKeys={apiKeys} mcpUrl={`${await getOrigin()}/api/mcp`} />
         </div>

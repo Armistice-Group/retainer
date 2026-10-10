@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { paidShare } from "@/lib/invoice-balance";
 
 // Confidential projects are excluded from the client-wide rollup by
 // default — "confidential" controls need-to-know visibility internally,
@@ -31,12 +32,17 @@ export async function getClientByShareToken(token: string) {
       _sum: { hours: true },
     }),
     prisma.invoiceLineItem.aggregate({
-      where: { projectId: { in: projectIds }, invoice: { status: { in: ["SENT", "PAID"] } } },
+      where: { projectId: { in: projectIds }, invoice: { kind: "STANDARD", status: { in: ["SENT", "PAID"] } } },
       _sum: { amount: true },
     }),
-    prisma.invoiceLineItem.aggregate({
-      where: { projectId: { in: projectIds }, invoice: { status: "PAID" } },
-      _sum: { amount: true },
+    // Paid so far, part payments and applied credit included: each line's
+    // share of what's been settled on its invoice.
+    prisma.invoiceLineItem.findMany({
+      where: { projectId: { in: projectIds }, invoice: { kind: "STANDARD", status: { in: ["SENT", "PAID"] } } },
+      select: {
+        amount: true,
+        invoice: { select: { total: true, amountPaid: true, creditApplied: true } },
+      },
     }),
     prisma.invoice.findMany({
       where: {
@@ -55,6 +61,9 @@ export async function getClientByShareToken(token: string) {
         issueDate: true,
         dueDate: true,
         total: true,
+        amountPaid: true,
+        creditApplied: true,
+        kind: true,
         currency: true,
         stripePaymentIntentId: true,
       },
@@ -67,7 +76,7 @@ export async function getClientByShareToken(token: string) {
     projects: client.projects,
     loggedHours: Number(loggedAgg._sum.hours ?? 0),
     totalBilled: Number(billedAgg._sum.amount ?? 0),
-    totalPaid: Number(paidAgg._sum.amount ?? 0),
+    totalPaid: paidShare(paidAgg),
     invoices,
   };
 }

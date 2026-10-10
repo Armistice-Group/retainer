@@ -12,6 +12,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
 import { DocumentsCard } from "@/components/documents/documents-card";
 import { documentCardData } from "@/lib/services/documents";
+import { AgreementsCard } from "@/components/agreements/agreements-card";
+import { agreementsCardData } from "@/lib/services/agreements";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { EditRateDialog } from "./edit-rate-dialog";
@@ -27,6 +29,7 @@ import { canWrite } from "@/lib/integrations/linear";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
 import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
+import { ProjectEstimates } from "@/components/estimates/project-estimates";
 import { getOrigin } from "@/lib/url";
 import { CopyButton } from "@/components/copy-button";
 import { getTaskDetail } from "@/lib/task-detail";
@@ -77,6 +80,10 @@ export default async function ProjectDetailPage({
 
   if (!project || project.orgId !== org.id) notFound();
   if (!(await canViewProject(project, user.id, role))) notFound();
+  const agreementsCard = await agreementsCardData(
+    { orgId: org.id, userId: user.id, role },
+    { clientId: project.clientId, projectId: project.id }
+  );
 
   const [
     totalLoggedHours,
@@ -110,7 +117,8 @@ export default async function ProjectDetailPage({
   let invoicedTotal = 0;
   for (const li of projectLineItems) {
     const amount = Number(li.amount);
-    if (li.invoice.status !== "VOID") invoicedTotal += amount;
+    // A deposit isn't work invoiced (the invoice for the work is).
+    if (li.invoice.status !== "VOID" && li.invoice.kind !== "DEPOSIT") invoicedTotal += amount;
     const existing = invoiceMap.get(li.invoiceId);
     if (existing) {
       existing.lineItemTotal += amount;
@@ -122,6 +130,10 @@ export default async function ProjectDetailPage({
         dueDate: li.invoice.dueDate.toISOString(),
         lineItemTotal: amount,
         currency: li.invoice.currency,
+        kind: li.invoice.kind,
+        total: Number(li.invoice.total),
+        amountPaid: Number(li.invoice.amountPaid),
+        creditApplied: Number(li.invoice.creditApplied),
       });
     }
   }
@@ -237,6 +249,8 @@ export default async function ProjectDetailPage({
         <p className="mb-6 max-w-3xl text-sm text-muted-foreground">{project.description}</p>
       ) : null}
 
+      <ProjectEstimates projectId={project.id} orgId={org.id} userId={user.id} role={role} />
+
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-1">
           <Card>
@@ -265,6 +279,14 @@ export default async function ProjectDetailPage({
               { clientId: project.clientId, projectId: project.id }
             ))}
           />
+
+          {agreementsCard.show ? (
+            <AgreementsCard
+              agreements={agreementsCard.agreements}
+              canManage={agreementsCard.canManage}
+              showProject={false}
+            />
+          ) : null}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

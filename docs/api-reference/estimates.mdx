@@ -1,0 +1,152 @@
+---
+title: Estimates
+description: List, get and create estimates
+---
+
+See [Estimates](/concepts/estimates) for how estimates work. Sending,
+accepting or declining, and creating a project from an estimate are done in
+the app.
+
+Responses never include the estimate's client-link token. `responseIp` and
+`responseUserAgent` (recorded when the client accepts or declines on the
+client page) are only included for owner and admin keys.
+
+## List estimates
+
+```
+GET /api/v1/estimates
+```
+
+Any role. Returns the organization's estimates, newest first, each with its
+`client` (`{ id, name }`). Owner and admin keys get every estimate. A member's
+key doesn't get estimates tied to a confidential project the member isn't on.
+Sent estimates past their expiry date are marked `EXPIRED` first.
+
+<ParamField query="status" type="string">
+  Only `DRAFT`, `SENT`, `ACCEPTED`, `DECLINED` or `EXPIRED` estimates. Any
+  other value is ignored.
+</ParamField>
+<ParamField query="clientId" type="string">Only this client's estimates.</ParamField>
+
+```bash
+curl "https://<your-instance>/api/v1/estimates?status=ACCEPTED" \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "estimates": [
+    {
+      "id": "cm9...",
+      "number": "EST-0007",
+      "title": "Website redesign",
+      "status": "ACCEPTED",
+      "issueDate": "2026-10-01T00:00:00.000Z",
+      "expiresAt": "2026-10-31T00:00:00.000Z",
+      "currency": "USD",
+      "subtotal": "12000",
+      "taxRate": "0",
+      "taxAmount": "0",
+      "total": "12000",
+      "proposedBillingType": "MILESTONE",
+      "proposedRate": null,
+      "proposedBudget": null,
+      "sentAt": "2026-10-01T15:02:11.000Z",
+      "respondedAt": "2026-10-03T09:40:52.000Z",
+      "responderName": "Dana Smith",
+      "responseNote": null,
+      "respondedById": null,
+      "projectId": null,
+      "projectCreatedAt": null,
+      "client": { "id": "cm9...", "name": "Fintra Labs" },
+      "...": "..."
+    }
+  ]
+}
+```
+
+`respondedById` is set when someone in your organization marked the estimate
+accepted or declined by hand, and `null` when the client answered on the
+client page. `projectId` is the project the estimate was written for, or the
+one created from it (then `projectCreatedAt` is set).
+
+## Get an estimate
+
+```
+GET /api/v1/estimates/{id}
+```
+
+Any role, with the same visibility as the list. Returns
+`{ "estimate": { ... } }` with its `client`, `project` (`{ id, name }` or
+`null`) and `lineItems` (each with `description`, `quantity`, `rate`,
+`amount`, `isMilestone`, `milestoneDueDate`, `milestoneDueDays`).
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `404` | `Estimate not found.` | Check the id. A member's key gets this for an estimate on a confidential project they're not on. |
+
+## Create an estimate
+
+```
+POST /api/v1/estimates
+```
+
+Owner/admin only. Creates a **Draft** with the next `EST-` number, in the
+organization's default currency. Returns `201` with `{ "estimate": { ... } }`
+including its `lineItems` and computed `subtotal`, `taxAmount` and `total`.
+
+<ParamField body="clientId" type="string" required />
+<ParamField body="projectId" type="string">
+  An existing project of this client the estimate is for. Leave it out for
+  work that becomes a new project once accepted.
+</ParamField>
+<ParamField body="title" type="string" required>Up to 200 characters.</ParamField>
+<ParamField body="intro" type="string">
+  Scope text, up to 20,000 characters. Plain text or simple markdown (see
+  [Estimates](/concepts/estimates#how-to-write-an-estimate)).
+</ParamField>
+<ParamField body="issueDate" type="string">`YYYY-MM-DD`. Defaults to today (UTC).</ParamField>
+<ParamField body="expiresAt" type="string">
+  `YYYY-MM-DD`, the last day the client can accept. Not before `issueDate`.
+  Leave it out for no expiry.
+</ParamField>
+<ParamField body="taxRate" type="number" default="0">Percent, 0 to 100.</ParamField>
+<ParamField body="proposedBillingType" type="string">
+  `HOURLY`, `FLAT_FEE` or `MILESTONE`: the billing type of the project
+  created on acceptance. Defaults to `MILESTONE` if any line is a milestone,
+  otherwise `FLAT_FEE`.
+</ParamField>
+<ParamField body="proposedRate" type="number">Hourly rate, for an hourly project.</ParamField>
+<ParamField body="proposedBudget" type="number">Project budget. Defaults to the subtotal.</ParamField>
+<ParamField body="lineItems" type="object[]" required>
+  1 to 200 lines. Each has `description` (required, up to 500 characters),
+  `quantity` and `rate` (unit price; both 0 or more), and optionally
+  `isMilestone` (boolean), with `milestoneDueDate` (`YYYY-MM-DD`) or
+  `milestoneDueDays` (days after acceptance). Amounts are quantity × rate,
+  rounded to cents.
+</ParamField>
+
+```bash
+curl -X POST https://<your-instance>/api/v1/estimates \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "cm9...",
+    "title": "Website redesign",
+    "expiresAt": "2026-11-30",
+    "lineItems": [
+      { "description": "Discovery", "quantity": 1, "rate": 3000, "isMilestone": true, "milestoneDueDays": 14 },
+      { "description": "Design and build", "quantity": 1, "rate": 9000, "isMilestone": true }
+    ]
+  }'
+```
+
+**Errors**
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `403` | `Only owners and admins can manage estimates.` | Use an owner or admin key. |
+| `422` | `{ "lineItems": ["Add at least one line item"] }` | Send at least one line. Other field errors come back the same way. |
+| `422` | `Client not found.` | Check `clientId`. |
+| `422` | `Project not found.` | Check `projectId`. |
+| `422` | `That project belongs to a different client.` | Use a project of the same client. |

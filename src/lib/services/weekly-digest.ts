@@ -8,6 +8,7 @@ import { buildReport } from "@/lib/services/reports";
 import { DigestEmail, type DigestData } from "@/emails/digest-email";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { daysOverdue } from "@/lib/invoice-aging";
+import { balanceDue, isPartlyPaid } from "@/lib/invoice-balance";
 import { getOrigin } from "@/lib/url";
 import { toISODate } from "@/lib/date";
 
@@ -28,12 +29,14 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
   const report = await buildReport(orgId, from, to);
 
   const [paid, sent, overdue, budgets, pendingSheets] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { orgId, status: "PAID", paidAt: { gte: from, lt: to } },
-      select: { total: true },
+    // Cash received last week, part payments included, by the date it
+    // arrived (in the org's currency, like the other figures).
+    prisma.payment.findMany({
+      where: { orgId, currency: org.defaultCurrency, receivedAt: { gte: from, lt: to } },
+      select: { amount: true },
     }),
     prisma.invoice.findMany({
-      where: { orgId, status: { in: ["SENT", "PAID"] }, issueDate: { gte: from, lt: to } },
+      where: { orgId, kind: "STANDARD", status: { in: ["SENT", "PAID"] }, issueDate: { gte: from, lt: to } },
       select: { total: true },
     }),
     prisma.invoice.findMany({
@@ -48,6 +51,7 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
     prisma.timesheet.count({ where: { orgId, status: "SUBMITTED" } }),
   ]);
   const sum = (rows: { total: unknown }[]) => rows.reduce((s, r) => s + Number(r.total), 0);
+  const received = paid.reduce((s, p) => s + Number(p.amount), 0);
   const hours = report.people.reduce((s, p) => s + p.hours, 0);
   const billable = report.people.reduce((s, p) => s + p.billableHours, 0);
   const unbilled = report.unbilled.reduce((s, u) => s + u.total, 0);
@@ -64,7 +68,7 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
       title: "Overdue invoices",
       lines: overdue.map(
         (i) =>
-          `${i.number} · ${i.client.name} · ${money(Number(i.total))} · ${daysOverdue(i.dueDate, to)} days (due ${formatDate(i.dueDate)})`
+          `${i.number} · ${i.client.name} · ${money(balanceDue(i))}${isPartlyPaid(i) ? " still due (partly paid)" : ""} · ${daysOverdue(i.dueDate, to)} days (due ${formatDate(i.dueDate)})`
       ),
       empty: "Nothing overdue.",
     },
@@ -92,7 +96,7 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
       { label: "hours logged", value: `${hours.toFixed(1)}` },
       { label: "billable", value: `${billable.toFixed(1)}h` },
       { label: "invoiced", value: money(sum(sent)) },
-      { label: "paid", value: money(sum(paid)) },
+      { label: "received", value: money(received) },
       { label: "not yet invoiced", value: money(unbilled) },
     ],
     sections,

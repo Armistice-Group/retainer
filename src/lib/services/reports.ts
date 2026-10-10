@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { daysOverdue } from "@/lib/invoice-aging";
+import { balanceDue } from "@/lib/invoice-balance";
 
 const DAY_MS = 86_400_000;
 
@@ -89,7 +90,8 @@ export async function buildReport(orgId: string, from: Date, to: Date) {
     prisma.invoiceLineItem.findMany({
       where: {
         projectId: { not: null },
-        invoice: { orgId, status: { in: ["SENT", "PAID"] }, issueDate: { gte: from, lt: to } },
+        // Deposits aren't work invoiced: the invoice for the work is.
+        invoice: { orgId, kind: "STANDARD", status: { in: ["SENT", "PAID"] }, issueDate: { gte: from, lt: to } },
       },
       select: { projectId: true, amount: true },
     }),
@@ -209,7 +211,23 @@ export async function buildReport(orgId: string, from: Date, to: Date) {
     projects: [...projects.values()].sort((a, b) => b.invoiced - a.invoiced || b.hours - a.hours),
     unbilled: await unbilledByClient(orgId, billRate),
     aging: await agingByClient(orgId),
+    received: await receivedInRange(orgId, from, to),
   };
+}
+
+/** Cash received in [from, to): payments by the date they arrived, in the
+ * org's default currency (other currencies are listed separately). Applied
+ * credit isn't cash, so it isn't counted. */
+async function receivedInRange(orgId: string, from: Date, to: Date) {
+  const rows = await prisma.payment.groupBy({
+    by: ["currency"],
+    where: { orgId, receivedAt: { gte: from, lt: to } },
+    _sum: { amount: true },
+    _count: true,
+  });
+  return rows
+    .map((r) => ({ currency: r.currency, amount: Number(r._sum.amount ?? 0), count: r._count }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 async function unbilledByClient(orgId: string, billRate: Map<string, number>) {
@@ -261,7 +279,13 @@ async function unbilledByClient(orgId: string, billRate: Map<string, number>) {
 async function agingByClient(orgId: string) {
   const invoices = await prisma.invoice.findMany({
     where: { orgId, status: "SENT" },
-    select: { total: true, dueDate: true, client: { select: { id: true, name: true } } },
+    select: {
+      total: true,
+      amountPaid: true,
+      creditApplied: true,
+      dueDate: true,
+      client: { select: { id: true, name: true } },
+    },
   });
   const rows = new Map<string, AgingRow>();
   for (const inv of invoices) {
@@ -279,7 +303,9 @@ async function agingByClient(orgId: string) {
       };
       rows.set(inv.client.id, r);
     }
-    const amount = Number(inv.total);
+    // What's still owed, not the original total.
+    const amount = balanceDue(inv);
+    if (amount <= 0) continue;
     const late = daysOverdue(inv.dueDate);
     if (late === 0) r.current += amount;
     else if (late <= 30) r.d1to30 += amount;
@@ -288,7 +314,7 @@ async function agingByClient(orgId: string) {
     else r.over90 += amount;
     r.total += amount;
   }
-  return [...rows.values()].sort((a, b) => b.total - a.total);
+  return [...rows.values()].filter((r) => r.total > 0).sort((a, b) => b.total - a.total);
 }
 
 export type Report = Awaited<ReturnType<typeof buildReport>>;

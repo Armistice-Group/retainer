@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Built docs site (docs-site/build.mjs output, incl. Pagefind's bundle).
+    "docs-site/dist/**",
   ]),
 ]);
 

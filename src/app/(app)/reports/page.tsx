@@ -48,6 +48,9 @@ export default async function ReportsPage({
   const hours = report.people.reduce((s, p) => s + p.hours, 0);
   const billable = report.people.reduce((s, p) => s + p.billableHours, 0);
   const missingCost = report.projects.some((p) => p.missingCost);
+  // Cash received in range, by the date each payment arrived.
+  const receivedHere = report.received.find((r) => r.currency === org.defaultCurrency);
+  const receivedOther = report.received.filter((r) => r.currency !== org.defaultCurrency);
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,13 +87,22 @@ export default async function ReportsPage({
         </form>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Hours logged" value={hours.toFixed(1)} sub={`${billable.toFixed(1)} billable`} />
         <Stat label="Invoiced" value={money(totals.invoiced)} sub={`${money(totals.value)} of billable time logged`} />
         <Stat
           label="Profit"
           value={money(totals.profit)}
           sub={totals.invoiced > 0 ? `${pct(totals.profit / totals.invoiced)} margin` : "Nothing invoiced yet"}
+        />
+        <Stat
+          label="Received"
+          value={money(receivedHere?.amount ?? 0)}
+          sub={
+            receivedOther.length
+              ? `Also ${receivedOther.map((r) => formatCurrency(r.amount, r.currency)).join(", ")}`
+              : `${receivedHere?.count ?? 0} payment${receivedHere?.count === 1 ? "" : "s"} in range`
+          }
         />
         <Stat
           label="Outstanding"
@@ -177,7 +189,7 @@ export default async function ReportsPage({
         </Section>
         <Section
           title="Receivables"
-          hint="Sent, unpaid invoices by days overdue."
+          hint="Balance still due on sent invoices (after part payments and credit), by days overdue."
           exportHref={`/reports/export?section=aging&${query}`}
         >
           <Table

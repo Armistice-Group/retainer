@@ -1,0 +1,23 @@
+{
+  "name": "consultainer-docs-site",
+  "private": true,
+  "type": "module",
+  "description": "Builds docs/ (Mintlify MDX) into a static site served at consultainer.app/docs.",
+  "scripts": {
+    "build": "node build.mjs && pagefind --site dist --output-subdir pagefind",
+    "serve": "node serve.mjs"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "3.1.0",
+    "@shikijs/rehype": "1.24.2",
+    "github-slugger": "2.0.0",
+    "gray-matter": "4.0.3",
+    "lucide-static": "0.468.0",
+    "pagefind": "1.3.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "rehype-slug": "6.0.0",
+    "remark-gfm": "4.0.0",
+    "shiki": "1.24.2"
+  }
+}

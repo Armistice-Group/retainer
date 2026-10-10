@@ -14,8 +14,15 @@ import {
 } from "@/lib/two-factor";
 import { consumeLoginTicket } from "@/lib/webauthn";
 import { recordAuditEvent } from "@/lib/audit";
+import { issueTwoFactorLoginTicket, redeemTwoFactorLoginTicket } from "@/lib/two-factor-ticket";
+import { takeSessionCarry } from "@/lib/session-carry";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+/** Sessions finished through the Google code step are Google sign-ins. */
+function signInMethodFor(provider: string) {
+  return provider === "google-two-factor" ? "google" : provider;
+}
+
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -84,6 +91,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
     Credentials({
+      // Second step of "Continue with Google" for accounts with an
+      // authenticator app. Google's own callback never creates a session for
+      // them (see the signIn callback): this provider does, and only with a
+      // ticket issued by that callback plus a valid code.
+      id: "google-two-factor",
+      name: "Google two-factor",
+      credentials: {
+        ticket: { label: "Ticket", type: "text" },
+        code: { label: "2FA code", type: "text" },
+      },
+      authorize: async (credentials) => {
+        const ticket = credentials?.ticket as string | undefined;
+        const code = credentials?.code as string | undefined;
+        if (!ticket || !code) return null;
+
+        const userId = await redeemTwoFactorLoginTicket(ticket, code);
+        if (!userId) return null;
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return null;
+        if (await isLocalLoginBlocked(user.id)) return null;
+
+        return { id: user.id, email: user.email, name: user.name };
+      },
+    }),
+    Credentials({
+      // A passkey sign-in is two factors on its own: the device (possession)
+      // plus its PIN or biometric — verifyAuthentication() requires the
+      // user-verification flag — so it doesn't ask for the TOTP code.
       id: "passkey",
       name: "Passkey",
       // NOT a bare credentialId — see issueLoginTicket()'s doc comment for
@@ -135,8 +171,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // and refreshes the 2FA state the required-2FA gate reads.
     async jwt(params) {
       const token = authConfig.callbacks.jwt(params);
-      const { user, account } = params;
-      if (user?.id && account) token.signInMethod = account.provider;
+      const { user, account, trigger, session } = params;
+      if (user?.id && account) token.signInMethod = signInMethodFor(account.provider);
       if (typeof token.id !== "string") return token;
 
       const dbUser = await prisma.user.findUnique({
@@ -146,8 +182,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!dbUser) return null;
       if (user?.id) {
         token.sessionVersion = dbUser.sessionVersion;
-      } else if ((token.sessionVersion ?? 0) !== dbUser.sessionVersion) {
-        return null;
+      } else {
+        // The session that changed the password (or chose "Sign out other
+        // sessions") moves to the new version; see lib/session-carry.
+        if (trigger === "update") {
+          const carried = takeSessionCarry(
+            (session as { sessionCarry?: unknown } | undefined)?.sessionCarry,
+            token.id
+          );
+          if (carried !== null && carried === dbUser.sessionVersion) {
+            token.sessionVersion = carried;
+          }
+        }
+        if ((token.sessionVersion ?? 0) !== dbUser.sessionVersion) return null;
       }
       token.twoFactorEnabled = dbUser.twoFactorEnabled;
       return token;
@@ -194,6 +241,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return "/login?error=sso-required";
       }
 
+      // Google proves the account, not the authenticator app. No session yet:
+      // the code page finishes the sign-in through "google-two-factor".
+      if (dbUser.twoFactorEnabled && dbUser.twoFactorSecret) {
+        const ticket = await issueTwoFactorLoginTicket(dbUser.id);
+        return `/login/two-factor/${ticket}`;
+      }
+
       user.id = dbUser.id;
       return true;
     },
@@ -211,7 +265,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         action: "sign_in",
         entityType: "User",
         entityId: user.id,
-        entityLabel: account?.provider ?? null,
+        entityLabel: account ? signInMethodFor(account.provider) : null,
       });
     },
   },

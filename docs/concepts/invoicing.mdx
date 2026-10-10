@@ -5,13 +5,16 @@ description: Generate invoices from unbilled work, send them, track opens, and g
 
 An invoice bills one client for work you've already recorded: billable time,
 completed milestones and approved expenses. You generate a draft, check it,
-send it, and mark it paid (or let online payments do that).
+send it, and record payments against it until it's paid (or let online
+payments do that). For money taken up front, bill a
+[deposit](/concepts/deposits-and-credit); to give money back as credit,
+issue a [credit note](/concepts/deposits-and-credit#credit-notes).
 
 **Who can do what:** in the app, anyone in the organization can generate
 invoices and edit drafts. Sending an invoice (**Email to client** or **Mark
-as sent**), marking it paid, voiding it, deleting a draft, pushing to
-QuickBooks, and setting up billing cycles and retainers are for owners and
-admins; members don't see those buttons. Over an API key or the
+as sent**), recording payments and marking it paid, applying credit, voiding
+it, deleting a draft, pushing to QuickBooks, and setting up billing cycles and
+retainers are for owners and admins; members don't see those buttons. Over an API key or the
 [MCP server](/mcp-server), generating, emailing and changing an invoice's
 status are for owner and admin keys only.
 
@@ -92,14 +95,22 @@ An invoice only moves forward:
 
 - **Draft → Sent** (it needs at least one line: *Add at least one line item
   before sending.*),
-- **Sent → Paid**,
+- **Sent → Paid**, once payments and applied credit cover the whole total
+  (see [Getting paid](#getting-paid)). Deleting a payment recorded by mistake
+  moves it back to **Sent**.
 - **Draft or Sent → Void** (in the app, **Void** is on sent invoices; throw
-  away a draft with **Delete** instead). Voiding puts the invoice's work back
-  to unbilled; see [How to void an invoice](#how-to-void-an-invoice).
+  away a draft with **Delete** instead), as long as no payment or credit is
+  recorded on it. Voiding puts the invoice's work back to unbilled; see
+  [How to void an invoice](#how-to-void-an-invoice).
 
 Nothing goes back to **Draft**, and a paid invoice can't be voided. Trying
 anyway says, for example, *Only sent invoices can be marked paid.* or *Paid
 invoices can't be voided.*
+
+A sent invoice with part of it paid stays **Sent**, and shows as **Partly
+paid · $X due** (the balance still owed) on the invoice, the invoices list,
+the client and project pages, the client's share pages and the client invoice
+page.
 
 ## How to send an invoice
 
@@ -146,11 +157,14 @@ which is what **Email to client** and **Copy client link** give the client. No
 login is needed. It shows:
 
 - Your logo (or name), the invoice number, total, issue date and status.
+  Once part of it is paid, the big figure is the amount still due, with the
+  total and what's been paid underneath.
 - **Due** date, and how many days overdue it is if it's late. A paid invoice
   says *Paid — thank you*; a void one says *This invoice was voided*.
 - **Download PDF**, and the PDF itself on the page.
 - **Pay now**, if [online payments](/integrations/payments) are set up and the
-  invoice is unpaid. While a bank payment the client made is clearing, the
+  invoice is unpaid. It charges the balance still due, not the original
+  total. While a bank payment the client made is clearing, the
   page says *A bank payment for this invoice is processing* instead, and
   after paying the client sees a confirmation at the top of the page.
 - **How to pay**: your [payment methods](/integrations/payments) for this
@@ -186,18 +200,79 @@ Things to know:
 
 ## Getting paid
 
+An invoice's **balance due** is its total minus the payments recorded on it
+and any [client credit](/concepts/deposits-and-credit) applied to it. It stays
+**Sent** until the balance reaches zero, then becomes **Paid**. The **Summary**
+card on the invoice shows **Total**, **Paid**, **Credit applied** and
+**Balance due**, and the PDF shows the same rows ending in **Amount due**.
+
+Recording payments, marking paid and deleting payments are for owners and
+admins (in the app, over the API and over MCP).
+
+### How to record a payment
+
+Use this for part of the balance, or for a payment that arrived on another
+day.
+
+<Steps>
+  <Step title="Open the invoice">
+    On a sent invoice, click **Record payment**.
+  </Step>
+  <Step title="Fill in the payment">
+    **Amount** starts at the balance due; change it for a part payment.
+    Set **Received on** (today by default) and, optionally, **Method** (Wire,
+    ACH, Check…), **Reference** (a check number, say) and a **Note**.
+  </Step>
+  <Step title="Save">
+    Click **Record payment**.
+  </Step>
+</Steps>
+
+**Check it worked:** the payment is listed in the **Payments** card on the
+invoice with the date, method and who recorded it. If it covered the rest of
+the balance the invoice is **Paid** and you get the *invoice paid* alert;
+otherwise it shows **Partly paid · $X due** and you get the *part payment
+received* alert (**A part payment is received** under Settings → Alerts).
+
+You can't record more than is due: *That's more than the $600.00 still due on
+this invoice.* (Online payments are the exception: if a client pays through
+Stripe or Mercury while you were recording a payment by hand, the extra is
+kept as [client credit](/concepts/deposits-and-credit).)
+
 ### How to mark an invoice paid
 
-Owners and admins can mark an invoice paid.
+**Mark as paid** is a shortcut that records one payment for the whole balance
+due, dated today.
 
-1. On a sent invoice, click **Mark as paid**.
+1. On a sent invoice, click **Mark as paid**. The dialog says how much it will
+   record.
 2. Optional: enter the **Payment method** (for example Wire, ACH, Check).
 3. Click **Mark as paid**.
 
 This sends the *invoice paid* alert and, if filing is set up, updates the
-filed PDF. Invoices paid online through Stripe or Mercury are marked paid
-automatically once the payment has gone through (a bank payment through
+filed PDF. Invoices paid online through Stripe or Mercury get their payment
+recorded automatically once it has gone through (a bank payment through
 Stripe takes a few business days); see [Payments](/integrations/payments).
+
+### How to delete a payment recorded by mistake
+
+1. In the invoice's **Payments** card, click the bin icon next to the payment.
+2. Confirm.
+
+The payment is removed, the balance goes back up, and a paid invoice returns
+to **Sent**. The deletion is in the [audit log](/concepts/alerts-and-audit)
+(*deleted payment*), along with who recorded it in the first place. Deleting
+a Stripe, Mercury or QuickBooks payment here doesn't refund or cancel
+anything there.
+
+A payment on a [deposit invoice](/concepts/deposits-and-credit) can't be
+deleted once its credit has been spent: *Credit from this payment has already
+been applied to other invoices. Remove that credit from them first.*
+
+### Payments before this version
+
+Invoices that were already **Paid** when you upgraded got one payment for
+their full total, dated when they were marked paid.
 
 ### Overdue invoices
 
@@ -225,7 +300,8 @@ How reminders work:
 - Each threshold is sent once per invoice. If an invoice is already past
   several thresholds when you turn reminders on, only the latest one goes
   out, so clients don't get a backlog.
-- They stop when the invoice is paid or voided.
+- They stop when the invoice is paid or voided. A reminder for a partly paid
+  invoice asks for the balance due.
 - Each one shows under **Activity** as *Reminder (7 days overdue) sent to …*.
 
 To stop reminders for one client, open the client, click **Edit**, untick
@@ -233,7 +309,13 @@ To stop reminders for one client, open the client, click **Edit**, untick
 
 ## How to void an invoice
 
-Owners and admins can void a sent invoice (a paid one can't be voided).
+Owners and admins can void a sent invoice, as long as nothing has been paid
+or credited on it. Once a payment or credit is recorded, **Void** isn't
+offered and the **Payments** card says why: *This invoice has payments or
+credit recorded, so it can't be voided. Delete them first if they were a
+mistake, or issue a credit note for the rest of the balance.* To write off the
+rest of a partly paid invoice, issue a
+[credit note](/concepts/deposits-and-credit#credit-notes) for it and apply it.
 
 1. On the sent invoice, click **Void**.
 2. Read the confirmation and click **OK**. Voiding can't be undone.
@@ -370,7 +452,9 @@ time of day depends on when the stack was last started. A run date means
 
 ## Over MCP
 
-`list_invoices`, `generate_invoice`, `email_invoice`, `get_invoice_activity`,
-`mark_invoice_sent`, `mark_invoice_paid` and `void_invoice`. Generating,
-emailing and the three status tools need an owner or admin key. See the
-[MCP server](/mcp-server).
+`list_invoices` (with `amountPaid`, `creditApplied` and `balanceDue`),
+`generate_invoice`, `email_invoice`, `get_invoice_activity`,
+`mark_invoice_sent`, `mark_invoice_paid` (records a payment for the whole
+balance), `record_invoice_payment`, `list_invoice_payments` and
+`void_invoice`. Generating, emailing, recording payments and the three status
+tools need an owner or admin key. See the [MCP server](/mcp-server).

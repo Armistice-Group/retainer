@@ -23,6 +23,8 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { addClientDocumentAction } from "@/actions/client-documents";
 import { detectLink } from "@/lib/integrations/storage/detect";
+import { detectAgreementUrl } from "@/lib/integrations/agreements/detect";
+import { AGREEMENT_PROVIDER_LABELS } from "@/lib/integrations/agreements/parse";
 import { DocumentAccessFields, type DocumentMember } from "./document-access-fields";
 import { DocumentAudienceField } from "./document-audience-field";
 import { DocumentIcon } from "./provider-icon";
@@ -56,6 +58,7 @@ export function AddDocumentDialog({
   const [url, setUrl] = useState("");
   const [label, setLabel] = useState("");
   const detected = url ? detectLink(url) : null;
+  const agreementLink = url ? detectAgreementUrl(url) : null;
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await addClientDocumentAction(clientId, prev, formData);
     if (result?.saved) {
@@ -137,7 +140,14 @@ export function AddDocumentDialog({
                   placeholder="Google Drive, Dropbox, OneDrive, Notion, Box, or any URL"
                   required
                 />
-                {detected ? (
+                {agreementLink ? (
+                  <p className="text-xs text-muted-foreground">
+                    {AGREEMENT_PROVIDER_LABELS[agreementLink.provider]} agreement. For owners and
+                    admins this links the signed agreement itself (it shows under Signed
+                    agreements, with its signers and signed copy) through your organization&apos;s{" "}
+                    {AGREEMENT_PROVIDER_LABELS[agreementLink.provider]} connection.
+                  </p>
+                ) : detected ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <DocumentIcon source={detected.provider} kind={detected.kind} className="size-3.5" />
                     {detected.label}

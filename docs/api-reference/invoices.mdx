@@ -1,6 +1,6 @@
 ---
 title: Invoices
-description: List invoices and generate a draft
+description: List invoices, generate a draft, and record payments
 ---
 
 ## List invoices
@@ -40,6 +40,10 @@ curl "https://<your-instance>/api/v1/invoices?status=SENT" \
       "taxAmount": "0",
       "total": "5250",
       "currency": "USD",
+      "kind": "STANDARD",
+      "amountPaid": "2000.00",
+      "creditApplied": "0.00",
+      "balanceDue": "3250.00",
       "paidAt": null,
       "firstViewedAt": "2026-08-02T16:40:12.000Z",
       "viewCount": 3,
@@ -50,8 +54,14 @@ curl "https://<your-instance>/api/v1/invoices?status=SENT" \
 }
 ```
 
-`paidAt` is when the invoice was marked paid (by hand, or when an online
-payment went through), or `null`. `firstViewedAt`, `lastViewedAt` and
+`amountPaid` is the sum of the payments recorded on the invoice and
+`creditApplied` the [client credit](/concepts/deposits-and-credit) applied to
+it; `balanceDue` is `total` minus both (never below `0.00`, and `0.00` for a
+`VOID` invoice). A partly paid invoice stays `SENT` until `balanceDue`
+reaches `0.00`. `kind` is `STANDARD`, or `DEPOSIT` for a
+[deposit invoice](/concepts/deposits-and-credit#deposits). `paidAt` is when
+the invoice became paid in full (by hand, or when an online payment went
+through), or `null`. `firstViewedAt`, `lastViewedAt` and
 `viewCount` track when the client opened the invoice. To find overdue invoices, look for `SENT` invoices whose
 `dueDate` has passed (the MCP `list_invoices` tool returns `isOverdue` and
 `daysOverdue` for you).
@@ -123,3 +133,69 @@ curl -X POST https://<your-instance>/api/v1/invoices/generate \
 | `422` | `Client not found.` | Check `clientId`. |
 | `422` | `No eligible unbilled time entries, milestones, or expenses were selected.` | None of the IDs qualified. Check they're on this client's projects, billable, approved, and not already invoiced. |
 | `422` | `Custom payment terms need a due date.` | Send `dueDate` with `CUSTOM` terms. |
+
+## List an invoice's payments
+
+```
+GET /api/v1/invoices/{id}/payments
+```
+
+Any role that can see the invoice. Returns its `amountPaid`, `creditApplied`
+and `balanceDue`, plus:
+
+- `payments`: each with `amount`, `currency`, `receivedAt`, `source`
+  (`MANUAL`, `STRIPE`, `MERCURY` or `QUICKBOOKS`), `method`, `reference`,
+  `note` and `recordedBy` (a name, or `null` for payments recorded by an
+  integration), newest first.
+- `creditApplications`: client credit applied to the invoice.
+- `creditNotes`: credit notes issued against it.
+
+Returns `404` with `Invoice not found.` for an invoice in another
+organization or one the key can't see.
+
+## Record a payment
+
+```
+POST /api/v1/invoices/{id}/payments
+```
+
+Owner/admin only. Records money received against a sent invoice, the same as
+**Record payment** in the app. The invoice becomes `PAID` when its balance
+reaches zero (with the *invoice paid* alert); a part payment leaves it `SENT`
+and sends the *part payment received* alert. Returns `201` with
+`{ "payment": { ... }, "invoice": { ... } }`; `invoice` includes the new
+`amountPaid` and `balanceDue`.
+
+<ParamField body="amount" type="number" required>
+  In the invoice's currency, greater than zero, to the cent. Can't be more
+  than `balanceDue`.
+</ParamField>
+<ParamField body="receivedAt" type="string">
+  `YYYY-MM-DD`. Defaults to today.
+</ParamField>
+<ParamField body="method" type="string">For example `Wire`. Up to 100 characters.</ParamField>
+<ParamField body="reference" type="string">For example a check number. Up to 200 characters.</ParamField>
+<ParamField body="note" type="string">Up to 1,000 characters.</ParamField>
+
+```bash
+curl -X POST https://<your-instance>/api/v1/invoices/cm9.../payments \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{ "amount": 2000, "receivedAt": "2026-08-20", "method": "Wire" }'
+```
+
+**Errors**
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `403` | `Only owners and admins can record payments.` | Use an owner or admin key. |
+| `404` | `Invoice not found.` | Check the id, and that the key can see the invoice. |
+| `422` | `{ "amount": ["Amount must be greater than zero"] }` | Send a positive `amount`. |
+| `422` | `That's more than the $3,250.00 still due on this invoice.` | Record at most `balanceDue`. |
+| `422` | `Send the invoice before recording a payment.` | The invoice is a draft. |
+| `422` | `This invoice is already paid in full.` | Nothing is due. |
+| `422` | `This invoice is void.` | Void invoices can't be paid. |
+| `422` | `Enter an amount greater than zero, to the cent.` | Use at most two decimal places. |
+
+To delete a payment recorded by mistake, use the invoice's **Payments** card in
+the app.

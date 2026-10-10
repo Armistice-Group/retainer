@@ -44,11 +44,35 @@ currency).
 2. Click **Approve** to make it billable, or **Reject** to mark it
    **Rejected**. A rejected expense is never invoiced.
 
-<Note>
-No one is notified when an expense is waiting for approval, so check the
-**Expenses** card on your projects. The MCP `list_expenses` tool can list
-pending expenses across projects.
-</Note>
+### Who hears about it
+
+- **Owners and admins**, when a member's expense goes **Pending**: the
+  **An expense is waiting for approval** alert, in the app and, by default,
+  in Slack and by email (change it on **Settings → Alerts**; see
+  [Alerts](/concepts/alerts-and-audit#the-alerts)). On a confidential
+  project, Slack and email leave out the project and description. The
+  dashboard also shows **Expenses waiting for approval** with the count and
+  the oldest five; click one to open its project's **Expenses** card.
+- **The person who logged it**, when it's approved or rejected: a
+  notification in the app, and an email (*Your … expense was approved* or
+  *… rejected*) when [email](/integrations/email) is set up. If they're no
+  longer on a confidential project, the message leaves the project out.
+
+This works the same for expenses logged or decided over MCP.
+
+**Check it worked:** log an expense above the threshold as a member, then
+open the dashboard as an owner or admin: the **Expenses waiting for approval**
+card lists it, and the bell has *… logged a … expense on … that's waiting for
+approval*.
+
+**Troubleshooting:**
+
+- **No alert for an expense:** it was approved automatically (logged by an
+  owner or admin, or at or under the threshold).
+- **No Slack message or email:** check the alert's switches on **Settings →
+  Alerts**, the Slack webhook, and that [email](/integrations/email) is set
+  up. Alert emails go to **Send alert emails to**, or to the owners if it's
+  empty.
 
 ## How an expense gets billed
 

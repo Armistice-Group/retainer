@@ -56,3 +56,9 @@ terraform/terraform.tfvars
 
 # Kerno MCP — local security-scan job logs, caches, generated test scenarios
 .kerno/
+
+# end-to-end tests (Playwright)
+/test-results/
+/playwright-report/
+/blob-report/
+/tests/e2e/.auth/

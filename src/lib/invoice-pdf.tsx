@@ -2,6 +2,7 @@ import { Document, Page, Text, View, Image, StyleSheet, renderToBuffer } from "@
 import type { Prisma } from "@/generated/prisma/client";
 import type { DisplayMethod } from "@/lib/payment-methods";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
+import { amountSettled, balanceDue } from "@/lib/invoice-balance";
 
 export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
   include: {
@@ -109,6 +110,7 @@ export function InvoiceDocument({
   // the PDF, which can be forwarded anywhere.
   const pdfMethods = paymentMethods.filter((m) => m.showOnPdf);
   const hiddenCount = paymentMethods.length - pdfMethods.length;
+  const settled = amountSettled(invoice);
   const logoSrc = invoice.org.logoData
     ? `data:${invoice.org.logoContentType};base64,${Buffer.from(invoice.org.logoData).toString("base64")}`
     : invoice.org.logoUrl;
@@ -126,7 +128,9 @@ export function InvoiceDocument({
             )}
           </View>
           <View>
-            <Text style={[styles.invoiceTitle, { color: accentColor }]}>INVOICE</Text>
+            <Text style={[styles.invoiceTitle, { color: accentColor }]}>
+              {invoice.kind === "DEPOSIT" ? "DEPOSIT INVOICE" : "INVOICE"}
+            </Text>
             <Text style={styles.invoiceMeta}>{invoice.number}</Text>
             {invoice.poNumber ? (
               <Text style={styles.invoiceMeta}>PO {invoice.poNumber}</Text>
@@ -192,10 +196,31 @@ export function InvoiceDocument({
           </View>
           <View style={[styles.grandTotalRow, { borderTopColor: accentColor }]}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={[styles.grandTotalValue, { color: accentColor }]}>
+            <Text style={[styles.grandTotalValue, settled > 0 ? {} : { color: accentColor }]}>
               {formatCurrency(invoice.total, invoice.currency)}
             </Text>
           </View>
+          {/* Part payments and credit come off, leaving the amount due. */}
+          {Number(invoice.amountPaid) > 0 ? (
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Paid</Text>
+              <Text>−{formatCurrency(invoice.amountPaid, invoice.currency)}</Text>
+            </View>
+          ) : null}
+          {Number(invoice.creditApplied) > 0 ? (
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Credit applied</Text>
+              <Text>−{formatCurrency(invoice.creditApplied, invoice.currency)}</Text>
+            </View>
+          ) : null}
+          {settled > 0 ? (
+            <View style={[styles.grandTotalRow, { borderTopColor: accentColor }]}>
+              <Text style={styles.grandTotalLabel}>Amount due</Text>
+              <Text style={[styles.grandTotalValue, { color: accentColor }]}>
+                {formatCurrency(invoice.status === "VOID" ? 0 : balanceDue(invoice), invoice.currency)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {pdfMethods.length || hiddenCount ? (

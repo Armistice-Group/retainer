@@ -15,6 +15,7 @@ import {
   syncCalendarFeedAction,
 } from "@/actions/calendar";
 import type { ActionState } from "@/actions/auth";
+import { DocsLink } from "@/components/docs-link";
 
 export type CalendarFeedItem = {
   id: string;
@@ -136,6 +137,7 @@ export function CalendarsCard({
                   </li>
                 </ul>
                 <p className="mt-1.5">The link is stored encrypted. Anyone with it can read the calendar, so don&apos;t share it elsewhere.</p>
+                <DocsLink page="integrations/calendars#connect-a-calendar" />
               </details>
             </div>
             <div className="flex gap-2">

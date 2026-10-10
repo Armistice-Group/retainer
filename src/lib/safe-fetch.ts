@@ -154,6 +154,27 @@ export async function postPublicJson(
   if (result.redirect) throw new SafeFetchError("The server answered with a redirect.");
 }
 
+/** GET a public URL with custom headers (e.g. an API key), as bytes. For
+ * APIs on user-supplied hosts (a self-hosted Documenso). Redirects aren't
+ * followed, so credentials never travel to another host. */
+export async function fetchPublicBytes(
+  raw: string,
+  opts: { headers?: Record<string, string>; maxBytes?: number; timeoutMs?: number; what?: string } = {}
+): Promise<{ bytes: Buffer; contentType: string | null }> {
+  const url = normalizePublicUrl(raw);
+  const what = opts.what ?? "the server";
+  const result = await requestOnce(url, {
+    method: "GET",
+    headers: { "User-Agent": "Consultainer", ...opts.headers },
+    maxBytes: opts.maxBytes ?? 10 * 1024 * 1024,
+    timeoutMs: opts.timeoutMs ?? 15_000,
+    what,
+    tooLarge: "The response is too large.",
+  });
+  if (result.redirect) throw new SafeFetchError(`${what[0].toUpperCase()}${what.slice(1)} answered with a redirect.`);
+  return { bytes: result.bytes ?? Buffer.alloc(0), contentType: result.contentType ?? null };
+}
+
 function requestOnce(
   url: URL,
   opts: {
@@ -166,7 +187,7 @@ function requestOnce(
     what: string;
     tooLarge: string;
   }
-): Promise<{ redirect?: string; body?: string }> {
+): Promise<{ redirect?: string; body?: string; bytes?: Buffer; contentType?: string }> {
   const { maxBytes, timeoutMs, what } = opts;
   const What = what[0].toUpperCase() + what.slice(1);
   return new Promise((resolve, reject) => {
@@ -200,7 +221,10 @@ function requestOnce(
           }
           chunks.push(chunk);
         });
-        res.on("end", () => resolve({ body: Buffer.concat(chunks).toString("utf8") }));
+        res.on("end", () => {
+          const bytes = Buffer.concat(chunks);
+          resolve({ body: bytes.toString("utf8"), bytes, contentType: res.headers["content-type"] });
+        });
         res.on("error", reject);
       }
     );

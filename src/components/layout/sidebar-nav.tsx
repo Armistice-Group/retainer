@@ -9,6 +9,7 @@ import {
   ListTodo,
   Clock,
   FileText,
+  FileSignature,
   Settings,
   BarChart3,
 } from "lucide-react";
@@ -20,6 +21,7 @@ const links = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/time", label: "Time", icon: Clock },
+  { href: "/estimates", label: "Estimates", icon: FileSignature },
   { href: "/invoices", label: "Invoices", icon: FileText },
   { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings },

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { saveAlertSettingsAction } from "@/actions/alerts";
 import type { ActionState } from "@/actions/auth";
+import { DocsLink } from "@/components/docs-link";
 
 type EventRow = {
   event: string;
@@ -105,6 +106,7 @@ export function AlertSettingsForm({
                 <strong>Save alerts</strong>.
               </li>
             </ol>
+            <DocsLink page="concepts/alerts-and-audit#how-to-connect-slack" />
           </details>
 
           <div className="overflow-x-auto">

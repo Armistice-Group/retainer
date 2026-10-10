@@ -125,12 +125,25 @@ export async function resetPasswordAction(
   return { done: true };
 }
 
-export type ResetLinkResult = { url: string; expiresIn: string } | { error: string };
+export type ResetLinkResult =
+  | {
+      url: string;
+      expiresIn: string;
+      /** Set when the link was emailed to them. */
+      emailedTo?: string;
+      /** Asked to email it, but sending failed — share `url` yourself. */
+      emailFailed?: boolean;
+    }
+  | { error: string };
 
-/** Settings → Members: an owner or admin makes a reset link to hand to a
- * member (works without email). Admins can't do it for owners, nobody for
+/** Settings → Members: an owner or admin makes a reset link for a member —
+ * emailed to them when email is set up and `delivery` is "email", otherwise
+ * shown to copy and hand over. Admins can't do it for owners, nobody for
  * themselves, and not for anyone who has to sign in with SSO. */
-export async function createPasswordResetLinkAction(membershipId: string): Promise<ResetLinkResult> {
+export async function createPasswordResetLinkAction(
+  membershipId: string,
+  delivery: "copy" | "email" = "copy"
+): Promise<ResetLinkResult> {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
@@ -161,5 +174,25 @@ export async function createPasswordResetLinkAction(membershipId: string): Promi
     target: target.user,
   });
 
-  return { url: `${await getOrigin()}/login/reset/${token}`, expiresIn: "24 hours" };
+  const origin = await getOrigin();
+  const url = `${origin}/login/reset/${token}`;
+  if (delivery !== "email") return { url, expiresIn: "24 hours" };
+
+  if (!(await isEmailConfigured())) {
+    return { url, expiresIn: "24 hours", emailFailed: true };
+  }
+  const sent = await sendEmail({
+    to: target.user.email,
+    subject: "Reset your Consultainer password",
+    react: PasswordResetEmail({
+      name: target.user.name,
+      resetUrl: url,
+      origin,
+      expiresIn: "24 hours",
+      createdBy: { name: user.name ?? "An admin", orgName: org.name },
+    }),
+  });
+  return sent
+    ? { url, expiresIn: "24 hours", emailedTo: target.user.email }
+    : { url, expiresIn: "24 hours", emailFailed: true };
 }

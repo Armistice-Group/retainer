@@ -12,7 +12,7 @@ const PUBLIC_PATHS = ["/", "/login", "/setup"];
 // under these as sub-paths and must be reachable while logged out — an
 // exact-match check on PUBLIC_PATHS alone would bounce them to /login before
 // the page ever gets a chance to sign the user in.
-const PUBLIC_PREFIXES = ["/login/", "/invite/", "/verify-email/", "/share/", "/review/", "/i/"];
+const PUBLIC_PREFIXES = ["/login/", "/invite/", "/verify-email/", "/share/", "/review/", "/i/", "/e/"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

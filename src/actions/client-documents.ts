@@ -12,6 +12,7 @@ import {
   type DocumentContext,
   type DocumentMeta,
 } from "@/lib/services/documents";
+import { AgreementError, detectOrgAgreementUrl, linkAgreementFromUrl } from "@/lib/services/agreements";
 import type { ActionState } from "@/actions/auth";
 import type { ClientDocumentType, DocumentAccess, DocumentAudience } from "@/generated/prisma/client";
 
@@ -59,7 +60,15 @@ export async function addClientDocumentAction(
   const m = meta(clientId, formData);
   try {
     const url = String(formData.get("url") ?? "").trim();
-    if (url) {
+    // A DocuSign/Documenso/Ironclad link from an owner or admin links that
+    // signed agreement itself (shown under Signed agreements), not a URL.
+    if (url && (ctx.role === "OWNER" || ctx.role === "ADMIN") && (await detectOrgAgreementUrl(ctx.orgId, url))) {
+      await linkAgreementFromUrl(
+        { orgId: ctx.orgId, actorId: ctx.actorId, role: ctx.role },
+        url,
+        { clientId, projectId: m.projectId }
+      );
+    } else if (url) {
       await addLinkedDocument(ctx, m, url);
     } else {
       const file = formData.get("file");
@@ -67,7 +76,7 @@ export async function addClientDocumentAction(
       await addUploadedDocument(ctx, m, file);
     }
   } catch (err) {
-    if (err instanceof DocumentError) return { error: err.message };
+    if (err instanceof DocumentError || err instanceof AgreementError) return { error: err.message };
     throw err;
   }
   revalidate(clientId, m.projectId);

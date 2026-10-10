@@ -1,0 +1,188 @@
+---
+title: Deposits and credit notes
+description: Bill money up front, give clients credit, and apply it to their invoices
+---
+
+Each client has a **credit balance**: money you hold for them that can be
+put toward their invoices. Credit comes from three places:
+
+- **Deposits**: payments on a [deposit invoice](#deposits), for example 50%
+  up front before work starts.
+- **Credit notes**: credit you [issue](#credit-notes) yourself, for a
+  discount, a write-off or a refund you're settling as credit.
+- **Overpayments**: if a client pays more online (Stripe or Mercury) than was
+  still due, the extra is kept as credit.
+
+Credit is spent by [applying it](#how-to-apply-credit-to-an-invoice) to one of
+the client's sent invoices, which lowers its balance due. Credit only applies
+to invoices in the same currency.
+
+**Who can do this:** owners and admins create deposits, issue and void credit
+notes, and apply or remove credit. Members don't see the **Deposits and
+credit** card or the **Apply credit** button.
+
+**Who sees what:** credit notes against an invoice follow that invoice's
+visibility: a member who can't see an invoice (it has a line on a
+[confidential project](/concepts/clients-and-projects#confidential-projects)
+they aren't on) can't open a credit note issued against it either. A deposit
+for a confidential project is hidden the same way as the project's other
+invoices.
+
+## Deposits
+
+A deposit invoice is an ordinary invoice with one line, marked **Deposit**
+in the invoice list and titled *DEPOSIT INVOICE* on the PDF. You send it and
+the client pays it the usual ways, including **Pay now**. What's different is
+where the money goes: every payment on a deposit becomes client credit, which
+you then apply to the invoices for the work.
+
+### How to bill a deposit
+
+<Steps>
+  <Step title="Open the client">
+    Go to **Clients**, open the client, and find the **Deposits and credit**
+    card.
+  </Step>
+  <Step title="Start a deposit">
+    Click **Deposit**.
+  </Step>
+  <Step title="Set the amount">
+    Optionally pick a **Project**. Then either enter an **Amount**, or, for a
+    project with a flat fee, choose **Percent of the … flat fee** and enter a
+    **Percent** (the dialog shows what it works out to).
+  </Step>
+  <Step title="Check the details">
+    The **Line description** defaults to *Project — Deposit* (or *Deposit*).
+    Set the **Issue date** and **Payment terms** (by default the project's,
+    else the client's, else your organization's).
+  </Step>
+  <Step title="Create it">
+    Click **Create draft deposit**. You land on the new draft; send it like
+    any other invoice.
+  </Step>
+</Steps>
+
+**Check it worked:** the draft shows a **Deposit** badge, and the client's
+**Deposits and credit** card lists it under **Deposit invoices**. Once the
+client pays, **Available credit** goes up by what they paid (part payments
+count as they arrive).
+
+Things to know:
+
+- A deposit doesn't count as **Invoiced** on [Reports](/concepts/reports) or
+  toward a project's invoiced total; the invoice for the work does. The cash
+  does count as **Received** when it arrives.
+- Credit can't be applied *to* a deposit invoice.
+- Like any invoice, a deposit can't be voided once something is paid on it.
+
+## How to apply credit to an invoice
+
+<Steps>
+  <Step title="Open a sent invoice">
+    Open one of the client's sent (not yet paid) invoices. When the client
+    has credit in the invoice's currency, you'll see **Apply credit**.
+  </Step>
+  <Step title="Choose how much">
+    Click **Apply credit**. **Amount** starts at whichever is smaller: the
+    credit available or the balance due. Add an optional **Note** (for
+    example *Deposit from INV-0012*).
+  </Step>
+  <Step title="Apply it">
+    Click **Apply credit**.
+  </Step>
+</Steps>
+
+**Check it worked:** the invoice's **Summary** shows **Credit applied** and a
+lower **Balance due**, the **Payments** card lists *credit applied*, and the
+client's **Available credit** went down by the same amount. If the credit
+covered the whole balance, the invoice is **Paid** and you get the *invoice
+paid* alert.
+
+Applied credit isn't a payment: it doesn't count as **Received** in reports
+or the weekly digest (the deposit's payment already did).
+
+To undo it, click the bin icon next to the credit in the invoice's
+**Payments** card. The credit goes back to the client's balance, and a paid
+invoice returns to **Sent**.
+
+## Credit notes
+
+A credit note gives a client credit with its own number (`CN-0001`,
+`CN-0002`, … per organization, never reused), a reason, and a PDF you can
+send them. It isn't a refund by itself: it adds to the client's credit
+balance, which you apply to their invoices.
+
+### How to issue a credit note
+
+<Steps>
+  <Step title="Open the client">
+    Open the client and find the **Deposits and credit** card.
+  </Step>
+  <Step title="Start a credit note">
+    Click **Credit note**.
+  </Step>
+  <Step title="Fill it in">
+    Optionally pick an invoice under **Against invoice** (the credit note
+    is then in that invoice's currency and its PDF says *Against invoice
+    INV-0042*). Enter the **Amount**, the **Issue date** and the
+    **Reason**.
+  </Step>
+  <Step title="Apply it now (optional)">
+    If the invoice you picked is sent and unpaid, **Apply it to INV-0042
+    now** is ticked: the credit goes straight onto that invoice, up to its
+    balance due. Anything left stays as client credit.
+  </Step>
+  <Step title="Issue it">
+    Click **Issue credit note**.
+  </Step>
+</Steps>
+
+**Check it worked:** the credit note is listed on the client's **Deposits
+and credit** card; click its number to open the PDF. If you applied it, the
+invoice shows the credit and a lower balance due, and lists the credit note
+under *Credit notes issued against this invoice*.
+
+### Writing off the rest of an invoice
+
+A partly paid invoice can't be voided. To close it without the rest being
+paid, issue a credit note against it for the balance due (with **Apply it
+now** ticked). The invoice becomes **Paid**, and the credit note records why.
+
+### How to void a credit note
+
+Click the bin icon next to it on the client's **Deposits and credit** card
+and confirm. Its credit is taken away; the PDF then says it was cancelled.
+You can only void a credit note whose credit hasn't been spent yet.
+
+## Troubleshooting
+
+- **No Apply credit button on an invoice.** The client has no credit in the
+  invoice's currency, the invoice is a deposit, it isn't sent yet, or it's
+  already paid. You also need to be an owner or admin.
+- *This client only has $150.00 of credit available.* You asked for more
+  than the client's credit balance. Lower the amount.
+- *That's more than the $600.00 still due on this invoice.* Credit (like a
+  payment) can't take an invoice below zero.
+- *Credit can't be applied to a deposit invoice.* Deposits are where credit
+  comes from; apply it to the invoice for the work instead.
+- *A percentage needs a project with a flat fee. Enter an amount instead.*
+  Percent deposits are worked out from the project's flat fee; set one on the
+  project, or enter an amount.
+- *This credit has already been applied to invoices. Remove it from them
+  first, then void the credit note.* Remove the credit from those invoices
+  (bin icon in their **Payments** card), then void the note.
+- *Credit from this payment has already been applied to other invoices.
+  Remove that credit from them first.* You're deleting a deposit payment
+  whose credit was spent. Remove the credit application first.
+- *Credit notes can only reference a sent or paid invoice.* Pick another
+  invoice, or none.
+
+## Over the API and MCP
+
+Invoices over the [API](/api-reference/invoices) and the
+[MCP server](/mcp-server) include `kind` (`STANDARD` or `DEPOSIT`),
+`amountPaid`, `creditApplied` and `balanceDue`.
+`GET /api/v1/invoices/{id}/payments` and the `list_invoice_payments` tool list
+an invoice's payments, credit applied to it and credit notes against it.
+Creating deposits, issuing credit notes and applying credit are in the app
+only.

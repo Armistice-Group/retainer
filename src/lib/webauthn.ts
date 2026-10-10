@@ -96,9 +96,11 @@ export async function buildAuthenticationOptions() {
   const { rpID } = await rpConfig();
   // No allowCredentials — discoverable/usernameless flow, the authenticator
   // itself lists which of its resident keys match this rpID.
+  // User verification (PIN or biometric) is required at sign-in: that's what
+  // makes a passkey sign-in two factors, so it skips the authenticator code.
   const options = await generateAuthenticationOptions({
     rpID,
-    userVerification: "preferred",
+    userVerification: "required",
   });
   const challengeId = await storeChallenge(options.challenge, null);
   return { options, challengeId };
@@ -122,6 +124,7 @@ export async function verifyAuthentication(
     expectedChallenge: challenge.challenge,
     expectedOrigin: origin,
     expectedRPID: rpID,
+    requireUserVerification: true,
     credential: {
       id: authenticator.credentialId,
       publicKey: new Uint8Array(authenticator.publicKey),

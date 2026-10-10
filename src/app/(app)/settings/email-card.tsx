@@ -1,5 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DocsLink } from "@/components/docs-link";
 
 /** Optional outgoing email (Resend). Without it, invite and review links are
  * shown to copy and magic-link login is hidden. */
@@ -54,6 +55,7 @@ export function EmailCard({
                 own Resend account.
               </li>
             </ol>
+            <DocsLink page="integrations/email" />
           </details>
         )}
         {credentials}

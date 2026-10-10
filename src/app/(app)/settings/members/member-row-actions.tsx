@@ -32,6 +32,7 @@ export function MemberRowActions({
   role,
   employmentType,
   canResetPassword,
+  emailEnabled = false,
 }: {
   membershipId: string;
   name: string;
@@ -39,21 +40,38 @@ export function MemberRowActions({
   role: "OWNER" | "ADMIN" | "MEMBER";
   employmentType: "EMPLOYEE" | "CONTRACTOR";
   canResetPassword: boolean;
+  /** Email is set up: offer to email the reset link as well as copy it. */
+  emailEnabled?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [reset, setReset] = useState<ResetLinkResult | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  /** Waiting for the owner/admin to pick email or copy (email set up only). */
+  const [choosing, setChoosing] = useState(false);
+  const [creating, setCreating] = useState(false);
 
-  function createResetLink() {
+  function openReset() {
     setReset(null);
     setResetOpen(true);
+    if (emailEnabled) {
+      setChoosing(true);
+    } else {
+      createResetLink("copy");
+    }
+  }
+
+  function createResetLink(delivery: "copy" | "email") {
+    setChoosing(false);
+    setCreating(true);
     startTransition(async () => {
       try {
-        setReset(await createPasswordResetLinkAction(membershipId));
+        setReset(await createPasswordResetLinkAction(membershipId, delivery));
       } catch (err) {
         setReset({
           error: err instanceof Error ? err.message : "Couldn't create a reset link.",
         });
+      } finally {
+        setCreating(false);
       }
     });
   }
@@ -104,9 +122,7 @@ export function MemberRowActions({
             </DropdownMenuItem>
           )}
           {canResetPassword ? (
-            <DropdownMenuItem onSelect={createResetLink}>
-              Create password reset link
-            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openReset}>Create password reset link</DropdownMenuItem>
           ) : null}
           {role === "OWNER" ? null : (
             <>
@@ -131,22 +147,49 @@ export function MemberRowActions({
           <DialogHeader>
             <DialogTitle>Password reset link for {name}</DialogTitle>
             <DialogDescription>
-              Send this to {name} yourself — by chat or in person. It works once, expires in 24
-              hours, and replaces any earlier reset link. Their two-factor authentication stays on.
+              {emailEnabled
+                ? `Email it to ${name}, or copy it and send it yourself — by chat or in person.`
+                : `Send this to ${name} yourself — by chat or in person.`}{" "}
+              It works once, expires in 24 hours, and replaces any earlier reset link. Their
+              two-factor authentication stays on.
             </DialogDescription>
           </DialogHeader>
           <div className="flex min-w-0 flex-col gap-4">
-            {reset === null ? (
+            {choosing ? (
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={() => createResetLink("email")}>
+                  Email it to them
+                </Button>
+                <Button type="button" variant="outline" onClick={() => createResetLink("copy")}>
+                  Copy a link instead
+                </Button>
+              </div>
+            ) : reset === null || creating ? (
               <p className="text-sm text-muted-foreground">Creating link...</p>
             ) : "error" in reset ? (
               <Alert variant="destructive">
                 <AlertDescription>{reset.error}</AlertDescription>
               </Alert>
+            ) : reset.emailedTo ? (
+              <Alert>
+                <AlertDescription>
+                  Emailed a reset link to {reset.emailedTo}. It expires in {reset.expiresIn}.
+                </AlertDescription>
+              </Alert>
             ) : (
-              <div className="flex items-center gap-2 rounded-lg border border-border p-2">
-                <code className="min-w-0 flex-1 truncate text-sm">{reset.url}</code>
-                <CopyButton value={reset.url} label="Copy" />
-              </div>
+              <>
+                {reset.emailFailed ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Couldn&apos;t send the email. Copy the link and send it to {name} yourself.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                <div className="flex items-center gap-2 rounded-lg border border-border p-2">
+                  <code className="min-w-0 flex-1 truncate text-sm">{reset.url}</code>
+                  <CopyButton value={reset.url} label="Copy" />
+                </div>
+              </>
             )}
             <Button type="button" className="self-start" onClick={() => setResetOpen(false)}>
               Done

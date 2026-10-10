@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { invoiceVisibilityWhere } from "@/lib/project-access";
+import { invoiceMoneyFields } from "@/lib/services/payments";
 
 const STATUSES = ["DRAFT", "SENT", "PAID", "VOID"] as const;
 
@@ -22,5 +23,7 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  return Response.json({ invoices });
+  return Response.json({
+    invoices: invoices.map((inv) => ({ ...inv, ...invoiceMoneyFields(inv) })),
+  });
 }

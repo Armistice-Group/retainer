@@ -39,7 +39,11 @@ export async function GET(req: Request) {
           }
         : {}),
     },
-    include: { project: { include: { client: true } }, task: true },
+    // Explicit selects: project and client rows carry share tokens.
+    include: {
+      project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
+      task: { select: { id: true, title: true } },
+    },
     orderBy: { date: "desc" },
   });
 

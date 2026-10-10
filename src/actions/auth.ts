@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { uniqueOrgSlug } from "@/lib/org";
@@ -79,6 +80,53 @@ export async function verifyMagicLinkCodeAction(
     }
     if (err instanceof AuthError) {
       return { error: "That login link is invalid or has expired. Request a new one." };
+    }
+    throw err;
+  }
+  return null;
+}
+
+/** Where "Continue with Google" was headed before the code step: Auth.js
+ * keeps it in its callback-url cookie. Only same-site paths are used. */
+async function googleCallbackPath() {
+  const store = await cookies();
+  const raw =
+    store.get("__Secure-authjs.callback-url")?.value ?? store.get("authjs.callback-url")?.value;
+  if (!raw) return "/dashboard";
+  try {
+    const origin = await getOrigin();
+    const url = new URL(raw, origin);
+    if (url.origin !== new URL(origin).origin) return "/dashboard";
+    const path = `${url.pathname}${url.search}`;
+    return path.startsWith("/") && !path.startsWith("//") && !path.startsWith("/login")
+      ? path
+      : "/dashboard";
+  } catch {
+    return "/dashboard";
+  }
+}
+
+/** Second step of "Continue with Google" for an account with two-factor on
+ * (/login/two-factor/<ticket>). */
+export async function verifyGoogleTwoFactorAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const ticket = (formData.get("ticket") as string) || "";
+  const code = ((formData.get("code") as string) || "").trim();
+  if (!code) return { fieldErrors: { code: ["Enter the code from your authenticator app."] } };
+
+  try {
+    await signIn("google-two-factor", { ticket, code, redirectTo: await googleCallbackPath() });
+  } catch (err) {
+    if (err instanceof InvalidTwoFactorCodeError) {
+      return { fieldErrors: { code: ["Invalid code. Try again."] } };
+    }
+    if (err instanceof AuthError) {
+      return {
+        error:
+          "This sign-in step expired or had too many wrong codes. Go back to log in and continue with Google again.",
+      };
     }
     throw err;
   }

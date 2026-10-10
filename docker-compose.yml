@@ -1,4 +1,4 @@
-# Self-hosted Consultainer: Postgres + the app + a tiny scheduler.
+# Self-hosted Consultainer: Postgres + the app + a tiny scheduler + nightly backups.
 # Full reference (every setting, jobs, proxies, backups): docs/self-hosting.mdx
 #
 #   curl -O https://raw.githubusercontent.com/Armistice-Group/retainer/main/docker-compose.yml
@@ -19,8 +19,9 @@
 # Then open the app (http://<this-host>:3113 by default) — a fresh database
 # redirects to /setup to create your organization and its owner account.
 #
-# Backup (custom-format dump; see docs/self-hosting.mdx for restore):
-#   docker compose exec -T consultainer-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > consultainer.dump
+# Backups: the "backup" service below dumps the database every night (03:00
+# UTC by default) and keeps the last 14. Settings, off-site copies and how to
+# restore: docs/self-hosting.mdx#backups.
 
 # Secrets the app refuses to start without (generate them as .env.example says).
 x-required: &required
@@ -85,6 +86,10 @@ services:
       LINEAR_CLIENT_ID: ${LINEAR_CLIENT_ID:-}
       LINEAR_CLIENT_SECRET: ${LINEAR_CLIENT_SECRET:-}
       LINEAR_WEBHOOK_SECRET: ${LINEAR_WEBHOOK_SECRET:-}
+      # DocuSign (signed agreements).
+      DOCUSIGN_CLIENT_ID: ${DOCUSIGN_CLIENT_ID:-}
+      DOCUSIGN_CLIENT_SECRET: ${DOCUSIGN_CLIENT_SECRET:-}
+      DOCUSIGN_ENVIRONMENT: ${DOCUSIGN_ENVIRONMENT:-}
       # Stripe Connect (online invoice payments).
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -111,10 +116,10 @@ services:
       - "${APP_PORT:-3113}:3000"
 
   # Drives the scheduled jobs (all idempotent). Starts 60s after launch, then
-  # hourly: Mercury payment status, Linear sync, calendar sync, filing
-  # catch-up. On the first pass and every 24 hours after: retainer invoices,
-  # billing cycles, overdue alerts and reminders, and (Mondays) the weekly
-  # digest. Uses the same CRON_SECRET as the app.
+  # hourly: Mercury payment status, Linear sync, calendar sync, signed
+  # agreements, filing catch-up. On the first pass and every 24 hours
+  # after: retainer invoices, billing cycles, overdue alerts and reminders,
+  # and (Mondays) the weekly digest. Uses the same CRON_SECRET as the app.
   scheduler:
     image: curlimages/curl:8.10.1
     restart: unless-stopped
@@ -132,6 +137,7 @@ services:
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/mercury-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/linear-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/calendar-sync || true
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/agreements-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/filing || true
           if [ $$((i % 24)) -eq 0 ]; then
             curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/recurring-invoices || true
@@ -140,5 +146,112 @@ services:
           sleep 3600
         done
 
+  # Nightly database backup (on by default; BACKUP_ENABLED=false turns it off).
+  # Writes a compressed pg_dump to the "backups" volume (or BACKUP_DIR) every
+  # day at BACKUP_HOUR (UTC), keeps the newest BACKUP_KEEP, and with
+  # BACKUP_S3=true copies each one to the S3_* bucket under backups/.
+  # The dump includes uploaded files unless they live in S3 storage.
+  #   Back up now:  docker compose exec backup backup-now
+  #   Restore:      docker compose exec backup restore <file> --yes
+  # (stop consultainer-app and scheduler first; docs/self-hosting.mdx#backups).
+  backup:
+    image: postgres:16-alpine3.22
+    restart: unless-stopped
+    depends_on:
+      consultainer-db:
+        condition: service_healthy
+    environment:
+      PGHOST: consultainer-db
+      PGUSER: ${POSTGRES_USER:-app}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-app}
+      PGDATABASE: ${POSTGRES_DB:-consulthub}
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_S3: ${BACKUP_S3:-false}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-}
+      S3_PREFIX: ${S3_PREFIX:-}
+    volumes:
+      # A named volume by default; set BACKUP_DIR=/srv/consultainer-backups
+      # (or ./backups) in .env to write to a folder on this server instead.
+      - ${BACKUP_DIR:-backups}:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        umask 077
+        cat > /usr/local/bin/backup-now <<'EOF'
+        #!/bin/sh
+        set -eu
+        umask 077
+        case "$$BACKUP_KEEP" in ''|*[!0-9]*|0) BACKUP_KEEP=14 ;; esac
+        name="consultainer-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+        tmp="/backups/.$$name.partial"
+        if ! pg_dump --format=custom --compress=6 --no-password --file="$$tmp"; then
+          rm -f "$$tmp"
+          echo "backup: pg_dump failed, no backup written" >&2
+          exit 1
+        fi
+        mv "$$tmp" "/backups/$$name"
+        echo "backup: wrote $$name ($$(du -h "/backups/$$name" | cut -f1))"
+        ls -1 /backups | grep -E '^consultainer-[0-9TZ]+\.dump$$' | sort -r | tail -n +$$((BACKUP_KEEP + 1)) | while read -r old; do
+          rm -f "/backups/$$old" && echo "backup: removed $$old"
+        done
+        if [ "$$BACKUP_S3" = true ]; then
+          if [ -z "$$S3_BUCKET" ]; then echo "backup: BACKUP_S3=true but S3_BUCKET is empty" >&2; exit 1; fi
+          command -v rclone >/dev/null || apk add --no-cache -q 'rclone~1.69' >/dev/null
+          if [ -n "$$S3_ENDPOINT" ]; then export RCLONE_S3_PROVIDER=Other; else export RCLONE_S3_PROVIDER=AWS; fi
+          export RCLONE_S3_REGION="$${S3_REGION:-us-east-1}" RCLONE_S3_ENDPOINT="$$S3_ENDPOINT"
+          export RCLONE_S3_FORCE_PATH_STYLE=$$([ "$$S3_FORCE_PATH_STYLE" = true ] && echo true || echo false)
+          export RCLONE_S3_NO_CHECK_BUCKET=true RCLONE_S3_ACCESS_KEY_ID="$$S3_ACCESS_KEY_ID" RCLONE_S3_SECRET_ACCESS_KEY="$$S3_SECRET_ACCESS_KEY"
+          [ -n "$$S3_ACCESS_KEY_ID" ] || export RCLONE_S3_ENV_AUTH=true
+          export RCLONE_CONFIG=/dev/null
+          remote=":s3:$$S3_BUCKET/$${S3_PREFIX}backups"
+          rclone copyto "/backups/$$name" "$$remote/$$name"
+          echo "backup: copied $$name to s3://$$S3_BUCKET/$${S3_PREFIX}backups/"
+          rclone lsf --files-only "$$remote" | grep -E '^consultainer-[0-9TZ]+\.dump$$' | sort -r | tail -n +$$((BACKUP_KEEP + 1)) | while read -r old; do
+            rclone deletefile "$$remote/$$old" && echo "backup: removed $$old from the bucket"
+          done
+        fi
+        EOF
+        cat > /usr/local/bin/restore <<'EOF'
+        #!/bin/sh
+        set -eu
+        file="$${1:-}"
+        if [ -z "$$file" ] || [ "$${2:-}" != "--yes" ]; then
+          echo "usage: restore <file> --yes   (replaces the whole $$PGDATABASE database)"
+          echo "backups in /backups:"; ls -1t /backups | grep '\.dump$$' || echo "  (none)"
+          exit 2
+        fi
+        case "$$file" in /*) ;; *) file="/backups/$$file" ;; esac
+        [ -f "$$file" ] || { echo "restore: $$file not found" >&2; exit 1; }
+        pg_restore --list "$$file" >/dev/null
+        echo "restore: replacing database $$PGDATABASE with $$(basename "$$file")"
+        dropdb --force --if-exists --maintenance-db=postgres "$$PGDATABASE"
+        createdb --maintenance-db=postgres "$$PGDATABASE"
+        pg_restore --no-owner --exit-on-error --dbname="$$PGDATABASE" "$$file"
+        echo "restore: done. Start the app again: docker compose start consultainer-app scheduler"
+        EOF
+        chmod 755 /usr/local/bin/backup-now /usr/local/bin/restore
+        if [ "$$BACKUP_ENABLED" != true ]; then
+          echo "backup: nightly backups are off (BACKUP_ENABLED=$$BACKUP_ENABLED)"
+          exec sleep 2147483647
+        fi
+        case "$$BACKUP_HOUR" in 0?) BACKUP_HOUR=$${BACKUP_HOUR#0} ;; esac
+        case "$$BACKUP_HOUR" in [0-9]|1[0-9]|2[0-3]) ;; *) echo "backup: BACKUP_HOUR must be 0-23, using 3"; BACKUP_HOUR=3 ;; esac
+        case "$$BACKUP_KEEP" in ''|*[!0-9]*|0) echo "backup: BACKUP_KEEP must be 1 or more, using 14"; BACKUP_KEEP=14 ;; esac
+        export BACKUP_HOUR BACKUP_KEEP
+        echo "backup: nightly at $$(printf %02d "$$BACKUP_HOUR"):00 UTC to /backups, keeping $$BACKUP_KEEP (off-site copy: $$BACKUP_S3)"
+        while true; do
+          sleep $$(( (BACKUP_HOUR * 3600 - $$(date -u +%s) % 86400 + 86399) % 86400 + 1 ))
+          backup-now || echo "backup: failed, will try again tomorrow" >&2
+        done
+
 volumes:
   db_data:
+  backups:

@@ -12,7 +12,7 @@ Client, project, and billing management for consultants and contractors. Track c
 | ![Time tracking](docs/screenshots/time-light.png) | ![Project with budget and rates](docs/screenshots/project-light.png) |
 | ![Invoices](docs/screenshots/invoices-light.png) | ![Client with a billing cycle](docs/screenshots/client-light.png) |
 
-More at [consultainer.app](https://consultainer.app); full documentation in [`docs/`](docs/introduction.mdx). Screenshots use the fictional demo data in `prisma/seed-demo.ts`; regenerate them with `scripts/screenshots.mjs`.
+More at [consultainer.app](https://consultainer.app); full documentation at [consultainer.app/docs](https://consultainer.app/docs/) (source in [`docs/`](docs/introduction.mdx)). Screenshots use the fictional demo data in `prisma/seed-demo.ts`; regenerate them with `scripts/screenshots.mjs`.
 
 ## Stack
 
@@ -58,13 +58,13 @@ curl -o .env https://raw.githubusercontent.com/Armistice-Group/retainer/main/.en
 docker compose up -d
 ```
 
-This starts Postgres, the app, and a small scheduler for the hourly jobs (Linear, calendar and Mercury sync, filing catch-up) and daily billing jobs (recurring invoices, billing cycles, overdue reminders, the weekly digest). The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (every change to main — what compose runs by default), and `X.Y.Z` / `X.Y` release tags to pin with `CONSULTAINER_VERSION` in `.env`. To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
+This starts Postgres, the app, a small scheduler for the hourly jobs (Linear, calendar and Mercury sync, filing catch-up) and daily billing jobs (recurring invoices, billing cycles, overdue reminders, the weekly digest), and a nightly database backup that keeps the last 14 dumps (optionally copied to your S3 bucket; `BACKUP_*` in `.env`). The app runs `prisma migrate deploy` on every start, so upgrading is `docker compose pull && docker compose up -d`. Image tags: `latest` (every change to main — what compose runs by default), and `X.Y.Z` / `X.Y` release tags to pin with `CONSULTAINER_VERSION` in `.env`. To build from a checkout instead: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`.
 
 **First run.** Open the app (port `APP_PORT`, 3113 by default). On an empty database every route sends you to `/setup`, where you create the organization and its owner account. If `SETUP_TOKEN` is set, the form asks for it — set one if the instance is reachable from the internet before you've finished setup. Once an account exists `/setup` is closed for good. You then land on a checklist (`/welcome`) for SSO, invites, and your first client.
 
 **No public signup.** People join by invite (Settings → Members), by SSO auto-provisioning, or via Google sign-in on an org's auto-join domain.
 
-**Integrations are configured in the app.** The owner adds email (Resend), QuickBooks, Linear, Stripe, and file-service (Google Drive, Dropbox, OneDrive, Notion) credentials under Settings → Integrations / Payments — each card shows the callback and webhook URLs to register. Environment variables still work and take precedence. Every setting, HTTPS with Caddy or nginx, the scheduled jobs, S3-compatible file storage, which paths to leave open behind an authenticating proxy, upgrades, backups and restore are in [docs/self-hosting.mdx](docs/self-hosting.mdx).
+**Integrations are configured in the app.** The owner adds email (Resend), QuickBooks, Linear, Stripe, and file-service (Google Drive, Dropbox, OneDrive, Notion) credentials under Settings → Integrations / Payments — each card shows the callback and webhook URLs to register. Environment variables still work and take precedence. Every setting, HTTPS with Caddy or nginx, the scheduled jobs, S3-compatible file storage, which paths to leave open behind an authenticating proxy, upgrades, backups and restore are in the [self-hosting guide](https://consultainer.app/docs/self-hosting) ([source](docs/self-hosting.mdx)).
 
 **Email is optional.** Without it, invites and contractor-review requests give you a link to copy and share, magic-link login is hidden, email changes apply immediately after a password check, and email-only features (emailing invoices to clients, overdue reminders, email alerts, the weekly digest) are off — invoices can still be shared with a tracked client link.
 
@@ -131,7 +131,6 @@ Setup:
 - Bill.com/Found/Novo integrations — see above; the "external billing tool" link field in Settings remains as a manual fallback for any provider without a real integration.
 - QuickBooks status sync is on demand per invoice, not automatic (QuickBooks doesn't push changes).
 - Bill rates are a single current value per person/project (no rate history over time), though a specific time entry can carry a one-off override.
-- No automated test suite yet.
 
 ## Useful scripts
 
@@ -143,6 +142,27 @@ Setup:
 | `npm run db:seed` | Seed a demo organization |
 | `npm run db:studio` | Open Prisma Studio against `DATABASE_URL` |
 | `npm run lint` | ESLint |
+| `npm run test:e2e` | End-to-end tests (see below) |
+
+## Running the tests
+
+The end-to-end suite (Playwright, in `tests/e2e/`) runs the production build against a throwaway Postgres. It checks roles, org isolation and confidential projects on the REST API, the MCP server and the server actions, invoice status changes, what members can see in the app, and loads every main page looking for errors. CI runs it on every push and pull request.
+
+```bash
+# A database just for tests. The suite wipes it on every run, so never point it at real data
+# (the seed refuses anything but localhost).
+docker run -d --name retainer-tests -p 55510:5432 \
+  -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=consultainer_test postgres:16
+
+export DATABASE_URL=postgresql://app:app@localhost:55510/consultainer_test?schema=public
+npx prisma migrate deploy
+npx next build                        # the tests run `next start` on port 3130
+npx playwright install chromium       # once
+npm run test:e2e                      # seeds, logs each role in, runs everything
+npm run test:e2e:report               # open the HTML report from the last run
+```
+
+`playwright.config.ts` fills in test-only `AUTH_SECRET`, `INTEGRATION_ENCRYPTION_KEY` and `CRON_SECRET` values; email, Stripe, S3 and other integrations stay unconfigured. Rebuild after changing app code, since the tests run the build. Logins are `owner.a@e2e.test`, `admin.a@e2e.test`, `member.a@e2e.test` (and `.b` for the second org), password `e2e-Password-123!`. The seed data is in `tests/e2e/fixtures.ts`. A test marked `test.fail()` documents a known bug: it starts failing when the bug is fixed, and then you remove the marker.
 
 ## License
 

@@ -11,7 +11,7 @@ look.
 ## How clients pay
 
 When you send an invoice (**Email to client**, or **Copy client link** —
-see [Invoicing](/concepts/invoicing#sending-invoices-and-tracking-opens)), the
+see [Invoicing](/concepts/invoicing#how-to-send-an-invoice)), the
 client opens its invoice page. There they can:
 
 - view and **Download PDF**,
@@ -24,8 +24,12 @@ The same **Pay now** button appears next to open invoices on client and
 project share pages. If both Stripe and Mercury are connected, Mercury is
 used.
 
-An invoice is marked **Paid** only once the payment has actually gone
-through, and then you get an **invoice paid** alert. With a Stripe card
+**Pay now** always charges the invoice's balance due: if part of it has been
+paid or [credited](/concepts/deposits-and-credit) already, the client pays
+only the rest. A payment is recorded on the invoice (listed in its
+**Payments** card, source *Stripe* or *Mercury*) only once it has actually
+gone through; when that clears the balance the invoice is marked **Paid** and
+you get an **invoice paid** alert. With a Stripe card
 payment that happens within seconds (through the webhook); a Stripe bank
 (ACH) payment takes a few business days to clear (see
 [below](#how-a-stripe-payment-works)); with Mercury, within the hour after
@@ -164,8 +168,9 @@ setup** to give Stripe what's missing.
 
 ### How a Stripe payment works
 
-**Pay now** opens a Stripe Checkout page for the invoice total in the
-invoice's currency. The payment methods offered are the ones turned on in
+**Pay now** opens a Stripe Checkout page for the invoice's balance due in the
+invoice's currency (named *Invoice INV-0042 (balance due)* once part of it is
+paid). The payment methods offered are the ones turned on in
 your Stripe Dashboard's payment method settings. The charge is made on the
 platform account and the full amount is transferred to the organization's
 connected account, so Stripe's processing fees are billed to the platform
@@ -174,8 +179,8 @@ account.
 What happens next depends on how the client pays:
 
 - **Card** — Stripe confirms the payment at checkout
-  (`checkout.session.completed`), and the invoice is marked **Paid** right
-  away.
+  (`checkout.session.completed`), and a payment for the amount Stripe
+  collected is recorded right away, which marks the invoice **Paid**.
 - **Bank debit (ACH)** — the payment takes a few business days to clear. In
   the meantime the invoice stays **Sent**: its client page says *A bank
   payment for this invoice is processing*, share pages show **Bank payment
@@ -183,13 +188,19 @@ What happens next depends on how the client pays:
   shows *Client paid by bank transfer — waiting for it to clear*. **Pay
   now** is hidden so the client can't pay twice.
   - When Stripe reports the payment cleared
-    (`checkout.session.async_payment_succeeded`), the invoice is marked
-    **Paid**.
+    (`checkout.session.async_payment_succeeded`), the payment is recorded
+    and the invoice is marked **Paid**.
   - If it fails (`checkout.session.async_payment_failed`), the invoice stays
-    (or goes back to) **Sent**, **Pay now** comes back so the client can try
-    again, the **Activity** card shows *Client's bank payment failed*, and
-    you get an alert (sent with your **invoice paid** alert settings) saying
-    the bank payment failed.
+    (or goes back to) **Sent** (any payment recorded for it is removed),
+    **Pay now** comes back so the client can try again, the **Activity** card
+    shows *Client's bank payment failed*, and you get the **An online payment
+    fails** alert saying the bank payment failed.
+
+Each payment is recorded once, keyed on Stripe's payment intent, however many
+times Stripe delivers the event. If someone recorded a payment by hand while
+the client was at checkout, the client may pay more than is now due; the
+extra is kept as [client credit](/concepts/deposits-and-credit) rather than
+lost.
 
 ## Collect payments with Mercury
 
@@ -219,10 +230,14 @@ organization.
 in the dropdown.
 
 The first time a client clicks **Pay now**, Consultainer creates a Mercury
-invoice (one line, *Invoice INV-0001*, for the total) and sends them to its pay
-page; later clicks reuse it. Mercury doesn't email the client itself. Every
-hour, the scheduler checks open Mercury invoices and marks the ones Mercury
-reports as paid. The client must have an email address on file.
+invoice (one line, *Invoice INV-0001*, for the balance due) and sends them to
+its pay page; later clicks reuse it while the balance is unchanged. If the
+balance changed since (you recorded a part payment, say), a new Mercury
+invoice for the new balance is created instead; cancel the old one in
+Mercury. Mercury doesn't email the client itself. Every hour, the scheduler
+checks open Mercury invoices and, for the ones Mercury reports as paid,
+records a payment for the amount that Mercury invoice asked for. The client
+must have an email address on file.
 
 ## Overdue reminders
 
@@ -252,8 +267,8 @@ reminders** on its edit page. Reminders need [email](/integrations/email).
   week — check that the Stripe webhook also sends
   **`checkout.session.async_payment_succeeded`** and
   **`checkout.session.async_payment_failed`**. If it was added late, find
-  the payment in Stripe and click **Mark as paid** on the invoice yourself
-  (owners and admins).
+  the payment in Stripe and click **Record payment** (or **Mark as paid**)
+  on the invoice yourself (owners and admins).
 - A client sees *Online payment isn't available for this invoice right now*
   — usually Stripe onboarding isn't complete (click **Continue setup**) or,
   with Mercury, the client has no email address on file (add one). If

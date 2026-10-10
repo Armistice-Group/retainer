@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -15,6 +16,7 @@ import { contractorProfileSchema } from "@/lib/validations/contractor";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { ConfirmEmailChangeEmail } from "@/emails/confirm-email-change-email";
 import { getOrigin } from "@/lib/url";
+import { signOutOtherSessions } from "@/lib/sessions";
 import type { ActionState } from "@/actions/auth";
 
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
@@ -180,9 +182,18 @@ export async function changePasswordAction(
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  // Signs out every other session; this one carries on (lib/sessions).
+  await signOutOtherSessions(user.id, { passwordHash });
+  redirect("/profile?security=password-changed");
+}
 
-  return null;
+/** Profile → Sessions: signs out every browser and device except this one.
+ * API keys are separate and keep working. */
+export async function signOutOtherSessionsAction() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login/expired");
+  await signOutOtherSessions(session.user.id);
+  redirect("/profile?security=signed-out-others");
 }
 
 /** Hides the dashboard's "Get more out of Consultainer" card for good. */

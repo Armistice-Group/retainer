@@ -42,7 +42,7 @@ export function ExpensesCard({
   canManage: boolean;
 }) {
   return (
-    <Card>
+    <Card id="expenses">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Expenses</CardTitle>
         <LogExpenseDialog projectId={projectId} />

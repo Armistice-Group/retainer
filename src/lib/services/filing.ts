@@ -16,6 +16,7 @@ import type { Organization } from "@/generated/prisma/client";
 //   <root>/<Client>/Invoices/<INV-0001>.pdf
 //   <root>/<Client>/Documents/<file>            (client-wide documents)
 //   <root>/<Client>/<Project>/Documents/<file>  (a project's documents)
+//   <root>/<Client>/Agreements/<title>.pdf     (signed agreements' PDFs)
 // through the connection of the admin who set it up. Each item is filed when
 // it happens and an hourly job catches up on anything that failed.
 
@@ -167,6 +168,34 @@ export async function fileDocument(documentId: string) {
   }
 }
 
+/** Files a signed agreement's cached PDF into <root>/<Client>/Agreements/,
+ * once it's linked to a client (only with "documents" filing on). Best
+ * effort: never throws. */
+export async function fileAgreement(agreementId: string) {
+  const agreement = await prisma.agreement.findUnique({
+    where: { id: agreementId },
+    include: { client: { select: { name: true } } },
+  });
+  if (!agreement?.client || (!agreement.fileData && !agreement.storageKey)) return;
+  const org = await filingOrg(agreement.orgId);
+  if (!org?.fileDocuments) return;
+  try {
+    const t = await target(org);
+    if (!t) return;
+    const bytes = await readFile(agreement);
+    if (!bytes) return;
+    const base = (agreement.fileName ?? agreement.title).replace(/\.pdf$/i, "");
+    const filed = await t.impl.putFile(t.token, t.rootId, [agreement.client.name, "Agreements"], {
+      name: `${base}.pdf`,
+      bytes,
+      contentType: "application/pdf",
+    });
+    await record(org.id, "AGREEMENT", agreement.id, t.provider, filed);
+  } catch (err) {
+    await noteError(org.id, err);
+  }
+}
+
 /** Hourly: anything not filed yet (or changed since), for every org that files. */
 export async function catchUpFiling(onlyOrgId?: string) {
   const orgs = await prisma.organization.findMany({
@@ -200,6 +229,19 @@ export async function catchUpFiling(onlyOrgId?: string) {
       for (const doc of docs) {
         if (filedAt.has(`DOCUMENT:${doc.id}`)) continue;
         await fileDocument(doc.id);
+        filed++;
+      }
+      const agreements = await prisma.agreement.findMany({
+        where: {
+          orgId: org.id,
+          clientId: { not: null },
+          OR: [{ fileData: { not: null } }, { storageKey: { not: null } }],
+        },
+        select: { id: true },
+      });
+      for (const agreement of agreements) {
+        if (filedAt.has(`AGREEMENT:${agreement.id}`)) continue;
+        await fileAgreement(agreement.id);
         filed++;
       }
     }

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+import { balanceDue, isPartlyPaid } from "@/lib/invoice-balance";
 import { sendEmail, isEmailConfigured } from "@/lib/email";
 import { InvoiceEmail } from "@/emails/invoice-email";
 import { sendAlert } from "@/lib/alerts";
@@ -66,7 +67,8 @@ async function deliver(
   const { viewUrl, pixelUrl } = await invoiceLinks(invoice.id);
   const origin = await getOrigin();
   const logo = orgLogoUrl(invoice.org);
-  const total = formatCurrency(invoice.total, invoice.currency);
+  // Once part of it is paid, the email asks for what's still due.
+  const total = formatCurrency(isPartlyPaid(invoice) ? balanceDue(invoice) : invoice.total, invoice.currency);
   const subject = opts.reminder
     ? `Reminder: invoice ${invoice.number} from ${invoice.org.name} is overdue`
     : `Invoice ${invoice.number} from ${invoice.org.name} — ${total}`;

@@ -22,6 +22,7 @@ import {
   syncInvoiceStatusFromQuickBooks,
   QuickBooksError,
 } from "@/lib/services/quickbooks-sync";
+import { markInvoicePaidInFull, PaymentError } from "@/lib/services/payments";
 import type { ActionState } from "@/actions/auth";
 import type { Role } from "@/generated/prisma/client";
 import {
@@ -231,28 +232,33 @@ export async function setInvoiceStatusAction(
     return;
   }
 
+  if (status === "PAID") {
+    // "Mark as paid" records a payment for the whole balance still due —
+    // the invoice turns PAID (with its alert) through the payment.
+    try {
+      await markInvoicePaidInFull({ orgId: org.id, actorId: user.id }, invoiceId, {
+        method: (formData?.get("paymentMethod") as string) || null,
+      });
+    } catch (err) {
+      if (err instanceof PaymentError) throw new Error(err.message);
+      throw err;
+    }
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices");
+    revalidatePath(`/clients/${invoice.clientId}`);
+    return;
+  }
+
   if (status === "SENT") {
     const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
     if (lineItemCount === 0) throw new Error("Add at least one line item before sending.");
   }
 
-  const paymentMethod =
-    status === "PAID" ? (formData?.get("paymentMethod") as string) || null : undefined;
-
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: {
-      status,
-      // invoiceStatusChangeError only allows SENT → PAID and PAID → nothing, so
-      // paidAt only ever needs setting here.
-      ...(status === "PAID" ? { paidAt: new Date() } : {}),
-      ...(paymentMethod !== undefined ? { paymentMethod } : {}),
-    },
-  });
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { status } });
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
 
-  if (status === "SENT" || status === "PAID") {
+  if (status === "SENT") {
     await notifyInvoiceStatusChange(org, invoice, status);
   }
 }

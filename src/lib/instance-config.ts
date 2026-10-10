@@ -43,6 +43,16 @@ export const INTEGRATION_FIELDS = {
       options: ["sandbox", "production"],
     },
   ],
+  docusign: [
+    { key: "DOCUSIGN_CLIENT_ID", label: "Integration key", secret: false },
+    { key: "DOCUSIGN_CLIENT_SECRET", label: "Secret key", secret: true },
+    {
+      key: "DOCUSIGN_ENVIRONMENT",
+      label: "Environment",
+      secret: false,
+      options: ["demo", "production"],
+    },
+  ],
   stripe: [
     { key: "STRIPE_SECRET_KEY", label: "Secret key", secret: true },
     { key: "STRIPE_WEBHOOK_SECRET", label: "Webhook signing secret", secret: true },

@@ -126,10 +126,16 @@ hand.
 QuickBooks doesn't notify Consultainer when an invoice changes there, so this
 is manual. On a pushed invoice, **Sync status from QuickBooks** checks it:
 
-- Fully paid in QuickBooks (balance 0) → marked **Paid**.
-- Emailed from QuickBooks while still a draft here → marked **Sent**.
+- Paid (in full or in part) in QuickBooks → the amount QuickBooks shows as
+  received, beyond the payments and credit already recorded here, is recorded
+  as a payment (source *QuickBooks*), up to the balance due. Once nothing is
+  left the invoice is marked **Paid**.
+- Emailed from QuickBooks (or paid there) while still a draft here → marked
+  **Sent**.
 
-Status only moves forward; a sync never downgrades an invoice.
+Status only moves forward; a sync never downgrades an invoice or removes a
+payment. Syncing goes one way: payments recorded in Consultainer aren't sent
+to QuickBooks, so record them there too.
 
 ## Disconnecting
 

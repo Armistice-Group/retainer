@@ -34,11 +34,16 @@ You choose Slack and email separately for each alert on **Settings → Alerts**.
 | Billing or payment details change | Someone adds, changes or removes: organization or client payment methods and payment instructions; client billing email, billing address, payment terms or which payment methods they're offered; invoice contacts; a project's billing type, flat fee or payment terms; a member's bill rate on a project, default bill rate or cost rate; billing cycles; recurring invoices; the Mercury or QuickBooks connection; or the organization's currency, default bill rate, tax rate, overhead, payment terms, invoice prefix, external billing link or Stripe account. The alert says who changed what. Payment details, payment instructions and cost rates are never included, only that they changed. | Slack + email |
 | Access or security settings change | A member's role changes, a member is removed, someone is invited, an API key is created or revoked, single sign-on is set up, changed or removed, the sign-in domain or auto-join setting changes, two-factor is turned off, **Require two-factor authentication** is turned on or off, someone creates a password reset link for a member or a member resets their password, a sign-in email changes, or a passkey is removed. Also: one person deletes 20 or more records within 10 minutes (one alert per 10 minutes). | Slack + email |
 | An invoice is sent | A draft invoice is marked sent or emailed to the client, from the app or the MCP server, or by a recurring invoice or billing cycle set to mark its invoices sent automatically. | Slack + email |
-| An invoice is paid | Someone marks an invoice paid, a client's Stripe payment goes through (for a bank payment, when it clears), or Mercury sync finds the payment. A Stripe bank payment that fails is reported through this alert's settings too. | Slack + email |
+| An invoice is paid | An invoice is paid in full: someone records the last payment or marks it paid, credit covers the rest, a client's Stripe payment goes through (for a bank payment, when it clears), or a Mercury or QuickBooks sync finds the payment. | Slack + email |
+| A part payment is received | A payment is recorded on an invoice that still has a balance due afterwards, by hand or online. | Slack |
+| An online payment fails | A bank (ACH) payment a client made through **Pay now** (Stripe) bounced after it was submitted. The invoice is open for payment again. | Slack + email |
+| A client accepts an estimate | A client accepts an [estimate](/concepts/estimates) on its client page, or someone marks it accepted. The person who marked it doesn't get the in-app alert. | Slack + email |
+| A client declines an estimate | A client declines an estimate on its client page, or someone marks it declined. | Slack + email |
 | An invoice becomes overdue | The daily job finds a sent invoice at least one day past its due date. Each invoice alerts once. | Slack |
 | A project nears its budget or a task passes its estimate | Logged hours reach 80% and then 100% of a project's hour budget, or a task's logged hours go over its estimate. The task's assignee is notified in the app too. Each level alerts once, and re-arms if hours drop back or the budget grows. | Slack |
 | Weekly digest (Mondays) | See [Weekly digest](#weekly-digest). Not shown in the app. | Email |
 | A timesheet is submitted for approval | A member submits a week of time. | In the app only |
+| An expense is waiting for approval | A member logs an [expense](/concepts/expenses#approval) above the approval threshold, from the app or the MCP server. Not sent for expenses that are approved automatically. On a [confidential project](/concepts/clients-and-projects), Slack and email say only *… logged a … expense on a confidential project that's waiting for approval.*, without the project or description; the in-app alert has them, since owners and admins can see every project. | Slack + email |
 | Someone logs time | Anyone logs time. Not sent when the person logging is the only owner or admin, and never to the person who logged it. | Slack |
 | A recurring invoice or billing cycle needs review | A recurring invoice or billing cycle generates a draft for you to review and send, or one set to [send automatically](/concepts/invoicing#sending-automatically) couldn't be emailed (it's still marked sent; the alert says why). Ones emailed automatically use **An invoice is sent** instead. | Slack |
 
@@ -145,10 +150,13 @@ when:
 - you're assigned a task, or added to a project;
 - someone comments on a task you're assigned to or watching, or @mentions you;
 - your timesheet is approved or sent back;
+- your expense is approved or rejected (also emailed to you when email is set
+  up);
 - meetings from your connected calendar are waiting to be sorted;
 - (owners and admins) someone joins the organization.
 
-Personal notifications are in-app only. They don't go to Slack or email.
+Personal notifications are in-app only, except the expense one above. They
+don't go to Slack.
 
 ## Weekly digest
 
@@ -163,7 +171,8 @@ that, so the exact time of day depends on when you started it.
 **What it covers** (Monday to Sunday of last week, UTC):
 
 - hours logged and billable hours;
-- invoiced (invoices issued last week) and paid (invoices paid last week);
+- invoiced (invoices issued last week, not counting deposits) and received
+  (payments received last week, part payments included);
 - not yet invoiced: all billable work not yet on an invoice;
 - hours by person;
 - overdue invoices;
@@ -190,8 +199,9 @@ newest first.
   invites, users' accounts and passkeys, API keys, single sign-on, QuickBooks,
   Mercury and Linear connections, linked Linear projects, clients, contacts,
   client documents, links, projects and project members, milestones, tasks and
-  task comments, time entries, timesheets, expenses, invoices, recurring
-  invoices, billing cycles and payment methods.
+  task comments, time entries, timesheets, expenses, estimates, invoices, recurring
+  invoices, billing cycles, payment methods, invoice payments, credit notes and
+  credit applied to invoices.
 - Sign-ins (with the sign-in method), client documents viewed and downloaded,
   and audit log exports.
 

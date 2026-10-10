@@ -18,7 +18,10 @@ export function SettingsNav({ showAuditLog }: { showAuditLog: boolean }) {
   const visible = showAuditLog
     ? [
         ...links,
+        { href: "/settings/agreements", label: "Agreements" },
         { href: "/settings/alerts", label: "Alerts" },
+        { href: "/settings/import", label: "Import" },
+        { href: "/settings/export", label: "Export" },
         { href: "/settings/audit", label: "Audit log" },
       ]
     : links;

@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectLinearAction } from "@/actions/integrations";
 import { CopyButton } from "@/components/copy-button";
+import { DocsLink } from "@/components/docs-link";
 
 export function LinearCard({
   connected,
@@ -137,6 +138,7 @@ function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
           from each project&apos;s page with <strong>Link Linear</strong>.
         </li>
       </ol>
+      <DocsLink page="integrations/linear" />
     </details>
   );
 }

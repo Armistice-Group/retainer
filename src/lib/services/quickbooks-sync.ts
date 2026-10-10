@@ -9,6 +9,9 @@ import {
   QuickBooksError,
 } from "@/lib/integrations/quickbooks";
 
+import { balanceCents, toCents } from "@/lib/invoice-balance";
+import { PaymentError, recordPayment } from "@/lib/services/payments";
+
 export { QuickBooksError };
 
 export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) {
@@ -78,9 +81,12 @@ export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) 
 
 /**
  * Pulls the invoice's current status back from QuickBooks. Only ever moves
- * status forward (SENT → PAID), never backward — QuickBooks briefly showing
- * an unsent email status, for instance, shouldn't downgrade an invoice we
- * already know was sent.
+ * status forward, never backward — QuickBooks briefly showing an unsent
+ * email status, for instance, shouldn't downgrade an invoice we already know
+ * was sent. Money QuickBooks shows as received beyond what's recorded here
+ * (payments plus applied credit) is recorded as a QuickBooks payment, up to
+ * the balance due; the invoice turns PAID once nothing is left. Payments are
+ * not pushed to QuickBooks.
  */
 export async function syncInvoiceStatusFromQuickBooks(orgId: string, invoiceId: string) {
   const connection = await prisma.quickBooksConnection.findUnique({ where: { orgId } });
@@ -88,39 +94,49 @@ export async function syncInvoiceStatusFromQuickBooks(orgId: string, invoiceId: 
     throw new QuickBooksError("This organization isn't connected to QuickBooks yet.");
   }
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  let invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
   if (!invoice || invoice.orgId !== orgId) {
     throw new QuickBooksError("Invoice not found.");
   }
-  if (!invoice.quickbooksInvoiceId) {
+  const quickbooksInvoiceId = invoice.quickbooksInvoiceId;
+  if (!quickbooksInvoiceId) {
     throw new QuickBooksError("This invoice hasn't been pushed to QuickBooks yet.");
   }
 
-  const remote = await fetchInvoiceStatus(connection, invoice.quickbooksInvoiceId);
+  const remote = await fetchInvoiceStatus(connection, quickbooksInvoiceId);
 
-  let nextStatus: "SENT" | "PAID" | null = null;
-  if (remote.totalAmt > 0 && remote.balance <= 0) {
-    nextStatus = "PAID";
-  } else if (remote.emailStatus === "EmailSent" && invoice.status === "DRAFT") {
-    nextStatus = "SENT";
+  const receivedInQuickBooks =
+    remote.totalAmt > 0 ? toCents(remote.totalAmt) - toCents(Math.max(0, remote.balance)) : 0;
+  // Emailed (or already paid) from QuickBooks: it's been sent.
+  if (invoice.status === "DRAFT" && (remote.emailStatus === "EmailSent" || receivedInQuickBooks > 0)) {
+    invoice = await prisma.invoice.update({ where: { id: invoice.id }, data: { status: "SENT" } });
   }
 
-  const rank = { DRAFT: 0, SENT: 1, PAID: 2, VOID: 3 };
-  if (nextStatus && rank[nextStatus] > rank[invoice.status]) {
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: nextStatus,
-        ...(nextStatus === "PAID" ? { paidAt: new Date() } : {}),
-        quickbooksSyncedAt: new Date(),
-      },
-    });
-    return nextStatus;
+  if (invoice.status === "SENT" && receivedInQuickBooks > 0) {
+    const recordedHere = toCents(invoice.amountPaid) + toCents(invoice.creditApplied);
+    const newCents = Math.min(receivedInQuickBooks - recordedHere, balanceCents(invoice));
+    if (newCents > 0) {
+      try {
+        await recordPayment(
+          { orgId, actorId: null },
+          {
+            invoiceId: invoice.id,
+            amount: newCents / 100,
+            source: "QUICKBOOKS",
+            method: "Recorded in QuickBooks",
+            reference: quickbooksInvoiceId,
+          }
+        );
+      } catch (err) {
+        if (err instanceof PaymentError) throw new QuickBooksError(err.message);
+        throw err;
+      }
+    }
   }
 
-  await prisma.invoice.update({
+  const updated = await prisma.invoice.update({
     where: { id: invoice.id },
     data: { quickbooksSyncedAt: new Date() },
   });
-  return invoice.status;
+  return updated.status;
 }

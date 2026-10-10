@@ -1,5 +1,6 @@
 import { Database, HardDrive } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DocsLink } from "@/components/docs-link";
 
 /** Where uploaded files are kept — read-only; set in the server's environment. */
 export function StorageCard({
@@ -71,6 +72,7 @@ export function StorageCard({
                   afterwards — moved files can&apos;t be read without them.
                 </li>
               </ol>
+              <DocsLink page="self-hosting#file-storage" />
             </details>
           </>
         )}

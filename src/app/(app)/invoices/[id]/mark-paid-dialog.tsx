@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -14,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { setInvoiceStatusAction } from "@/actions/invoices";
 
-export function MarkPaidDialog({ invoiceId }: { invoiceId: string }) {
+/** Records a payment for the whole balance still due. */
+export function MarkPaidDialog({ invoiceId, balanceLabel }: { invoiceId: string; balanceLabel: string }) {
   const [open, setOpen] = useState(false);
   const action = setInvoiceStatusAction.bind(null, invoiceId, "PAID");
 
@@ -26,6 +28,10 @@ export function MarkPaidDialog({ invoiceId }: { invoiceId: string }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Mark as paid</DialogTitle>
+          <DialogDescription>
+            Records a payment of {balanceLabel} received today — the whole balance due. For part of
+            it, or another date, use Record payment.
+          </DialogDescription>
         </DialogHeader>
         <form action={action} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

@@ -26,9 +26,18 @@ import {
   InvoiceError,
 } from "@/lib/services/invoices";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
+import {
+  canManagePayments,
+  invoiceLedger,
+  invoiceMoneyFields,
+  markInvoicePaidInFull,
+  PaymentError,
+  recordPayment,
+} from "@/lib/services/payments";
 import { soloMemberId } from "@/lib/org";
 import { defaultBillRateFor, resolveBillRate } from "@/lib/bill-rates";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
+import { visibleAgreements } from "@/lib/services/agreements";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import {
   CalendarError,
@@ -51,6 +60,7 @@ import {
   TimesheetError,
 } from "@/lib/services/timesheets";
 import { startTimer, stopActiveTimer, TimerError } from "@/lib/services/timer";
+import { alertExpenseSubmitted, notifyExpenseReviewed } from "@/lib/services/expense-alerts";
 import { toISODate } from "@/lib/date";
 import {
   addTaskComment,
@@ -59,6 +69,16 @@ import {
   setTaskWatching,
   TaskCommentError,
 } from "@/lib/services/task-comments";
+import {
+  canManageEstimates,
+  createEstimate,
+  estimateForApi,
+  estimateVisibilityWhere,
+  EstimateError,
+  ESTIMATE_STATUSES,
+  expireEstimates,
+} from "@/lib/services/estimates";
+import { estimateInputSchema } from "@/lib/validations/estimate";
 
 const clientStatusValues = ["ACTIVE", "INACTIVE"] as const;
 const projectStatusValues = ["ACTIVE", "ON_HOLD", "COMPLETED", "ARCHIVED"] as const;
@@ -82,6 +102,10 @@ async function requireProjectForActor(
   if (!(await canViewProject(project, ctx.actorId, ctx.role))) return null;
   return project;
 }
+
+/** A date string the tools can safely pass to new Date(). */
+const isoDate = () =>
+  z.string().refine((v) => !Number.isNaN(new Date(v).getTime()), "Use an ISO date, e.g. 2026-07-23.");
 
 function text(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
@@ -114,6 +138,25 @@ function timeEntryContext(ctx: ApiAuthContext) {
 
 const handler = createMcpHandler(
   (server) => {
+    // Database and date errors that slip through become a plain message:
+    // Prisma's text includes query details (ids) that shouldn't reach clients.
+    const register = server.tool.bind(server) as (...params: unknown[]) => unknown;
+    server.tool = ((...params: unknown[]) => {
+      const callback = params[params.length - 1] as (...args: unknown[]) => Promise<unknown>;
+      params[params.length - 1] = async (...args: unknown[]) => {
+        try {
+          return await callback(...args);
+        } catch (err) {
+          if (err instanceof RangeError || (err instanceof Error && err.name.startsWith("PrismaClient"))) {
+            console.error("[mcp]", err);
+            return errorResult("That request couldn't be completed. Check the ids and dates and try again.");
+          }
+          throw err;
+        }
+      };
+      return register(...params);
+    }) as typeof server.tool;
+
     server.tool(
       "list_clients",
       "List all clients in the current organization.",
@@ -207,8 +250,8 @@ const handler = createMcpHandler(
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         status: z.enum(projectStatusValues).default("ACTIVE"),
-        startDate: z.string().optional().describe("ISO date"),
-        endDate: z.string().optional().describe("ISO date"),
+        startDate: isoDate().optional().describe("ISO date"),
+        endDate: isoDate().optional().describe("ISO date"),
         confidential: z.boolean().default(false),
         budgetHours: z.number().positive().optional(),
         billingType: z.enum(billingTypeValues).default("HOURLY"),
@@ -268,8 +311,8 @@ const handler = createMcpHandler(
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         status: z.enum(projectStatusValues).default("ACTIVE"),
-        startDate: z.string().optional().describe("ISO date"),
-        endDate: z.string().optional().describe("ISO date"),
+        startDate: isoDate().optional().describe("ISO date"),
+        endDate: isoDate().optional().describe("ISO date"),
         confidential: z.boolean().default(false),
         budgetHours: z.number().positive().optional(),
         billingType: z.enum(billingTypeValues).default("HOURLY"),
@@ -363,6 +406,8 @@ const handler = createMcpHandler(
         if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
           return errorResult("Project not found.");
         }
+        const existing = await prisma.task.findFirst({ where: { id: taskId, projectId }, select: { id: true } });
+        if (!existing) return errorResult("Task not found on that project.");
         const task = await prisma.task.update({
           where: { id: taskId, projectId },
           data: { status },
@@ -419,6 +464,8 @@ const handler = createMcpHandler(
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
+        const existing = await prisma.task.findFirst({ where: { id: taskId, projectId }, select: { id: true } });
+        if (!existing) return errorResult("Task not found on that project.");
         const task = await prisma.task.update({
           where: { id: taskId, projectId },
           data: {
@@ -509,7 +556,7 @@ const handler = createMcpHandler(
       "Log time against a project for the authenticated user.",
       {
         projectId: z.string(),
-        date: z.string().describe("ISO date, e.g. 2026-07-23"),
+        date: isoDate().describe("ISO date, e.g. 2026-07-23"),
         hours: z.number().positive().max(24),
         description: z.string().optional(),
         billable: z.boolean().default(true),
@@ -555,8 +602,7 @@ const handler = createMcpHandler(
         projectId: z.string().optional().describe("Required when no taskId is given"),
         description: z.string().optional(),
         billable: z.boolean().default(true),
-        date: z
-          .string()
+        date: isoDate()
           .optional()
           .describe("ISO date to log a stopped timer under; defaults to today (server time)"),
       },
@@ -592,8 +638,7 @@ const handler = createMcpHandler(
       "stop_timer",
       "Stop the authenticated user's running timer and log it as a time entry. Returns the entry, or null when nothing was running (or under 36 seconds had passed).",
       {
-        date: z
-          .string()
+        date: isoDate()
           .optional()
           .describe("ISO date to log the entry under; defaults to today (server time)"),
       },
@@ -666,8 +711,8 @@ const handler = createMcpHandler(
         actor: z.string().optional(),
         type: z.string().optional(),
         action: z.string().optional(),
-        from: z.string().optional().describe("yyyy-mm-dd, inclusive"),
-        to: z.string().optional().describe("yyyy-mm-dd, inclusive"),
+        from: isoDate().optional().describe("yyyy-mm-dd, inclusive"),
+        to: isoDate().optional().describe("yyyy-mm-dd, inclusive"),
         limit: z.number().int().min(1).max(200).default(50),
         page: z.number().int().min(0).default(0),
       },
@@ -727,7 +772,7 @@ const handler = createMcpHandler(
         projectId: z.string(),
         taskId: z.string().optional(),
         billable: z.boolean().default(true),
-        date: z.string().optional().describe("ISO date to log under; defaults to the meeting's UTC date"),
+        date: isoDate().optional().describe("ISO date to log under; defaults to the meeting's UTC date"),
         remember: z.boolean().default(false),
       },
       async (args, extra) => {
@@ -767,8 +812,8 @@ const handler = createMcpHandler(
       "list_time_entries",
       "List the authenticated user's logged time entries, optionally filtered.",
       {
-        from: z.string().optional().describe("ISO date, inclusive lower bound"),
-        to: z.string().optional().describe("ISO date, inclusive upper bound"),
+        from: isoDate().optional().describe("ISO date, inclusive lower bound"),
+        to: isoDate().optional().describe("ISO date, inclusive upper bound"),
         projectId: z.string().optional(),
       },
       async ({ from, to, projectId }, extra) => {
@@ -800,7 +845,7 @@ const handler = createMcpHandler(
       {
         timeEntryId: z.string(),
         projectId: z.string(),
-        date: z.string(),
+        date: isoDate(),
         hours: z.number().positive().max(24),
         description: z.string().optional(),
         billable: z.boolean().default(true),
@@ -835,6 +880,34 @@ const handler = createMcpHandler(
     );
 
     server.tool(
+      "list_agreements",
+      "List a client's signed agreements (pulled from DocuSign, Documenso or Ironclad): title, signed date, signers, provider link. Includes its projects' agreements you can see; pass projectId for one project.",
+      { clientId: z.string(), projectId: z.string().optional() },
+      async ({ clientId, projectId }, extra) => {
+        const ctx = ctxFrom(extra);
+        const client = await prisma.client.findUnique({ where: { id: clientId }, select: { orgId: true } });
+        if (!client || client.orgId !== ctx.orgId) return errorResult("Client not found.");
+        const agreements = await visibleAgreements(
+          { orgId: ctx.orgId, userId: ctx.actorId, role: ctx.role },
+          { clientId, projectId }
+        );
+        return text(
+          agreements.map((a) => ({
+            id: a.id,
+            provider: a.provider,
+            title: a.title,
+            signedAt: a.signedAt,
+            signers: a.signers,
+            projectId: a.projectId,
+            projectName: a.projectName,
+            url: a.externalUrl,
+            hasSignedCopy: a.hasFile,
+          }))
+        );
+      }
+    );
+
+    server.tool(
       "list_milestones",
       "List fixed-price milestones for a project.",
       { projectId: z.string() },
@@ -858,7 +931,7 @@ const handler = createMcpHandler(
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         amount: z.number().positive(),
-        dueDate: z.string().optional().describe("ISO date"),
+        dueDate: isoDate().optional().describe("ISO date"),
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -892,7 +965,7 @@ const handler = createMcpHandler(
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         amount: z.number().positive(),
-        dueDate: z.string().optional().describe("ISO date"),
+        dueDate: isoDate().optional().describe("ISO date"),
       },
       async ({ milestoneId, projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -1011,6 +1084,8 @@ const handler = createMcpHandler(
         const expenses = await prisma.expense.findMany({
           where: {
             orgId: ctx.orgId,
+            // Not other people's confidential projects (members only).
+            project: projectVisibilityWhere(ctx.actorId, ctx.role),
             ...(projectId ? { projectId } : {}),
             ...(status ? { status } : {}),
           },
@@ -1029,12 +1104,15 @@ const handler = createMcpHandler(
         description: z.string().min(1).max(200),
         category: z.string().max(100).optional().describe(expenseCategoryDescription),
         amount: z.number().positive(),
-        incurredAt: z.string().describe("ISO date"),
+        incurredAt: isoDate().describe("ISO date"),
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
+        if (Number.isNaN(new Date(args.incurredAt).getTime())) {
+          return errorResult("incurredAt must be an ISO date, like 2026-10-01.");
+        }
 
         const org = await prisma.organization.findUniqueOrThrow({
           where: { id: ctx.orgId },
@@ -1057,6 +1135,7 @@ const handler = createMcpHandler(
             approvedAt: isManager && autoApproved ? new Date() : null,
           },
         });
+        if (expense.status === "PENDING") await alertExpenseSubmitted(expense.id);
         return text(expense);
       }
     );
@@ -1080,6 +1159,7 @@ const handler = createMcpHandler(
           where: { id: expenseId },
           data: { status: "APPROVED", approvedById: ctx.actorId, approvedAt: new Date() },
         });
+        await notifyExpenseReviewed(expenseId, { id: ctx.actorId, name: ctx.actorName });
         return text(updated);
       }
     );
@@ -1103,13 +1183,14 @@ const handler = createMcpHandler(
           where: { id: expenseId },
           data: { status: "REJECTED", approvedById: ctx.actorId, approvedAt: new Date() },
         });
+        await notifyExpenseReviewed(expenseId, { id: ctx.actorId, name: ctx.actorName });
         return text(updated);
       }
     );
 
     server.tool(
       "list_invoices",
-      "List invoices in the current organization, optionally filtered by status. Each invoice includes isOverdue/daysOverdue (true only for a SENT invoice past its due date).",
+      "List invoices in the current organization, optionally filtered by status. Each invoice includes isOverdue/daysOverdue (true only for a SENT invoice past its due date), amountPaid, creditApplied and balanceDue (total minus payments and applied credit; a partly paid invoice stays SENT until it reaches 0). kind is STANDARD or DEPOSIT.",
       { status: z.enum(["DRAFT", "SENT", "PAID", "VOID"]).optional() },
       async ({ status }, extra) => {
         const ctx = ctxFrom(extra);
@@ -1125,6 +1206,7 @@ const handler = createMcpHandler(
         return text(
           invoices.map((inv) => ({
             ...inv,
+            ...invoiceMoneyFields(inv),
             isOverdue: isOverdue(inv.status, inv.dueDate),
             daysOverdue: daysOverdue(inv.dueDate),
           }))
@@ -1140,9 +1222,8 @@ const handler = createMcpHandler(
         timeEntryIds: z.array(z.string()).default([]),
         milestoneIds: z.array(z.string()).default([]),
         expenseIds: z.array(z.string()).default([]),
-        issueDate: z.string(),
-        dueDate: z
-          .string()
+        issueDate: isoDate(),
+        dueDate: isoDate()
           .optional()
           .describe("ISO date. Defaults to the issue date plus the payment terms."),
         paymentTerms: z
@@ -1272,33 +1353,80 @@ const handler = createMcpHandler(
 
     server.tool(
       "mark_invoice_paid",
-      "Owner/admin only: mark a sent invoice as paid, optionally recording a payment method.",
+      "Owner/admin only: mark a sent invoice as paid by recording a payment for its whole balance due (today), optionally with a payment method. For a part payment use record_invoice_payment.",
       { invoiceId: z.string(), paymentMethod: z.string().max(100).optional() },
       async ({ invoiceId, paymentMethod }, extra) => {
         const ctx = ctxFrom(extra);
         if (!canChangeInvoiceStatusByKey(ctx.role)) {
           return errorResult("Only owners and admins can change an invoice's status.");
         }
-        const invoice = await prisma.invoice.findFirst({
-          where: visibleInvoiceWhere(ctx, invoiceId),
-          include: { client: { select: { name: true } } },
-        });
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
         if (!invoice) return errorResult("Invoice not found.");
         const statusError = invoiceStatusChangeError(invoice.status, "PAID");
         if (statusError) return errorResult(statusError);
 
-        const updated = await prisma.invoice.update({
-          where: { id: invoiceId },
-          data: { status: "PAID", paidAt: new Date(), ...(paymentMethod ? { paymentMethod } : {}) },
-        });
+        try {
+          const result = await markInvoicePaidInFull({ orgId: ctx.orgId, actorId: ctx.actorId }, invoiceId, {
+            method: paymentMethod ?? null,
+          });
+          return text({ ...result.invoice, ...invoiceMoneyFields(result.invoice), payment: result.payment });
+        } catch (err) {
+          if (err instanceof PaymentError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
 
-        const org = await prisma.organization.findUniqueOrThrow({
-          where: { id: ctx.orgId },
-          select: { id: true, name: true, slackWebhookUrl: true },
-        });
-        await notifyInvoiceStatusChange(org, { ...updated, client: invoice.client }, "PAID");
+    server.tool(
+      "record_invoice_payment",
+      "Owner/admin only: record money received against a sent invoice (a part payment or the rest of it). amount can't exceed the balance due. The invoice becomes PAID when its balance reaches 0.",
+      {
+        invoiceId: z.string(),
+        amount: z.number().positive().describe("In the invoice's currency, e.g. 1250.50."),
+        receivedAt: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe("yyyy-mm-dd; defaults to today."),
+        method: z.string().max(100).optional().describe("e.g. Wire, ACH, Check #1042."),
+        reference: z.string().max(200).optional(),
+        note: z.string().max(1000).optional(),
+      },
+      async ({ invoiceId, ...input }, extra) => {
+        const ctx = ctxFrom(extra);
+        if (!canManagePayments(ctx.role)) {
+          return errorResult("Only owners and admins can record payments.");
+        }
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
+        if (!invoice) return errorResult("Invoice not found.");
+        try {
+          const result = await recordPayment({ orgId: ctx.orgId, actorId: ctx.actorId }, { invoiceId, ...input });
+          return text({
+            payment: result.payment,
+            invoice: { ...result.invoice, ...invoiceMoneyFields(result.invoice) },
+          });
+        } catch (err) {
+          if (err instanceof PaymentError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
 
-        return text(updated);
+    server.tool(
+      "list_invoice_payments",
+      "Payments recorded against an invoice, credit applied to it, and credit notes issued against it.",
+      { invoiceId: z.string() },
+      async ({ invoiceId }, extra) => {
+        const ctx = ctxFrom(extra);
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
+        if (!invoice) return errorResult("Invoice not found.");
+        const ledger = await invoiceLedger(invoiceId);
+        return text({
+          ...invoiceMoneyFields(invoice),
+          payments: ledger.payments.map(({ recordedBy, ...p }) => ({ ...p, recordedBy: recordedBy?.name ?? null })),
+          creditApplications: ledger.credits.map(({ appliedBy, ...c }) => ({ ...c, appliedBy: appliedBy?.name ?? null })),
+          creditNotes: ledger.creditNotes,
+        });
       }
     );
 
@@ -1321,6 +1449,91 @@ const handler = createMcpHandler(
           return text({ ...updated, released });
         } catch (err) {
           if (err instanceof InvoiceError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "list_estimates",
+      "List estimates (quotes) in the current organization, newest first, optionally by status or client. A member doesn't see estimates for a confidential project they're not on.",
+      {
+        status: z.enum(ESTIMATE_STATUSES).optional(),
+        clientId: z.string().optional(),
+      },
+      async ({ status, clientId }, extra) => {
+        const ctx = ctxFrom(extra);
+        await expireEstimates({ orgId: ctx.orgId });
+        const estimates = await prisma.estimate.findMany({
+          where: {
+            orgId: ctx.orgId,
+            ...(status ? { status } : {}),
+            ...(clientId ? { clientId } : {}),
+            ...estimateVisibilityWhere(ctx.actorId, ctx.role),
+          },
+          include: {
+            client: { select: { id: true, name: true } },
+            lineItems: { orderBy: { sortOrder: "asc" } },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        return text(estimates.map((e) => estimateForApi(e, ctx.role)));
+      }
+    );
+
+    server.tool(
+      "create_estimate",
+      "Owner/admin only: create a draft estimate (EST-0001, …) for a client, with line items and optional scope text, expiry and proposed billing for the project it becomes once accepted. Send it from the app.",
+      {
+        clientId: z.string(),
+        projectId: z
+          .string()
+          .optional()
+          .describe("An existing project of this client the estimate is for. Omit to create a project once it's accepted."),
+        title: z.string().min(1).max(200),
+        intro: z
+          .string()
+          .max(20000)
+          .optional()
+          .describe("Scope text. Plain text or simple markdown: # headings, - lists, **bold**, [links](https://…)."),
+        issueDate: isoDate().optional().describe("YYYY-MM-DD. Defaults to today (UTC)."),
+        expiresAt: z.string().optional().describe("YYYY-MM-DD, the last day the client can accept. Omit for no expiry."),
+        taxRate: z.number().min(0).max(100).default(0),
+        proposedBillingType: z
+          .enum(["HOURLY", "FLAT_FEE", "MILESTONE"])
+          .optional()
+          .describe("Billing type of the project created on acceptance. Default: MILESTONE if any line is a milestone, else FLAT_FEE."),
+        proposedRate: z.number().positive().optional().describe("Hourly rate, for an HOURLY project."),
+        proposedBudget: z.number().positive().optional().describe("Project budget. Defaults to the estimate subtotal."),
+        lineItems: z
+          .array(
+            z.object({
+              description: z.string().min(1).max(500),
+              quantity: z.number().min(0),
+              rate: z.number().min(0).describe("Unit price."),
+              isMilestone: z.boolean().default(false),
+              milestoneDueDate: isoDate().optional().describe("YYYY-MM-DD"),
+              milestoneDueDays: z.number().int().min(0).optional().describe("Days after acceptance."),
+            })
+          )
+          .min(1)
+          .max(200),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        if (!canManageEstimates(ctx.role)) {
+          return errorResult("Only owners and admins can manage estimates.");
+        }
+        const parsed = estimateInputSchema.safeParse(args);
+        if (!parsed.success) return errorResult(parsed.error.issues[0]?.message ?? "Invalid estimate.");
+        try {
+          const estimate = await createEstimate(
+            { orgId: ctx.orgId, actorId: ctx.actorId, role: ctx.role },
+            parsed.data
+          );
+          return text(estimateForApi(estimate, ctx.role));
+        } catch (err) {
+          if (err instanceof EstimateError) return errorResult(err.message);
           throw err;
         }
       }

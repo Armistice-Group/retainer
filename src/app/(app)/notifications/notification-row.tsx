@@ -18,6 +18,7 @@ import {
   CalendarCheck,
   Eye,
   ShieldAlert,
+  Receipt,
 } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 import { markNotificationReadAction } from "@/actions/notifications";
@@ -30,6 +31,8 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   TASK_ASSIGNED: ListTodo,
   INVOICE_SENT: Send,
   INVOICE_PAID: CheckCircle2,
+  PAYMENT_RECEIVED: CheckCircle2,
+  PAYMENT_FAILED: AlertTriangle,
   TIME_LOGGED: Clock,
   RECURRING_INVOICE_GENERATED: Repeat,
   INVOICE_OVERDUE: AlertTriangle,
@@ -42,6 +45,10 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   BILLING_CHANGED: ShieldAlert,
   SECURITY_ALERT: ShieldAlert,
   MEETINGS_TO_SORT: CalendarCheck,
+  EXPENSE_SUBMITTED: Receipt,
+  EXPENSE_REVIEWED: Receipt,
+  ESTIMATE_ACCEPTED: CheckCircle2,
+  ESTIMATE_DECLINED: AlertTriangle,
 };
 
 export function NotificationRow({

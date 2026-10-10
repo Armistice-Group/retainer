@@ -9,9 +9,9 @@ export const ACTIVE_ORG_COOKIE = "activeOrgId";
 
 /** Two-factor is satisfied by an authenticator app (TOTP), or by having
  * signed in through the org's SSO (the identity provider owns MFA then).
- * Passkeys don't count: password sign-in never asks for one, and they're
- * accepted without user verification, so a passkey isn't reliably a second
- * factor. */
+ * Having a passkey doesn't count: password sign-in never asks for one, so it
+ * says nothing about how the account's other sessions are protected. (A
+ * passkey sign-in itself requires user verification and skips the code.) */
 export function meetsTwoFactorRequirement(user: {
   twoFactorEnabled?: boolean;
   signInMethod?: string | null;

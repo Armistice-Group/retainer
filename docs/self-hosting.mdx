@@ -6,13 +6,14 @@ description: Install, configure, upgrade, back up and restore a Consultainer ins
 Consultainer is self-hosted only: no billing, no plan limits, no telemetry.
 It ships as a multi-arch (amd64/arm64) image at
 `ghcr.io/armistice-group/retainer` and runs from one Docker Compose file with
-three services:
+four services:
 
 | Service | What it is |
 | --- | --- |
 | `consultainer-db` | Postgres 16. Data lives in the `db_data` Docker volume. |
 | `consultainer-app` | The app. Listens on port 3000 in the container, published on the host as `APP_PORT` (3113 by default). Runs database migrations every time it starts. |
 | `scheduler` | A small loop that calls the app's [scheduled jobs](#scheduled-jobs). |
+| `backup` | Dumps the database every night and keeps the last 14 dumps. See [Backups](#backups). |
 
 You need a Linux, macOS or Windows host with Docker Engine and the Compose
 plugin (`docker compose version` should work), about 1 GB of free RAM, and
@@ -100,7 +101,7 @@ plugin (`docker compose version` should work), about 1 GB of free RAM, and
   </Step>
 </Steps>
 
-**Check it worked:** `docker compose ps` lists all three services as
+**Check it worked:** `docker compose ps` lists all four services as
 `running`, and opening `/setup` again now redirects to the login page. Setup
 can only be completed once; after the first account exists, `/setup` is
 closed for good.
@@ -155,7 +156,8 @@ Every variable is described in `.env.example`. After changing `.env`, run
   If you leave `POSTGRES_USER`, `POSTGRES_PASSWORD` or `POSTGRES_DB` out of
   `.env` entirely, the compose file falls back to `app` / `app` /
   `consulthub`. `.env.example` sets the database name to `consultainer`, so
-  use whichever your `.env` actually has in the backup commands below.
+  keep whichever your `.env` actually has: the `backup` service reads the
+  same values, so it always dumps the database the app uses.
 </Note>
 
 ### Recommended
@@ -176,6 +178,7 @@ Every variable is described in `.env.example`. After changing `.env`, run
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Email through [Resend](https://resend.com). See [Email](#email). |
 | `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENVIRONMENT` | [QuickBooks](/integrations/quickbooks) app credentials. |
 | `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET` | [Linear](/integrations/linear) OAuth app, and its webhook signing secret for live updates. |
+| `DOCUSIGN_CLIENT_ID`, `DOCUSIGN_CLIENT_SECRET`, `DOCUSIGN_ENVIRONMENT` | [DocuSign](/integrations/agreements) app (integration key, secret key, `demo` or `production`) for pulling signed agreements. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe, for [collecting invoice payments](/integrations/payments). |
 | `GOOGLE_DRIVE_*`, `DROPBOX_*`, `MICROSOFT_*`, `NOTION_*` | File services people connect to link and file documents. See [Documents & files](/integrations/files). |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`, `S3_PREFIX` | Keep uploads in S3-compatible storage instead of the database. See [File storage](#file-storage). |
@@ -316,6 +319,7 @@ idempotent: running one twice never sends or creates anything twice.
 | `/api/cron/mercury-sync` | Every hour | Checks Mercury and marks invoices paid when the client has paid. |
 | `/api/cron/linear-sync` | Every hour | Syncs every linked project with Linear (issues and comments) and retries failed pushes. |
 | `/api/cron/calendar-sync` | Every hour | Pulls recent meetings from everyone's connected calendars. |
+| `/api/cron/agreements-sync` | Every hour | Pulls newly completed agreements from every connected DocuSign, Documenso and Ironclad account. |
 | `/api/cron/filing` | Every hour | Files invoices and documents that didn't reach the organization's filing folder yet, or changed since. |
 | `/api/cron/recurring-invoices` | Once a day | Creates retainer invoices and client billing-cycle invoices that are due, raises overdue alerts, emails overdue reminders to clients, and on Monday (or Tuesday, if Monday's run was missed) sends the weekly digest. |
 
@@ -467,31 +471,104 @@ when you're ready. Release notes are on the repository's
 
 Back up three things:
 
-1. **The database.** Without object storage it also contains every uploaded
-   file.
+1. **The database.** The `backup` service does this for you every night.
+   Without [object storage](#file-storage), the database also holds every
+   uploaded file, so the dump includes them.
 2. **Your `.env`**, above all `INTEGRATION_ENCRYPTION_KEY`. A database backup
    restored with a different key loses every SSO, integration and calendar
-   credential.
-3. **The bucket**, if you use [object storage](#file-storage). Use your
-   provider's versioning or replication, or copy it with a tool like
-   `rclone`.
+   credential. Keep a copy somewhere other than this server, such as a
+   password manager.
+3. **The bucket**, if you use [object storage](#file-storage). Uploads in the
+   bucket are not in the database dump. Use your provider's versioning or
+   replication, or copy the bucket with a tool like `rclone`.
 
-Take a database backup (a compressed custom-format dump) from the directory
-with your `docker-compose.yml`:
+### What runs
+
+The `backup` service in `docker-compose.yml` is on by default. Every night at
+`BACKUP_HOUR` (UTC) it runs `pg_dump` against the app's database and writes a
+compressed custom-format dump named like
+`consultainer-20261010T030000Z.dump`. It keeps the newest `BACKUP_KEEP`
+dumps and deletes older ones. A dump is written under a temporary name first,
+so a failed run never replaces a good backup. It's safe while the app is
+running.
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `BACKUP_ENABLED` | `true` | `false` turns nightly backups off. |
+| `BACKUP_HOUR` | `3` | Hour of the day to run, 0–23, in UTC. |
+| `BACKUP_KEEP` | `14` | How many dumps to keep, here and in the bucket. |
+| `BACKUP_DIR` | the `backups` volume | A folder on this server to write to instead, e.g. `/srv/consultainer-backups` or `./backups`. |
+| `BACKUP_S3` | `false` | `true` also copies each dump to your S3 bucket. See [Copy backups off the server](#copy-backups-off-the-server). |
+
+Set them in `.env`, then run `docker compose up -d`. Passwords are passed
+through the environment and are never written to the log.
+
+**Check it worked:** run a backup now and list what's there.
 
 ```bash
-docker compose exec -T consultainer-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > consultainer-$(date +%F).dump
+docker compose exec backup backup-now
+docker compose exec backup ls -lh /backups
 ```
 
-This uses the database container's own user and database name, so it works
-whatever your `.env` says. It's safe while the app is running. To run it
-nightly, add it to cron, for example:
+You should see `backup: wrote consultainer-....dump (...)`. The service's
+log (`docker compose logs backup`) starts with
+`backup: nightly at 03:00 UTC to /backups, keeping 14` and records every run.
+
+### Where the files are
+
+By default the dumps live in the `backups` Docker volume. To copy one out to
+the current directory:
 
 ```bash
-0 3 * * * cd /home/me/consultainer && docker compose exec -T consultainer-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > backups/consultainer-$(date +\%F).dump
+docker compose cp backup:/backups/consultainer-20261010T030000Z.dump .
 ```
 
-Copy the dumps off the server, and test a restore now and then.
+With `BACKUP_DIR` set, they're plain files in that folder, readable only by
+root (they contain your data, including password hashes and encrypted
+credentials).
+
+### Copy backups off the server
+
+A backup on the same disk doesn't help if the server is lost. Either copy the
+dump files elsewhere yourself, or let the service upload them to the
+S3-compatible bucket you set up for [file storage](#file-storage):
+
+<Steps>
+  <Step title="Set the S3 variables">
+    Fill in `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`,
+    `S3_SECRET_ACCESS_KEY` and `S3_FORCE_PATH_STYLE` in `.env` as described
+    in [File storage](#file-storage). The key needs to list, write and
+    delete objects in the bucket.
+  </Step>
+  <Step title="Turn on the upload">
+    Add `BACKUP_S3=true` to `.env` and run `docker compose up -d`.
+  </Step>
+  <Step title="Run a backup">
+    ```bash
+    docker compose exec backup backup-now
+    ```
+    You should see `backup: copied consultainer-....dump to s3://<bucket>/backups/`.
+  </Step>
+</Steps>
+
+Dumps go under `backups/` in the bucket (after `S3_PREFIX`, if you set one),
+and the bucket also keeps only the newest `BACKUP_KEEP`. The upload uses
+[rclone](https://rclone.org), which the service installs the first time it
+needs it. To keep backups for longer than that, use a separate bucket with
+versioning or object lock, or copy them elsewhere.
+
+<Note>
+  Setting the `S3_*` variables also moves new uploads into the bucket. If you
+  only want off-site backups, that's fine too: existing files keep working,
+  and new ones get the larger 25 MB limit.
+</Note>
+
+### Turn it off
+
+Set `BACKUP_ENABLED=false` in `.env` and run `docker compose up -d`. The
+service stays up but idle (its log says `backup: nightly backups are off`),
+and `backup-now` and `restore` still work by hand. Turn it off if you back up
+Postgres another way, for example with snapshots of the whole server.
 
 ## Restore
 
@@ -503,20 +580,29 @@ one. Use the same `INTEGRATION_ENCRYPTION_KEY` as the original instance.
     ```bash
     docker compose stop consultainer-app scheduler
     ```
-    Leave `consultainer-db` running. On a new server, copy over
+    Leave `consultainer-db` and `backup` running. On a new server, copy over
     `docker-compose.yml` and the original `.env`, then run
-    `docker compose up -d consultainer-db`.
+    `docker compose up -d consultainer-db backup`.
   </Step>
-  <Step title="Recreate an empty database">
+  <Step title="Put the dump where the backup service can read it">
+    Restoring a nightly backup on the same server? Skip this step. To list
+    what's there, run `docker compose exec backup restore`.
+
+    For a dump from somewhere else (your bucket, another machine), copy it in:
+
     ```bash
-    docker compose exec -T consultainer-db sh -c 'dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+    docker compose cp consultainer-20261010T030000Z.dump backup:/backups/
     ```
-    This deletes the current data in that database.
+
+    With `BACKUP_DIR` set, you can instead put the file in that folder.
   </Step>
-  <Step title="Load the dump">
+  <Step title="Restore it">
     ```bash
-    docker compose exec -T consultainer-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < consultainer-2026-10-01.dump
+    docker compose exec backup restore consultainer-20261010T030000Z.dump --yes
     ```
+    This deletes the current database, creates an empty one and loads the
+    dump into it. You should see `restore: done.` If the file isn't a valid
+    dump, it stops before deleting anything.
   </Step>
   <Step title="Start everything">
     ```bash
@@ -526,16 +612,22 @@ one. Use the same `INTEGRATION_ENCRYPTION_KEY` as the original instance.
   </Step>
 </Steps>
 
-**Check it worked:** you can sign in with an existing account, and
-**Settings → Integrations** shows your integrations as connected rather than
-asking for credentials again (if it asks, the encryption key doesn't match).
+**Check it worked:** you can sign in with an existing account, your recent
+clients and invoices are there, and **Settings → Integrations** shows your
+integrations as connected rather than asking for credentials again (if it
+asks, the encryption key doesn't match).
 
-For a dump made with plain `pg_dump` (a `.sql` file) instead of `-Fc`,
-replace the load step with:
+<Accordion title="Restoring a dump made by hand, without the backup service">
+  A dump from `pg_dump -Fc` (for example
+  `docker compose exec -T consultainer-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > consultainer.dump`)
+  restores the same way: copy it in and run `restore`. For a plain `.sql`
+  dump, recreate the database and load it with `psql`:
 
-```bash
-docker compose exec -T consultainer-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < consultainer.sql
-```
+  ```bash
+  docker compose exec -T consultainer-db sh -c 'dropdb -U "$POSTGRES_USER" --force --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+  docker compose exec -T consultainer-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < consultainer.sql
+  ```
+</Accordion>
 
 ## Troubleshooting
 
@@ -591,6 +683,23 @@ docker compose exec -T consultainer-db sh -c 'psql -U "$POSTGRES_USER" -d "$POST
     Check the scheduler is running (`docker compose ps`) and
     [run a job by hand](#scheduled-jobs). An `Unauthorized` reply means
     `CRON_SECRET` differs between the scheduler and the app.
+  </Accordion>
+  <Accordion title="The backup log shows “backup: pg_dump failed, no backup written”">
+    The lines above it are Postgres's own error. `password authentication
+    failed`: `POSTGRES_PASSWORD` in `.env` differs from the one the database
+    was created with (see the entry above). `could not translate host name`:
+    `consultainer-db` isn't running. `No space left on device`: free up disk
+    or lower `BACKUP_KEEP`. Nothing is deleted when a run fails, and the
+    service tries again the next night.
+  </Accordion>
+  <Accordion title="Backups are written but not copied to the bucket">
+    The lines after `backup: wrote ...` are rclone's error. `AccessDenied`
+    or `SignatureDoesNotMatch`: the key can't write to the bucket, or it's
+    wrong. `NoSuchBucket` or a DNS error: check `S3_BUCKET`, `S3_REGION` and
+    `S3_ENDPOINT` (MinIO also needs `S3_FORCE_PATH_STYLE=true`). An
+    `apk` error means the server couldn't download rclone; it needs
+    outbound internet access the first time. The local dump is kept either
+    way.
   </Accordion>
   <Accordion title="The File storage card says “Can't reach the bucket”">
     The error name after it comes from the S3 client. `NoSuchBucket`: wrong

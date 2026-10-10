@@ -18,6 +18,9 @@ const STYLES: Record<string, string> = {
   INVOICED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
   APPROVED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
   REJECTED: "bg-destructive/10 text-destructive border-destructive/30",
+  ACCEPTED: "bg-chart-3/15 text-chart-3 border-chart-3/30",
+  DECLINED: "bg-destructive/10 text-destructive border-destructive/30",
+  EXPIRED: "bg-muted text-muted-foreground border-border",
 };
 
 const LABELS: Record<string, string> = {
@@ -37,6 +40,9 @@ const LABELS: Record<string, string> = {
   INVOICED: "Invoiced",
   APPROVED: "Approved",
   REJECTED: "Rejected",
+  ACCEPTED: "Accepted",
+  DECLINED: "Declined",
+  EXPIRED: "Expired",
 };
 
 export function StatusBadge({ status }: { status: string }) {

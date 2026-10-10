@@ -26,6 +26,8 @@ const ACTIONS = new Set([
   "view",
   "download",
   "export",
+  "import",
+  "undo_import",
 ]);
 
 export function parseAuditFilters(params: Record<string, string | undefined>): AuditFilters {
@@ -96,7 +98,13 @@ export function describeAudit(entry: {
   if (entry.action === "sign_in") return "signed in";
   if (entry.action === "password_reset") return "reset their password";
   if (entry.action === "password_reset_link") return "created a password reset link for";
-  if (entry.action === "export") return "exported the audit log";
+  if (entry.action === "export") {
+    if (entry.entityType === "Organization") return "exported all of the organization's data";
+    if (entry.entityType === "Client") return "exported a client's records";
+    return "exported the audit log";
+  }
+  if (entry.action === "import") return "imported data";
+  if (entry.action === "undo_import") return "undid an import";
   const verb = VERBS[entry.action] ?? entry.action;
   if (entry.count !== null) {
     return `${verb} ${entry.count} ${humanizeType(entry.entityType)}${entry.count === 1 ? "" : "s"}`;
@@ -141,6 +149,8 @@ export function auditEntityHref(entry: {
       return `/clients/${entry.entityId}`;
     case "Invoice":
       return `/invoices/${entry.entityId}`;
+    case "Estimate":
+      return `/estimates/${entry.entityId}`;
     case "TimeEntry":
       return "/time";
     case "Membership":

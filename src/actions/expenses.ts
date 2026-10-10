@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
 import { expenseSchema } from "@/lib/validations/expense";
+import { alertExpenseSubmitted, notifyExpenseReviewed } from "@/lib/services/expense-alerts";
 import type { ActionState } from "@/actions/auth";
 import type { Role } from "@/generated/prisma/client";
 
@@ -61,7 +62,7 @@ export async function logExpenseAction(
   const isManager = role === "OWNER" || role === "ADMIN";
   const autoApproved = isManager || parsed.data.amount <= Number(org.expenseApprovalThreshold);
 
-  await prisma.expense.create({
+  const expense = await prisma.expense.create({
     data: {
       orgId: org.id,
       projectId,
@@ -79,6 +80,7 @@ export async function logExpenseAction(
       receiptContentType,
     },
   });
+  if (expense.status === "PENDING") await alertExpenseSubmitted(expense.id);
 
   revalidatePath(`/projects/${projectId}`);
   return null;
@@ -98,7 +100,9 @@ export async function approveExpenseAction(expenseId: string, projectId: string)
     where: { id: expenseId },
     data: { status: "APPROVED", approvedById: user.id, approvedAt: new Date() },
   });
+  await notifyExpenseReviewed(expenseId, { id: user.id, name: user.name });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
 }
 
 export async function rejectExpenseAction(expenseId: string, projectId: string) {
@@ -115,7 +119,9 @@ export async function rejectExpenseAction(expenseId: string, projectId: string) 
     where: { id: expenseId },
     data: { status: "REJECTED", approvedById: user.id, approvedAt: new Date() },
   });
+  await notifyExpenseReviewed(expenseId, { id: user.id, name: user.name });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
 }
 
 export async function deleteExpenseAction(expenseId: string, projectId: string) {

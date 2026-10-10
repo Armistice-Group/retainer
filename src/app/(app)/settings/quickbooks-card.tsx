@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectQuickBooksAction } from "@/actions/integrations";
+import { DocsLink } from "@/components/docs-link";
 
 export function QuickBooksCard({
   connected,
@@ -115,6 +116,7 @@ function SetupGuide() {
           Click <strong>Connect</strong>, sign in to Intuit and pick the company.
         </li>
       </ol>
+      <DocsLink page="integrations/quickbooks" />
     </details>
   );
 }

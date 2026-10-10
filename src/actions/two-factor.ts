@@ -2,10 +2,18 @@
 
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/crypto";
-import { generateTotpSecret, totpUri, verifyTotp, generateRecoveryCodes } from "@/lib/two-factor";
+import {
+  generateTotpSecret,
+  totpUri,
+  verifyTotp,
+  generateRecoveryCodes,
+  verifyLoginTwoFactor,
+} from "@/lib/two-factor";
+import { signOutOtherSessions } from "@/lib/sessions";
 import type { ActionState } from "@/actions/auth";
 
 async function requireUserId() {
@@ -17,6 +25,9 @@ async function requireUserId() {
 export async function startTwoFactorSetupAction() {
   const userId = await requireUserId();
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  // Starting over would replace (and switch off) a working authenticator
+  // without the password check that "Disable 2FA" asks for.
+  if (user.twoFactorEnabled) throw new Error("Two-factor authentication is already on.");
 
   const secret = generateTotpSecret();
   await prisma.user.update({
@@ -63,9 +74,11 @@ export async function confirmTwoFactorSetupAction(
 
 export async function cancelTwoFactorSetupAction() {
   const userId = await requireUserId();
-  await prisma.user.update({
-    where: { id: userId },
-    data: { twoFactorSecret: null, twoFactorEnabled: false, twoFactorRecoveryCodes: [] },
+  // Only a setup that was never confirmed; turning 2FA off goes through
+  // disableTwoFactorAction and its password check.
+  await prisma.user.updateMany({
+    where: { id: userId, twoFactorEnabled: false },
+    data: { twoFactorSecret: null, twoFactorRecoveryCodes: [] },
   });
   revalidatePath("/profile");
 }
@@ -78,16 +91,24 @@ export async function disableTwoFactorAction(
   const password = (formData.get("password") as string) || "";
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (!user.twoFactorEnabled) return { error: "Two-factor authentication is already off." };
   if (user.passwordHash) {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return { fieldErrors: { password: ["Incorrect password."] } };
+  } else {
+    // No password (Google, SSO or passkey sign-in only): confirm with the
+    // authenticator instead, so an unattended session can't switch it off.
+    const code = ((formData.get("code") as string) || "").trim();
+    const ok =
+      !!user.twoFactorSecret && !!code && (await verifyLoginTwoFactor(userId, user.twoFactorSecret, code));
+    if (!ok) return { fieldErrors: { code: ["Invalid code. Try again."] } };
   }
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorRecoveryCodes: [] },
+  // Also signs out every other session; this one carries on.
+  await signOutOtherSessions(userId, {
+    twoFactorEnabled: false,
+    twoFactorSecret: null,
+    twoFactorRecoveryCodes: [],
   });
-
-  revalidatePath("/profile");
-  return null;
+  redirect("/profile?security=two-factor-off");
 }

@@ -4,6 +4,15 @@ import { CopyButton } from "@/components/copy-button";
 import { IntegrationCredentials } from "./integration-credentials";
 import type { FieldDescription, Integration } from "@/lib/instance-config";
 
+// Each service's section in docs/integrations/files.mdx.
+const FILES_ANCHORS: Partial<Record<Integration, string>> = {
+  googleDrive: "set-up-google-drive",
+  dropbox: "set-up-dropbox",
+  microsoft: "set-up-onedrive--sharepoint",
+  notion: "set-up-notion",
+};
+import { DocsLink } from "@/components/docs-link";
+
 export type FileServiceSetup = {
   integration: Integration;
   label: string;
@@ -70,6 +79,7 @@ export function FilesIntegrationsCard({
                 <p className="mt-1">
                   Register it exactly as shown, for every address people open Consultainer on.
                 </p>
+                <DocsLink page={`integrations/files#${FILES_ANCHORS[s.integration] ?? "before-you-start"}`} />
               </details>
             ) : null}
             <IntegrationCredentials

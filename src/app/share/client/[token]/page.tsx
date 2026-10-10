@@ -4,6 +4,7 @@ import { Download, Landmark, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
+import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
 import { getClientByShareToken } from "@/lib/services/client-share";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -145,7 +146,7 @@ export default async function SharedClientPage({
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium">{inv.number}</p>
-                          <StatusBadge status={inv.status} />
+                          <InvoiceStatusBadge invoice={inv} />
                         </div>
                         <p
                           className={cn(

@@ -26,6 +26,8 @@ export default async function LoginPage({
     "email-verification-expired": "That email confirmation link is invalid or has expired.",
     "email-already-taken": "That email is now used by another account.",
     "session-ended": "You've been signed out. Log in again to continue.",
+    "two-factor-expired":
+      "That sign-in step expired or had too many wrong codes. Continue with Google again.",
   };
 
   const ssoConnections = await prisma.ssoConnection.findMany({

@@ -14,7 +14,7 @@ Owners and admins see **Reports** in the sidebar; members don't.
    date** or **Last 12 months**. For any other range, set the two dates and
    click **Apply**.
 3. Read the totals at the top (**Hours logged**, **Invoiced**, **Profit**,
-   **Outstanding**) and the four sections below.
+   **Received**, **Outstanding**) and the four sections below.
 4. Click **CSV** on a section to download it. The file opens in Excel, Numbers
    or Google Sheets.
 
@@ -25,9 +25,17 @@ Owners and admins see **Reports** in the sidebar; members don't.
 | **Utilization** | Per person: hours, billable hours, billable hours as a share of capacity (8 hours per weekday in the range), the billable value of their time, and what it cost you. | The range you picked |
 | **Profit by project** | Invoiced (sent or paid invoices issued in the range) minus labor cost and approved expenses in the range, with margin. | The range you picked |
 | **Unbilled work** | Per client: billable time, completed milestones and approved expenses that aren't on an invoice yet. | All time, as of now |
-| **Receivables** | Per client: sent, unpaid invoices by days overdue (current, 1–30, 31–60, 61–90, 90+). | As of now |
+| **Receivables** | Per client: the balance still due on sent invoices (total minus part payments and applied credit) by days overdue (current, 1–30, 31–60, 61–90, 90+). | As of now |
 
 Draft and void invoices never count as invoiced or outstanding.
+[Deposit invoices](/concepts/deposits-and-credit) don't count as invoiced
+(the invoice for the work does).
+
+**Received** is cash in: the payments recorded with a received date in the
+range, part payments included, in your default currency (other currencies
+are listed under it). Applied credit isn't counted, because the deposit or
+payment it came from already was. **Outstanding** is the total balance due
+from **Receivables**.
 
 ## How to set costs
 
