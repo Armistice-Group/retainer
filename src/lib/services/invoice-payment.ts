@@ -9,7 +9,16 @@ import {
 } from "@/lib/integrations/mercury";
 import type { Invoice, Organization, Client } from "@/generated/prisma/client";
 
-export class InvoicePaymentError extends Error {}
+/** `reason` is what the client-facing invoice page shows after a failed
+ * "Pay now" (see /i/[token]/pay). */
+export class InvoicePaymentError extends Error {
+  constructor(
+    message: string,
+    readonly reason: "not_open" | "processing" | "unavailable" = "unavailable"
+  ) {
+    super(message);
+  }
+}
 
 type PayableInvoice = Invoice & {
   client: Pick<Client, "id" | "name" | "email" | "mercuryCustomerId">;
@@ -26,7 +35,11 @@ export async function createInvoicePaymentCheckoutUrl(
   returnBaseUrl: string
 ) {
   if (invoice.status !== "SENT") {
-    throw new InvoicePaymentError("This invoice isn't open for payment.");
+    throw new InvoicePaymentError("This invoice isn't open for payment.", "not_open");
+  }
+  // A bank (ACH) payment from an earlier checkout is still clearing.
+  if (invoice.stripePaymentIntentId) {
+    throw new InvoicePaymentError("A payment for this invoice is already processing.", "processing");
   }
 
   const mercuryConnection = await prisma.mercuryConnection.findUnique({
@@ -130,11 +143,17 @@ async function createStripeInvoicePaymentCheckoutUrl(
       transfer_data: { destination: invoice.org.stripeConnectAccountId },
       description: `Invoice ${invoice.number} for ${invoice.client.name}`,
     },
-    success_url: `${returnBaseUrl}?paid=success`,
-    cancel_url: `${returnBaseUrl}?paid=cancelled`,
+    success_url: withParam(returnBaseUrl, "paid", "success"),
+    cancel_url: withParam(returnBaseUrl, "paid", "cancelled"),
     metadata: { invoiceId: invoice.id },
   });
 
   if (!session.url) throw new InvoicePaymentError("Stripe did not return a checkout URL.");
   return session.url;
+}
+
+function withParam(url: string, key: string, value: string) {
+  const u = new URL(url);
+  u.searchParams.set(key, value);
+  return u.toString();
 }

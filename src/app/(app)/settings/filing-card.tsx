@@ -56,7 +56,8 @@ export function FilingCard({
           Keep a copy of every sent invoice and uploaded client document where the rest of your
           files live, in <code className="text-xs">Client / Invoices</code>,{" "}
           <code className="text-xs">Client / Documents</code> and{" "}
-          <code className="text-xs">Client / Project / Documents</code> folders.
+          <code className="text-xs">Client / Project / Documents</code> folders. Each item is filed
+          when it happens; anything that fails is retried every hour.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -75,13 +76,16 @@ export function FilingCard({
             </div>
             {filing.lastError ? (
               <Alert variant="destructive">
-                <AlertDescription>{filing.lastError}</AlertDescription>
+                <AlertDescription>
+                  {filing.lastError}
+                  {readOnly ? null : " Once you've fixed the cause, this clears by itself the next time something files (within the hour), or click File everything now."}
+                </AlertDescription>
               </Alert>
             ) : null}
             {readOnly ? null : (
               <form action={optionsAction} className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <Checkbox name="fileInvoices" defaultChecked={filing.fileInvoices} /> Invoices (when sent, and again when paid)
+                  <Checkbox name="fileInvoices" defaultChecked={filing.fileInvoices} /> Invoices (when sent; updated when paid or voided)
                 </label>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox name="fileDocuments" defaultChecked={filing.fileDocuments} /> Uploaded documents
@@ -125,11 +129,14 @@ export function FilingCard({
         ) : readOnly ? (
           <p className="text-sm text-muted-foreground">Not set up.</p>
         ) : myConnections.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Connect Google Drive, Dropbox or OneDrive on your{" "}
-            <a href="/profile#files" className="text-brand hover:underline">profile</a> first — filing runs
-            through the account of the admin who sets it up.
-          </p>
+          <ol className="list-decimal space-y-1 pl-4 text-sm text-muted-foreground">
+            <li>
+              Connect Google Drive, Dropbox or OneDrive under{" "}
+              <a href="/profile#files" className="text-brand hover:underline">Profile → Files &amp; docs</a>.
+              Filing runs through the account of the owner or admin who sets it up.
+            </li>
+            <li>Come back here, pick the service and folder name, and click Set up filing.</li>
+          </ol>
         ) : (
           <form action={setupAction} className="flex flex-col gap-3">
             {setupState?.error ? (
@@ -150,8 +157,9 @@ export function FilingCard({
               <Label htmlFor="rootName">Folder</Label>
               <Input id="rootName" name="rootName" defaultValue="Consultainer" />
               <p className="text-xs text-muted-foreground">
-                Created at the top of your {myConnections.includes("GOOGLE_DRIVE") ? "My Drive / " : ""}files. You can
-                move it (e.g. into a shared drive) afterwards — filing keeps working.
+                Created at the top level of your own Drive, Dropbox or OneDrive (if it already exists
+                there, it&apos;s reused). In Google Drive you can move it afterwards, e.g. into a shared
+                drive; in Dropbox and OneDrive keep it where it is, or filing makes a new one.
               </p>
             </div>
             <div className="flex flex-wrap gap-4">

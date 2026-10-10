@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
+import { isPaymentProcessing, PaymentReturnBanner } from "@/components/payment-return-banner";
 import { SharedDocuments } from "@/components/documents/shared-documents";
 import { clientVisibleDocuments } from "@/lib/services/documents";
 
@@ -23,10 +24,13 @@ export const metadata: Metadata = {
 
 export default async function SharedProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ paid?: string; reason?: string; invoice?: string }>;
 }) {
   const { token } = await params;
+  const { paid, reason, invoice: returnedInvoiceId } = await searchParams;
   const report = await getProjectByShareToken(token);
   if (!report) notFound();
 
@@ -36,6 +40,8 @@ export default async function SharedProjectPage({
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
   const paymentMethods = await effectivePaymentMethods(org.id, project.client.id);
+  // Back from "Pay now" for one of the invoices listed below.
+  const returned = invoices.find((inv) => inv.id === returnedInvoiceId);
 
   const budgetHours = project.budgetHours != null ? Number(project.budgetHours) : null;
   const budgetPercent =
@@ -57,6 +63,16 @@ export default async function SharedProjectPage({
       </header>
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-6 py-10">
+        {returned ? (
+          <PaymentReturnBanner
+            paid={paid}
+            reason={reason}
+            invoice={{ number: returned.number, status: returned.status, processing: isPaymentProcessing(returned) }}
+            orgName={org.name}
+            hasPaymentMethods={paymentMethods.length > 0}
+          />
+        ) : null}
+
         <div>
           <p className="text-sm text-muted-foreground">{project.client.name}</p>
           <div className="mt-1 flex items-center gap-3">
@@ -119,10 +135,10 @@ export default async function SharedProjectPage({
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
               <p className="tabular-figures text-2xl font-semibold">
-                {formatCurrency(totalBilled, "USD")}
+                {formatCurrency(totalBilled, org.defaultCurrency)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {formatCurrency(totalPaid, "USD")} paid
+                {formatCurrency(totalPaid, org.defaultCurrency)} paid
               </p>
             </CardContent>
           </Card>
@@ -134,7 +150,7 @@ export default async function SharedProjectPage({
               </CardHeader>
               <CardContent>
                 <p className="tabular-figures text-2xl font-semibold">
-                  {formatCurrency(Number(project.flatFeeAmount), "USD")}
+                  {formatCurrency(Number(project.flatFeeAmount), org.defaultCurrency)}
                 </p>
               </CardContent>
             </Card>
@@ -156,7 +172,7 @@ export default async function SharedProjectPage({
                     </p>
                   </div>
                   <span className="tabular-figures shrink-0 text-sm font-medium">
-                    {formatCurrency(Number(m.amount), "USD")}
+                    {formatCurrency(Number(m.amount), org.defaultCurrency)}
                   </span>
                 </div>
               ))}
@@ -218,8 +234,10 @@ export default async function SharedProjectPage({
             </CardHeader>
             <CardContent className="flex flex-col divide-y divide-border p-0">
               {invoices.map((inv) => {
+                const processing = isPaymentProcessing(inv);
                 const canPay =
                   inv.status === "SENT" &&
+                  !processing &&
                   (org.stripeConnectChargesEnabled ||
                     !!org.mercuryConnection?.destinationAccountId);
                 return (
@@ -259,7 +277,9 @@ export default async function SharedProjectPage({
                         <Download className="size-4 text-muted-foreground" />
                       </div>
                     </a>
-                    {canPay ? (
+                    {processing ? (
+                      <p className="shrink-0 text-xs text-muted-foreground">Bank payment processing</p>
+                    ) : canPay ? (
                       <Button size="sm" asChild className="shrink-0">
                         <a href={`/api/share/${token}/invoices/${inv.id}/pay`}>
                           <CreditCard className="size-3.5" /> Pay now

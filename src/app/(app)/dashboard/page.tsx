@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
-import { projectVisibilityWhere } from "@/lib/project-access";
+import { invoiceVisibilityWhere, projectVisibilityWhere } from "@/lib/project-access";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
         where: { orgId: org.id, status: "ACTIVE", ...projectVisibilityWhere(user.id, role) },
       }),
       prisma.invoice.findMany({
-        where: { orgId: org.id, status: { in: ["SENT", "DRAFT"] } },
+        where: { orgId: org.id, status: { in: ["SENT", "DRAFT"] }, ...invoiceVisibilityWhere(user.id, role) },
         select: { total: true, status: true, dueDate: true },
       }),
       prisma.timeEntry.findMany({
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
     {
       key: "quickbooks",
       label: "Sync invoices to QuickBooks",
-      description: "Push sent invoices straight to your books instead of re-entering them.",
+      description: "Push invoices to your books in one click instead of re-entering them.",
       href: "/settings/integrations",
       done: !!quickbooksConnection,
     },
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
     {
       key: "slack",
       label: "Get Slack alerts on invoices & time",
-      description: "Know the moment an invoice is sent, paid, or goes overdue.",
+      description: "Hear when an invoice is sent, opened, paid, or goes overdue.",
       href: "/settings#slackWebhookUrl",
       done: !!org.slackWebhookUrl,
     },

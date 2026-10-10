@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import {
@@ -98,15 +99,16 @@ export function TaskList({
                 />
                 <EditTaskDialog projectId={projectId} task={task} />
                 <form action={deleteTaskAction.bind(null, task.id, projectId)}>
-                  <Button
+                  <ConfirmSubmitButton
                     variant="ghost"
                     size="icon"
                     className="size-7"
-                    type="submit"
                     aria-label="Delete task"
+                    title="Delete task"
+                    confirmMessage={`Delete task "${task.title}"? Its comments are deleted too. Time logged against it is kept.`}
                   >
                     <Trash2 className="size-3.5" />
-                  </Button>
+                  </ConfirmSubmitButton>
                 </form>
               </div>
             </div>

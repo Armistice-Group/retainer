@@ -57,7 +57,7 @@ export function DocumentAccessFields({
                 />
                 <Label htmlFor={`${idPrefix}-u-${m.id}`} className="font-normal">
                   {m.name}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="ml-1 text-xs text-muted-foreground">
                     {m.role === "ADMIN" ? "Admin" : "Member"}
                   </span>
                 </Label>
@@ -69,8 +69,7 @@ export function DocumentAccessFields({
         )
       ) : null}
       <p className="text-xs text-muted-foreground">
-        Owners and the person who uploaded it can always see it. Opens are logged in the audit
-        log.
+        Owners and whoever added it can always see it. Every open is recorded in the audit log.
       </p>
     </div>
   );

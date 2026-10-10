@@ -9,6 +9,7 @@ import { DigestEmail, type DigestData } from "@/emails/digest-email";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { daysOverdue } from "@/lib/invoice-aging";
 import { getOrigin } from "@/lib/url";
+import { toISODate } from "@/lib/date";
 
 const DAY_MS = 86_400_000;
 
@@ -28,7 +29,7 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
 
   const [paid, sent, overdue, budgets, pendingSheets] = await Promise.all([
     prisma.invoice.findMany({
-      where: { orgId, status: "PAID", updatedAt: { gte: from, lt: to } },
+      where: { orgId, status: "PAID", paidAt: { gte: from, lt: to } },
       select: { total: true },
     }),
     prisma.invoice.findMany({
@@ -95,7 +96,8 @@ export async function buildDigest(orgId: string, now = new Date()): Promise<Dige
       { label: "not yet invoiced", value: money(unbilled) },
     ],
     sections,
-    url: `${origin}/reports?range=last-month`,
+    // Reports for the same week (its `to` is inclusive, so the Sunday).
+    url: `${origin}/reports?from=${toISODate(from)}&to=${toISODate(new Date(to.getTime() - DAY_MS))}`,
     origin,
   };
 }

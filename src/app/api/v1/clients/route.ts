@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
+import { authenticateApiRequest, hideShareToken, unauthorized } from "@/lib/api-auth";
 import { clientSchema } from "@/lib/validations/client";
 
 export async function GET(req: Request) {
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     orderBy: { name: "asc" },
   });
 
-  return Response.json({ clients });
+  return Response.json({ clients: clients.map((c) => hideShareToken(c, ctx.role)) });
 }
 
 export async function POST(req: Request) {
@@ -36,5 +36,5 @@ export async function POST(req: Request) {
     },
   });
 
-  return Response.json({ client }, { status: 201 });
+  return Response.json({ client: hideShareToken(client, ctx.role) }, { status: 201 });
 }

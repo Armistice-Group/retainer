@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { catchUpFiling, FilingError, setUpFiling, turnOffFiling, updateFilingOptions } from "@/lib/services/filing";
 import type { ActionState } from "@/actions/auth";
@@ -49,6 +50,8 @@ export async function turnOffFilingAction() {
 
 export async function fileEverythingNowAction(): Promise<{ filed: number }> {
   const { org } = await admin();
+  // A fresh run: anything still failing sets the error again.
+  await prisma.organization.update({ where: { id: org.id }, data: { filingLastError: null } });
   const r = await catchUpFiling(org.id);
   revalidatePath("/settings/integrations");
   return { filed: r.filed };

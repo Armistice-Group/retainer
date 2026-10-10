@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { notify, getOrgAdminUserIds } from "@/lib/notifications";
-import { postToSlack } from "@/lib/slack";
+import { getOrgAdminUserIds } from "@/lib/notifications";
+import { sendAlert } from "@/lib/alerts";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import { assertWeekEditable, TimesheetError } from "@/lib/services/timesheets";
 import { canViewProject } from "@/lib/project-access";
@@ -72,17 +72,32 @@ async function assertTask(taskId: string | null | undefined, projectId: string) 
   if (!task || task.projectId !== projectId) throw new TimeEntryError("Task not found.");
 }
 
-export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInput) {
-  const project = await prisma.project.findUnique({ where: { id: input.projectId } });
+/** The project, if it's in the org and the actor can see it. */
+async function assertProject(ctx: TimeEntryContext, projectId: string) {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== ctx.orgId) throw new TimeEntryError("Project not found.");
   if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
     throw new TimeEntryError("Project not found.");
   }
+  return project;
+}
+
+/** Owners and admins can log time for someone else, but only a member of the org. */
+async function assertMember(orgId: string, userId: string) {
+  const membership = await prisma.membership.findUnique({
+    where: { userId_orgId: { userId, orgId } },
+  });
+  if (!membership) throw new TimeEntryError("That person isn't a member of this organization.");
+}
+
+export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInput) {
+  const project = await assertProject(ctx, input.projectId);
 
   await assertTask(input.taskId, input.projectId);
 
   const manage = canManageTeam(ctx.role);
   const targetUserId = manage && input.userId ? input.userId : ctx.actorId;
+  if (targetUserId !== ctx.actorId) await assertMember(ctx.orgId, targetUserId);
 
   const approvedAt = await assertWeekOpen(ctx, targetUserId, new Date(input.date));
 
@@ -101,17 +116,16 @@ export async function createTimeEntry(ctx: TimeEntryContext, input: TimeEntryInp
     },
   });
 
+  // Only when someone else would hear about it (not a solo owner's own time).
   const adminIds = await getOrgAdminUserIds(prisma, ctx.orgId, ctx.actorId);
   if (adminIds.length > 0) {
-    const message = `${ctx.actorName ?? "Someone"} logged ${input.hours}h on ${project.name}.`;
-    await notify(prisma, {
+    await sendAlert({
       orgId: ctx.orgId,
-      userIds: adminIds,
-      type: "TIME_LOGGED",
-      message,
+      event: "TIME_LOGGED",
+      message: `${ctx.actorName ?? "Someone"} logged ${input.hours}h on ${project.name}.`,
       link: `/projects/${project.id}`,
+      excludeUserId: ctx.actorId,
     });
-    await postToSlack(ctx.slackWebhookUrl, message);
   }
 
   await checkBudgets(entry.projectId, [entry.taskId]);
@@ -134,9 +148,11 @@ export async function updateTimeEntry(
     throw new TimeEntryError("This entry has already been invoiced and can't be edited.");
   }
 
+  if (input.projectId !== existing.projectId) await assertProject(ctx, input.projectId);
   await assertTask(input.taskId, input.projectId);
 
   const targetUserId = manage && input.userId ? input.userId : existing.userId;
+  if (targetUserId !== existing.userId) await assertMember(ctx.orgId, targetUserId);
   await assertWeekOpen(ctx, existing.userId, existing.date);
   const approvedAt = await assertWeekOpen(ctx, targetUserId, new Date(input.date));
 

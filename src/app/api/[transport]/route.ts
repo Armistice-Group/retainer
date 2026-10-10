@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import { authenticateApiRequest, type ApiAuthContext } from "@/lib/api-auth";
+import { authenticateApiRequest, hideShareToken, type ApiAuthContext } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { projectVisibilityWhere, canViewProject } from "@/lib/project-access";
+import { deleteStoredFile } from "@/lib/file-storage";
+import {
+  projectVisibilityWhere,
+  canViewProject,
+  canAssignOnProject,
+  invoiceVisibilityWhere,
+} from "@/lib/project-access";
 import { taskStatusValues } from "@/lib/validations/task";
 import {
   createTimeEntry,
@@ -11,7 +17,14 @@ import {
   deleteTimeEntry,
   TimeEntryError,
 } from "@/lib/services/time-entries";
-import { generateInvoice, notifyInvoiceStatusChange, InvoiceError } from "@/lib/services/invoices";
+import {
+  canChangeInvoiceStatusByKey,
+  generateInvoice,
+  invoiceStatusChangeError,
+  notifyInvoiceStatusChange,
+  InvoiceError,
+} from "@/lib/services/invoices";
+import { fileInvoice } from "@/lib/services/filing";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
@@ -83,6 +96,11 @@ function ctxFrom(extra: RequestHandlerExtra<never, never>): ApiAuthContext {
   return ctx;
 }
 
+/** An invoice in the key's org that its user may see (see invoiceVisibilityWhere). */
+function visibleInvoiceWhere(ctx: ApiAuthContext, invoiceId: string) {
+  return { id: invoiceId, orgId: ctx.orgId, ...invoiceVisibilityWhere(ctx.actorId, ctx.role) };
+}
+
 function timeEntryContext(ctx: ApiAuthContext) {
   return {
     orgId: ctx.orgId,
@@ -105,7 +123,7 @@ const handler = createMcpHandler(
           where: { orgId: ctx.orgId },
           orderBy: { name: "asc" },
         });
-        return text(clients);
+        return text(clients.map((c) => hideShareToken(c, ctx.role)));
       }
     );
 
@@ -129,7 +147,7 @@ const handler = createMcpHandler(
         const client = await prisma.client.create({
           data: { orgId: ctx.orgId, ...args },
         });
-        return text(client);
+        return text(hideShareToken(client, ctx.role));
       }
     );
 
@@ -157,7 +175,7 @@ const handler = createMcpHandler(
           where: { id: clientId },
           data: rest,
         });
-        return text(client);
+        return text(hideShareToken(client, ctx.role));
       }
     );
 
@@ -176,7 +194,7 @@ const handler = createMcpHandler(
           include: { client: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
         });
-        return text(projects);
+        return text(projects.map((p) => hideShareToken(p, ctx.role)));
       }
     );
 
@@ -236,7 +254,7 @@ const handler = createMcpHandler(
           });
         }
 
-        return text(project);
+        return text(hideShareToken(project, ctx.role));
       }
     );
 
@@ -296,7 +314,7 @@ const handler = createMcpHandler(
         }
 
         await checkBudgets(projectId);
-        return text(project);
+        return text(hideShareToken(project, ctx.role));
       }
     );
 
@@ -367,6 +385,9 @@ const handler = createMcpHandler(
         const ctx = ctxFrom(extra);
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
+        if (args.assigneeId && !(await canAssignOnProject(project, args.assigneeId))) {
+          return errorResult("That person can't be assigned tasks on this project.");
+        }
 
         const task = await prisma.task.create({
           data: {
@@ -830,7 +851,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "create_milestone",
-      "Create a fixed-price milestone on a project.",
+      "Owner/admin only: create a fixed-price milestone on a project.",
       {
         projectId: z.string(),
         name: z.string().min(1).max(200),
@@ -840,6 +861,9 @@ const handler = createMcpHandler(
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can manage milestones.");
+        }
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
@@ -860,7 +884,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "update_milestone",
-      "Update a milestone's name, description, amount, or due date (not yet invoiced).",
+      "Owner/admin only: update a milestone's name, description, amount, or due date (not yet invoiced).",
       {
         milestoneId: z.string(),
         projectId: z.string(),
@@ -871,6 +895,9 @@ const handler = createMcpHandler(
       },
       async ({ milestoneId, projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can manage milestones.");
+        }
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
@@ -897,7 +924,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "complete_milestone",
-      "Mark a milestone complete with a note describing what was delivered (evidence file uploads aren't supported over MCP — use the web app for those).",
+      "Owner/admin only: mark a milestone complete with a note describing what was delivered (evidence file uploads aren't supported over MCP — use the web app for those).",
       {
         milestoneId: z.string(),
         projectId: z.string(),
@@ -906,6 +933,9 @@ const handler = createMcpHandler(
       },
       async ({ milestoneId, projectId, completionNote, completionUrl }, extra) => {
         const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can manage milestones.");
+        }
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
@@ -930,10 +960,13 @@ const handler = createMcpHandler(
 
     server.tool(
       "reopen_milestone",
-      "Clear a milestone's completion (not yet invoiced).",
+      "Owner/admin only: clear a milestone's completion (not yet invoiced).",
       { milestoneId: z.string(), projectId: z.string() },
       async ({ milestoneId, projectId }, extra) => {
         const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can manage milestones.");
+        }
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
@@ -950,8 +983,13 @@ const handler = createMcpHandler(
             completedById: null,
             completionNote: null,
             completionUrl: null,
+            completionFileName: null,
+            completionFileData: null,
+            completionStorageKey: null,
+            completionFileContentType: null,
           },
         });
+        await deleteStoredFile({ storageKey: milestone.completionStorageKey });
         return text(updated);
       }
     );
@@ -1075,7 +1113,11 @@ const handler = createMcpHandler(
       async ({ status }, extra) => {
         const ctx = ctxFrom(extra);
         const invoices = await prisma.invoice.findMany({
-          where: { orgId: ctx.orgId, ...(status ? { status } : {}) },
+          where: {
+            orgId: ctx.orgId,
+            ...(status ? { status } : {}),
+            ...invoiceVisibilityWhere(ctx.actorId, ctx.role),
+          },
           include: { client: { select: { id: true, name: true } } },
           orderBy: { createdAt: "desc" },
         });
@@ -1149,8 +1191,8 @@ const handler = createMcpHandler(
         if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
           return errorResult("Only owners and admins can send invoices.");
         }
-        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
+        if (!invoice) return errorResult("Invoice not found.");
         try {
           const recipients = to?.length ? to : await defaultInvoiceRecipients(invoice.clientId);
           return text(
@@ -1172,11 +1214,11 @@ const handler = createMcpHandler(
       { invoiceId: z.string() },
       async ({ invoiceId }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({
-          where: { id: invoiceId },
+        const invoice = await prisma.invoice.findFirst({
+          where: visibleInvoiceWhere(ctx, invoiceId),
           include: { events: { orderBy: { createdAt: "desc" }, take: 50 } },
         });
-        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        if (!invoice) return errorResult("Invoice not found.");
         return text({
           clientLink: invoice.status === "DRAFT" ? null : (await invoiceLinks(invoice.id)).viewUrl,
           firstViewedAt: invoice.firstViewedAt,
@@ -1194,16 +1236,20 @@ const handler = createMcpHandler(
 
     server.tool(
       "mark_invoice_sent",
-      "Mark a draft invoice as sent to the client. Only draft invoices with at least one line item can be sent.",
+      "Owner/admin only: mark a draft invoice as sent to the client. Only draft invoices with at least one line item can be sent.",
       { invoiceId: z.string() },
       async ({ invoiceId }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({
-          where: { id: invoiceId },
+        if (!canChangeInvoiceStatusByKey(ctx.role)) {
+          return errorResult("Only owners and admins can change an invoice's status.");
+        }
+        const invoice = await prisma.invoice.findFirst({
+          where: visibleInvoiceWhere(ctx, invoiceId),
           include: { client: { select: { name: true } } },
         });
-        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
-        if (invoice.status !== "DRAFT") return errorResult("Only draft invoices can be sent.");
+        if (!invoice) return errorResult("Invoice not found.");
+        const statusError = invoiceStatusChangeError(invoice.status, "SENT");
+        if (statusError) return errorResult(statusError);
 
         const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
         if (lineItemCount === 0) return errorResult("Add at least one line item before sending.");
@@ -1225,19 +1271,24 @@ const handler = createMcpHandler(
 
     server.tool(
       "mark_invoice_paid",
-      "Mark an invoice as paid, optionally recording a payment method.",
+      "Owner/admin only: mark a sent invoice as paid, optionally recording a payment method.",
       { invoiceId: z.string(), paymentMethod: z.string().max(100).optional() },
       async ({ invoiceId, paymentMethod }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({
-          where: { id: invoiceId },
+        if (!canChangeInvoiceStatusByKey(ctx.role)) {
+          return errorResult("Only owners and admins can change an invoice's status.");
+        }
+        const invoice = await prisma.invoice.findFirst({
+          where: visibleInvoiceWhere(ctx, invoiceId),
           include: { client: { select: { name: true } } },
         });
-        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        if (!invoice) return errorResult("Invoice not found.");
+        const statusError = invoiceStatusChangeError(invoice.status, "PAID");
+        if (statusError) return errorResult(statusError);
 
         const updated = await prisma.invoice.update({
           where: { id: invoiceId },
-          data: { status: "PAID", ...(paymentMethod ? { paymentMethod } : {}) },
+          data: { status: "PAID", paidAt: new Date(), ...(paymentMethod ? { paymentMethod } : {}) },
         });
 
         const org = await prisma.organization.findUniqueOrThrow({
@@ -1252,17 +1303,24 @@ const handler = createMcpHandler(
 
     server.tool(
       "void_invoice",
-      "Void an invoice.",
+      "Owner/admin only: void a draft or sent invoice.",
       { invoiceId: z.string() },
       async ({ invoiceId }, extra) => {
         const ctx = ctxFrom(extra);
-        const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
-        if (!invoice || invoice.orgId !== ctx.orgId) return errorResult("Invoice not found.");
+        if (!canChangeInvoiceStatusByKey(ctx.role)) {
+          return errorResult("Only owners and admins can change an invoice's status.");
+        }
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
+        if (!invoice) return errorResult("Invoice not found.");
+        const statusError = invoiceStatusChangeError(invoice.status, "VOID");
+        if (statusError) return errorResult(statusError);
 
         const updated = await prisma.invoice.update({
           where: { id: invoiceId },
           data: { status: "VOID" },
         });
+        // A filed copy is refreshed so it shows VOID.
+        await fileInvoice(invoiceId);
         return text(updated);
       }
     );

@@ -15,6 +15,16 @@ export async function GET(req: Request) {
   const requestedUserId = searchParams.get("userId");
   const userId = canManageTeam && requestedUserId ? requestedUserId : ctx.actorId;
 
+  const invalid: Record<string, string[]> = {};
+  for (const [key, value] of [["from", from], ["to", to]] as const) {
+    if (value && Number.isNaN(new Date(value).getTime())) {
+      invalid[key] = ["Use an ISO date, e.g. 2026-07-23."];
+    }
+  }
+  if (Object.keys(invalid).length) {
+    return Response.json({ error: invalid }, { status: 422 });
+  }
+
   const entries = await prisma.timeEntry.findMany({
     where: {
       orgId: ctx.orgId,

@@ -87,10 +87,41 @@ export default async function PaymentsPage({
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
-              Optional. Adds a Pay now button to invoices through Stripe Connect. Needs a Stripe
-              account with Connect enabled; send the webhook only the{" "}
-              <code className="text-xs">checkout.session.completed</code> event.
+              Optional. Adds a Pay now button to invoices through Stripe Connect: clients pay by
+              card or ACH, and the invoice is marked paid when Stripe confirms.
             </p>
+            {role === "OWNER" ? (
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium">How to set this up</summary>
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+                  <li>
+                    In the Stripe Dashboard, open <strong>Connect</strong> and finish the platform
+                    setup Stripe asks for.
+                  </li>
+                  <li>
+                    Under <strong>Developers → API keys</strong>, copy the{" "}
+                    <strong>Secret key</strong> into the field below.
+                  </li>
+                  <li>
+                    Under <strong>Developers → Webhooks</strong>, add an endpoint for events on{" "}
+                    <strong>Your account</strong> with the URL below, and select these
+                    three events: <code>checkout.session.completed</code>,{" "}
+                    <code>checkout.session.async_payment_succeeded</code> and{" "}
+                    <code>checkout.session.async_payment_failed</code> (the last two are how bank
+                    payments get marked paid, or unpaid again, once they clear).
+                  </li>
+                  <li>
+                    Copy that endpoint&apos;s <strong>Signing secret</strong> (whsec_…) into the
+                    field below and click <strong>Save credentials</strong>. Use keys and webhook
+                    from the same mode (test or live).
+                  </li>
+                  <li>
+                    Then click <strong>Connect Stripe</strong> to onboard this organization&apos;s
+                    account.
+                  </li>
+                </ol>
+              </details>
+            ) : null}
             <IntegrationCredentials
               integration="stripe"
               fields={await describeIntegration("stripe")}

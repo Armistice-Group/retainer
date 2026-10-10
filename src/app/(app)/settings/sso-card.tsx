@@ -52,8 +52,8 @@ export function SsoCard({
       <CardContent className="flex flex-col gap-4">
         <p className="text-xs text-muted-foreground">
           Works with any OpenID Connect provider — Okta, Entra ID, Google Workspace, Authentik,
-          Keycloak, Zitadel, Auth0. Once enabled, a sign-in button for it appears on the login
-          page.
+          Keycloak, Zitadel, Auth0 (SAML isn&apos;t supported). Once enabled, a sign-in button for
+          it appears on the login page. Sign-ins are matched to accounts by email.
         </p>
 
         <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
@@ -64,7 +64,13 @@ export function SsoCard({
             <code className="min-w-0 flex-1 truncate text-sm">{callbackUrl}</code>
             <CopyButton value={callbackUrl} label="Copy" />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Built from the address you&apos;re browsing on — open this page on the address people
+            sign in from.
+          </p>
         </div>
+
+        {readOnly ? null : <SetupGuide />}
 
         {connection && !editing ? (
           <ConnectionSummary
@@ -83,6 +89,72 @@ export function SsoCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Provider-by-provider steps, collapsed — the docs aren't hosted anywhere the
+ * app can link to, so the card has to stand on its own. */
+function SetupGuide() {
+  return (
+    <details className="rounded-lg border border-border p-3 text-xs text-muted-foreground">
+      <summary className="cursor-pointer font-medium text-foreground">How to set this up</summary>
+      <div className="mt-3 flex flex-col gap-3">
+        <ol className="list-decimal space-y-1 pl-4">
+          <li>Copy the redirect URI above.</li>
+          <li>
+            In your identity provider, create a web (confidential) OIDC app with that redirect URI
+            and the scopes <code>openid email profile</code>.
+          </li>
+          <li>Paste its issuer URL, client ID and client secret below, then click Connect.</li>
+          <li>Test a sign-in from a private window before turning on Require SSO.</li>
+        </ol>
+        <div>
+          <p className="font-medium text-foreground">Google Workspace</p>
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>
+              Google Cloud console → APIs &amp; Services → OAuth consent screen: set the audience to
+              Internal.
+            </li>
+            <li>
+              Credentials (or Clients) → Create OAuth client ID → Web application; add the redirect
+              URI under Authorized redirect URIs.
+            </li>
+            <li>
+              Issuer URL: <code>https://accounts.google.com</code>. Put your Workspace domain in
+              Allowed email domains — Google&apos;s issuer also accepts personal Gmail accounts.
+            </li>
+          </ol>
+        </div>
+        <div>
+          <p className="font-medium text-foreground">Microsoft Entra ID</p>
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>
+              App registrations → New registration; Redirect URI type Web, paste the URI above.
+            </li>
+            <li>Certificates &amp; secrets → New client secret; copy its Value (not the ID).</li>
+            <li>Token configuration → Add optional claim → ID → email.</li>
+            <li>
+              Issuer URL:{" "}
+              <code>https://login.microsoftonline.com/&lt;Directory (tenant) ID&gt;/v2.0</code>.
+              Client ID: the Application (client) ID.
+            </li>
+          </ol>
+        </div>
+        <div>
+          <p className="font-medium text-foreground">Okta</p>
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>
+              Applications → Create App Integration → OIDC - OpenID Connect → Web Application.
+            </li>
+            <li>Add the URI above to Sign-in redirect URIs, and assign the people or groups.</li>
+            <li>
+              Issuer URL: <code>https://your-org.okta.com</code>. Client ID and secret are on the
+              General tab.
+            </li>
+          </ol>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -202,9 +274,9 @@ function SsoForm({
         />
         {fieldError("issuer") ?? (
           <p className="text-xs text-muted-foreground">
-            We fetch <code>/.well-known/openid-configuration</code> from this URL. Authentik:
-            the provider&apos;s &ldquo;OpenID Configuration Issuer&rdquo;. Okta:{" "}
-            <code>https://your-org.okta.com</code>.
+            We fetch <code>/.well-known/openid-configuration</code> from this URL. Google:{" "}
+            <code>https://accounts.google.com</code>. Okta: <code>https://your-org.okta.com</code>.
+            Authentik: the provider&apos;s &ldquo;OpenID Configuration Issuer&rdquo;.
           </p>
         )}
       </div>
@@ -271,7 +343,8 @@ function SsoForm({
               Create accounts on first sign-in
             </Label>
             <p className="text-xs text-muted-foreground">
-              Off: only people already in the organization (invited) can sign in with SSO.
+              On: anyone your identity provider lets through (and whose domain is allowed) gets an
+              account. Off: only people already in the organization (invited) can sign in with SSO.
             </p>
             <div className="flex items-center gap-2">
               <Label htmlFor="sso-defaultRole" className="text-xs font-normal text-muted-foreground">
@@ -319,8 +392,9 @@ function SsoForm({
               Require SSO
             </Label>
             <p className="text-xs text-muted-foreground">
-              Blocks password, passkey, and Google sign-in for everyone except owners, who keep
-              local login in case the identity provider is unavailable.
+              Blocks password, login-link, passkey, and Google sign-in for everyone except owners,
+              who keep local login in case the identity provider is unavailable. Test a sign-in
+              first.
             </p>
           </div>
         </div>

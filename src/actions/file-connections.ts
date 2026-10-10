@@ -11,6 +11,16 @@ function provider(id: string): FileProviderId {
   return id as FileProviderId;
 }
 
+// 401/403 is usually an expired or revoked connection, but a missing API or
+// permission on the app's side looks the same — say which when we can tell.
+function friendlyProviderError(message: string) {
+  if (/missing_scope|insufficient|accessNotConfigured|has not been used|is disabled/i.test(message)) {
+    return `The service refused: ${message.replace(/^\d{3}:\s*/, "")}. An owner should check that service's setup under Settings → Integrations → Files & docs (Google: Drive API enabled; Dropbox: permissions ticked), then reconnect on your profile.`;
+  }
+  if (/^(401|403):/.test(message)) return "Your connection expired or was revoked — reconnect it on your profile.";
+  return message;
+}
+
 export async function searchFilesAction(
   providerId: string,
   query: string
@@ -20,7 +30,7 @@ export async function searchFilesAction(
     return { items: await searchConnected(user.id, provider(providerId), query) };
   } catch (err) {
     if (err instanceof ProviderError) {
-      return { error: /^(401|403):/.test(err.message) ? "Your connection expired — reconnect it on your profile." : err.message };
+      return { error: friendlyProviderError(err.message) };
     }
     console.warn("[files] Search failed", providerId, err);
     return { error: "Couldn't search right now." };

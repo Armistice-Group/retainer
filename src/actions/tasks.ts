@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
-import { canViewProject } from "@/lib/project-access";
+import { canAssignOnProject, canViewProject } from "@/lib/project-access";
 import {
   taskSchema,
   taskUpdateSchema,
@@ -45,6 +45,9 @@ export async function createTaskAction(
   const project = await prisma.project.findUnique({ where: { id: parsed.data.projectId } });
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
   if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
+  if (parsed.data.assigneeId && !(await canAssignOnProject(project, parsed.data.assigneeId))) {
+    return { error: "That person can't be assigned tasks on this project." };
+  }
 
   const task = await prisma.task.create({
     data: {
@@ -142,6 +145,9 @@ export async function assignTaskAction(taskId: string, projectId: string, assign
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
   if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
+  if (assigneeId && !(await canAssignOnProject(project, assigneeId))) {
+    throw new Error("That person can't be assigned tasks on this project.");
+  }
 
   const task = await prisma.task.update({
     where: { id: taskId, projectId },

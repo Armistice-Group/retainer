@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
+import { invoiceVisibilityWhere } from "@/lib/project-access";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
@@ -19,10 +20,10 @@ import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { cn } from "@/lib/utils";
 
 export default async function InvoicesPage() {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
   const invoices = await prisma.invoice.findMany({
-    where: { orgId: org.id },
+    where: { orgId: org.id, ...invoiceVisibilityWhere(user.id, role) },
     include: { client: true },
     orderBy: { createdAt: "desc" },
   });

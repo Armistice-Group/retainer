@@ -42,7 +42,8 @@ export function ApiKeysCard({ apiKeys, mcpUrl }: { apiKeys: ApiKeyItem[]; mcpUrl
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           Use an API key to call the Consultainer REST API or connect an AI agent (Claude, Cursor)
-          over MCP. A key acts as you, in this organization.
+          over MCP. A key acts as you, with your role, in the organization you have open now —
+          switch first if you belong to more than one.
         </p>
 
         {newKey ? (
@@ -84,7 +85,14 @@ export function ApiKeysCard({ apiKeys, mcpUrl }: { apiKeys: ApiKeyItem[]; mcpUrl
                   </p>
                 </div>
                 <form action={revokeApiKeyAction.bind(null, key.id)}>
-                  <Button variant="ghost" size="icon" className="size-7" type="submit">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    type="submit"
+                    aria-label={`Revoke ${key.name}`}
+                    title="Revoke key (stops working immediately)"
+                  >
                     <Trash2 className="size-3.5" />
                   </Button>
                 </form>

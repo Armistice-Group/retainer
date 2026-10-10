@@ -42,6 +42,27 @@ export async function notifyInvoiceStatusChange(
   await fileInvoice(invoice.id);
 }
 
+/** Owners and admins only, for the API and MCP server — same as generating
+ * and emailing invoices there. (In the app, any member can.) */
+export function canChangeInvoiceStatusByKey(role: Role) {
+  return role === "OWNER" || role === "ADMIN";
+}
+
+/** Why an invoice can't move from `from` to `to` by hand, or null if it can:
+ * draft → sent, sent → paid, draft or sent → void. */
+export function invoiceStatusChangeError(
+  from: "DRAFT" | "SENT" | "PAID" | "VOID",
+  to: "DRAFT" | "SENT" | "PAID" | "VOID"
+): string | null {
+  if (to === "SENT" && from !== "DRAFT") return "Only draft invoices can be sent.";
+  if (to === "PAID" && from !== "SENT") return "Only sent invoices can be marked paid.";
+  if (to === "VOID" && from !== "DRAFT" && from !== "SENT") {
+    return from === "VOID" ? "This invoice is already void." : "Paid invoices can't be voided.";
+  }
+  if (to === "DRAFT") return "Invoices can't be moved back to draft.";
+  return null;
+}
+
 // Called once a day by the recurring-invoices cron job. overdueNotifiedAt is
 // the actual idempotency guard (so a cron that fires twice in one day, or
 // retries, never double-notifies); daysOverdue >= 1 just means "don't fire
@@ -332,7 +353,8 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
     }
 
     await recomputeInvoiceTotals(tx, created.id);
-    return created;
+    // Return the invoice with its computed subtotal, tax and total.
+    return tx.invoice.findUniqueOrThrow({ where: { id: created.id } });
   });
 
   return invoice;

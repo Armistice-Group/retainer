@@ -96,7 +96,28 @@ function attendeeList(event: VEvent) {
   }));
 }
 
-type Occurrence = { uid: string; title: string; location: string | null; start: Date; end: Date; attendees: string[] };
+type Occurrence = {
+  uid: string;
+  title: string;
+  location: string | null;
+  start: Date;
+  end: Date;
+  attendees: string[];
+  /** The event's own TZID (IANA), if the feed gave one. */
+  timeZone: string | null;
+};
+
+/** yyyy-mm-dd of `date` in `timeZone`, or in UTC if there isn't a usable one. */
+function localDay(date: Date, timeZone: string | null) {
+  if (timeZone) {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+    } catch {
+      // Unknown zone name — fall through to UTC.
+    }
+  }
+  return date.toISOString().slice(0, 10);
+}
 
 /** Finished, timed, attended meetings in the window — one per occurrence. */
 function occurrences(data: ReturnType<typeof parse>, me: string, from: Date, to: Date): Occurrence[] {
@@ -129,6 +150,7 @@ function occurrences(data: ReturnType<typeof parse>, me: string, from: Date, to:
         location: str(ev.location).trim().slice(0, 300) || null,
         start,
         end,
+        timeZone: inst.start.tz ?? null,
         attendees: [
           ...new Set(
             people
@@ -226,8 +248,8 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
         if (rule.projectId) {
           await logMeeting(ctx, created.id, {
             projectId: rule.projectId,
-            billable: true,
-            date: created.start.toISOString().slice(0, 10),
+            billable: rule.billable,
+            date: localDay(occ.start, occ.timeZone),
           });
         } else {
           await prisma.calendarEvent.update({ where: { id: created.id }, data: { status: "IGNORED" } });
@@ -436,7 +458,12 @@ export async function logMeeting(
 
   let alsoLogged = 0;
   if (input.remember) {
-    await rememberSeries(ctx.actorId, event.uid, input.projectId);
+    await rememberSeries(ctx.actorId, event.uid, input.projectId, input.billable);
+    // The others are dated the way this one was: its local day can be a day
+    // either side of its UTC day (we don't keep the meeting's time zone).
+    const dayShift = Math.round(
+      (Date.parse(input.date) - Date.parse(event.start.toISOString().slice(0, 10))) / DAY_MS
+    );
     const others = await prisma.calendarEvent.findMany({
       where: { userId: ctx.actorId, uid: event.uid, status: "PENDING", id: { not: event.id } },
     });
@@ -446,7 +473,9 @@ export async function logMeeting(
           projectId: input.projectId,
           taskId: input.taskId,
           billable: input.billable,
-          date: other.start.toISOString().slice(0, 10),
+          date: new Date(Date.parse(other.start.toISOString().slice(0, 10)) + dayShift * DAY_MS)
+            .toISOString()
+            .slice(0, 10),
         });
         alsoLogged++;
       } catch {
@@ -470,11 +499,11 @@ export async function ignoreMeeting(ctx: Ctx, eventId: string, remember = false)
   }
 }
 
-async function rememberSeries(userId: string, uid: string, projectId: string | null) {
+async function rememberSeries(userId: string, uid: string, projectId: string | null, billable = true) {
   await prisma.calendarRule.upsert({
     where: { userId_kind_value: { userId, kind: "SERIES", value: uid } },
-    create: { userId, kind: "SERIES", value: uid, projectId },
-    update: { projectId },
+    create: { userId, kind: "SERIES", value: uid, projectId, billable },
+    update: { projectId, billable },
   });
 }
 

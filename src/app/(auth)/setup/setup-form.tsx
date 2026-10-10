@@ -28,8 +28,8 @@ export function SetupForm({
       <CardHeader>
         <CardTitle>Set up your workspace</CardTitle>
         <CardDescription>
-          This is a new installation. Create your organization and the local admin account
-          you&apos;ll use to manage it.
+          This is a new installation. Create your organization and the owner account you&apos;ll
+          use to manage it. This page closes for good once it&apos;s done.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -51,7 +51,7 @@ export function SetupForm({
                 required
               />
               <p className="text-xs text-muted-foreground">
-                The value of <code>SETUP_TOKEN</code> from this deployment&apos;s environment.
+                The value of <code>SETUP_TOKEN</code> from this server&apos;s <code>.env</code>.
               </p>
               <FieldError state={state} name="setupToken" />
             </div>
@@ -68,18 +68,20 @@ export function SetupForm({
               <Label htmlFor="publicUrl">Instance URL</Label>
               <Input id="publicUrl" name="publicUrl" defaultValue={detectedUrl} required />
               <p className="text-xs text-muted-foreground">
-                Detected from your browser. Used in links sent to people — invites, share and
-                review links — so change it if others reach this instance at a different address.
+                Detected from your browser. Used in links sent to people — invites, client invoice,
+                share and review links — so change it if others will reach this instance at a
+                different address (for example the HTTPS domain you&apos;ll put in front of it). The
+                owner can change it later in Settings → General.
               </p>
               <FieldError state={state} name="publicUrl" />
             </div>
           ) : null}
 
           <div className="mt-2 border-t border-border pt-4">
-            <p className="text-sm font-medium">Admin account</p>
+            <p className="text-sm font-medium">Owner account</p>
             <p className="text-xs text-muted-foreground">
-              Always signs in with a password, even after SSO is turned on — keep it as a
-              break-glass login.
+              The organization&apos;s owner. It can always sign in with a password, even after SSO
+              is required — keep it as a break-glass login.
             </p>
           </div>
 

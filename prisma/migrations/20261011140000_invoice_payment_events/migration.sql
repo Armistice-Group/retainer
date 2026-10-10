@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "InvoiceEventType" ADD VALUE 'PAYMENT_PROCESSING';
+ALTER TYPE "InvoiceEventType" ADD VALUE 'PAYMENT_FAILED';

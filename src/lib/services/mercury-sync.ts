@@ -28,7 +28,7 @@ export async function syncMercuryInvoiceStatuses() {
       const current = await prisma.invoice.findUnique({ where: { id: invoice.id } });
       if (!current || current.status !== "SENT") continue;
 
-      await prisma.invoice.update({ where: { id: invoice.id }, data: { status: "PAID" } });
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { status: "PAID", paidAt: new Date() } });
       await notifyInvoiceStatusChange(invoice.org, invoice, "PAID");
       paidCount++;
     } catch (err) {

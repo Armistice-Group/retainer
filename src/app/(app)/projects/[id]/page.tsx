@@ -198,15 +198,17 @@ export default async function ProjectDetailPage({
                 <Pencil className="size-3.5" /> Edit
               </Link>
             </Button>
-            <form action={deleteProjectAction.bind(null, project.id, project.clientId)}>
-              <ConfirmSubmitButton
-                variant="outline"
-                size="sm"
-                confirmMessage={`Delete ${project.name}? This also removes its time entries.`}
-              >
-                <Trash2 className="size-3.5" /> Delete
-              </ConfirmSubmitButton>
-            </form>
+            {canManage ? (
+              <form action={deleteProjectAction.bind(null, project.id, project.clientId)}>
+                <ConfirmSubmitButton
+                  variant="outline"
+                  size="sm"
+                  confirmMessage={`Delete ${project.name}? This also removes its time entries.`}
+                >
+                  <Trash2 className="size-3.5" /> Delete
+                </ConfirmSubmitButton>
+              </form>
+            ) : null}
           </>
         }
       />
@@ -264,7 +266,7 @@ export default async function ProjectDetailPage({
                   </p>
                 ) : null}
               </div>
-              {availableMembers.length > 0 ? (
+              {canManage && availableMembers.length > 0 ? (
                 <AddMemberDialog
                   projectId={project.id}
                   members={availableMembers}
@@ -277,7 +279,11 @@ export default async function ProjectDetailPage({
                 <EmptyState
                   icon={Users}
                   title="No one assigned yet"
-                  description="Add teammates with a bill rate before logging billable time."
+                  description={
+                    canManage
+                      ? "Add teammates with a bill rate before logging billable time."
+                      : "An owner or admin adds teammates and their bill rates."
+                  }
                 />
               ) : (
                 <ul className="flex flex-col divide-y divide-border">
@@ -304,18 +310,31 @@ export default async function ProjectDetailPage({
                         <span className="tabular-figures text-sm">
                           {formatCurrency(member.billRate, member.currency)}/hr
                         </span>
-                        <EditRateDialog
-                          projectId={project.id}
-                          userId={member.userId}
-                          name={member.user.name ?? member.user.email ?? ""}
-                          billRate={Number(member.billRate)}
-                          currency={member.currency}
-                        />
-                        <form action={removeProjectMemberAction.bind(null, member.id, project.id)}>
-                          <Button variant="ghost" size="icon" className="size-7" type="submit">
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </form>
+                        {canManage ? (
+                          <>
+                            <EditRateDialog
+                              projectId={project.id}
+                              userId={member.userId}
+                              name={member.user.name ?? member.user.email ?? ""}
+                              billRate={Number(member.billRate)}
+                              currency={member.currency}
+                            />
+                            <form
+                              action={removeProjectMemberAction.bind(null, member.id, project.id)}
+                            >
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                type="submit"
+                                aria-label={`Remove ${member.user.name ?? member.user.email ?? "team member"} from project`}
+                                title="Remove from project"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            </form>
+                          </>
+                        ) : null}
                       </div>
                     </li>
                   ))}

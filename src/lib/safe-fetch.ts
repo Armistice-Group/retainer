@@ -4,7 +4,7 @@ import https from "node:https";
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { isIP, BlockList } from "node:net";
 
-// Fetching a URL a user typed in (calendar links) must not let them reach
+// Fetching a URL a user typed in (calendar links, Slack webhooks) must not let them reach
 // this server's own network: loopback, private ranges, link-local (cloud
 // metadata), etc. Addresses are checked at connect time, via the socket's
 // own DNS lookup, so a hostname can't pass a check and then resolve
@@ -112,7 +112,14 @@ export async function fetchPublicText(
   let url = normalizePublicUrl(raw);
 
   for (let hop = 0; hop <= (opts.maxRedirects ?? 3); hop++) {
-    const result = await requestOnce(url, maxBytes, timeoutMs);
+    const result = await requestOnce(url, {
+      method: "GET",
+      headers: { "User-Agent": "Consultainer calendar sync", Accept: "text/calendar, */*" },
+      maxBytes,
+      timeoutMs,
+      what: "the calendar server",
+      tooLarge: "The calendar is too large.",
+    });
     if (result.redirect) {
       url = normalizePublicUrl(new URL(result.redirect, url).toString());
       continue;
@@ -122,20 +129,55 @@ export async function fetchPublicText(
   throw new SafeFetchError("Too many redirects.");
 }
 
+/** POST a JSON body to a public URL (e.g. a Slack webhook). Redirects aren't
+ * followed; resolves once the server answers 2xx, else throws SafeFetchError. */
+export async function postPublicJson(
+  raw: string,
+  payload: unknown,
+  opts: { timeoutMs?: number } = {}
+): Promise<void> {
+  const url = normalizePublicUrl(raw);
+  const body = JSON.stringify(payload);
+  const result = await requestOnce(url, {
+    method: "POST",
+    headers: {
+      "User-Agent": "Consultainer",
+      "Content-Type": "application/json",
+      "Content-Length": String(Buffer.byteLength(body)),
+    },
+    body,
+    maxBytes: 64 * 1024,
+    timeoutMs: opts.timeoutMs ?? 5_000,
+    what: "the server",
+    tooLarge: "The server's response is too large.",
+  });
+  if (result.redirect) throw new SafeFetchError("The server answered with a redirect.");
+}
+
 function requestOnce(
   url: URL,
-  maxBytes: number,
-  timeoutMs: number
+  opts: {
+    method: "GET" | "POST";
+    headers: Record<string, string>;
+    body?: string;
+    maxBytes: number;
+    timeoutMs: number;
+    /** For error messages: "the calendar server", "the server". */
+    what: string;
+    tooLarge: string;
+  }
 ): Promise<{ redirect?: string; body?: string }> {
+  const { maxBytes, timeoutMs, what } = opts;
+  const What = what[0].toUpperCase() + what.slice(1);
   return new Promise((resolve, reject) => {
     const client = url.protocol === "https:" ? https : http;
     const req = client.request(
       url,
       {
-        method: "GET",
+        method: opts.method,
         lookup: safeLookup,
         timeout: timeoutMs,
-        headers: { "User-Agent": "Consultainer calendar sync", Accept: "text/calendar, */*" },
+        headers: opts.headers,
       },
       (res) => {
         const status = res.statusCode ?? 0;
@@ -145,7 +187,7 @@ function requestOnce(
         }
         if (status < 200 || status >= 300) {
           res.resume();
-          return reject(new SafeFetchError(`The calendar server answered ${status}.`));
+          return reject(new SafeFetchError(`${What} answered ${status}.`));
         }
         const chunks: Buffer[] = [];
         let size = 0;
@@ -153,7 +195,7 @@ function requestOnce(
           size += chunk.length;
           if (size > maxBytes) {
             req.destroy();
-            reject(new SafeFetchError("The calendar is too large."));
+            reject(new SafeFetchError(opts.tooLarge));
             return;
           }
           chunks.push(chunk);
@@ -162,12 +204,12 @@ function requestOnce(
         res.on("error", reject);
       }
     );
-    req.on("timeout", () => req.destroy(new SafeFetchError("The calendar server took too long.")));
+    req.on("timeout", () => req.destroy(new SafeFetchError(`${What} took too long.`)));
     req.on("error", (err: NodeJS.ErrnoException) => {
       if (err instanceof SafeFetchError) return reject(err);
       if (err.code === "EBLOCKED") return reject(new SafeFetchError(err.message));
-      reject(new SafeFetchError(`Couldn't reach the calendar (${err.code ?? err.message}).`));
+      reject(new SafeFetchError(`Couldn't reach ${what} (${err.code ?? err.message}).`));
     });
-    req.end();
+    req.end(opts.body);
   });
 }

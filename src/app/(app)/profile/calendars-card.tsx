@@ -46,8 +46,9 @@ export function CalendarsCard({
       <CardHeader>
         <CardTitle className="text-base">Calendars</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Connect a calendar and your meetings show up under Time → Meetings to log against a
-          project, with a suggestion for each. Only you see them.
+          Connect a calendar and your finished meetings from the last two weeks show up under
+          Time → Meetings to log against a project, with a suggestion for each. Synced every
+          hour. Only you see them.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -113,16 +114,25 @@ export function CalendarsCard({
                 <summary className="cursor-pointer">Where do I find it?</summary>
                 <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-4">
                   <li>
-                    <strong>Google Calendar:</strong> Settings → your calendar → Integrate calendar →
-                    Secret address in iCal format.
+                    <strong>Google Calendar:</strong> gear icon → Settings → click your calendar under
+                    Settings for my calendars → Integrate calendar → copy Secret address in iCal
+                    format.
                   </li>
                   <li>
-                    <strong>Outlook / Microsoft 365:</strong> Settings → Calendar → Shared calendars →
-                    Publish a calendar (can view all details) → ICS link.
+                    <strong>Outlook / Microsoft 365:</strong> gear icon → Calendar → Shared calendars →
+                    Publish a calendar (Can view all details) → Publish → copy the ICS link.
                   </li>
                   <li>
-                    <strong>Apple iCloud:</strong> Calendar app → share the calendar → Public Calendar →
-                    copy the webcal:// link.
+                    <strong>Apple iCloud:</strong> in Calendar, Control-click the calendar → Share
+                    Calendar → tick Public Calendar → copy the webcal:// link.
+                  </li>
+                  <li>
+                    <strong>Fastmail:</strong> Settings → Calendars → open the calendar → share it as a
+                    read-only .ics link.
+                  </li>
+                  <li>
+                    <strong>Nextcloud:</strong> ⋯ next to the calendar → Share link → Copy
+                    subscription link.
                   </li>
                 </ul>
                 <p className="mt-1.5">The link is stored encrypted. Anyone with it can read the calendar, so don&apos;t share it elsewhere.</p>

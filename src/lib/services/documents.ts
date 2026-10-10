@@ -28,17 +28,27 @@ export type DocumentMeta = {
 
 const DB_MAX_BYTES = 5 * 1024 * 1024;
 const STORAGE_MAX_BYTES = 25 * 1024 * 1024;
-const ALLOWED_UPLOAD_TYPES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "text/plain",
-  "text/csv",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-]);
+const UPLOAD_TYPES_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  txt: "text/plain",
+  csv: "text/csv",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+const ALLOWED_UPLOAD_TYPES = new Set(Object.values(UPLOAD_TYPES_BY_EXTENSION));
+
+/** The upload's type: what the browser said if it's one we take, else what
+ * its extension says (browsers report .csv as Excel, or nothing at all). */
+function uploadType(file: File) {
+  if (ALLOWED_UPLOAD_TYPES.has(file.type)) return file.type;
+  const ext = file.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  return ext ? UPLOAD_TYPES_BY_EXTENSION[ext] : undefined;
+}
 
 /** Storage providers this person has connected (for browsing to link). */
 async function connectedProviders(userId: string): Promise<{ provider: string }[]> {
@@ -75,7 +85,8 @@ async function cleanAccess(orgId: string, access: DocumentAccess, userIds: strin
 export async function addUploadedDocument(ctx: DocumentContext, meta: DocumentMeta, file: File) {
   await assertTarget(ctx, meta.clientId, meta.projectId);
   if (file.size === 0) throw new DocumentError("Choose a file to upload.");
-  if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+  const contentType = uploadType(file);
+  if (!contentType) {
     throw new DocumentError("Upload a PDF, image, Word, Excel, PowerPoint, text or CSV file — or link it instead.");
   }
   const limit = uploadLimitBytes();
@@ -83,7 +94,7 @@ export async function addUploadedDocument(ctx: DocumentContext, meta: DocumentMe
     throw new DocumentError(`Files must be under ${limit / 1024 / 1024}MB — link larger ones from where they live instead.`);
   }
   const stored = await storeFile(Buffer.from(await file.arrayBuffer()), {
-    contentType: file.type,
+    contentType,
     keyPrefix: `orgs/${ctx.orgId}/documents`,
     fileName: file.name,
   });
@@ -98,7 +109,7 @@ export async function addUploadedDocument(ctx: DocumentContext, meta: DocumentMe
       source: "UPLOAD",
       fileName: file.name.slice(0, 255),
       ...stored,
-      contentType: file.type,
+      contentType,
       sizeBytes: file.size,
       uploadedById: ctx.actorId,
     },
@@ -173,8 +184,8 @@ export async function updateDocumentSharing(
 
 /** Re-reads a linked item's title and dates from its provider. */
 export async function refreshLinkedDocument(ctx: DocumentContext, documentId: string) {
-  const doc = await prisma.clientDocument.findUnique({ where: { id: documentId }, include: { client: true } });
-  if (!doc || doc.client.orgId !== ctx.orgId || !doc.externalUrl) throw new DocumentError("Document not found.");
+  const doc = await manageable(ctx, documentId);
+  if (!doc.externalUrl) throw new DocumentError("Document not found.");
   const link = detectLink(doc.externalUrl);
   if (!link) return doc;
   const details = await enrichLink(ctx.actorId, link);

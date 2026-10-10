@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CreditCard, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { isPaymentProcessing, PaymentReturnBanner, PROCESSING_NOTE } from "@/components/payment-return-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 import { PaymentMethodsList } from "@/components/payment-methods-list";
@@ -18,10 +20,13 @@ export const metadata: Metadata = {
 
 export default async function ClientInvoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ paid?: string; reason?: string }>;
 }) {
   const { token } = await params;
+  const { paid, reason } = await searchParams;
   const invoice = await getInvoiceByViewToken(token);
   if (!invoice) notFound();
 
@@ -30,8 +35,10 @@ export default async function ClientInvoicePage({
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
   const methods = await effectivePaymentMethods(org.id, invoice.clientId);
+  const paymentProcessing = isPaymentProcessing(invoice);
   const canPayOnline =
     invoice.status === "SENT" &&
+    !paymentProcessing &&
     (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
   const overdue = isOverdue(invoice.status, invoice.dueDate);
 
@@ -88,6 +95,20 @@ export default async function ClientInvoicePage({
             ) : null}
           </div>
         </div>
+
+        {paymentProcessing && paid !== "success" ? (
+          <Alert>
+            <AlertDescription>A bank payment for this invoice is processing. {PROCESSING_NOTE}</AlertDescription>
+          </Alert>
+        ) : (
+          <PaymentReturnBanner
+            paid={paid}
+            reason={reason}
+            invoice={{ status: invoice.status, processing: paymentProcessing }}
+            orgName={org.name}
+            hasPaymentMethods={methods.length > 0}
+          />
+        )}
 
         {invoice.status !== "VOID" && methods.length ? (
           <Card>

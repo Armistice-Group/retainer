@@ -2,8 +2,9 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { addDays } from "@/lib/date";
 import { nextRunDate } from "@/lib/billing-interval";
-import { notify, getOrgAdminUserIds } from "@/lib/notifications";
-import { postToSlack } from "@/lib/slack";
+import { sendAlert } from "@/lib/alerts";
+import { formatCurrency } from "@/lib/format";
+import { notifyInvoiceStatusChange } from "@/lib/services/invoices";
 import type { RecurringInvoiceSchedule } from "@/generated/prisma/client";
 
 async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Date) {
@@ -56,26 +57,28 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
     return created;
   });
 
-  const client = await prisma.client.findUniqueOrThrow({ where: { id: schedule.clientId } });
-  const verb = schedule.autoSend ? "generated and sent" : "generated as a draft — review and send";
-  const message = `Recurring invoice ${invoice.number} for ${client.name} was ${verb} ($${amount.toFixed(2)}).`;
+  const withClient = await prisma.invoice.findUniqueOrThrow({
+    where: { id: invoice.id },
+    include: { client: true },
+  });
 
-  const adminIds = await getOrgAdminUserIds(prisma, schedule.orgId);
-  if (adminIds.length > 0) {
-    await notify(prisma, {
+  // Same path as billing cycles: an auto-sent invoice gets the "invoice sent"
+  // alert (and filing); a draft gets the "review and send" alert.
+  if (schedule.autoSend) {
+    const org = await prisma.organization.findUniqueOrThrow({
+      where: { id: schedule.orgId },
+      select: { id: true, name: true, slackWebhookUrl: true },
+    });
+    await notifyInvoiceStatusChange(org, withClient, "SENT");
+  } else {
+    const total = formatCurrency(withClient.total, withClient.currency);
+    await sendAlert({
       orgId: schedule.orgId,
-      userIds: adminIds,
-      type: "RECURRING_INVOICE_GENERATED",
-      message,
+      event: "RECURRING_INVOICE_GENERATED",
+      message: `Recurring invoice ${withClient.number} for ${withClient.client.name} was generated as a draft — review and send (${total}).`,
       link: `/invoices/${invoice.id}`,
     });
   }
-
-  const org = await prisma.organization.findUniqueOrThrow({
-    where: { id: schedule.orgId },
-    select: { slackWebhookUrl: true },
-  });
-  await postToSlack(org.slackWebhookUrl, message);
 
   return invoice;
 }

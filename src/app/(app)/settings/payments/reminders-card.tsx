@@ -27,8 +27,9 @@ export function RemindersCard({
         <CardTitle className="text-base">Overdue reminders</CardTitle>
         <p className="text-xs text-muted-foreground">
           Email clients a reminder with the invoice link when a sent invoice is this many days
-          overdue. Clients can be opted out individually.
-          {!emailConfigured ? " Needs email set up under Integrations." : ""}
+          overdue — checked once a day, each reminder sent once. To skip a client, untick
+          &ldquo;Email overdue reminders&rdquo; on its edit page.
+          {!emailConfigured ? " Needs email set up under Settings → Integrations." : ""}
         </p>
       </CardHeader>
       <CardContent>

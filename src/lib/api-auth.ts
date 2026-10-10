@@ -66,3 +66,15 @@ export function unauthorized() {
 export function forbidden(message = "You don't have permission to do that.") {
   return Response.json({ error: message }, { status: 403 });
 }
+
+/** Share links (client and project portals) are managed by owners and admins
+ * only, so other roles' keys get rows without the shareToken field. */
+export function hideShareToken<T extends { shareToken: string | null }>(
+  row: T,
+  role: Role
+): T | Omit<T, "shareToken"> {
+  if (role === "OWNER" || role === "ADMIN") return row;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { shareToken, ...rest } = row;
+  return rest;
+}

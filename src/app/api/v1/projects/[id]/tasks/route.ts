@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
-import { canViewProject } from "@/lib/project-access";
+import { canAssignOnProject, canViewProject } from "@/lib/project-access";
 import { taskSchema } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import { soloMemberId } from "@/lib/org";
@@ -51,6 +51,12 @@ export async function POST(
   const parsed = taskSchema.safeParse({ ...body, projectId: id });
   if (!parsed.success) {
     return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 422 });
+  }
+  if (parsed.data.assigneeId && !(await canAssignOnProject(project, parsed.data.assigneeId))) {
+    return Response.json(
+      { error: "That person can't be assigned tasks on this project." },
+      { status: 422 }
+    );
   }
 
   const task = await prisma.task.create({

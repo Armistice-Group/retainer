@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireOrgContext } from "@/lib/org-context";
+import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { clientSchema, contactSchema, linkSchema } from "@/lib/validations/client";
 import type { ActionState } from "@/actions/auth";
 
@@ -100,7 +100,8 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(clientId: string) {
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
   await prisma.client.delete({ where: { id: clientId, orgId: org.id } });
   revalidatePath("/clients");
   redirect("/clients");
@@ -213,7 +214,8 @@ export async function deleteContactAction(contactId: string, clientId: string) {
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client || client.orgId !== org.id) throw new Error("Client not found.");
 
-  await prisma.contact.delete({ where: { id: contactId } });
+  const { count } = await prisma.contact.deleteMany({ where: { id: contactId, clientId } });
+  if (count === 0) throw new Error("Contact not found.");
   revalidatePath(`/clients/${clientId}`);
 }
 

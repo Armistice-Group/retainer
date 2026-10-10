@@ -118,7 +118,15 @@ export function AddDocumentDialog({
                     setLabel(title);
                   }}
                 />
-              ) : null}
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Tip: connect Google Drive, Dropbox, OneDrive or Notion under{" "}
+                  <a href="/profile#files" className="text-brand hover:underline">
+                    Profile → Files &amp; docs
+                  </a>{" "}
+                  to browse and search them here instead of pasting links.
+                </p>
+              )}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="doc-url">Link</Label>
                 <Input
@@ -140,8 +148,8 @@ export function AddDocumentDialog({
                   <p className="text-xs text-destructive">Paste a full link, starting with https://.</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    The file stays where it is; people open it there, with that service&apos;s
-                    sharing settings.
+                    The file stays where it is. People open it there, so they (and the client, if
+                    you share it with them) need access in that service too.
                   </p>
                 )}
               </div>
@@ -165,10 +173,13 @@ export function AddDocumentDialog({
                   type="file"
                   name="file"
                   required
+                  // Matches what services/documents.ts takes.
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,.docx,.xlsx,.pptx"
                   className="text-sm file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium file:hover:bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  PDF, image, Word, Excel, PowerPoint, text or CSV, up to {uploadLimitMb}MB.
+                  PDF, PNG, JPEG, WebP, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), text or CSV,
+                  up to {uploadLimitMb}MB. Link bigger files or other types instead.
                 </p>
               </div>
               <div className="flex flex-col gap-2">

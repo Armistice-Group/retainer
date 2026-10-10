@@ -80,7 +80,7 @@ export function MeetingsInbox({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {open.length} meeting{open.length === 1 ? "" : "s"} from the last two weeks to sort.
-          Logging one adds its length as time on the project.
+          Logging one adds its length as time on the project, dated the meeting&apos;s day.
         </p>
         {suggested.length > 1 ? (
           <Button
@@ -220,7 +220,7 @@ function MeetingRow({
         </label>
         <label
           className="flex items-center gap-1.5 text-xs"
-          title="Future meetings in this recurring series are sorted the same way automatically."
+          title="Sorts the other waiting meetings in this recurring series the same way now, and future ones automatically (billable or not, as ticked here). Undo with Forget them all on your profile."
         >
           <Checkbox checked={remember} onCheckedChange={(v) => setRemember(v === true)} />
           {seriesCount > 1 ? `Same for this series (${seriesCount})` : "Always for this series"}

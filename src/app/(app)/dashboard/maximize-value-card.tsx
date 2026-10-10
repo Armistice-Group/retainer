@@ -64,7 +64,7 @@ export function MaximizeValueCard({ items }: { items: MaximizeValueItem[] }) {
                     <p className="text-xs text-muted-foreground">{item.description}</p>
                   </div>
                   {!item.done ? (
-                    <span className="shrink-0 text-xs text-brand">Connect</span>
+                    <span className="shrink-0 text-xs text-brand">Set up</span>
                   ) : null}
                 </Link>
               </li>

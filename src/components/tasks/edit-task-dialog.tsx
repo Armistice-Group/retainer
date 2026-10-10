@@ -40,7 +40,7 @@ export function EditTaskDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-7">
+        <Button variant="ghost" size="icon" className="size-7" aria-label="Edit task" title="Edit task">
           <Pencil className="size-3.5" />
         </Button>
       </DialogTrigger>

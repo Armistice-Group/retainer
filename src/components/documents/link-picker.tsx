@@ -97,7 +97,11 @@ export function LinkPicker({
         ) : items.length === 0 ? (
           <li className="px-2 py-3 text-xs text-muted-foreground">
             {query ? "Nothing matches." : "Nothing here yet."}
-            {provider === "NOTION" ? " Only pages you shared with the integration show up." : ""}
+            {provider === "NOTION"
+              ? " Only pages you shared when connecting Notion show up; to share more, disconnect and reconnect it on your profile."
+              : provider === "ONEDRIVE"
+                ? " This searches your own OneDrive; paste SharePoint links below."
+                : ""}
           </li>
         ) : (
           items.map((item) => (

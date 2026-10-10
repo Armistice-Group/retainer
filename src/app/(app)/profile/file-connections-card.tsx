@@ -17,15 +17,38 @@ export type FileServiceRow = {
 };
 
 const MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
-  connected: { tone: "ok", text: "Connected. You can now browse it when adding a document." },
-  error: { tone: "error", text: "Couldn't connect — try again." },
-  cancelled: { tone: "error", text: "Connection cancelled." },
-  "not-configured": { tone: "error", text: "That service isn't set up on this instance yet." },
+  connected: {
+    tone: "ok",
+    text: "Connected. Open a client or project, then Documents → Add to browse it.",
+  },
+  error: {
+    tone: "error",
+    text: "Couldn't connect. Try again; if it keeps failing, ask an owner to check that service's redirect URI and client secret under Settings → Integrations → Files & docs.",
+  },
+  cancelled: {
+    tone: "error",
+    text: "Not connected: you cancelled, or the service refused the request. If you didn't cancel, ask an owner to check the app's permissions (and admin consent, for Microsoft).",
+  },
+  "not-configured": { tone: "error", text: "That service isn't set up on this instance yet. An owner adds it under Settings → Integrations." },
+  unknown: { tone: "error", text: "Unknown service." },
+  refused: {
+    tone: "error",
+    text: "Not connected: the service refused. Ask an owner to check that service's setup under Settings → Integrations → Files & docs (redirect URI, permissions, and admin consent for Microsoft).",
+  },
 };
 
 /** The person's own connections to Drive, Dropbox, OneDrive and Notion —
  * used to browse and pick what to link, with their own access. */
-export function FileConnectionsCard({ services, status }: { services: FileServiceRow[]; status?: string }) {
+export function FileConnectionsCard({
+  services,
+  status,
+  reason,
+}: {
+  services: FileServiceRow[];
+  status?: string;
+  /** What the service said when it refused, if it said anything. */
+  reason?: string;
+}) {
   const [pending, startTransition] = useTransition();
   const message = status ? MESSAGES[status] : undefined;
   return (
@@ -33,15 +56,19 @@ export function FileConnectionsCard({ services, status }: { services: FileServic
       <CardHeader>
         <CardTitle className="text-base">Files & docs</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Connect the places your documents live to browse and link them from clients and
-          projects, with real titles and dates. Each connection is yours alone — it uses your
-          access, and nobody else can browse through it.
+          Connect the places your documents live. Then, when you add a document to a client or
+          project, you can browse and search them, and linked documents show their real titles
+          and last-edited dates. Each connection is yours alone: it uses your access, and nobody
+          else can browse through it. Disconnecting doesn&apos;t remove documents you already linked.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {message ? (
           <Alert variant={message.tone === "error" ? "destructive" : "default"}>
-            <AlertDescription>{message.text}</AlertDescription>
+            <AlertDescription>
+              {message.text}
+              {status === "refused" && reason ? <span className="mt-1 block font-mono text-xs">{reason.slice(0, 300)}</span> : null}
+            </AlertDescription>
           </Alert>
         ) : null}
         {services.map((s) => (

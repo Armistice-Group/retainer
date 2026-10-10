@@ -41,21 +41,30 @@ export function OrgSecurityForm({ org, readOnly }: { org: OrgSecurity; readOnly:
           <p className="text-sm text-destructive">{state.fieldErrors.domain[0]}</p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Must match your own email domain. Teammates signing in with Google on this domain can join automatically.
+            Must match your own email domain, and can&apos;t be a free email provider. Used for
+            auto-join below.
           </p>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <Checkbox
           id="autoJoinDomain"
           name="autoJoinDomain"
           defaultChecked={org.autoJoinDomain}
           disabled={readOnly}
+          className="mt-0.5"
         />
-        <Label htmlFor="autoJoinDomain" className="font-normal">
-          Auto-join teammates with a matching email domain
-        </Label>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="autoJoinDomain" className="font-normal">
+            Auto-join teammates with a matching email domain
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Someone new who uses &ldquo;Continue with Google&rdquo; with an address on this domain
+            joins as a Member without an invite. Only applies when Google sign-in is turned on for
+            this server (<code>AUTH_GOOGLE_ID</code>); for other providers, use single sign-on.
+          </p>
+        </div>
       </div>
 
       {!readOnly ? (

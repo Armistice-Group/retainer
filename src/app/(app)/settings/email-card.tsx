@@ -30,6 +30,32 @@ export function EmailCard({
             </p>
           )}
         </div>
+        {configured ? null : (
+          <details className="text-sm">
+            <summary className="cursor-pointer font-medium">How to set this up</summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+              <li>Sign up at resend.com.</li>
+              <li>
+                Under <strong>Domains</strong>, add the domain you&apos;ll send from (a subdomain
+                like mail.example.com works well).
+              </li>
+              <li>
+                Add the DNS records Resend shows at your DNS provider and wait until the domain
+                shows <strong>Verified</strong>.
+              </li>
+              <li>
+                Under <strong>API Keys</strong>, create a key with <strong>Sending access</strong>{" "}
+                and copy it (starts with re_).
+              </li>
+              <li>
+                Paste it below, set <strong>From address</strong> to an address on that domain
+                (e.g. Acme &lt;billing@mail.example.com&gt;), and click{" "}
+                <strong>Save credentials</strong>. Without a from address, mail only reaches your
+                own Resend account.
+              </li>
+            </ol>
+          </details>
+        )}
         {credentials}
       </CardContent>
     </Card>

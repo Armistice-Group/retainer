@@ -1,4 +1,4 @@
-import { Eye, FileText, Mail, MailOpen, BellRing } from "lucide-react";
+import { Eye, FileText, Mail, MailOpen, BellRing, Landmark, CircleAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { InvoiceEventType } from "@/generated/prisma/client";
 
@@ -8,6 +8,8 @@ const ICONS: Record<InvoiceEventType, typeof Mail> = {
   EMAIL_OPENED: MailOpen,
   VIEWED: Eye,
   PDF_VIEWED: FileText,
+  PAYMENT_PROCESSING: Landmark,
+  PAYMENT_FAILED: CircleAlert,
 };
 
 export type InvoiceActivityEvent = {
@@ -31,6 +33,10 @@ function describe(e: InvoiceActivityEvent) {
       return "Client viewed the invoice";
     case "PDF_VIEWED":
       return "Client opened the PDF";
+    case "PAYMENT_PROCESSING":
+      return "Client paid by bank transfer — waiting for it to clear";
+    case "PAYMENT_FAILED":
+      return "Client's bank payment failed";
   }
 }
 
@@ -55,7 +61,8 @@ export function InvoiceActivity({
       <CardContent>
         {events.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Email it or share its client link to track when it&apos;s opened.
+            Email it or share its client link to track when it&apos;s opened. Opens by your own
+            team (signed in here) aren&apos;t counted.
           </p>
         ) : (
           <ul className="flex flex-col gap-3 text-sm">

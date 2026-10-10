@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
@@ -19,11 +20,18 @@ export default async function OrgSecurityPage() {
         <CardHeader>
           <CardTitle className="text-base">Domain</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-5">
           <OrgSecurityForm
             org={{ domain: org.domain, autoJoinDomain: org.autoJoinDomain }}
             readOnly={readOnly}
           />
+          <p className="border-t border-border pt-4 text-xs text-muted-foreground">
+            Two-factor authentication, passkeys and API keys are set up by each person on their{" "}
+            <Link href="/profile" className="underline underline-offset-2">
+              Profile
+            </Link>
+            .
+          </p>
         </CardContent>
       </Card>
 

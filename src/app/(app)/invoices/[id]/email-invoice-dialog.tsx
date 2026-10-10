@@ -56,8 +56,8 @@ export function EmailInvoiceDialog({
         <DialogHeader>
           <DialogTitle>Email invoice {invoiceNumber}</DialogTitle>
           <DialogDescription>
-            They get a link to view, download and pay it. You&apos;ll be alerted when they open
-            it.{isDraft ? " The invoice is marked as sent." : ""}
+            They get a link to view, download and pay it, and you see under Activity when they
+            open it.{isDraft ? " The invoice is marked as sent." : ""}
           </DialogDescription>
         </DialogHeader>
         {!emailConfigured ? (

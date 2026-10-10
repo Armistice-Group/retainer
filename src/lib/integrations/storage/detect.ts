@@ -105,7 +105,7 @@ export function detectLink(raw: string): DetectedLink | null {
   }
 
   // Notion: the page/database id is the trailing 32 hex chars of the slug.
-  if (host === "www.notion.so" || host === "notion.so" || host.endsWith(".notion.site")) {
+  if (host === "www.notion.so" || host === "notion.so" || host === "www.notion.com" || host === "notion.com" || host.endsWith(".notion.site")) {
     const m = path.match(/([0-9a-f]{32})(?:$|[/?#])/i) ?? path.match(/-([0-9a-f]{32})$/i);
     const slug = path.split("/").filter(Boolean).at(-1) ?? "";
     const title = slug.replace(/-?[0-9a-f]{32}$/i, "").replace(/-/g, " ").trim();

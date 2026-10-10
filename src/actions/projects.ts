@@ -4,7 +4,7 @@ import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireOrgContext } from "@/lib/org-context";
+import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import { projectSchema, projectMemberSchema } from "@/lib/validations/project";
 import { notify } from "@/lib/notifications";
@@ -144,6 +144,7 @@ export async function updateProjectAction(
 
 export async function deleteProjectAction(projectId: string, clientId: string) {
   const { org, user, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
   if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
@@ -159,6 +160,9 @@ export async function addProjectMemberAction(
   formData: FormData
 ): Promise<ActionState> {
   const { org, user, role } = await requireOrgContext();
+  if (role !== "OWNER" && role !== "ADMIN") {
+    return { error: "Only owners and admins can add team members or change bill rates." };
+  }
 
   const parsed = projectMemberSchema.safeParse({
     projectId: formData.get("projectId"),
@@ -264,10 +268,14 @@ export async function addProjectMemberAction(
 
 export async function removeProjectMemberAction(projectMemberId: string, projectId: string) {
   const { org, user, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
   if (!(await canViewProject(project, user.id, role))) throw new Error("Project not found.");
 
-  await prisma.projectMember.delete({ where: { id: projectMemberId } });
+  const { count } = await prisma.projectMember.deleteMany({
+    where: { id: projectMemberId, projectId },
+  });
+  if (count === 0) throw new Error("Team member not found.");
   revalidatePath(`/projects/${projectId}`);
 }

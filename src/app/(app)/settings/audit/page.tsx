@@ -73,8 +73,8 @@ export default async function AuditLogPage({
           <div>
             <CardTitle className="text-base">Audit log</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              Every change to clients, projects, tasks, time, invoices, members and settings —
-              who made it, when, and from where.
+              Every change to clients, projects, tasks, time, invoices, members and settings,
+              plus sign-ins and document views — who did it, when, and from where. Times are UTC.
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
@@ -113,6 +113,7 @@ export default async function AuditLogPage({
                 <option value="sign_in">Signed in</option>
                 <option value="view">Viewed a document</option>
                 <option value="download">Downloaded a document</option>
+                <option value="export">Exported the audit log</option>
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
@@ -182,7 +183,11 @@ export default async function AuditLogPage({
                       )
                     ) : null}
                     {entry.via === "api" ? (
-                      <Badge variant="outline" className="text-[0.7rem]">
+                      <Badge
+                        variant="outline"
+                        className="text-[0.7rem]"
+                        title="Made with an API key (REST API or MCP)"
+                      >
                         API
                       </Badge>
                     ) : null}

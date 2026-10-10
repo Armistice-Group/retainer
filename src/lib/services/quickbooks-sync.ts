@@ -4,6 +4,7 @@ import {
   findOrCreateCustomer,
   findOrCreateDefaultItem,
   createInvoice,
+  updateInvoice,
   fetchInvoiceStatus,
   QuickBooksError,
 } from "@/lib/integrations/quickbooks";
@@ -26,6 +27,14 @@ export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) 
   if (invoice.lineItems.length === 0) {
     throw new QuickBooksError("This invoice has no line items to push.");
   }
+  // Lines go over without tax, so QuickBooks would show a smaller total than
+  // the client was billed. Sales tax setup differs by company and region in
+  // QuickBooks, so rather than guess at it, don't push a wrong invoice.
+  if (Number(invoice.taxAmount) > 0) {
+    throw new QuickBooksError(
+      "This invoice includes tax, which can't be pushed to QuickBooks yet — it would arrive without the tax and show a smaller total. Enter it in QuickBooks directly instead."
+    );
+  }
 
   const customerId = await findOrCreateCustomer(
     connection,
@@ -41,7 +50,7 @@ export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) 
 
   const itemId = await findOrCreateDefaultItem(connection);
 
-  const quickbooksInvoiceId = await createInvoice(connection, {
+  const params = {
     customerId,
     itemId,
     dueDate: invoice.dueDate,
@@ -51,7 +60,13 @@ export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) 
       quantity: Number(li.quantity),
       rate: Number(li.rate),
     })),
-  });
+  };
+  // Re-pushing updates the invoice already in QuickBooks instead of creating
+  // a duplicate (unless it was deleted there).
+  const quickbooksInvoiceId =
+    (invoice.quickbooksInvoiceId &&
+      (await updateInvoice(connection, invoice.quickbooksInvoiceId, params))) ||
+    (await createInvoice(connection, params));
 
   await prisma.invoice.update({
     where: { id: invoice.id },
@@ -94,7 +109,11 @@ export async function syncInvoiceStatusFromQuickBooks(orgId: string, invoiceId: 
   if (nextStatus && rank[nextStatus] > rank[invoice.status]) {
     await prisma.invoice.update({
       where: { id: invoice.id },
-      data: { status: nextStatus, quickbooksSyncedAt: new Date() },
+      data: {
+        status: nextStatus,
+        ...(nextStatus === "PAID" ? { paidAt: new Date() } : {}),
+        quickbooksSyncedAt: new Date(),
+      },
     });
     return nextStatus;
   }

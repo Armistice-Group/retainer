@@ -64,33 +64,55 @@ export default async function IntegrationsPage({
           integration: "googleDrive",
           id: "GOOGLE_DRIVE",
           appUrl: "https://console.cloud.google.com/apis/credentials",
-          appLabel: "Google Cloud → APIs & Services → Credentials (OAuth client, Web application)",
-          notes:
-            "Enable the Google Drive API in the same project. drive.readonly is a restricted scope: make the OAuth consent screen Internal (Google Workspace) or keep it in testing with your people as test users to skip Google's verification.",
+          appLabel: "the Google Cloud console",
+          steps: [
+            "Create a project (or pick one) in the project picker at the top.",
+            "APIs & Services → Library: find Google Drive API and click Enable.",
+            "Google Auth Platform (OAuth consent screen): click Get started and fill in the app name and emails. Audience: Internal if everyone signs in with your Google Workspace; otherwise External.",
+            "External only: leave the app in Testing and add each person's Google address under Audience → Test users. Testing connections expire after 7 days; people then reconnect on their profile.",
+            "Data Access → Add or remove scopes: add …/auth/drive.readonly and …/auth/drive.file, then Save.",
+            "Clients → Create client: Application type Web application. Under Authorized redirect URIs, add the redirect URI below. Click Create.",
+            "Copy the Client ID and Client secret into the fields below (copy the secret now; Google may not show it again).",
+          ],
         },
         {
           integration: "dropbox",
           id: "DROPBOX",
           appUrl: "https://www.dropbox.com/developers/apps",
-          appLabel: "Dropbox → App Console (Scoped access, Full Dropbox)",
-          notes:
-            "Permissions: account_info.read, files.metadata.read, files.content.read, files.content.write, sharing.read, sharing.write.",
+          appLabel: "the Dropbox App Console",
+          steps: [
+            "Click Create app. Choose Scoped access, then Full Dropbox, name the app and click Create app.",
+            "Permissions tab: tick account_info.read, files.metadata.read, files.content.read, files.content.write, sharing.read and sharing.write, then click Submit. Do this before anyone connects; after any change, people must disconnect and reconnect.",
+            "Settings tab → OAuth 2 → Redirect URIs: paste the redirect URI below and click Add.",
+            "Copy the App key and App secret (click Show) from the Settings tab into the fields below.",
+          ],
         },
         {
           integration: "microsoft",
           id: "ONEDRIVE",
           appUrl: "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
-          appLabel: "Microsoft Entra → App registrations (Web platform)",
-          notes:
-            "Delegated API permissions: User.Read, Files.ReadWrite.All, Sites.Read.All, offline_access. Set a tenant ID to allow only your organization's accounts.",
+          appLabel: "Microsoft Entra → App registrations",
+          steps: [
+            "Click New registration and name the app.",
+            "Supported account types: \"this organizational directory only\" to allow just your organization (then fill in the tenant ID below), or the multitenant option that includes personal Microsoft accounts.",
+            "Redirect URI: choose Web and paste the redirect URI below. Click Register.",
+            "Certificates & secrets → New client secret. Copy its Value (not the Secret ID). Note the expiry date: connections stop working when it expires, so add a new secret here before then.",
+            "API permissions → Add a permission → Microsoft Graph → Delegated permissions: offline_access, User.Read, Files.ReadWrite.All, Sites.Read.All. Click Add permissions, then Grant admin consent if your organization requires it.",
+            "From Overview, copy the Application (client) ID, and the Directory (tenant) ID if single-tenant, into the fields below.",
+          ],
         },
         {
           integration: "notion",
           id: "NOTION",
           appUrl: "https://www.notion.so/profile/integrations",
-          appLabel: "Notion → Integrations (Public integration)",
-          notes:
-            "Capabilities: read content, read user information including email addresses. People choose which pages Consultainer can see when they connect.",
+          appLabel: "Notion → Integrations",
+          steps: [
+            "Click New integration and choose the Public type. Fill in the name, workspace and the company details Notion asks for.",
+            "Under Redirect URIs, paste the redirect URI below.",
+            "Capabilities: tick Read content, and Read user information including email addresses. Save.",
+            "Copy the OAuth client ID and OAuth client secret into the fields below.",
+            "When each person connects, Notion asks which pages to share. Only those pages show up in Consultainer.",
+          ],
         },
       ] as const
     ).map(async (s) => ({
@@ -101,7 +123,7 @@ export default async function IntegrationsPage({
       callbackUrl: `${origin}/api/integrations/files/${SLUG_FOR[s.id]}/callback`,
       appUrl: s.appUrl,
       appLabel: s.appLabel,
-      notes: s.notes,
+      steps: s.steps,
     }))
   );
 

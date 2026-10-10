@@ -4,13 +4,16 @@ import { revalidatePath } from "next/cache";
 import { deleteStoredFile, storeFile, type StoredFile } from "@/lib/file-storage";
 import { uploadLimitBytes } from "@/lib/services/documents";
 import { prisma } from "@/lib/prisma";
-import { requireOrgContext } from "@/lib/org-context";
+import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
 import { milestoneSchema, completeMilestoneSchema } from "@/lib/validations/milestone";
 import type { ActionState } from "@/actions/auth";
 import type { Role } from "@/generated/prisma/client";
 
+// Milestones are billing terms: only owners and admins add, edit, complete,
+// reopen or delete them (members see them read-only).
 async function requireProject(projectId: string, orgId: string, userId: string, role: Role) {
+  requireRole(role, ["OWNER", "ADMIN"]);
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== orgId) throw new Error("Project not found.");
   if (!(await canViewProject(project, userId, role))) throw new Error("Project not found.");

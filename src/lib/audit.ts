@@ -67,7 +67,12 @@ const IGNORED_FIELDS = new Set([
   "filingLastError",
 ]);
 // Recorded as "changed" without the value.
-const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;
+const REDACTED_PATTERN = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;
+// Bank and payment details (account/routing numbers, IBANs): kept out of the
+// log like secrets; the entry still shows that they changed. Billing-change
+// alerts hide the same fields.
+const REDACTED_FIELDS = new Set(["details", "paymentInstructions"]);
+const REDACTED = { test: (key: string) => REDACTED_PATTERN.test(key) || REDACTED_FIELDS.has(key) };
 
 type Actor = {
   userId: string | null;

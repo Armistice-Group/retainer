@@ -351,7 +351,10 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
           </div>
           {task.comments.length === 0 ? (
             <p className="text-muted-foreground">
-              No comments yet. Comments are internal — clients never see them.
+              No comments yet.{" "}
+              {task.clientSharing
+                ? "Comments are internal unless you tick Share with client."
+                : "Comments are internal — clients never see them."}
             </p>
           ) : (
             <ul className="flex flex-col gap-4">
@@ -485,7 +488,8 @@ function CommentComposer({ task }: { task: TaskDetail }) {
           </div>
         ) : (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <MessageSquare className="size-3" /> Internal only
+            <MessageSquare className="size-3" />{" "}
+            {task.clientSharing ? "Internal unless shared" : "Internal only"}
           </p>
         )}
         <SubmitButton size="sm" pendingText="Posting…">

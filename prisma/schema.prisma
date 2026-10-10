@@ -874,6 +874,8 @@ model CalendarRule {
   kind      String
   value     String
   projectId String?
+  // Whether meetings logged by this rule are billable.
+  billable  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   userId String
@@ -952,6 +954,8 @@ model Invoice {
   paymentTerms            PaymentTerms  @default(NET30)
   poNumber                String?
   paymentMethod           String?
+  /// When the invoice became PAID (cleared if it leaves PAID).
+  paidAt                  DateTime?
   subtotal                Decimal       @default(0) @db.Decimal(12, 2)
   taxRate                 Decimal       @default(0) @db.Decimal(5, 2)
   taxAmount               Decimal       @default(0) @db.Decimal(12, 2)
@@ -1100,6 +1104,10 @@ enum InvoiceEventType {
   EMAIL_OPENED
   VIEWED
   PDF_VIEWED
+  // A bank (ACH) payment started through "Pay now" and is clearing.
+  PAYMENT_PROCESSING
+  // A bank payment started through "Pay now" failed after all.
+  PAYMENT_FAILED
 }
 
 // What happened to an invoice on its way to being paid: emails and

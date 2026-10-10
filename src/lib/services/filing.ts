@@ -89,6 +89,8 @@ async function record(orgId: string, kind: string, sourceId: string, provider: s
     create: { orgId, kind, sourceId, provider, externalId: filed.id, externalUrl: filed.url },
     update: { externalId: filed.id, externalUrl: filed.url, filedAt: new Date() },
   });
+  // A success means whatever went wrong before has cleared up.
+  await prisma.organization.updateMany({ where: { id: orgId, filingLastError: { not: null } }, data: { filingLastError: null } });
 }
 
 async function noteError(orgId: string, err: unknown) {

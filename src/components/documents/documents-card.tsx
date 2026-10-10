@@ -71,8 +71,8 @@ export function DocumentsCard({
       <CardContent>
         {documents.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Link contracts, SOWs and reference docs from Google Drive, Dropbox, OneDrive or
-            Notion, or upload them here.
+            No documents yet. Click <strong>Add</strong> to link contracts, SOWs and reference
+            docs from Google Drive, Dropbox, OneDrive, Notion or any URL, or to upload a file.
           </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">

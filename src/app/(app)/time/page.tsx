@@ -7,6 +7,7 @@ import { timeEntryWhere } from "@/lib/services/time-entries";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TimeEntryDialog } from "./time-entry-dialog";
@@ -341,9 +342,16 @@ export default async function TimePage({
                                   }}
                                 />
                                 <form action={deleteTimeEntryAction.bind(null, entry.id)}>
-                                  <Button variant="ghost" size="icon" className="size-7" type="submit">
+                                  <ConfirmSubmitButton
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7"
+                                    aria-label="Delete time entry"
+                                    title="Delete time entry"
+                                    confirmMessage="Delete this time entry?"
+                                  >
                                     <Trash2 className="size-3.5" />
-                                  </Button>
+                                  </ConfirmSubmitButton>
                                 </form>
                               </div>
                             ) : null}

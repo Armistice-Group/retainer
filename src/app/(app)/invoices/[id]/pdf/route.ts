@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
+import { invoiceVisibilityWhere } from "@/lib/project-access";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, orgId: org.id, ...invoiceVisibilityWhere(user.id, role) },
     include: {
       client: true,
       org: true,

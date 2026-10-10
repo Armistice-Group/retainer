@@ -45,6 +45,16 @@ export const ALERT_EVENTS = {
     hint: null,
     defaults: { email: false, slack: false },
   },
+  TIME_LOGGED: {
+    label: "Someone logs time",
+    hint: "Not sent when the only owner or admin logs their own time.",
+    defaults: { email: false, slack: true },
+  },
+  RECURRING_INVOICE_GENERATED: {
+    label: "A recurring invoice or billing cycle creates a draft",
+    hint: "Drafts waiting for review. Ones set to send automatically use \"An invoice is sent\" instead.",
+    defaults: { email: false, slack: true },
+  },
 } as const;
 
 export type AlertEvent = keyof typeof ALERT_EVENTS;

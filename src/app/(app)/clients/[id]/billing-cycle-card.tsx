@@ -148,7 +148,7 @@ function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
         <dt className="text-muted-foreground">Terms</dt>
         <dd>{terms}</dd>
         <dt className="text-muted-foreground">On generate</dt>
-        <dd>{cycle.autoSend ? "Mark as sent" : "Leave as draft to review"}</dd>
+        <dd>{cycle.autoSend ? "Mark as sent (doesn't email the client)" : "Leave as draft to review"}</dd>
         {cycle.lastRunAt ? (
           <>
             <dt className="text-muted-foreground">Last run</dt>
@@ -257,7 +257,8 @@ function BillingCycleForm({
           className="mt-0.5"
         />
         <Label htmlFor="bc-autoSend" className="text-sm font-normal">
-          Mark as sent automatically instead of leaving a draft to review
+          Mark as sent automatically instead of leaving a draft to review (doesn&apos;t email
+          the client)
         </Label>
       </div>
       <div className="flex gap-2">

@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { InviteEmail } from "@/emails/invite-email";
 import { getOrigin } from "@/lib/url";
 import type { ActionState } from "@/actions/auth";
+import type { Role } from "@/generated/prisma/client";
 import { randomUUID } from "crypto";
 
 export async function switchOrgAction(orgId: string) {
@@ -241,9 +242,31 @@ export async function revokeInviteAction(inviteId: string) {
   revalidatePath("/settings/members");
 }
 
+/**
+ * Loads a membership another owner/admin wants to change or remove. Admins
+ * can't act on owners; owners can, but never on the last owner left.
+ */
+async function requireManageableMember(
+  membershipId: string,
+  orgId: string,
+  actorRole: Role
+) {
+  const target = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!target || target.orgId !== orgId) throw new Error("Member not found.");
+  if (target.role === "OWNER") {
+    if (actorRole !== "OWNER") throw new Error("Only an owner can change or remove an owner.");
+    const owners = await prisma.membership.count({ where: { orgId, role: "OWNER" } });
+    if (owners <= 1) throw new Error("An organization needs at least one owner.");
+  }
+  return target;
+}
+
 export async function updateMemberRoleAction(membershipId: string, newRole: "ADMIN" | "MEMBER") {
   const { org, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
+  // Server actions take untrusted input: nobody can grant OWNER this way.
+  if (newRole !== "ADMIN" && newRole !== "MEMBER") throw new Error("Invalid role.");
+  await requireManageableMember(membershipId, org.id, role);
 
   await prisma.membership.update({
     where: { id: membershipId, orgId: org.id },
@@ -272,8 +295,7 @@ export async function removeMemberAction(membershipId: string) {
   const { org, role, user } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  const target = await prisma.membership.findUnique({ where: { id: membershipId } });
-  if (!target || target.orgId !== org.id) throw new Error("Member not found.");
+  const target = await requireManageableMember(membershipId, org.id, role);
   if (target.userId === user.id) throw new Error("You can't remove yourself.");
 
   await prisma.membership.delete({ where: { id: membershipId } });

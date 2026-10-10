@@ -40,9 +40,9 @@ function snippet(client: AgentClient, url: string, key: string) {
 
 const WHERE: Record<AgentClient, string> = {
   "Claude Code":
-    "Run in a terminal. Then ask Claude things like “log 2h on the Fleet project” or “what's unbilled this month?”",
+    "Run in a terminal, then run /mcp in Claude Code to check “consultainer” is connected. Ask things like “log 2h on the Fleet project” or “what's unbilled this month?”",
   Cursor:
-    "Add to ~/.cursor/mcp.json (or .cursor/mcp.json in a project), then enable it under Settings → MCP.",
+    "Add to ~/.cursor/mcp.json (or .cursor/mcp.json in a project), inside any existing mcpServers, then make sure “consultainer” is switched on in Cursor's MCP settings.",
   "Claude Desktop":
     "Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart Claude Desktop. Needs Node.js.",
   Other: "Any MCP client that supports remote servers over HTTP with a custom header.",

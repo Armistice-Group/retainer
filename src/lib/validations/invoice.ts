@@ -62,7 +62,13 @@ export const orgGeneralSchema = z.object({
   expenseApprovalThreshold: z.coerce.number().min(0),
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),
   externalBillingUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
-  slackWebhookUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
+  slackWebhookUrl: z
+    .string()
+    .trim()
+    .url("Enter the Slack webhook URL, e.g. https://hooks.slack.com/services/…")
+    .refine((v) => v.startsWith("https://"), "Use the https:// webhook URL Slack gives you.")
+    .optional()
+    .or(z.literal("")),
   defaultPaymentTerms: z.enum(defaultTermsValues).default("NET30"),
   timesheetApproval: z.enum(["OFF", "CONTRACTORS", "EVERYONE"]).optional(),
   brandColor: z

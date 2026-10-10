@@ -55,7 +55,13 @@ export function TimesheetBar({ sheet }: { sheet: TimesheetBarData }) {
             Submit the week when it&apos;s complete. Time is invoiced once it&apos;s approved.
           </span>
         ) : sheet.status === "SUBMITTED" ? (
-          <span className="text-muted-foreground">This week is locked while it&apos;s reviewed.</span>
+          <span className="text-muted-foreground">
+            This week is locked while it&apos;s reviewed. Recall it to make changes.
+          </span>
+        ) : sheet.status === "APPROVED" ? (
+          <span className="text-muted-foreground">
+            This week is locked and its billable time can be invoiced.
+          </span>
         ) : null}
       </div>
       {error ? <p className="text-destructive">{error}</p> : null}

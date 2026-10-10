@@ -1,5 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CopyButton } from "@/components/copy-button";
 import { IntegrationCredentials } from "./integration-credentials";
 import type { FieldDescription, Integration } from "@/lib/instance-config";
 
@@ -11,8 +12,8 @@ export type FileServiceSetup = {
   callbackUrl: string;
   appUrl: string;
   appLabel: string;
-  /** What to set on the provider's side, besides the callback URL. */
-  notes: string;
+  /** How to register the app on the provider's side, one action per step. */
+  steps: readonly string[];
 };
 
 /** Instance credentials for the file services people connect to link
@@ -29,9 +30,10 @@ export function FilesIntegrationsCard({
       <CardHeader>
         <CardTitle className="text-base">Files & docs</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Set up the services your documents live in. Once one is set up here, each person
-          connects their own account on their profile to browse and link documents with their
-          own access.
+          Set up the services your documents live in. For each one, register an app with the
+          service, then paste its credentials here. After that, each person connects their own
+          account under <strong>Profile → Files &amp; docs</strong> to browse and link documents
+          with their own access.
         </p>
       </CardHeader>
       <CardContent className="grid gap-6 lg:grid-cols-2">
@@ -41,14 +43,40 @@ export function FilesIntegrationsCard({
               {s.label}
               {s.configured ? <CheckCircle2 className="size-3.5 text-chart-3" aria-label="Set up" /> : null}
             </p>
-            <p className="text-xs text-muted-foreground">{s.notes}</p>
+            {canEdit ? (
+              <details open={!s.configured} className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer select-none text-sm text-foreground">
+                  How to set this up
+                </summary>
+                <p className="mt-2">
+                  Open{" "}
+                  <a href={s.appUrl} target="_blank" rel="noreferrer" className="text-brand hover:underline">
+                    {s.appLabel}
+                  </a>
+                  , then:
+                </p>
+                <ol className="mt-1 list-decimal space-y-1 pl-4">
+                  {s.steps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+                <p className="mt-2 font-medium text-foreground">Redirect URI</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-xs">
+                    {s.callbackUrl}
+                  </code>
+                  <CopyButton value={s.callbackUrl} label="Copy" />
+                </div>
+                <p className="mt-1">
+                  Register it exactly as shown, for every address people open Consultainer on.
+                </p>
+              </details>
+            ) : null}
             <IntegrationCredentials
               integration={s.integration}
               fields={s.fields}
               configured={s.configured}
               canEdit={canEdit}
-              callbackUrl={s.callbackUrl}
-              callbackLabel="redirect URI"
               appUrl={s.appUrl}
               appLabel={s.appLabel}
             />

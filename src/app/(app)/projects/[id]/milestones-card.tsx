@@ -110,7 +110,14 @@ export function MilestonesCard({
                       ) : null}
                       {status === "COMPLETED" && canManage ? (
                         <form action={reopenMilestoneAction.bind(null, m.id, projectId)}>
-                          <Button variant="ghost" size="icon" className="size-7" type="submit">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            type="submit"
+                            aria-label={`Reopen milestone "${m.name}"`}
+                            title="Reopen milestone"
+                          >
                             <RotateCcw className="size-3.5" />
                           </Button>
                         </form>
@@ -122,6 +129,8 @@ export function MilestonesCard({
                             size="icon"
                             className="size-7"
                             confirmMessage={`Delete milestone "${m.name}"?`}
+                            aria-label={`Delete milestone "${m.name}"`}
+                            title="Delete milestone"
                           >
                             <Trash2 className="size-3.5" />
                           </ConfirmSubmitButton>

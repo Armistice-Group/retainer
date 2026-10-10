@@ -17,10 +17,10 @@ import { FILE_PROVIDERS } from "@/lib/integrations/storage/types";
 export default async function ProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ files?: string }>;
+  searchParams: Promise<{ files?: string; reason?: string }>;
 }) {
   const { user, org } = await requireOrgContext();
-  const { files: filesStatus } = await searchParams;
+  const { files: filesStatus, reason: filesReason } = await searchParams;
   const [dbUser, membership] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -118,7 +118,7 @@ export default async function ProfilePage({
         </div>
 
         <div className="flex flex-col gap-6">
-          <FileConnectionsCard services={fileServices} status={filesStatus} />
+          <FileConnectionsCard services={fileServices} status={filesStatus} reason={filesReason} />
 
           <CalendarsCard
             feeds={calendarFeeds.map((f) => ({

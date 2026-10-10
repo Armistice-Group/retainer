@@ -44,7 +44,9 @@ export async function saveSsoConnectionAction(
 
   const fieldErrors: Record<string, string[]> = {};
   if (!issuer) fieldErrors.issuer = ["Issuer URL is required."];
-  else if (!/^https?:\/\//.test(issuer)) fieldErrors.issuer = ["Must start with https://"];
+  else if (!isAllowedIssuerUrl(issuer)) {
+    fieldErrors.issuer = ["Must start with https:// (http:// only for localhost)."];
+  }
   if (!clientId) fieldErrors.clientId = ["Client ID is required."];
   if (!clientSecret && !existing) fieldErrors.clientSecret = ["Client secret is required."];
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
@@ -127,4 +129,20 @@ export async function startSsoLoginAction(formData: FormData) {
   });
 
   redirect(getAuthorizationUrl(connection, flow, `${origin}${SSO_CALLBACK_PATH}`));
+}
+
+/** OIDC issuers must use https; plain http is only accepted for a local
+ * test IdP (localhost / 127.0.0.1 / [::1]). */
+function isAllowedIssuerUrl(issuer: string) {
+  let url: URL;
+  try {
+    url = new URL(issuer);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  return (
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
+  );
 }

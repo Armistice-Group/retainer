@@ -16,7 +16,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ provider
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
   const state = searchParams.get("state");
-  if (searchParams.get("error")) return back("cancelled");
+  const error = searchParams.get("error");
+  if (error) {
+    if (error === "access_denied" && !searchParams.get("error_description")) return back("cancelled");
+    // Admin consent required, bad scope, wrong redirect URI...: keep the reason.
+    console.warn("[files] Provider refused", slug, error, searchParams.get("error_description"));
+    return NextResponse.redirect(
+      `${origin}/profile?files=refused&reason=${encodeURIComponent((searchParams.get("error_description") || error).slice(0, 300))}#files`
+    );
+  }
   if (!code || !state) return back("error");
 
   const id = PROVIDER_SLUGS[slug];

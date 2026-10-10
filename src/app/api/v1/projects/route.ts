@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
+import { authenticateApiRequest, hideShareToken, unauthorized } from "@/lib/api-auth";
 import { projectVisibilityWhere } from "@/lib/project-access";
 
 export async function GET(req: Request) {
@@ -19,5 +19,5 @@ export async function GET(req: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  return Response.json({ projects });
+  return Response.json({ projects: projects.map((p) => hideShareToken(p, ctx.role)) });
 }

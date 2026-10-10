@@ -39,7 +39,7 @@ import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { websiteHref } from "@/lib/format";
 import { paymentTermsLabel } from "@/lib/payment-terms";
-import { projectVisibilityWhere } from "@/lib/project-access";
+import { invoiceVisibilityWhere, projectVisibilityWhere } from "@/lib/project-access";
 import { getOrigin } from "@/lib/url";
 
 export default async function ClientDetailPage({
@@ -70,7 +70,10 @@ export default async function ClientDetailPage({
   const origin = canManage ? await getOrigin() : "";
 
   const [invoices, retainerAgg, loggedAgg] = await Promise.all([
-    prisma.invoice.findMany({ where: { clientId: client.id }, orderBy: { createdAt: "desc" } }),
+    prisma.invoice.findMany({
+      where: { clientId: client.id, ...invoiceVisibilityWhere(user.id, role) },
+      orderBy: { createdAt: "desc" },
+    }),
     prisma.invoice.aggregate({
       where: { clientId: client.id, status: { not: "VOID" }, retainerHoursIncluded: { not: null } },
       _sum: { retainerHoursIncluded: true },
@@ -125,8 +128,8 @@ export default async function ClientDetailPage({
 
   const cycle = client.billingCycle;
   const lastCycleInvoice = cycle?.lastInvoiceId
-    ? await prisma.invoice.findUnique({
-        where: { id: cycle.lastInvoiceId },
+    ? await prisma.invoice.findFirst({
+        where: { id: cycle.lastInvoiceId, ...invoiceVisibilityWhere(user.id, role) },
         select: { id: true, number: true },
       })
     : null;
@@ -154,15 +157,17 @@ export default async function ClientDetailPage({
                 <Pencil className="size-3.5" /> Edit
               </Link>
             </Button>
-            <form action={deleteClientAction.bind(null, client.id)}>
-              <ConfirmSubmitButton
-                variant="outline"
-                size="sm"
-                confirmMessage={`Delete ${client.name}? This also removes their projects and time entries.`}
-              >
-                <Trash2 className="size-3.5" /> Delete
-              </ConfirmSubmitButton>
-            </form>
+            {canManage ? (
+              <form action={deleteClientAction.bind(null, client.id)}>
+                <ConfirmSubmitButton
+                  variant="outline"
+                  size="sm"
+                  confirmMessage={`Delete ${client.name}? This also permanently removes their projects, time entries and invoices (including paid ones).`}
+                >
+                  <Trash2 className="size-3.5" /> Delete
+                </ConfirmSubmitButton>
+              </form>
+            ) : null}
           </>
         }
       />

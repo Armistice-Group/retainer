@@ -105,5 +105,9 @@ function headlineFor(event: AlertEvent) {
       return "Security alert";
     case "WEEKLY_DIGEST":
       return "Weekly digest";
+    case "TIME_LOGGED":
+      return "Time logged";
+    case "RECURRING_INVOICE_GENERATED":
+      return "Invoice generated";
   }
 }

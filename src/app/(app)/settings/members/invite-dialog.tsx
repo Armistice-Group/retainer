@@ -101,7 +101,15 @@ function InviteForm({ onDone }: { onDone: () => void }) {
             <SelectItem value="ADMIN">Admin</SelectItem>
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground">
+          Members track time and work on clients, projects and tasks. Admins also manage settings,
+          people, reports, approvals and emailing invoices. You can change this later.
+        </p>
       </div>
+      <p className="text-xs text-muted-foreground">
+        You&apos;ll get a link to share; it&apos;s also emailed if email is set up. It expires in 14
+        days.
+      </p>
       <SubmitButton pendingText="Creating...">Create invite</SubmitButton>
     </form>
   );

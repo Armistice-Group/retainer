@@ -102,10 +102,42 @@ export function LinearCard({
             </Button>
           )}
         </div>
-        {connected ? <LiveUpdates webhook={webhook} /> : null}
+        {connected ? <LiveUpdates webhook={webhook} /> : <SetupGuide webhookUrl={webhook.url} />}
         {credentials}
       </CardContent>
     </Card>
+  );
+}
+
+function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
+  return (
+    <details className="text-sm">
+      <summary className="cursor-pointer font-medium">How to set this up</summary>
+      <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+        <li>
+          Open Consultainer at the address your team uses (not localhost) — the callback URL
+          below follows it.
+        </li>
+        <li>
+          In Linear, go to <strong>Settings → API → OAuth applications</strong> and create a new
+          application. Paste the callback URL below into <strong>Callback URLs</strong>. Turn on{" "}
+          <strong>Public</strong> if you&apos;ll connect a different workspace.
+        </li>
+        <li>
+          Optional, for live updates: turn on <strong>Webhooks</strong> with the URL{" "}
+          <code className="break-all">{webhookUrl}</code> and tick <strong>Issues</strong> and{" "}
+          <strong>Comments</strong>. Without it, projects sync every hour.
+        </li>
+        <li>
+          Save the app, then copy its client ID, client secret and (if you turned on webhooks)
+          webhook signing secret into the fields below and click <strong>Save credentials</strong>.
+        </li>
+        <li>
+          Click <strong>Connect</strong> and approve read and write access. Then link projects
+          from each project&apos;s page with <strong>Link Linear</strong>.
+        </li>
+      </ol>
+    </details>
   );
 }
 
@@ -128,9 +160,10 @@ function LiveUpdates({
       </div>
       <p className="text-muted-foreground">
         Linked projects sync with Linear every hour, including comments. For changes to show
-        up right away, turn on webhooks in your Linear OAuth app for <strong>Issues</strong>{" "}
-        and <strong>Comments</strong>{" "}with this URL, then save the app&apos;s signing secret
-        below{webhook.secretSet ? " (saved)" : ""}.
+        up right away, open your OAuth app in Linear (<strong>Settings → API</strong>), turn on{" "}
+        <strong>Webhooks</strong> with this URL for <strong>Issues</strong> and{" "}
+        <strong>Comments</strong>, then save the app&apos;s webhook signing secret in the
+        credentials below{webhook.secretSet ? " (saved)" : ""}.
       </p>
       <div className="flex items-center gap-2">
         <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 text-xs">

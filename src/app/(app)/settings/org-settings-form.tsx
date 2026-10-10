@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -220,17 +221,21 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             <p className="text-sm text-destructive">{state.fieldErrors.slackWebhookUrl[0]}</p>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            Create an{" "}
+            In Slack, create an app, turn on{" "}
             <a
               href="https://api.slack.com/messaging/webhooks"
               target="_blank"
               rel="noopener noreferrer"
               className="text-brand hover:underline"
             >
-              Incoming Webhook
-            </a>{" "}
-            in Slack and paste the URL here. We&apos;ll post here when an invoice is sent, paid,
-            generated on a recurring schedule, or overdue, and when time is logged.
+              Incoming Webhooks
+            </a>
+            , add a webhook to a channel and paste its URL here. Choose which alerts post to
+            Slack under{" "}
+            <Link href="/settings/alerts" className="text-brand hover:underline">
+              Settings → Alerts
+            </Link>
+            .
           </p>
         </div>
       </div>

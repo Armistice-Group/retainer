@@ -280,33 +280,66 @@ export async function fetchInvoiceStatus(
   };
 }
 
-export async function createInvoice(
-  connection: QuickBooksConnection,
-  params: {
-    customerId: string;
-    itemId: string;
-    lineItems: QboInvoiceLineItem[];
-    dueDate: Date;
-    docNumber: string;
-  }
-) {
+type QboInvoiceParams = {
+  customerId: string;
+  itemId: string;
+  lineItems: QboInvoiceLineItem[];
+  dueDate: Date;
+  docNumber: string;
+};
+
+function invoiceBody(params: QboInvoiceParams) {
+  return {
+    CustomerRef: { value: params.customerId },
+    DocNumber: params.docNumber,
+    DueDate: params.dueDate.toISOString().slice(0, 10),
+    Line: params.lineItems.map((item) => ({
+      Amount: Math.round(item.quantity * item.rate * 100) / 100,
+      DetailType: "SalesItemLineDetail",
+      Description: item.description,
+      SalesItemLineDetail: {
+        ItemRef: { value: params.itemId },
+        Qty: item.quantity,
+        UnitPrice: item.rate,
+      },
+    })),
+  };
+}
+
+export async function createInvoice(connection: QuickBooksConnection, params: QboInvoiceParams) {
   const created = await qboFetch(connection, "/invoice", {
     method: "POST",
-    body: JSON.stringify({
-      CustomerRef: { value: params.customerId },
-      DocNumber: params.docNumber,
-      DueDate: params.dueDate.toISOString().slice(0, 10),
-      Line: params.lineItems.map((item) => ({
-        Amount: Math.round(item.quantity * item.rate * 100) / 100,
-        DetailType: "SalesItemLineDetail",
-        Description: item.description,
-        SalesItemLineDetail: {
-          ItemRef: { value: params.itemId },
-          Qty: item.quantity,
-          UnitPrice: item.rate,
-        },
-      })),
-    }),
+    body: JSON.stringify(invoiceBody(params)),
   });
   return created.Invoice.Id as string;
+}
+
+/** Overwrites an invoice we pushed earlier (sparse update — its lines are
+ * replaced with ours). Returns null if it no longer exists in QuickBooks
+ * (deleted there), so the caller can create a fresh one. */
+export async function updateInvoice(
+  connection: QuickBooksConnection,
+  quickbooksInvoiceId: string,
+  params: QboInvoiceParams
+) {
+  let syncToken: string;
+  try {
+    const current = await qboFetch(connection, `/invoice/${quickbooksInvoiceId}`);
+    syncToken = String(current.Invoice.SyncToken);
+  } catch (err) {
+    // QuickBooks answers a deleted invoice with fault 610 "Object Not Found".
+    if (err instanceof QuickBooksError && /Object Not Found|"code":"610"/i.test(err.message)) return null;
+    throw err;
+  }
+
+  const updated = await qboFetch(connection, "/invoice", {
+    method: "POST",
+    body: JSON.stringify({
+      ...invoiceBody(params),
+      Id: quickbooksInvoiceId,
+      SyncToken: syncToken,
+      sparse: true,
+    }),
+  });
+  return updated.Invoice.Id as string;
 }

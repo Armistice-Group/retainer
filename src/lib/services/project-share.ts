@@ -49,6 +49,7 @@ export async function getProjectByShareToken(token: string) {
         dueDate: true,
         total: true,
         currency: true,
+        stripePaymentIntentId: true,
       },
       orderBy: { issueDate: "desc" },
     }),

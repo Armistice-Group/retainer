@@ -39,6 +39,13 @@ export default async function MembersPage() {
           {canManage ? <InviteDialog /> : null}
         </CardHeader>
         <CardContent>
+          {canManage ? (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Cost is what an hour of someone&apos;s time costs you (salary or contractor rate),
+              used for profit on Reports — only owners and admins see it. Use the ⋯ menu to change a
+              role, mark a contractor, or remove someone.
+            </p>
+          ) : null}
           <ul className="flex flex-col divide-y divide-border">
             {memberships.map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-2 py-3">
@@ -99,7 +106,14 @@ export default async function MembersPage() {
                     <div className="flex items-center gap-2">
                       <CopyButton value={`${origin}/invite/${invite.token}`} />
                       <form action={revokeInviteAction.bind(null, invite.id)}>
-                        <Button variant="ghost" size="icon" className="size-7" type="submit">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          type="submit"
+                          aria-label={`Revoke invite for ${invite.email}`}
+                          title="Revoke invite"
+                        >
                           <X className="size-3.5" />
                         </Button>
                       </form>

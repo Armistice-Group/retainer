@@ -28,13 +28,20 @@ export function InstanceUrlCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-xs text-muted-foreground">
-          The address used in links sent to people — invites, share and review links, emails.
-          Sign-in and SSO redirects always follow the address you&apos;re browsing on.
+          The address used in links sent to people — invites, client invoice, share and review
+          links, emails. Set it to the address everyone uses, such as your HTTPS domain. Sign-in
+          and SSO redirects follow the address you&apos;re browsing on.
         </p>
         {envOverride ? (
-          <p className="text-sm">
-            Set by <code>AUTH_URL</code>: <code>{envOverride}</code>
-          </p>
+          <>
+            <p className="text-sm">
+              Set by <code>AUTH_URL</code>: <code>{envOverride}</code>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              To change it, edit <code>AUTH_URL</code> in the server&apos;s <code>.env</code> and run{" "}
+              <code>docker compose up -d</code>. While it&apos;s set, sign-in redirects use it too.
+            </p>
+          </>
         ) : (
           <form action={formAction} className="flex flex-col gap-2">
             <Label htmlFor="publicUrl">URL</Label>

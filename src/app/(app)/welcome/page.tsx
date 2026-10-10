@@ -12,7 +12,7 @@ type Step = { done: boolean; title: string; description: string; href: string; c
 /** Post-setup checklist — where /setup lands the new admin. Every step is
  * optional; it stays reachable at /welcome afterwards. */
 export default async function WelcomePage() {
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
 
   const [sso, memberCount, inviteCount, clientCount] = await Promise.all([
     prisma.ssoConnection.findUnique({ where: { orgId: org.id }, select: { enabled: true } }),
@@ -60,7 +60,11 @@ export default async function WelcomePage() {
     <div className="mx-auto w-full max-w-2xl">
       <PageHeader
         title={`${org.name} is ready`}
-        description="You're signed in as the local admin. A few optional next steps:"
+        description={
+          role === "OWNER"
+            ? "You're signed in as its owner. A few optional next steps:"
+            : "A few optional next steps:"
+        }
       />
 
       <Card>

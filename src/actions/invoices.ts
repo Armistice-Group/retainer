@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
+import { invoiceVisibilityWhere } from "@/lib/project-access";
 import { generateInvoiceSchema, paymentTermsValues } from "@/lib/validations/invoice";
 import {
   generateInvoice,
@@ -11,18 +12,30 @@ import {
   round2,
   InvoiceError,
   notifyInvoiceStatusChange,
+  invoiceStatusChangeError,
 } from "@/lib/services/invoices";
+import { fileInvoice } from "@/lib/services/filing";
 import {
   pushInvoiceToQuickBooks,
   syncInvoiceStatusFromQuickBooks,
   QuickBooksError,
 } from "@/lib/services/quickbooks-sync";
 import type { ActionState } from "@/actions/auth";
+import type { Role } from "@/generated/prisma/client";
 import {
   emailInvoice,
   invoiceLinks,
   InvoiceDeliveryError,
 } from "@/lib/services/invoice-delivery";
+
+/**
+ * Where-clause for an invoice this actor may act on: in their org and visible
+ * to them (members don't see invoices touching confidential projects they
+ * aren't on) — anything else reads as "not found".
+ */
+function visibleInvoice(invoiceId: string, orgId: string, userId: string, role: Role) {
+  return { id: invoiceId, orgId, ...invoiceVisibilityWhere(userId, role) };
+}
 
 export async function generateInvoiceAction(
   _prevState: ActionState,
@@ -64,9 +77,9 @@ export async function generateInvoiceAction(
 }
 
 export async function updateInvoiceMetaAction(invoiceId: string, formData: FormData) {
-  const { org } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
 
@@ -109,8 +122,8 @@ export async function updateLineItemAction(
   invoiceId: string,
   formData: FormData
 ) {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
 
@@ -134,9 +147,9 @@ export async function updateLineItemAction(
 }
 
 export async function addManualLineItemAction(invoiceId: string, formData: FormData) {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: visibleInvoice(invoiceId, org.id, user.id, role),
     include: { lineItems: true },
   });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
@@ -168,8 +181,8 @@ export async function addManualLineItemAction(invoiceId: string, formData: FormD
 }
 
 export async function removeLineItemAction(lineItemId: string, invoiceId: string) {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
 
@@ -194,25 +207,42 @@ export async function setInvoiceStatusAction(
   status: "DRAFT" | "SENT" | "PAID" | "VOID",
   formData?: FormData
 ) {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: visibleInvoice(invoiceId, org.id, user.id, role),
     include: { client: true },
   });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
+  // Any member can send, mark paid or void in the app (the invoice page shows
+  // them those buttons); keys need owner/admin, see the MCP tools.
+  const statusError = invoiceStatusChangeError(invoice.status, status);
+  if (statusError) throw new Error(statusError);
+  if (status === "SENT") {
+    const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
+    if (lineItemCount === 0) throw new Error("Add at least one line item before sending.");
+  }
 
   const paymentMethod =
     status === "PAID" ? (formData?.get("paymentMethod") as string) || null : undefined;
 
   await prisma.invoice.update({
     where: { id: invoiceId },
-    data: { status, ...(paymentMethod !== undefined ? { paymentMethod } : {}) },
+    data: {
+      status,
+      // invoiceStatusChangeError only allows SENT → PAID and PAID → nothing, so
+      // paidAt only ever needs setting here.
+      ...(status === "PAID" ? { paidAt: new Date() } : {}),
+      ...(paymentMethod !== undefined ? { paymentMethod } : {}),
+    },
   });
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
 
   if (status === "SENT" || status === "PAID") {
     await notifyInvoiceStatusChange(org, invoice, status);
+  } else if (status === "VOID") {
+    // A filed copy is refreshed so it shows VOID.
+    await fileInvoice(invoiceId);
   }
 }
 
@@ -226,9 +256,9 @@ export async function sendInvoiceAction(
   _prevState: SendInvoiceState, // eslint-disable-line @typescript-eslint/no-unused-vars
   _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<SendInvoiceState> {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({
+    where: visibleInvoice(invoiceId, org.id, user.id, role),
     include: { client: true },
   });
   if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
@@ -248,10 +278,10 @@ export async function sendInvoiceAction(
 }
 
 export async function deleteInvoiceAction(invoiceId: string) {
-  const { org, role } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be deleted.");
 
@@ -277,7 +307,8 @@ export async function pushToQuickBooksAction(
   _prevState: ActionState, // eslint-disable-line @typescript-eslint/no-unused-vars
   _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
 
   try {
     await pushInvoiceToQuickBooks(org.id, invoiceId);
@@ -296,7 +327,8 @@ export async function syncQuickBooksStatusAction(
   _prevState: ActionState, // eslint-disable-line @typescript-eslint/no-unused-vars
   _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
 
   try {
     await syncInvoiceStatusFromQuickBooks(org.id, invoiceId);
@@ -336,8 +368,8 @@ export async function emailInvoiceAction(
 
 /** The client-facing link for a sent invoice, for sharing by hand. */
 export async function invoiceClientLinkAction(invoiceId: string): Promise<{ url?: string; error?: string }> {
-  const { org } = await requireOrgContext();
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
   if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
   if (invoice.status === "DRAFT") return { error: "Send the invoice first." };
   const { viewUrl } = await invoiceLinks(invoiceId);

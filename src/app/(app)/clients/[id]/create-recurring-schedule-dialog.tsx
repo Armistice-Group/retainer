@@ -130,7 +130,8 @@ export function CreateRecurringScheduleDialog({ clientId }: { clientId: string }
           <div className="flex items-start gap-2">
             <Checkbox id="rs-autoSend" name="autoSend" className="mt-0.5" />
             <Label htmlFor="rs-autoSend" className="text-sm font-normal">
-              Send automatically instead of leaving as a draft to review
+              Mark as sent automatically instead of leaving a draft to review (doesn&apos;t
+              email the client)
             </Label>
           </div>
           <SubmitButton pendingText="Creating...">Create schedule</SubmitButton>

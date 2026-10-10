@@ -37,8 +37,8 @@ export function AlertSettingsForm({
         <CardHeader>
           <CardTitle className="text-base">Alerts</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Owners and admins always get these in Consultainer. Choose which also go to Slack
-            and email.
+            Owners and admins always get these in Consultainer (the bell). Choose which also go
+            to Slack and email, then click <strong>Save alerts</strong>.
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
@@ -46,16 +46,16 @@ export function AlertSettingsForm({
             <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
               {!slackConfigured ? (
                 <>
-                  Slack isn&apos;t connected — add a webhook URL in{" "}
+                  Slack isn&apos;t connected — paste a webhook URL into{" "}
                   <Link href="/settings#slackWebhookUrl" className="text-brand hover:underline">
-                    General
+                    General → Slack webhook URL
                   </Link>
                   .{" "}
                 </>
               ) : null}
               {!emailConfigured ? (
                 <>
-                  Email isn&apos;t set up on this instance —{" "}
+                  Email isn&apos;t set up on this instance — see the Email card in{" "}
                   <Link href="/settings/integrations" className="text-brand hover:underline">
                     Integrations
                   </Link>
@@ -64,6 +64,48 @@ export function AlertSettingsForm({
               ) : null}
             </p>
           ) : null}
+
+          <details className="text-sm">
+            <summary className="cursor-pointer font-medium">How to connect Slack</summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+              <li>
+                Go to{" "}
+                <a
+                  href="https://api.slack.com/apps"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-brand hover:underline"
+                >
+                  api.slack.com/apps
+                </a>
+                , click <strong>Create New App → From scratch</strong>, name it and pick your
+                workspace.
+              </li>
+              <li>
+                Open <strong>Incoming Webhooks</strong> and switch{" "}
+                <strong>Activate Incoming Webhooks</strong> on.
+              </li>
+              <li>
+                Click <strong>Add New Webhook</strong>, choose the channel, and click{" "}
+                <strong>Allow</strong>.
+              </li>
+              <li>
+                Copy the <strong>Webhook URL</strong> (it starts with{" "}
+                <code>https://hooks.slack.com/services/</code>).
+              </li>
+              <li>
+                Paste it into{" "}
+                <Link href="/settings#slackWebhookUrl" className="text-brand hover:underline">
+                  General → Slack webhook URL
+                </Link>{" "}
+                and click <strong>Save changes</strong>.
+              </li>
+              <li>
+                Back here, tick <strong>Slack</strong> for the alerts you want and click{" "}
+                <strong>Save alerts</strong>.
+              </li>
+            </ol>
+          </details>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -122,6 +164,9 @@ export function AlertSettingsForm({
               defaultValue={alertEmails.join(", ")}
               placeholder="Leave empty to email the organization's owners"
             />
+            <p className="text-xs text-muted-foreground">
+              Up to 20 addresses, separated by commas. Also used for the weekly digest.
+            </p>
             {state?.fieldErrors?.alertEmails ? (
               <p className="text-sm text-destructive">{state.fieldErrors.alertEmails[0]}</p>
             ) : null}

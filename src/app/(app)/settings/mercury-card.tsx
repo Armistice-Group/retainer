@@ -44,8 +44,8 @@ export function MercuryConnectCard({
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           {connected
-            ? "Clients can pay invoices directly from a Mercury-hosted pay page — card, ACH, or internal transfer if they bank with Mercury too."
-            : "An alternative to Stripe Connect for orgs that already bank with Mercury — paste a personal API token from your own Mercury dashboard instead of a separate onboarding flow."}
+            ? "Clients can pay sent invoices from a Mercury-hosted pay page by card or ACH. Payment status is checked every hour."
+            : "For organizations that bank with Mercury: clients pay sent invoices on a Mercury-hosted page, straight into your account. Used instead of Stripe if both are connected."}
         </p>
 
         {!connected ? (
@@ -69,9 +69,10 @@ export function MercuryConnectCard({
                   <p className="text-sm text-destructive">{state.fieldErrors.apiToken[0]}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Generate one at{" "}
-                    <span className="font-mono">app.mercury.com → Settings → Tokens</span> with
-                    read-write access.
+                    In Mercury, open <strong>Settings → Tokens</strong> and create a token with{" "}
+                    <strong>Read and Write</strong> access. Mercury asks which IP addresses may use
+                    it: enter this server&apos;s public IP address. Then pick the deposit account
+                    here.
                   </p>
                 )}
               </div>

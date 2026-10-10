@@ -56,6 +56,7 @@ export async function getClientByShareToken(token: string) {
         dueDate: true,
         total: true,
         currency: true,
+        stripePaymentIntentId: true,
       },
       orderBy: { issueDate: "desc" },
     }),

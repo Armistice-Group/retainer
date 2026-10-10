@@ -37,6 +37,8 @@ import { EmailInvoiceDialog, CopyClientLinkButton } from "./email-invoice-dialog
 import { InvoiceActivity } from "./invoice-activity";
 import { defaultInvoiceRecipients } from "@/lib/services/invoice-delivery";
 import { isEmailConfigured } from "@/lib/email";
+import { getConfig } from "@/lib/instance-config";
+import { invoiceVisibilityWhere } from "@/lib/project-access";
 
 const PAYMENT_TERMS_LABELS: Record<string, string> = {
   DUE_ON_RECEIPT: "Due on receipt",
@@ -60,10 +62,10 @@ export default async function InvoiceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { org, role } = await requireOrgContext();
+  const { org, user, role } = await requireOrgContext();
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, orgId: org.id, ...invoiceVisibilityWhere(user.id, role) },
     include: { client: true, lineItems: { orderBy: { sortOrder: "asc" } } },
   });
 
@@ -72,7 +74,7 @@ export default async function InvoiceDetailPage({
   const isDraft = invoice.status === "DRAFT";
   const canManage = role === "OWNER" || role === "ADMIN";
 
-  const [quickBooksConnection, events, recipients, emailConfigured, filedCopy] = await Promise.all([
+  const [quickBooksConnection, events, recipients, emailConfigured, filedCopy, quickBooksEnvironment] = await Promise.all([
     canManage ? prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }) : null,
     prisma.invoiceEvent.findMany({
       where: { invoiceId: invoice.id },
@@ -86,7 +88,12 @@ export default async function InvoiceDetailPage({
       where: { kind: "INVOICE", sourceId: invoice.id },
       orderBy: { filedAt: "desc" },
     }),
+    getConfig("QUICKBOOKS_ENVIRONMENT"),
   ]);
+  // Same default as the API client in lib/integrations/quickbooks: sandbox
+  // unless set to production.
+  const quickBooksAppUrl =
+    quickBooksEnvironment === "production" ? "https://app.qbo.intuit.com" : "https://app.sandbox.qbo.intuit.com";
 
   return (
     <div>
@@ -430,7 +437,7 @@ export default async function InvoiceDetailPage({
               <CardContent className="flex flex-col items-end gap-3">
                 {invoice.quickbooksSyncedAt ? (
                   <a
-                    href={`https://app.qbo.intuit.com/app/invoice?txnId=${invoice.quickbooksInvoiceId}`}
+                    href={`${quickBooksAppUrl}/app/invoice?txnId=${invoice.quickbooksInvoiceId}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="self-start text-sm text-brand hover:underline"

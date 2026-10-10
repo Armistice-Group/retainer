@@ -59,7 +59,8 @@ export function QuickBooksCard({
               </p>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">
-                Push invoices to QuickBooks as they&apos;re created.
+                Push invoices to QuickBooks Online from each invoice&apos;s page, and sync their
+                paid status back.
               </p>
             )}
           </div>
@@ -81,8 +82,39 @@ export function QuickBooksCard({
             </Button>
           )}
         </div>
+        {connected ? null : <SetupGuide />}
         {credentials}
       </CardContent>
     </Card>
+  );
+}
+
+function SetupGuide() {
+  return (
+    <details className="text-sm">
+      <summary className="cursor-pointer font-medium">How to set this up</summary>
+      <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+        <li>
+          Open Consultainer at the address your team uses — the redirect URI below follows it.
+        </li>
+        <li>
+          On developer.intuit.com, open your <strong>Dashboard</strong> and create an app for
+          QuickBooks Online with the <strong>Accounting</strong> scope.
+        </li>
+        <li>
+          Under the app&apos;s <strong>Keys and credentials</strong>, add the redirect URI below.
+          Development keys only work with sandbox companies; production keys need an https
+          address and Intuit&apos;s production questionnaire.
+        </li>
+        <li>
+          Copy the client ID and client secret into the fields below, set{" "}
+          <strong>Environment</strong> to match the keys, and click{" "}
+          <strong>Save credentials</strong>.
+        </li>
+        <li>
+          Click <strong>Connect</strong>, sign in to Intuit and pick the company.
+        </li>
+      </ol>
+    </details>
   );
 }
