@@ -143,6 +143,16 @@ model Organization {
   // Days overdue at which clients get an emailed reminder, e.g. [3, 7, 14];
   // empty turns reminders off.
   overdueReminderDays        Int[]                 @default([])
+  // Auto-filing to a file service (see lib/services/filing.ts): which service,
+  // through whose connection, into which root folder, and what gets filed.
+  filingProvider             String?
+  filingConnectionId         String?
+  filingRootId               String?
+  filingRootUrl              String?
+  filingRootName             String?
+  fileInvoices               Boolean               @default(true)
+  fileDocuments              Boolean               @default(true)
+  filingLastError            String?
   // When the last weekly digest went out, so each week gets one.
   lastDigestAt               DateTime?
   // Where alert emails go; empty means the org's owners.
@@ -194,6 +204,7 @@ model Organization {
   auditLogs                 AuditLog[]
   timesheets                Timesheet[]
   calendarFeeds             CalendarFeed[]
+  filedCopies               FiledCopy[]
   quickBooksConnection      QuickBooksConnection?
   linearConnection          LinearConnection?
   mercuryConnection         MercuryConnection?
@@ -888,6 +899,25 @@ model UserConnection {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
+}
+
+// A copy of an invoice PDF or uploaded document filed to the org's file
+// service, so it's updated rather than duplicated, and linked back to.
+model FiledCopy {
+  id          String   @id @default(cuid())
+  // INVOICE | DOCUMENT
+  kind        String
+  sourceId    String
+  provider    String
+  externalId  String
+  externalUrl String?
+  filedAt     DateTime @default(now())
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, sourceId, provider])
+  @@index([orgId])
 }
 
 model ActiveTimer {

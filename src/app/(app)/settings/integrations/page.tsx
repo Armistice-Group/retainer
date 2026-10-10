@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { QuickBooksCard } from "../quickbooks-card";
 import { LinearCard } from "../linear-card";
 import { FilesIntegrationsCard, type FileServiceSetup } from "../files-integrations-card";
+import { FilingCard } from "../filing-card";
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { EmailCard } from "../email-card";
 import { IntegrationCredentials } from "../integration-credentials";
@@ -17,7 +18,7 @@ export default async function IntegrationsPage({
 }: {
   searchParams: Promise<{ quickbooks?: string; linear?: string }>;
 }) {
-  const { org, role } = await requireOrgContext();
+  const { org, role, user } = await requireOrgContext();
   const readOnly = role === "MEMBER";
   // Credentials are instance-wide, so only owners can change them.
   const canEdit = role === "OWNER";
@@ -134,6 +135,32 @@ export default async function IntegrationsPage({
       />
 
       <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />
+
+      <FilingCard
+        readOnly={readOnly}
+        myConnections={(
+          await prisma.userConnection.findMany({
+            where: { userId: user.id, provider: { in: ["GOOGLE_DRIVE", "DROPBOX", "ONEDRIVE"] } },
+            select: { provider: true },
+          })
+        ).map((c) => c.provider)}
+        filing={{
+          provider: org.filingProvider,
+          rootName: org.filingRootName,
+          rootUrl: org.filingRootUrl,
+          fileInvoices: org.fileInvoices,
+          fileDocuments: org.fileDocuments,
+          lastError: org.filingLastError,
+          setUpBy: org.filingConnectionId
+            ? ((
+                await prisma.userConnection.findUnique({
+                  where: { id: org.filingConnectionId },
+                  select: { user: { select: { name: true } } },
+                })
+              )?.user.name ?? null)
+            : null,
+        }}
+      />
 
       <EmailCard
         configured={emailConfigured}

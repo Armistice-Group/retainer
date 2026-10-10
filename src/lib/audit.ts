@@ -64,6 +64,7 @@ const IGNORED_FIELDS = new Set([
   "lastSyncedAt",
   "lastError",
   "lastNudgedAt",
+  "filingLastError",
 ]);
 // Recorded as "changed" without the value.
 const REDACTED = /hash|secret|token|password|recoverycodes|filedata|credential|publickey|counter/i;

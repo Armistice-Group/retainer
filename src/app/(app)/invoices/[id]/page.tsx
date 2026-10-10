@@ -48,6 +48,12 @@ const PAYMENT_TERMS_LABELS: Record<string, string> = {
   CUSTOM: "Custom",
 };
 
+const FILED_LABELS: Record<string, string> = {
+  GOOGLE_DRIVE: "Google Drive",
+  DROPBOX: "Dropbox",
+  ONEDRIVE: "OneDrive",
+};
+
 export default async function InvoiceDetailPage({
   params,
 }: {
@@ -66,7 +72,7 @@ export default async function InvoiceDetailPage({
   const isDraft = invoice.status === "DRAFT";
   const canManage = role === "OWNER" || role === "ADMIN";
 
-  const [quickBooksConnection, events, recipients, emailConfigured] = await Promise.all([
+  const [quickBooksConnection, events, recipients, emailConfigured, filedCopy] = await Promise.all([
     canManage ? prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }) : null,
     prisma.invoiceEvent.findMany({
       where: { invoiceId: invoice.id },
@@ -76,6 +82,10 @@ export default async function InvoiceDetailPage({
     }),
     defaultInvoiceRecipients(invoice.clientId),
     isEmailConfigured(),
+    prisma.filedCopy.findFirst({
+      where: { kind: "INVOICE", sourceId: invoice.id },
+      orderBy: { filedAt: "desc" },
+    }),
   ]);
 
   return (
@@ -387,6 +397,16 @@ export default async function InvoiceDetailPage({
               >
                 View client
               </Link>
+              {filedCopy?.externalUrl ? (
+                <a
+                  href={filedCopy.externalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Filed to {FILED_LABELS[filedCopy.provider] ?? filedCopy.provider} ↗
+                </a>
+              ) : null}
             </CardContent>
           </Card>
 

@@ -87,7 +87,7 @@ export async function addUploadedDocument(ctx: DocumentContext, meta: DocumentMe
     keyPrefix: `orgs/${ctx.orgId}/documents`,
     fileName: file.name,
   });
-  return prisma.clientDocument.create({
+  const doc = await prisma.clientDocument.create({
     data: {
       clientId: meta.clientId,
       projectId: meta.projectId || null,
@@ -103,6 +103,10 @@ export async function addUploadedDocument(ctx: DocumentContext, meta: DocumentMe
       uploadedById: ctx.actorId,
     },
   });
+  // A copy goes to the org's filing folder, if set up.
+  const { fileDocument } = await import("@/lib/services/filing");
+  await fileDocument(doc.id);
+  return doc;
 }
 
 export async function addLinkedDocument(ctx: DocumentContext, meta: DocumentMeta, rawUrl: string) {

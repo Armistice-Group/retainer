@@ -43,3 +43,26 @@ redirect URI to register for each.
 | Dropbox | Dropbox App Console | Scoped access, Full Dropbox; permissions `account_info.read`, `files.metadata.read`, `files.content.read`, `files.content.write`, `sharing.read`, `sharing.write`. `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` |
 | OneDrive & SharePoint | Microsoft Entra → App registrations | Web platform; delegated permissions `User.Read`, `Files.ReadWrite.All`, `Sites.Read.All`, `offline_access`. Optionally a tenant ID to allow only your organization. `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` |
 | Notion | Notion → Integrations | A public integration with *read content* and *read user information including email addresses*. `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET` |
+
+## Filing copies automatically
+
+Under **Settings → Integrations → Filing**, an owner or admin can have
+Consultainer keep copies of its own documents in Google Drive, Dropbox or
+OneDrive:
+
+- **Invoices** — the PDF when it's sent, refreshed when it's paid or voided:
+  `<folder>/<Client>/Invoices/INV-0001.pdf`
+- **Uploaded documents** — `<folder>/<Client>/Documents/…`, or
+  `<folder>/<Client>/<Project>/Documents/…` for a project's.
+
+Setting it up creates the folder (named *Consultainer* unless you change it)
+at the top of the admin's Drive, Dropbox or OneDrive; you can move it
+afterwards — into a Google shared drive, for example — and filing keeps
+working. Filing runs through the connection of the admin who set it up (they
+connect the service on their profile first); if they disconnect it, the card
+says so and filing pauses until someone sets it up again.
+
+Each item is filed when it happens; anything that fails (or changed since) is
+retried hourly by the scheduler (`/api/cron/filing`). **File everything now**
+catches up immediately — including invoices and documents from before filing
+was set up. An invoice's page links to its filed copy.

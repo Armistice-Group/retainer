@@ -37,6 +37,9 @@ export async function notifyInvoiceStatusChange(
     message: `Invoice ${invoice.number} for ${invoice.client.name} ${verb} (${total}).`,
     link: `/invoices/${invoice.id}`,
   });
+  // A sent or paid invoice's PDF goes to the org's filing folder, if set up.
+  const { fileInvoice } = await import("@/lib/services/filing");
+  await fileInvoice(invoice.id);
 }
 
 // Called once a day by the recurring-invoices cron job. overdueNotifiedAt is

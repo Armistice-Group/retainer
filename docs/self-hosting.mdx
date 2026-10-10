@@ -80,6 +80,7 @@ an extra run never double-sends anything.
 | `/api/cron/mercury-sync` | hour | Marks invoices paid when Mercury says so. |
 | `/api/cron/linear-sync` | hour | Syncs every linked project with Linear (issues and comments) and retries failed pushes. |
 | `/api/cron/calendar-sync` | hour | Pulls recent meetings from everyone's connected calendars. |
+| `/api/cron/filing` | hour | Files invoices and documents that didn't reach the filing folder (or changed since). |
 | `/api/cron/recurring-invoices` | day | Retainer invoices, client billing cycles, overdue alerts, overdue reminder emails to clients, and (Mondays) the weekly digest. |
 
 Running the app some other way (Kubernetes, a PaaS)? Call the same endpoints

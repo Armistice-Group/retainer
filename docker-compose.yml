@@ -78,7 +78,7 @@ services:
       - "${APP_PORT:-3113}:3000"
 
   # Drives the scheduled jobs (all idempotent). Hourly: Mercury payment
-  # status, Linear sync, calendar sync. Daily: retainer invoices, billing
+  # status, Linear sync, calendar sync, filing catch-up. Daily: retainer invoices, billing
   # cycles, overdue alerts and reminders, and (Mondays) the weekly digest.
   scheduler:
     image: curlimages/curl:8.10.1
@@ -97,6 +97,7 @@ services:
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/mercury-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/linear-sync || true
           curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/calendar-sync || true
+          curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/filing || true
           if [ $$((i % 24)) -eq 0 ]; then
             curl -fsS -o /dev/null -X POST -H "Authorization: Bearer $$CRON_SECRET" http://consultainer-app:3000/api/cron/recurring-invoices || true
           fi
