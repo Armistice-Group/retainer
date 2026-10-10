@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CopyButton } from "@/components/copy-button";
@@ -21,18 +22,13 @@ import type { AgreementConnection } from "@/generated/prisma/client";
 
 const when = (d: Date) => d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 
-function ConnectionStatus({ connection, detail }: { connection: AgreementConnection | undefined; detail?: string | null }) {
-  if (!connection) return <p className="mt-1 text-sm text-muted-foreground">Not connected.</p>;
+/** Sync state under a connected service's header (the header says Connected). */
+function SyncDetails({ connection, extra }: { connection: AgreementConnection; extra?: string | null }) {
   return (
-    <div className="mt-1 flex flex-col gap-0.5 text-sm text-muted-foreground">
-      <p className="flex items-center gap-1.5">
-        <CheckCircle2 className="size-3.5 text-chart-3" />
-        Connected{detail ? ` · ${detail}` : ""}
-      </p>
-      <p className="text-xs">
-        {connection.lastSyncedAt ? `Last synced ${when(connection.lastSyncedAt)}` : "Not synced yet"}
-      </p>
-      {connection.lastError ? <p className="text-xs text-destructive">{connection.lastError}</p> : null}
+    <div className="flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground">
+      {extra ? <p className="truncate">{extra}</p> : null}
+      <p>{connection.lastSyncedAt ? `Last synced ${when(connection.lastSyncedAt)}` : "Not synced yet"}</p>
+      {connection.lastError ? <p className="text-destructive">{connection.lastError}</p> : null}
     </div>
   );
 }
@@ -130,9 +126,11 @@ export default async function AgreementsSettingsPage({
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">DocuSign</CardTitle>
-          </CardHeader>
+          <IntegrationCardHeader
+            title="DocuSign"
+            logos={["docusign"]}
+            status={{ connected: !!ds, detail: ds?.accountName }}
+          />
           <CardContent className="flex flex-col gap-4">
             {docusign === "forbidden" ? (
               <Alert variant="destructive">
@@ -155,11 +153,17 @@ export default async function AgreementsSettingsPage({
                 </AlertDescription>
               </Alert>
             ) : null}
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-              <div>
-                <p className="text-sm font-medium">DocuSign ({dsEnvironment === "production" ? "production" : "demo"})</p>
-                <ConnectionStatus connection={ds} detail={ds?.accountName} />
-              </div>
+            <div className="flex items-start justify-between gap-4">
+              {ds ? (
+                <SyncDetails
+                  connection={ds}
+                  extra={`${dsEnvironment === "production" ? "Production" : "Demo"} environment`}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {dsEnvironment === "production" ? "Production" : "Demo"} environment.
+                </p>
+              )}
               <div className="flex shrink-0 items-center gap-2">
                 {dsConfigured ? (
                   <Button size="sm" variant={ds ? "outline" : "default"} asChild>
@@ -208,7 +212,7 @@ export default async function AgreementsSettingsPage({
               </li>
               <li>
                 For real agreements, DocuSign has to approve the app for production first (its{" "}
-                <strong>go-live</strong> review on the app&apos;s page). Once approved, add a
+                <strong>go-live</strong>{" "}review on the app&apos;s page). Once approved, add a
                 secret key and the redirect URI to the app in your production account, switch the
                 environment to Production here, and reconnect.
               </li>
@@ -228,17 +232,18 @@ export default async function AgreementsSettingsPage({
 
         <div className="flex flex-col gap-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Documenso</CardTitle>
-            </CardHeader>
+            <IntegrationCardHeader
+              title="Documenso"
+              logos={["documenso"]}
+              status={{ connected: !!dm, detail: dm?.accountName }}
+            />
             <CardContent className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-                <div>
-                  <p className="text-sm font-medium">Documenso</p>
-                  <ConnectionStatus connection={dm} detail={dm?.accountName} />
+              {dm ? (
+                <div className="flex items-start justify-between gap-4">
+                  <SyncDetails connection={dm} />
+                  <Disconnect provider="DOCUMENSO" />
                 </div>
-                {dm ? <Disconnect provider="DOCUMENSO" /> : null}
-              </div>
+              ) : null}
               <Steps>
                 <li>
                   In Documenso, open the team whose documents you want here, then{" "}
@@ -264,17 +269,18 @@ export default async function AgreementsSettingsPage({
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ironclad</CardTitle>
-            </CardHeader>
+            <IntegrationCardHeader
+              title="Ironclad"
+              logos={["ironclad"]}
+              status={{ connected: !!ic, detail: ic?.accountName }}
+            />
             <CardContent className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-                <div>
-                  <p className="text-sm font-medium">Ironclad</p>
-                  <ConnectionStatus connection={ic} detail={ic ? `${ic.accountName} · as ${ic.actAsEmail}` : null} />
+              {ic ? (
+                <div className="flex items-start justify-between gap-4">
+                  <SyncDetails connection={ic} extra={ic.actAsEmail ? `Reading as ${ic.actAsEmail}` : null} />
+                  <Disconnect provider="IRONCLAD" />
                 </div>
-                {ic ? <Disconnect provider="IRONCLAD" /> : null}
-              </div>
+              ) : null}
               <Steps>
                 <li>
                   You need an Ironclad plan with API access and an Ironclad admin. In Ironclad,

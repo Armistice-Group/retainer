@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -32,9 +33,11 @@ export function LinearCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Linear</CardTitle>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Linear"
+        logos={["linear"]}
+        status={{ connected, detail: workspaceName }}
+      />
       <CardContent className="flex flex-col gap-4">
         {callbackStatus === "forbidden" ? (
           <Alert variant="destructive">
@@ -57,19 +60,11 @@ export function LinearCard({
           </Alert>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium">Linear</p>
-            {connected ? (
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CheckCircle2 className="size-3.5 text-chart-3" />
-                Connected {workspaceName ? `· ${workspaceName}` : ""}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Connect Linear so projects can pull in issues as tasks.
-              </p>
-            )}
+            <p className="text-sm text-muted-foreground">
+              Projects pull in Linear issues as tasks, and new tasks and edits are sent back.
+            </p>
             {connected && !canWrite ? (
               <p className="mt-1 text-xs text-muted-foreground">
                 Read-only access — reconnect so new tasks and edits can be sent to Linear.
@@ -96,7 +91,7 @@ export function LinearCard({
               </form>
             </div>
           ) : !configured ? null : (
-            <Button size="sm" asChild>
+            <Button size="sm" asChild className="shrink-0">
               <Link href="/api/integrations/linear/connect" prefetch={false}>
                 Connect
               </Link>
@@ -122,7 +117,7 @@ function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
         <li>
           In Linear, go to <strong>Settings → API → OAuth applications</strong> and create a new
           application. Paste the callback URL below into <strong>Callback URLs</strong>. Turn on{" "}
-          <strong>Public</strong> if you&apos;ll connect a different workspace.
+          <strong>Public</strong>{" "}if you&apos;ll connect a different workspace.
         </li>
         <li>
           Optional, for live updates: turn on <strong>Webhooks</strong> with the URL{" "}
@@ -134,7 +129,7 @@ function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
           webhook signing secret into the fields below and click <strong>Save credentials</strong>.
         </li>
         <li>
-          Click <strong>Connect</strong> and approve read and write access. Then link projects
+          Click <strong>Connect</strong>{" "}and approve read and write access. Then link projects
           from each project&apos;s page with <strong>Link Linear</strong>.
         </li>
       </ol>

@@ -439,7 +439,7 @@ function PreviewPanel({
           {p.errorCount > 0 ? (
             <details className="text-sm">
               <summary className="cursor-pointer font-medium">
-                {plural(p.errorCount, "row")} can&apos;t be imported
+                {plural(p.errorCount, "row")}{" "}can&apos;t be imported
               </summary>
               <ul className="mt-2 flex flex-col gap-0.5 text-xs text-muted-foreground">
                 {p.errors.map((e) => (

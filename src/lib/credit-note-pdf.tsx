@@ -90,7 +90,7 @@ export function CreditNoteDocument({ note }: { note: CreditNoteForPdf }) {
         {note.status === "VOID" ? <Text style={styles.void}>VOID — this credit note was cancelled.</Text> : null}
 
         <Text style={styles.footer}>
-          This credit can be applied by {note.org.name} to your invoices. It isn&apos;t a refund.
+          This credit can be applied by {note.org.name}{" "}to your invoices. It isn&apos;t a refund.
         </Text>
       </Page>
     </Document>

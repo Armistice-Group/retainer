@@ -228,7 +228,7 @@ export default async function ClientDetailPage({
         <Alert className="mb-4">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>
-              <strong>{client.name}</strong> was created. Add the people you&apos;ll be working with
+              <strong>{client.name}</strong>{" "}was created. Add the people you&apos;ll be working with
               here — a manager, VP, marketing lead, whoever&apos;s relevant — or skip for now.
             </span>
             <div className="flex shrink-0 items-center gap-2">

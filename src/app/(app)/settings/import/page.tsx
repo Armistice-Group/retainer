@@ -41,7 +41,7 @@ export default async function ImportSettingsPage() {
                 Save as CSV.
               </li>
               <li>
-                <strong>Anything else:</strong> any CSV with a date, hours (or a duration) and a
+                <strong>Anything else:</strong>{" "}any CSV with a date, hours (or a duration) and a
                 project per row. You&apos;ll match its columns on the next step.
               </li>
             </ol>
@@ -78,7 +78,7 @@ export default async function ImportSettingsPage() {
                     </p>
                     {!b.undoneAt && b.invoicedEntries > 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        {b.invoicedEntries} of its entries are on invoices, so it can&apos;t be undone.
+                        {b.invoicedEntries}{" "}of its entries are on invoices, so it can&apos;t be undone.
                       </p>
                     ) : null}
                   </div>

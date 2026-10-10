@@ -1,5 +1,6 @@
 import { Database, HardDrive } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { DocsLink } from "@/components/docs-link";
 
 /** Where uploaded files are kept — read-only; set in the server's environment. */
@@ -16,11 +17,15 @@ export function StorageCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          {mode === "object" ? <HardDrive className="size-4" /> : <Database className="size-4" />} File storage
-        </CardTitle>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="File storage (S3-compatible)"
+        icon={mode === "object" ? HardDrive : Database}
+        status={{
+          connected: mode === "object" && reachable,
+          detail: bucket,
+          problem: mode === "object" && !reachable ? "Can't reach the bucket" : null,
+        }}
+      />
       <CardContent className="flex flex-col gap-2 text-sm">
         {mode === "object" ? (
           <>
@@ -32,7 +37,7 @@ export function StorageCard({
             </p>
             {reachable ? null : (
               <p className="text-xs text-muted-foreground">
-                Check <code>S3_BUCKET</code>, <code>S3_REGION</code>, <code>S3_ENDPOINT</code> and the
+                Check <code>S3_BUCKET</code>, <code>S3_REGION</code>, <code>S3_ENDPOINT</code>{" "}and the
                 access keys in the server&apos;s <code>.env</code> (MinIO and most self-hosted servers
                 also need <code>S3_FORCE_PATH_STYLE=true</code>), then run{" "}
                 <code>docker compose up -d</code>.
@@ -68,7 +73,7 @@ export function StorageCard({
                     docker compose exec consultainer-app node_modules/.bin/tsx
                     scripts/move-files-to-object-storage.mts
                   </code>
-                  (add <code>--dry-run</code> to just count). Keep the <code>S3_*</code> settings
+                  (add <code>--dry-run</code> to just count). Keep the <code>S3_*</code>{" "}settings
                   afterwards — moved files can&apos;t be read without them.
                 </li>
               </ol>

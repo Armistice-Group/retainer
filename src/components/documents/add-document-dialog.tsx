@@ -142,7 +142,7 @@ export function AddDocumentDialog({
                 />
                 {agreementLink ? (
                   <p className="text-xs text-muted-foreground">
-                    {AGREEMENT_PROVIDER_LABELS[agreementLink.provider]} agreement. For owners and
+                    {AGREEMENT_PROVIDER_LABELS[agreementLink.provider]}{" "}agreement. For owners and
                     admins this links the signed agreement itself (it shows under Signed
                     agreements, with its signers and signed copy) through your organization&apos;s{" "}
                     {AGREEMENT_PROVIDER_LABELS[agreementLink.provider]} connection.

@@ -186,7 +186,7 @@ export function MarkResponseDialog({
         <DialogHeader>
           <DialogTitle>{accepted ? "Mark accepted" : "Mark declined"}</DialogTitle>
           <DialogDescription>
-            For when the client {accepted ? "accepted" : "declined"} by email, phone or in person.
+            For when the client {accepted ? "accepted" : "declined"}{" "}by email, phone or in person.
             You&apos;re recorded as the person who marked it. This can&apos;t be undone.
           </DialogDescription>
         </DialogHeader>

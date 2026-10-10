@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { CheckCircle2, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CopyButton } from "@/components/copy-button";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -35,28 +36,27 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Status({ conn }: { conn: Connection | undefined }) {
-  if (!conn) return <p className="mt-1 text-sm text-muted-foreground">Not connected.</p>;
+const account = (conn: Connection | undefined) => (conn ? (conn.accountName ?? conn.accountEmail ?? null) : null);
+
+/** Sync state under a connected service's header (the header says Connected). */
+function SyncDetails({ conn, extra }: { conn: Connection; extra?: string | null }) {
   return (
-    <div className="mt-1 flex flex-col gap-0.5 text-sm text-muted-foreground">
-      <p className="flex items-center gap-1.5">
-        <CheckCircle2 className="size-3.5 text-chart-3" />
-        Connected{conn.accountName || conn.accountEmail ? ` · ${conn.accountName ?? conn.accountEmail}` : ""}
-      </p>
+    <div className="flex min-w-0 flex-col gap-0.5 text-xs text-muted-foreground">
+      {extra ? <p className="truncate">{extra}</p> : null}
       {conn.mode === "POLLING" ? (
-        <p className="flex items-center gap-1.5 text-xs">
+        <p className="flex items-center gap-1.5">
           <Clock className="size-3" />
           Checking for new bookings every hour
           {conn.lastSyncedAt ? ` · last checked ${when(conn.lastSyncedAt)}` : " · not checked yet"}
         </p>
       ) : (
-        <p className="text-xs">
+        <p>
           {conn.lastWebhookAt
             ? `Last booking update received ${when(conn.lastWebhookAt)}`
             : "No booking updates received yet"}
         </p>
       )}
-      {conn.lastError ? <p className="text-xs text-destructive">{conn.lastError}</p> : null}
+      {conn.lastError ? <p className="text-destructive">{conn.lastError}</p> : null}
     </div>
   );
 }
@@ -147,7 +147,7 @@ export default async function SchedulingSettingsPage() {
           ) : null}
           <OrgBookingUrlForm value={settings.orgBookingUrl} />
           <p className="text-xs text-muted-foreground">
-            Shown as <strong>Book a meeting</strong> on every client&apos;s share page. A client can have its own link
+            Shown as <strong>Book a meeting</strong>{" "}on every client&apos;s share page. A client can have its own link
             instead (on the client page). Any https:// link works.
           </p>
         </CardContent>
@@ -155,19 +155,17 @@ export default async function SchedulingSettingsPage() {
 
       <div className="grid items-start gap-6 xl:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cal.com</CardTitle>
-          </CardHeader>
+          <IntegrationCardHeader title="Cal.com" logos={["calcom"]} status={{ connected: !!cal, detail: account(cal) }} />
           <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-              <div>
-                <p className="text-sm font-medium">
-                  Cal.com{cal?.baseUrl && cal.baseUrl !== "https://api.cal.com" ? ` (${cal.baseUrl})` : ""}
-                </p>
-                <Status conn={cal} />
+            {cal ? (
+              <div className="flex items-start justify-between gap-4">
+                <SyncDetails
+                  conn={cal}
+                  extra={cal.baseUrl && cal.baseUrl !== "https://api.cal.com" ? `Self-hosted at ${cal.baseUrl}` : null}
+                />
+                <Disconnect provider="CALCOM" label="Cal.com" />
               </div>
-              {cal ? <Disconnect provider="CALCOM" label="Cal.com" /> : null}
-            </div>
+            ) : null}
             <Steps>
               <li>
                 In Cal.com, open <strong>Settings → Developer → API keys</strong> and click <strong>New</strong>. Name
@@ -217,24 +215,21 @@ export default async function SchedulingSettingsPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Calendly</CardTitle>
-          </CardHeader>
+          <IntegrationCardHeader title="Calendly" logos={["calendly"]} status={{ connected: !!cy, detail: account(cy) }} />
           <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-              <div>
-                <p className="text-sm font-medium">Calendly</p>
-                <Status conn={cy} />
+            {cy ? (
+              <div className="flex items-start justify-between gap-4">
+                <SyncDetails conn={cy} />
+                <div className="flex shrink-0 items-center gap-2">
+                  {cy.mode === "POLLING" ? (
+                    <ActionButton kind="sync" provider="CALENDLY">
+                      Check now
+                    </ActionButton>
+                  ) : null}
+                  <Disconnect provider="CALENDLY" label="Calendly" />
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {cy?.mode === "POLLING" ? (
-                  <ActionButton kind="sync" provider="CALENDLY">
-                    Check now
-                  </ActionButton>
-                ) : null}
-                {cy ? <Disconnect provider="CALENDLY" label="Calendly" /> : null}
-              </div>
-            </div>
+            ) : null}
             {cy?.mode === "POLLING" ? (
               <Alert>
                 <AlertDescription>

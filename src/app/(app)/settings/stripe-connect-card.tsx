@@ -1,7 +1,7 @@
-import { CheckCircle2, CreditCard } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreditCard } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/forms/submit-button";
 import {
@@ -22,14 +22,14 @@ export function StripeConnectCard({
 }) {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Collect payments (Stripe Connect)</CardTitle>
-        {chargesEnabled ? (
-          <Badge className="gap-1">
-            <CheckCircle2 className="size-3" /> Connected
-          </Badge>
-        ) : null}
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Collect payments (Stripe Connect)"
+        logos={["stripe"]}
+        status={{
+          connected: chargesEnabled,
+          notConnectedLabel: accountId ? "Setup unfinished" : "Not connected",
+        }}
+      />
       <CardContent className="flex flex-col gap-4">
         {connectStatus === "return" && !chargesEnabled ? (
           <Alert>

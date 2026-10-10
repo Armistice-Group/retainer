@@ -3,7 +3,8 @@
 import { useActionState, useState, useTransition } from "react";
 import { CalendarDays, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,14 +45,21 @@ export function CalendarsCard({
 
   return (
     <Card id="calendars">
-      <CardHeader>
-        <CardTitle className="text-base">Calendars</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Connect a calendar and your finished meetings from the last two weeks show up under
-          Time → Meetings to log against a project, with a suggestion for each. Synced every
-          hour. Only you see them.
-        </p>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Calendars"
+        icon={CalendarDays}
+        status={{
+          connected: feeds.length > 0,
+          detail: `${feeds.length} calendar${feeds.length === 1 ? "" : "s"}`,
+        }}
+        description={
+          <span className="text-xs">
+            Connect a calendar and your finished meetings from the last two weeks show up under
+            Time → Meetings to log against a project, with a suggestion for each. Synced every
+            hour. Only you see them.
+          </span>
+        }
+      />
       <CardContent className="flex flex-col gap-3">
         {feeds.map((f) => (
           <div key={f.id} className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">

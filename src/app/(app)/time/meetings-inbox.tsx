@@ -82,7 +82,7 @@ export function MeetingsInbox({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          {open.length} meeting{open.length === 1 ? "" : "s"} from the last two weeks to sort.
+          {open.length} meeting{open.length === 1 ? "" : "s"}{" "}from the last two weeks to sort.
           Logging one adds its length as time on the project, dated the meeting&apos;s day.
         </p>
         {suggested.length > 1 ? (

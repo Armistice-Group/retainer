@@ -51,7 +51,7 @@ export function SetupForm({
                 required
               />
               <p className="text-xs text-muted-foreground">
-                The value of <code>SETUP_TOKEN</code> from this server&apos;s <code>.env</code>.
+                The value of <code>SETUP_TOKEN</code>{" "}from this server&apos;s <code>.env</code>.
               </p>
               <FieldError state={state} name="setupToken" />
             </div>

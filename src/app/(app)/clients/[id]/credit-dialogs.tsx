@@ -223,7 +223,7 @@ export function IssueCreditNoteDialog({
           {selected?.status === "SENT" ? (
             <label className="flex items-center gap-2 text-sm">
               <Checkbox name="applyToInvoice" defaultChecked />
-              Apply it to {selected.number} now (up to what&apos;s due)
+              Apply it to {selected.number}{" "}now (up to what&apos;s due)
             </label>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">

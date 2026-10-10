@@ -1,11 +1,11 @@
 "use client";
 
 import { useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader, IntegrationStatus } from "@/components/integration-card-header";
+import { IntegrationLogo, type IntegrationLogoName } from "@/components/integration-logo";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { DocumentIcon } from "@/components/documents/provider-icon";
 import { disconnectFileServiceAction } from "@/actions/file-connections";
 
 export type FileServiceRow = {
@@ -37,6 +37,13 @@ const MESSAGES: Record<string, { tone: "ok" | "error"; text: string }> = {
   },
 };
 
+const LOGOS: Record<string, IntegrationLogoName> = {
+  GOOGLE_DRIVE: "google-drive",
+  DROPBOX: "dropbox",
+  ONEDRIVE: "onedrive",
+  NOTION: "notion",
+};
+
 /** The person's own connections to Drive, Dropbox, OneDrive and Notion —
  * used to browse and pick what to link, with their own access. */
 export function FileConnectionsCard({
@@ -53,15 +60,22 @@ export function FileConnectionsCard({
   const message = status ? MESSAGES[status] : undefined;
   return (
     <Card id="files">
-      <CardHeader>
-        <CardTitle className="text-base">Files & docs</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Connect the places your documents live. Then, when you add a document to a client or
-          project, you can browse and search them, and linked documents show their real titles
-          and last-edited dates. Each connection is yours alone: it uses your access, and nobody
-          else can browse through it. Disconnecting doesn&apos;t remove documents you already linked.
-        </p>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Files & docs"
+        logos={services.flatMap((s) => LOGOS[s.id] ?? [])}
+        status={{
+          connected: services.some((s) => s.account),
+          detail: `${services.filter((s) => s.account).length} of ${services.length}`,
+        }}
+        description={
+          <span className="text-xs">
+            Connect the places your documents live. Then, when you add a document to a client or
+            project, you can browse and search them, and linked documents show their real titles
+            and last-edited dates. Each connection is yours alone: it uses your access, and nobody
+            else can browse through it. Disconnecting doesn&apos;t remove documents you already linked.
+          </span>
+        }
+      />
       <CardContent className="flex flex-col gap-2">
         {message ? (
           <Alert variant={message.tone === "error" ? "destructive" : "default"}>
@@ -73,18 +87,16 @@ export function FileConnectionsCard({
         ) : null}
         {services.map((s) => (
           <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm">
-            <DocumentIcon source={s.id} className="size-4 shrink-0 text-muted-foreground" />
+            {LOGOS[s.id] ? <IntegrationLogo name={LOGOS[s.id]} /> : null}
             <div className="min-w-0 flex-1">
               <p className="font-medium">{s.label}</p>
-              {s.account ? (
-                <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                  <CheckCircle2 className="size-3 text-chart-3" /> {s.account}
-                </p>
-              ) : !s.configured ? (
+              {s.configured || s.account ? (
+                <IntegrationStatus connected={!!s.account} detail={s.account} className="text-xs" />
+              ) : (
                 <p className="text-xs text-muted-foreground">
                   Not set up on this instance — an owner adds it under Settings → Integrations.
                 </p>
-              ) : null}
+              )}
             </div>
             {s.account ? (
               <Button

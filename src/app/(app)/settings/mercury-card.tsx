@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { CheckCircle2, Landmark } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Landmark } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
+import { DocsLink } from "@/components/docs-link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,14 +34,7 @@ export function MercuryConnectCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Collect payments (Mercury)</CardTitle>
-        {connected ? (
-          <Badge className="gap-1">
-            <CheckCircle2 className="size-3" /> Connected
-          </Badge>
-        ) : null}
-      </CardHeader>
+      <IntegrationCardHeader title="Collect payments (Mercury)" logos={["mercury"]} status={{ connected }} />
       <CardContent className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           {connected
@@ -51,6 +45,27 @@ export function MercuryConnectCard({
         {!connected ? (
           readOnly ? null : (
             <form action={formAction} className="flex flex-col gap-3">
+              <details className="text-sm">
+                <summary className="cursor-pointer font-medium">How to set this up</summary>
+                <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
+                  <li>
+                    In Mercury, open <strong>Settings → Tokens</strong> and create a token with{" "}
+                    <strong>Read and Write</strong> access.
+                  </li>
+                  <li>
+                    Mercury asks which IP addresses may use it: enter this server&apos;s public IP
+                    address.
+                  </li>
+                  <li>
+                    Paste the token below and click <strong>Connect Mercury</strong>.
+                  </li>
+                  <li>
+                    Pick the account invoice payments go into under{" "}
+                    <strong>Deposit invoice payments into</strong> and click <strong>Save</strong>.
+                  </li>
+                </ol>
+                <DocsLink page="integrations/payments#collect-payments-with-mercury" />
+              </details>
               {state?.error ? (
                 <Alert variant="destructive">
                   <AlertDescription>{state.error}</AlertDescription>
@@ -67,14 +82,7 @@ export function MercuryConnectCard({
                 />
                 {state?.fieldErrors?.apiToken ? (
                   <p className="text-sm text-destructive">{state.fieldErrors.apiToken[0]}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    In Mercury, open <strong>Settings → Tokens</strong> and create a token with{" "}
-                    <strong>Read and Write</strong> access. Mercury asks which IP addresses may use
-                    it: enter this server&apos;s public IP address. Then pick the deposit account
-                    here.
-                  </p>
-                )}
+                ) : null}
               </div>
               <div>
                 <SubmitButton pendingText="Connecting...">

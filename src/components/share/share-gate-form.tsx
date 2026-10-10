@@ -44,7 +44,7 @@ export function ShareGateForm({
         <h1 className="text-xl font-semibold tracking-tight">Verify your email</h1>
         <p className="text-sm text-muted-foreground">
           {orgName} asks you to confirm who you are before showing this page. Enter the email
-          address {orgName} has on file for you and we&apos;ll send you a code.
+          address {orgName}{" "}has on file for you and we&apos;ll send you a code.
         </p>
         <form action={sendAction} className="flex flex-col gap-3">
           {sendState?.error ? (

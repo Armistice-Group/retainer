@@ -13,6 +13,7 @@ import { getRequestOrigin } from "@/lib/url";
 import { isEmailConfigured } from "@/lib/email";
 import { RemindersCard } from "./reminders-card";
 import { DocsLink } from "@/components/docs-link";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 
 export default async function PaymentsPage({
   searchParams,
@@ -83,9 +84,11 @@ export default async function PaymentsPage({
       </Card>
       {role === "OWNER" || !stripeConfigured ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Stripe</CardTitle>
-          </CardHeader>
+          <IntegrationCardHeader
+            title="Stripe"
+            logos={["stripe"]}
+            status={{ connected: stripeConfigured, connectedLabel: "Set up", notConnectedLabel: "Not set up" }}
+          />
           <CardContent className="flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               Optional. Adds a Pay now button to invoices through Stripe Connect: clients pay by
@@ -117,7 +120,7 @@ export default async function PaymentsPage({
                     from the same mode (test or live).
                   </li>
                   <li>
-                    Then click <strong>Connect Stripe</strong> to onboard this organization&apos;s
+                    Then click <strong>Connect Stripe</strong>{" "}to onboard this organization&apos;s
                     account.
                   </li>
                 </ol>

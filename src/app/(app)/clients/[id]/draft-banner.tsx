@@ -50,7 +50,7 @@ export function DraftBanner({
         <span>
           {discardedAt ? (
             <>
-              <strong>Discarded draft client.</strong> It&apos;s deleted on{" "}
+              <strong>Discarded draft client.</strong>{" "}It&apos;s deleted on{" "}
               {purgeAt ? new Date(purgeAt).toLocaleDateString("en-US", { dateStyle: "medium" }) : "its purge date"}{" "}
               unless you restore it.
             </>

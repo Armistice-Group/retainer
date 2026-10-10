@@ -56,7 +56,7 @@ export function RecordPaymentDialog({
         <DialogHeader>
           <DialogTitle>Record payment</DialogTitle>
           <DialogDescription>
-            {money(balance, currency)} is due. Record part of it and the invoice stays open with
+            {money(balance, currency)}{" "}is due. Record part of it and the invoice stays open with
             the rest due; record all of it and it&apos;s marked paid.
           </DialogDescription>
         </DialogHeader>
@@ -141,7 +141,7 @@ export function ApplyCreditDialog({
         <DialogHeader>
           <DialogTitle>Apply client credit</DialogTitle>
           <DialogDescription>
-            This client has {money(available, currency)} of credit from deposits, credit notes or
+            This client has {money(available, currency)}{" "}of credit from deposits, credit notes or
             overpayments. Applying it lowers what&apos;s due here ({money(balance, currency)}).
           </DialogDescription>
         </DialogHeader>

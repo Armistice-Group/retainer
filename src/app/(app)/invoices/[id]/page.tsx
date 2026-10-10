@@ -201,7 +201,7 @@ export default async function InvoiceDetailPage({
             {invoice.scheduledSendError ? (
               <span>
                 Scheduled to send <LocalDateTime iso={invoice.scheduledSendAt.toISOString()} />, but
-                it wasn&apos;t sent: {invoice.scheduledSendError} It&apos;s still a draft. Send it
+                it wasn&apos;t sent: {invoice.scheduledSendError}{" "}It&apos;s still a draft. Send it
                 now, or reschedule it once that&apos;s fixed.
               </span>
             ) : (

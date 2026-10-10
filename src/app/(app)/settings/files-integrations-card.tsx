@@ -1,5 +1,6 @@
-import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader, IntegrationStatus } from "@/components/integration-card-header";
+import { IntegrationLogo, type IntegrationLogoName } from "@/components/integration-logo";
 import { CopyButton } from "@/components/copy-button";
 import { IntegrationCredentials } from "./integration-credentials";
 import type { FieldDescription, Integration } from "@/lib/instance-config";
@@ -12,6 +13,13 @@ const FILES_ANCHORS: Partial<Record<Integration, string>> = {
   notion: "set-up-notion",
 };
 import { DocsLink } from "@/components/docs-link";
+
+const LOGOS: Partial<Record<Integration, IntegrationLogoName>> = {
+  googleDrive: "google-drive",
+  dropbox: "dropbox",
+  microsoft: "onedrive",
+  notion: "notion",
+};
 
 export type FileServiceSetup = {
   integration: Integration;
@@ -36,25 +44,37 @@ export function FilesIntegrationsCard({
 }) {
   return (
     <Card className="lg:col-span-2">
-      <CardHeader>
-        <CardTitle className="text-base">Files & docs</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Set up the services your documents live in. For each one, register an app with the
-          service, then paste its credentials here. After that, each person connects their own
-          account under <strong>Profile → Files &amp; docs</strong> to browse and link documents
-          with their own access.
-        </p>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Files & docs"
+        logos={services.flatMap((s) => LOGOS[s.integration] ?? [])}
+        status={{
+          connected: services.some((s) => s.configured),
+          connectedLabel: "Set up",
+          detail: `${services.filter((s) => s.configured).length} of ${services.length}`,
+          notConnectedLabel: "Not set up",
+        }}
+        description={
+          <>
+            Set up the services your documents live in. For each one, register an app with the
+            service, then paste its credentials here. After that, each person connects their own
+            account under <strong>Profile → Files &amp; docs</strong> to browse and link documents
+            with their own access.
+          </>
+        }
+      />
       <CardContent className="grid gap-6 lg:grid-cols-2">
         {services.map((s) => (
           <div key={s.integration} className="flex flex-col gap-2">
-            <p className="flex items-center gap-1.5 text-sm font-medium">
-              {s.label}
-              {s.configured ? <CheckCircle2 className="size-3.5 text-chart-3" aria-label="Set up" /> : null}
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                {LOGOS[s.integration] ? <IntegrationLogo name={LOGOS[s.integration]!} className="size-4" /> : null}
+                {s.label}
+              </p>
+              <IntegrationStatus connected={s.configured} connectedLabel="Set up" notConnectedLabel="Not set up" />
+            </div>
             {canEdit ? (
-              <details open={!s.configured} className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer select-none text-sm text-foreground">
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer select-none text-sm font-medium text-foreground">
                   How to set this up
                 </summary>
                 <p className="mt-2">

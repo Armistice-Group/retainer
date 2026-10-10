@@ -38,7 +38,7 @@ export function InstanceUrlCard({
               Set by <code>AUTH_URL</code>: <code>{envOverride}</code>
             </p>
             <p className="text-xs text-muted-foreground">
-              To change it, edit <code>AUTH_URL</code> in the server&apos;s <code>.env</code> and run{" "}
+              To change it, edit <code>AUTH_URL</code>{" "}in the server&apos;s <code>.env</code> and run{" "}
               <code>docker compose up -d</code>. While it&apos;s set, sign-in redirects use it too.
             </p>
           </>

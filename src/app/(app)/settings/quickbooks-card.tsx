@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -25,9 +25,11 @@ export function QuickBooksCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">QuickBooks</CardTitle>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="QuickBooks"
+        logos={["quickbooks"]}
+        status={{ connected, detail: realmId ? `company ${realmId}` : null }}
+      />
       <CardContent className="flex flex-col gap-4">
         {callbackStatus === "forbidden" ? (
           <Alert variant="destructive">
@@ -50,23 +52,13 @@ export function QuickBooksCard({
           </Alert>
         ) : null}
 
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
-          <div>
-            <p className="text-sm font-medium">QuickBooks Online</p>
-            {connected ? (
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CheckCircle2 className="size-3.5 text-chart-3" />
-                Connected {realmId ? `· company ${realmId}` : ""}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Push invoices to QuickBooks Online from each invoice&apos;s page, and sync their
-                paid status back.
-              </p>
-            )}
-          </div>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
+            Push invoices to QuickBooks Online from each invoice&apos;s page, and sync their paid
+            status back.
+          </p>
           {readOnly ? null : connected ? (
-            <form action={disconnectQuickBooksAction}>
+            <form action={disconnectQuickBooksAction} className="shrink-0">
               <ConfirmSubmitButton
                 variant="outline"
                 size="sm"
@@ -76,7 +68,7 @@ export function QuickBooksCard({
               </ConfirmSubmitButton>
             </form>
           ) : !configured ? null : (
-            <Button size="sm" asChild>
+            <Button size="sm" asChild className="shrink-0">
               <Link href="/api/integrations/quickbooks/connect" prefetch={false}>
                 Connect
               </Link>

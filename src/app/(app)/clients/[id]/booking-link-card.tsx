@@ -40,7 +40,7 @@ export function BookingLinkCard({
             </SubmitButton>
           </div>
           <p className="text-xs text-muted-foreground">
-            Shown as <strong>Book a meeting</strong> on this client&apos;s share page.{" "}
+            Shown as <strong>Book a meeting</strong>{" "}on this client&apos;s share page.{" "}
             {orgDefault
               ? "Leave empty to use your default link (Settings → Scheduling)."
               : "Set a default for every client under Settings → Scheduling."}

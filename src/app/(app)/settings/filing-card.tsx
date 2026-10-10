@@ -3,7 +3,9 @@
 import { useActionState, useTransition } from "react";
 import { ExternalLink, FolderSync } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
+import type { IntegrationLogoName } from "@/components/integration-logo";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ import {
 import type { ActionState } from "@/actions/auth";
 
 const LABELS: Record<string, string> = { GOOGLE_DRIVE: "Google Drive", DROPBOX: "Dropbox", ONEDRIVE: "OneDrive" };
+const LOGOS: Record<string, IntegrationLogoName> = { GOOGLE_DRIVE: "google-drive", DROPBOX: "dropbox", ONEDRIVE: "onedrive" };
 
 export type FilingState = {
   provider: string | null;
@@ -48,18 +51,27 @@ export function FilingCard({
 
   return (
     <Card className="lg:col-span-2" id="filing">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FolderSync className="size-4" /> Filing
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Keep a copy of every sent invoice and uploaded client document where the rest of your
-          files live, in <code className="text-xs">Client / Invoices</code>,{" "}
-          <code className="text-xs">Client / Documents</code> and{" "}
-          <code className="text-xs">Client / Project / Documents</code> folders. Each item is filed
-          when it happens; anything that fails is retried every hour.
-        </p>
-      </CardHeader>
+      <IntegrationCardHeader
+        title="Filing"
+        icon={FolderSync}
+        logos={filing.provider && LOGOS[filing.provider] ? [LOGOS[filing.provider]] : []}
+        status={{
+          connected: !!filing.provider,
+          connectedLabel: "On",
+          detail: filing.provider ? LABELS[filing.provider] : null,
+          notConnectedLabel: "Off",
+          problem: filing.provider && filing.lastError ? "Filing failed" : null,
+        }}
+        description={
+          <>
+            Keep a copy of every sent invoice and uploaded client document where the rest of your
+            files live, in <code className="text-xs">Client / Invoices</code>,{" "}
+            <code className="text-xs">Client / Documents</code> and{" "}
+            <code className="text-xs">Client / Project / Documents</code> folders. Each item is filed
+            when it happens; anything that fails is retried every hour.
+          </>
+        }
+      />
       <CardContent className="flex flex-col gap-4">
         {filing.provider ? (
           <>

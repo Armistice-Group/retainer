@@ -1,5 +1,5 @@
-import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { IntegrationCardHeader } from "@/components/integration-card-header";
 import { DocsLink } from "@/components/docs-link";
 
 /** Optional outgoing email (Resend). Without it, invite and review links are
@@ -13,24 +13,13 @@ export function EmailCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Email</CardTitle>
-      </CardHeader>
+      <IntegrationCardHeader title="Email (Resend)" logos={["resend"]} status={{ connected: configured }} />
       <CardContent className="flex flex-col gap-4">
-        <div className="rounded-lg border border-border p-4">
-          <p className="text-sm font-medium">Resend</p>
-          {configured ? (
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CheckCircle2 className="size-3.5 text-chart-3" />
-              Sending invites, login links, and invoice notices by email.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-muted-foreground">
-              Optional. Without it, invite and review links are shown for you to share, and
-              email login links are turned off.
-            </p>
-          )}
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {configured
+            ? "Sending invites, login links, and invoice notices by email."
+            : "Optional. Without it, invite and review links are shown for you to share, and email login links are turned off."}
+        </p>
         {configured ? null : (
           <details className="text-sm">
             <summary className="cursor-pointer font-medium">How to set this up</summary>
@@ -49,7 +38,7 @@ export function EmailCard({
                 and copy it (starts with re_).
               </li>
               <li>
-                Paste it below, set <strong>From address</strong> to an address on that domain
+                Paste it below, set <strong>From address</strong>{" "}to an address on that domain
                 (e.g. Acme &lt;billing@mail.example.com&gt;), and click{" "}
                 <strong>Save credentials</strong>. Without a from address, mail only reaches your
                 own Resend account.

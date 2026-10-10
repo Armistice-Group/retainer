@@ -38,8 +38,9 @@ export const config = {
   // opengraph-image is the generated link-preview card and robots.txt the
   // crawler file (icons are served from /api/branding/icon) — fetched by
   // crawlers and chat apps with no session cookie, so they must never hit
-  // the auth redirect below.
+  // the auth redirect below. /integrations/ holds the static logos in
+  // public/integrations, which carry nothing private.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|robots.txt).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|robots.txt|integrations/).*)",
   ],
 };
