@@ -459,7 +459,8 @@ The running version is shown at the bottom of the sidebar.
 
 | Tag | What you get |
 | --- | --- |
-| `latest` (default) | Every change merged to main. Upgrades whenever you `pull`. |
+| `latest` (default) | Every change merged to main, once its tests have passed. Upgrades whenever you `pull`. |
+| `latest-bleeding` | Every change merged to main as soon as it's built, before the tests finish. For trying a fix right away; it can be broken. |
 | `1.2.3` | Exactly that release. Never changes. |
 | `1.2` | The newest `1.2.x` patch release. |
 | `1` | The newest `1.x` release (not published for `0.x`). |

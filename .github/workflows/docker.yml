@@ -2,9 +2,12 @@ name: Docker image
 
 # Publishes ghcr.io/armistice-group/retainer for linux/amd64 + linux/arm64.
 #
-#   push to main     → :latest, :main, :sha-<short>
+#   push to main     → :latest-bleeding, :main, :sha-<short>  (as soon as it builds)
 #   tag v1.2.3       → :1.2.3, :1.2, :1   (for pinning; never moves :latest)
 #   pull request     → build only (no push)
+#
+# :latest is not set here: promote-latest.yml moves it to :sha-<short> once CI
+# has passed for that commit.
 #
 # Each architecture builds natively on its own runner (no QEMU), pushes by
 # digest, and the merge job stitches the digests into one multi-arch tag.
@@ -102,10 +105,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
-          # :latest tracks main rather than the newest version tag.
+          # :latest is promoted by promote-latest.yml after CI passes.
           flavor: latest=false
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest-bleeding,enable={{is_default_branch}}
             type=ref,event=branch
             type=sha
             type=semver,pattern={{version}}
