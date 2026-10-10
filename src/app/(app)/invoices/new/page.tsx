@@ -74,6 +74,7 @@ export default async function NewInvoicePage({
         where: {
           invoiceLineItemId: null,
           completedAt: { not: null },
+          billable: true,
           project: { clientId, orgId: org.id, ...projectVisibilityWhere(user.id, role) },
         },
         include: { project: true },

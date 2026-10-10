@@ -9,6 +9,7 @@ import { strongPasswordSchema } from "@/lib/validations/password";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { getOrigin } from "@/lib/url";
 import { isLocalLoginBlocked } from "@/lib/integrations/sso-policy";
+import { rateLimited, requestIp } from "@/lib/rate-limit";
 import { PasswordResetEmail } from "@/emails/password-reset-email";
 import {
   ADMIN_RESET_TTL_MS,
@@ -28,21 +29,10 @@ export type PasswordResetState = {
   done?: boolean;
 } | null;
 
-// Per-IP cap on "Forgot password?" requests, in memory: a self-hosted
-// instance is one process, and a restart only resets the allowance. The
-// per-account cap (selfServiceResetLimited) is the durable one.
+// Per-IP cap on "Forgot password?" requests (lib/rate-limit, kept in the
+// database). The per-account cap (selfServiceResetLimited) is separate.
 const IP_LIMIT = 10;
 const IP_WINDOW_MS = 60 * 60 * 1000;
-const ipHits = new Map<string, number[]>();
-
-function ipLimited(ip: string) {
-  const now = Date.now();
-  const hits = (ipHits.get(ip) ?? []).filter((t) => now - t < IP_WINDOW_MS);
-  hits.push(now);
-  ipHits.set(ip, hits);
-  if (ipHits.size > 10_000) ipHits.clear();
-  return hits.length > IP_LIMIT;
-}
 
 /** "Forgot password?" on the login page. Always answers the same way,
  * whether or not the account exists, so it can't be used to find out who
@@ -60,8 +50,8 @@ export async function requestPasswordResetAction(
   }
 
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
-  if (ipLimited(ip)) return { sent: true };
+  const ip = requestIp(h) ?? "unknown";
+  if (await rateLimited(`password-reset:ip:${ip}`, IP_LIMIT, IP_WINDOW_MS)) return { sent: true };
 
   const origin = await getOrigin();
   after(async () => {

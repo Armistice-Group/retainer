@@ -9,6 +9,7 @@ import {
   Timer,
   Send,
   Receipt,
+  CalendarDays,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -22,6 +23,10 @@ import { isOverdue } from "@/lib/invoice-aging";
 import { balanceDue } from "@/lib/invoice-balance";
 import { MaximizeValueCard, type MaximizeValueItem } from "./maximize-value-card";
 import { pendingExpenses } from "@/lib/services/expense-alerts";
+import { cookies } from "next/headers";
+import { upcomingItems } from "@/lib/services/calendar-items";
+import { CALENDAR_STYLE } from "@/components/calendar/item-style";
+import { cn } from "@/lib/utils";
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -94,6 +99,16 @@ export default async function DashboardPage() {
 
   // Owners/admins approve expenses (and can see every project).
   const expensesToApprove = canManage ? await pendingExpenses(org.id) : null;
+
+  // Next two weeks of deadlines (same data as /calendar).
+  let tz: string | undefined;
+  try {
+    const raw = (await cookies()).get("tz")?.value;
+    tz = raw ? decodeURIComponent(raw) : undefined;
+  } catch {
+    tz = undefined;
+  }
+  const upcoming = await upcomingItems({ orgId: org.id, userId: user.id, role }, tz);
 
   const outstandingTotal = outstandingInvoices
     .filter((i) => i.status === "SENT")
@@ -275,6 +290,51 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card className="mt-4">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Upcoming</CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/calendar">
+              Calendar <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {upcoming.length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarDays className="size-4" /> Nothing due in the next two weeks.
+            </p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border">
+              {upcoming.map((item) => {
+                const { icon: Icon, className } = CALENDAR_STYLE[item.type];
+                return (
+                  <li key={item.key}>
+                    <Link
+                      href={item.href}
+                      className="flex items-center gap-3 py-2.5 text-sm hover:underline"
+                    >
+                      <Icon className={cn("size-4 shrink-0", className)} />
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block truncate font-medium", item.overdue && "text-destructive")}>
+                          {item.title}
+                        </span>
+                        {item.detail ? (
+                          <span className="block truncate text-xs text-muted-foreground">{item.detail}</span>
+                        ) : null}
+                      </span>
+                      <span className="shrink-0 tabular-figures text-xs text-muted-foreground">
+                        {formatDate(item.day)}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

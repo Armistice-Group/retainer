@@ -80,6 +80,21 @@ export const ALERT_EVENTS = {
     hint: "Drafts waiting for review, and invoices set to send automatically that couldn't be emailed (they're still marked sent). Ones emailed automatically use \"An invoice is sent\" instead.",
     defaults: { email: false, slack: true },
   },
+  INVOICE_SEND_FAILED: {
+    label: "A scheduled invoice couldn't be sent",
+    hint: "The invoice stays a draft until you send it or schedule it again.",
+    defaults: { email: true, slack: true },
+  },
+  TASK_DUE_SOON: {
+    label: "A task is due tomorrow",
+    hint: "Goes to the task's assignee only (in the app, and by email to them). Slack gets it too if you turn it on.",
+    defaults: { email: true, slack: false },
+  },
+  DEADLINE_OVERDUE: {
+    label: "A task or milestone is overdue",
+    hint: "An overdue task goes to its assignee; an overdue milestone or deliverable to owners, admins and the project's members. On a confidential project, Slack and email leave out the names.",
+    defaults: { email: true, slack: true },
+  },
 } as const;
 
 export type AlertEvent = keyof typeof ALERT_EVENTS;

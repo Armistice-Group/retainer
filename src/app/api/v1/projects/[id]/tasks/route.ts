@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { canAssignOnProject, canViewProject } from "@/lib/project-access";
-import { taskSchema } from "@/lib/validations/task";
+import { taskSchema, dueDateValue } from "@/lib/validations/task";
 import { notify } from "@/lib/notifications";
 import { soloMemberId } from "@/lib/org";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
@@ -65,6 +65,8 @@ export async function POST(
       title: parsed.data.title,
       description: parsed.data.description || null,
       assigneeId: parsed.data.assigneeId || (await soloMemberId(ctx.orgId)),
+      estimatedHours: parsed.data.estimatedHours ?? null,
+      dueDate: dueDateValue(parsed.data.dueDate) ?? null,
     },
   });
   await pushTaskToLinear(task.id);

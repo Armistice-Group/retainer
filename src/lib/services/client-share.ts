@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { paidShare } from "@/lib/invoice-balance";
+import { isShareExpired } from "@/lib/share-gate";
 
 // Confidential projects are excluded from the client-wide rollup by
 // default — "confidential" controls need-to-know visibility internally,
@@ -19,7 +20,7 @@ export async function getClientByShareToken(token: string) {
       },
     },
   });
-  if (!client) return null;
+  if (!client || isShareExpired(client.shareExpiresAt)) return null;
 
   const projectIds = client.projects.map((p) => p.id);
   if (projectIds.length === 0) {
@@ -86,7 +87,7 @@ export async function getClientShareTokenInvoiceIfAuthorized(token: string, invo
     where: { shareToken: token },
     include: { projects: { where: { confidential: false }, select: { id: true } } },
   });
-  if (!client) return null;
+  if (!client || isShareExpired(client.shareExpiresAt)) return null;
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },

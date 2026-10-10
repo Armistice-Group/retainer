@@ -6,7 +6,9 @@ import bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
-import { A, B, ORG, ORG_D_PEOPLE, PASSWORD, TWO_FACTOR_USER, USERS, type OrgKey, type RoleName } from "./fixtures";
+import { A, B, E, ORG, ORG_D_PEOPLE, PASSWORD, TWO_FACTOR_USER, USERS, type OrgKey, type RoleName } from "./fixtures";
+import { VAULT } from "./fixtures";
+import { SCHEDULE } from "./fixtures";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/@(localhost|127\.0\.0\.1|postgres)(:\d+)?\//.test(url)) {
@@ -274,12 +276,132 @@ async function seedOrgB() {
   );
 }
 
+/** Credential links: client-wide, open project, confidential project, org B. */
+async function seedVaultLinks() {
+  const link = (
+    v: { id: string; label: string; url: string },
+    orgId: string,
+    clientId: string,
+    projectId: string | null,
+    provider: string
+  ) => ({ id: v.id, label: v.label, url: v.url, provider, orgId, clientId, projectId, itemKind: "login" });
+  await prisma.vaultLink.createMany({
+    data: [
+      link(VAULT.clientWide, ORG.A.id, A.client.id, null, "ONEPASSWORD"),
+      link(VAULT.openProject, ORG.A.id, A.client.id, A.openProject.id, "BITWARDEN"),
+      link(VAULT.secretProject, ORG.A.id, A.client.id, A.secretProject.id, "BITWARDEN"),
+      link(VAULT.orgB, ORG.B.id, B.client.id, null, "ONEPASSWORD"),
+    ],
+  });
+}
+
+// Org E: share links with email verification and expiry (share-gate.spec).
+async function seedOrgE() {
+  const orgId = E.org.id;
+  await prisma.organization.create({
+    data: { id: orgId, name: E.org.name, slug: "e2e-org-e", invoicePrefix: E.org.prefix, defaultCurrency: "USD" },
+  });
+  await prisma.client.create({
+    data: {
+      id: E.gated.id,
+      orgId,
+      name: E.gated.name,
+      shareToken: E.gated.shareToken,
+      shareVerification: "ON",
+    },
+  });
+  await prisma.contact.createMany({
+    data: Object.values(E.contacts).map((c) => ({ id: c.id, clientId: E.gated.id, name: c.name, email: c.email })),
+  });
+  await prisma.project.create({
+    data: {
+      id: E.gatedProject.id,
+      orgId,
+      clientId: E.gated.id,
+      name: E.gatedProject.name,
+      shareToken: E.gatedProject.shareToken,
+    },
+  });
+  await seedInvoice(
+    { ...E.invoice, status: "SENT", orgId, clientId: E.gated.id, projectId: E.gatedProject.id },
+    E.gatedProject.name
+  );
+  await prisma.invoice.update({ where: { id: E.invoice.id }, data: { viewToken: E.invoice.viewToken } });
+  const brief = Buffer.from("Gamma project brief\n");
+  await prisma.clientDocument.create({
+    data: {
+      id: E.document.id,
+      clientId: E.gated.id,
+      audience: "CLIENT",
+      source: "UPLOAD",
+      fileName: E.document.fileName,
+      fileData: brief,
+      contentType: "text/plain",
+      sizeBytes: brief.length,
+    },
+  });
+
+  await prisma.client.create({
+    data: {
+      id: E.expired.id,
+      orgId,
+      name: E.expired.name,
+      shareToken: E.expired.shareToken,
+      shareExpiresAt: daysFromNow(-1),
+    },
+  });
+  await prisma.project.create({
+    data: {
+      id: E.expiredProject.id,
+      orgId,
+      clientId: E.expired.id,
+      name: E.expiredProject.name,
+      shareToken: E.expiredProject.shareToken,
+      shareExpiresAt: daysFromNow(-1),
+    },
+  });
+}
+
+/** Due dates, a confidential milestone, a deliverable, member A's calendar feed. */
+async function seedSchedule() {
+  await prisma.task.update({ where: { id: A.openTask.id }, data: { dueDate: daysFromNow(SCHEDULE.openTaskDueIn) } });
+  await prisma.task.update({ where: { id: A.secretTask.id }, data: { dueDate: daysFromNow(SCHEDULE.secretTaskDueIn) } });
+  await prisma.milestone.create({
+    data: {
+      id: SCHEDULE.secretMilestone.id,
+      projectId: A.secretProject.id,
+      name: SCHEDULE.secretMilestone.name,
+      amount: 750,
+      dueDate: daysFromNow(SCHEDULE.secretMilestone.dueIn),
+    },
+  });
+  await prisma.milestone.create({
+    data: {
+      id: SCHEDULE.deliverable.id,
+      projectId: A.secretProject.id,
+      name: SCHEDULE.deliverable.name,
+      billable: false,
+      amount: 0,
+      dueDate: daysFromNow(SCHEDULE.deliverable.dueIn),
+      completedAt: new Date(),
+      completedById: USERS.A.OWNER.id,
+      completionNote: "Delivered",
+    },
+  });
+  await prisma.calendarSubscription.create({
+    data: { tokenHash: hashKey(SCHEDULE.memberFeedToken), userId: USERS.A.MEMBER.id, orgId: ORG.A.id },
+  });
+}
+
 async function main() {
   await truncateAll();
   const passwordHash = await bcrypt.hash(PASSWORD, 4);
   await seedPeople(passwordHash);
   await seedOrgA();
   await seedOrgB();
+  await seedOrgE();
+  await seedVaultLinks();
+  await seedSchedule();
   // Setup is done once a user exists; record the instance URL too so pages
   // that build share links don't fall back to guessing.
   await prisma.instanceSetting.create({

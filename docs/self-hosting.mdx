@@ -307,6 +307,7 @@ its own authentication or is meant to be public:
 | `/i/*`, `/share/*`, `/review/*`, `/api/share/*` | Client invoice links, client and project share links, contractor reviews. |
 | `/invite/*`, `/login/*`, `/api/auth/*`, `/api/sso/*` | Joining and signing in. |
 | `/api/branding/*` | The logo and icon shown in emails. |
+| `/api/calendar/*` | Calendar subscription feeds (a secret address per person), fetched by calendar apps. |
 
 ## Scheduled jobs
 
@@ -316,12 +317,12 @@ idempotent: running one twice never sends or creates anything twice.
 
 | Endpoint | Runs | What it does |
 | --- | --- | --- |
-| `/api/cron/mercury-sync` | Every hour | Checks Mercury and marks invoices paid when the client has paid. |
+| `/api/cron/mercury-sync` | Every hour | Emails draft invoices [scheduled to send](/concepts/invoicing#how-to-schedule-an-invoice) by now, then checks Mercury and marks invoices paid when the client has paid. |
 | `/api/cron/linear-sync` | Every hour | Syncs every linked project with Linear (issues and comments) and retries failed pushes. |
 | `/api/cron/calendar-sync` | Every hour | Pulls recent meetings from everyone's connected calendars. |
 | `/api/cron/agreements-sync` | Every hour | Pulls newly completed agreements from every connected DocuSign, Documenso and Ironclad account. |
 | `/api/cron/filing` | Every hour | Files invoices and documents that didn't reach the organization's filing folder yet, or changed since. |
-| `/api/cron/recurring-invoices` | Once a day | Creates retainer invoices and client billing-cycle invoices that are due, raises overdue alerts, emails overdue reminders to clients, and on Monday (or Tuesday, if Monday's run was missed) sends the weekly digest. |
+| `/api/cron/recurring-invoices` | Once a day | Creates retainer invoices and client billing-cycle invoices that are due, raises overdue alerts, emails overdue reminders to clients, sends [deadline reminders](/concepts/calendar#deadline-reminders) (tasks due tomorrow, overdue tasks, milestones and deliverables), and on Monday (or Tuesday, if Monday's run was missed) sends the weekly digest. |
 
 The daily job runs on the scheduler's first pass and then every 24 hours, so
 its time of day is whenever the scheduler last started. Restarting the

@@ -246,7 +246,7 @@ or résumé.
 | Path | What |
 | --- | --- |
 | `README.txt` | What the export is and when it was made. |
-| `data/<name>.csv`, `data/<name>.json` | One pair per kind of record: `organization`, `clients`, `contacts`, `links`, `projects`, `members`, `project-members`, `milestones`, `tasks`, `task-comments`, `time-entries`, `timesheets`, `expenses`, `invoices`, `invoice-line-items`, `invoice-events`, `payments`, `credit-notes`, `credit-applications`, `estimates`, `estimate-line-items`, `agreements`, `documents`, `recurring-invoices`, `billing-cycles`, `payment-methods`, `imports`, `audit-log`. |
+| `data/<name>.csv`, `data/<name>.json` | One pair per kind of record: `organization`, `clients`, `contacts`, `links`, `projects`, `members`, `project-members`, `milestones`, `tasks`, `task-comments`, `time-entries`, `timesheets`, `expenses`, `invoices`, `invoice-line-items`, `invoice-events`, `payments`, `credit-notes`, `credit-applications`, `estimates`, `estimate-line-items`, `agreements`, `vault-links`, `documents`, `recurring-invoices`, `billing-cycles`, `payment-methods`, `imports`, `calendar-subscriptions`, `audit-log`. |
 | `files/documents/`, `files/receipts/`, `files/milestones/`, `files/agreements/`, `files/resumes/` | The uploaded files themselves. Each CSV's `exportedFile` column gives the path. |
 | `invoices/<number>.pdf` | Every invoice, rendered as it looks today. |
 | `manifest.json` | Row counts, and anything that couldn't be exported (`problems`). |
@@ -258,13 +258,18 @@ dates are `YYYY-MM-DD`, and times are UTC. The JSON files hold exact values;
 in the CSV files, text that starts with `=`, `+`, `-` or `@` gets a leading
 `'` so a spreadsheet doesn't run it as a formula.
 
-The timesheets, payment methods, imports and audit log, and résumés, are in
-the whole-organization export only.
+The timesheets, payment methods, imports, calendar subscriptions (who has
+one and when it was last read), audit log, résumés and
+[credential links](/concepts/credentials) are in the whole-organization
+export only. Credential links hold no secrets (just the label, note,
+provider and link to the vault item), but the links reveal how your vault
+is organized, so a client handover leaves them out.
 
 **Never included:** passwords, two-factor secrets and recovery codes, API
 keys, share, invoice and estimate links, staffing-review links, integration
 tokens and credentials (QuickBooks, Mercury, Linear, file services,
-e-signature, SSO), calendar links and the Slack webhook. Values like these
+e-signature, SSO), calendar links, calendar subscription addresses and the
+Slack webhook. Values like these
 are also blanked inside the audit log's recorded changes.
 
 Every export is recorded in the [audit log](/concepts/alerts-and-audit):

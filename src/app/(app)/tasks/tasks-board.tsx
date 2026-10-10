@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
 import { TaskTimerButton } from "@/components/tasks/task-timer-button";
+import { DueDateBadge } from "@/components/tasks/due-date-badge";
 import type { TaskDetail } from "@/lib/task-detail";
 
 export type TaskGroup = {
@@ -19,6 +20,8 @@ export type TaskGroup = {
     status: string;
     assigneeName: string | null;
     estimatedHours: number | null;
+    /** YYYY-MM-DD */
+    dueDate: string | null;
     actualHours: number;
     commentCount: number;
     linearKey: string | null;
@@ -80,6 +83,7 @@ export function TasksBoard({
                         ) : null}
                         {task.title}
                       </span>
+                      <DueDateBadge dueDate={task.dueDate} done={task.status === "DONE"} />
                       {task.commentCount > 0 ? (
                         <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                           <MessageSquare className="size-3" />

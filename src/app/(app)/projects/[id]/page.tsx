@@ -14,6 +14,8 @@ import { DocumentsCard } from "@/components/documents/documents-card";
 import { documentCardData } from "@/lib/services/documents";
 import { AgreementsCard } from "@/components/agreements/agreements-card";
 import { agreementsCardData } from "@/lib/services/agreements";
+import { CredentialsCard } from "@/components/vault-links/credentials-card";
+import { canManageVaultLinks, listVaultLinks } from "@/lib/services/vault-links";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
 import { AddMemberDialog } from "./add-member-dialog";
 import { EditRateDialog } from "./edit-rate-dialog";
@@ -29,6 +31,7 @@ import { canWrite } from "@/lib/integrations/linear";
 import { MilestonesCard, type MilestoneItem } from "./milestones-card";
 import { ExpensesCard, type ExpenseItem } from "./expenses-card";
 import { ShareLinkCard } from "./share-link-card";
+import { verificationRequired } from "@/lib/share-gate";
 import { ProjectEstimates } from "@/components/estimates/project-estimates";
 import { getOrigin } from "@/lib/url";
 import { CopyButton } from "@/components/copy-button";
@@ -83,6 +86,10 @@ export default async function ProjectDetailPage({
   const agreementsCard = await agreementsCardData(
     { orgId: org.id, userId: user.id, role },
     { clientId: project.clientId, projectId: project.id }
+  );
+  const vaultLinks = await listVaultLinks(
+    { orgId: org.id, userId: user.id, role },
+    { clientId: project.clientId, projectId: project.id, includeClientWide: true }
   );
 
   const [
@@ -171,6 +178,7 @@ export default async function ProjectDetailPage({
     assigneeId: t.assigneeId,
     assigneeName: t.assignee?.name ?? null,
     estimatedHours: t.estimatedHours ? Number(t.estimatedHours) : null,
+    dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : null,
     actualHours: actualHoursByTask.get(t.id) ?? 0,
     linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
     linearUrl: t.externalLink?.source === "linear" ? t.externalLink.externalUrl : null,
@@ -181,6 +189,7 @@ export default async function ProjectDetailPage({
     name: m.name,
     description: m.description,
     amount: Number(m.amount),
+    billable: m.billable,
     dueDate: m.dueDate ? m.dueDate.toISOString() : null,
     completedAt: m.completedAt ? m.completedAt.toISOString() : null,
     completedByName: m.completedBy?.name ?? null,
@@ -265,6 +274,12 @@ export default async function ProjectDetailPage({
                   projectId={project.id}
                   shareUrl={project.shareToken ? `${origin}/share/${project.shareToken}` : null}
                   shareTasks={project.shareTasks}
+                  expiresAt={project.shareExpiresAt}
+                  now={new Date()}
+                  verificationRequired={verificationRequired(
+                    org.requireShareVerification,
+                    project.client.shareVerification
+                  )}
                 />
               ) : null}
             </CardContent>
@@ -287,6 +302,13 @@ export default async function ProjectDetailPage({
               showProject={false}
             />
           ) : null}
+
+          <CredentialsCard
+            clientId={project.clientId}
+            projectId={project.id}
+            links={vaultLinks}
+            canManage={canManageVaultLinks(role)}
+          />
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -467,12 +489,13 @@ export default async function ProjectDetailPage({
             invoices={projectInvoices}
           />
 
-          {project.billingType === "MILESTONE" ? (
+          {project.billingType === "MILESTONE" || milestoneItems.length > 0 || canManage ? (
             <MilestonesCard
               projectId={project.id}
               milestones={milestoneItems}
               currency={org.defaultCurrency}
               canManage={canManage}
+              billedByMilestone={project.billingType === "MILESTONE"}
             />
           ) : null}
 

@@ -12,7 +12,14 @@ import { TasksBoard, type TaskGroup } from "./tasks-board";
 import { cn } from "@/lib/utils";
 import type { Prisma, TaskStatus } from "@/generated/prisma/client";
 
-type Filters = { who: "mine" | "all"; status: "open" | "done" | "all" };
+type Filters = {
+  who: "mine" | "all";
+  status: "open" | "done" | "all";
+  due: "any" | "overdue" | "week";
+  sort: "status" | "due";
+};
+
+const DAY_MS = 86_400_000;
 
 const STATUS_FILTER: Record<Filters["status"], TaskStatus[] | null> = {
   open: ["TODO", "IN_PROGRESS"],
@@ -26,14 +33,28 @@ const STATUS_RANK: Record<string, number> = { IN_PROGRESS: 0, TODO: 1, DONE: 2 }
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ who?: string; status?: string; task?: string }>;
+  searchParams: Promise<{ who?: string; status?: string; due?: string; sort?: string; task?: string }>;
 }) {
   const { org, user, role } = await requireOrgContext();
   const params = await searchParams;
   const filters: Filters = {
     who: params.who === "all" ? "all" : "mine",
     status: params.status === "done" || params.status === "all" ? params.status : "open",
+    due: params.due === "overdue" || params.due === "week" ? params.due : "any",
+    sort: params.sort === "due" ? "due" : "status",
   };
+
+  // Due dates are calendar days (UTC midnight), so "today" is too.
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // Through Sunday of this week.
+  const endOfWeek = new Date(today.getTime() + ((7 - today.getUTCDay()) % 7) * DAY_MS);
+  const dueWhere: Prisma.TaskWhereInput =
+    filters.due === "overdue"
+      ? { dueDate: { lt: today }, status: { not: "DONE" } }
+      : filters.due === "week"
+        ? { dueDate: { gte: today, lte: endOfWeek } }
+        : {};
 
   const visibleProjects = { orgId: org.id, ...projectVisibilityWhere(user.id, role) };
   const statuses = STATUS_FILTER[filters.status];
@@ -41,6 +62,7 @@ export default async function TasksPage({
     project: visibleProjects,
     ...(filters.who === "mine" ? { assigneeId: user.id } : {}),
     ...(statuses ? { status: { in: statuses } } : {}),
+    AND: [dueWhere],
   };
 
   const [tasks, projects, openTaskDetail, activeTimer] = await Promise.all([
@@ -93,6 +115,7 @@ export default async function TasksPage({
       status: t.status,
       assigneeName: t.assignee?.name ?? null,
       estimatedHours: t.estimatedHours ? Number(t.estimatedHours) : null,
+      dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 10) : null,
       actualHours: hoursByTask.get(t.id) ?? 0,
       commentCount: t._count.comments,
       linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
@@ -102,8 +125,19 @@ export default async function TasksPage({
     (a, b) =>
       a.clientName.localeCompare(b.clientName) || a.projectName.localeCompare(b.projectName)
   );
+  // Soonest due first (no due date last), or in-progress first.
+  const byDue = (a: { dueDate: string | null }, b: { dueDate: string | null }) =>
+    (a.dueDate ?? "9999") < (b.dueDate ?? "9999") ? -1 : (a.dueDate ?? "9999") > (b.dueDate ?? "9999") ? 1 : 0;
   for (const g of groups) {
-    g.tasks.sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status]);
+    g.tasks.sort((a, b) =>
+      filters.sort === "due"
+        ? byDue(a, b) || STATUS_RANK[a.status] - STATUS_RANK[b.status]
+        : STATUS_RANK[a.status] - STATUS_RANK[b.status]
+    );
+  }
+  if (filters.sort === "due") {
+    // Projects with the soonest deadline first.
+    groups.sort((a, b) => byDue(a.tasks[0], b.tasks[0]));
   }
 
   // Tasks can only be assigned to project members, so projects without any
@@ -121,6 +155,8 @@ export default async function TasksPage({
     const query = new URLSearchParams();
     if (next.who !== "mine") query.set("who", next.who);
     if (next.status !== "open") query.set("status", next.status);
+    if (next.due !== "any") query.set("due", next.due);
+    if (next.sort !== "status") query.set("sort", next.sort);
     const qs = query.toString();
     return qs ? `/tasks?${qs}` : "/tasks";
   };
@@ -153,6 +189,19 @@ export default async function TasksPage({
             { label: "All", href: href({ status: "all" }), active: filters.status === "all" },
           ]}
         />
+        <FilterGroup
+          options={[
+            { label: "Any date", href: href({ due: "any" }), active: filters.due === "any" },
+            { label: "Overdue", href: href({ due: "overdue" }), active: filters.due === "overdue" },
+            { label: "Due this week", href: href({ due: "week" }), active: filters.due === "week" },
+          ]}
+        />
+        <FilterGroup
+          options={[
+            { label: "By status", href: href({ sort: "status" }), active: filters.sort === "status" },
+            { label: "By due date", href: href({ sort: "due" }), active: filters.sort === "due" },
+          ]}
+        />
       </div>
 
       {groups.length === 0 ? (
@@ -168,7 +217,9 @@ export default async function TasksPage({
             }
             description={
               filters.who === "mine" && filters.status === "open"
-                ? "Tasks assigned to you on any project show up here."
+                ? filters.due === "any"
+                  ? "Tasks assigned to you on any project show up here."
+                  : "Nothing of yours matches that date filter."
                 : "Try a different filter."
             }
           />

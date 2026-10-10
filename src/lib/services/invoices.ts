@@ -232,6 +232,8 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
       id: { in: input.milestoneIds },
       invoiceLineItemId: null,
       completedAt: { not: null },
+      // Deliverables (not billable) are never invoiced.
+      billable: true,
       project: {
         clientId: client.id,
         orgId: ctx.orgId,

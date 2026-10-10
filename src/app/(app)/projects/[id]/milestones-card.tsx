@@ -17,6 +17,8 @@ export type MilestoneItem = {
   name: string;
   description: string | null;
   amount: number;
+  /** false = a deliverable: never invoiced. */
+  billable: boolean;
   dueDate: string | null;
   completedAt: string | null;
   completedByName: string | null;
@@ -37,11 +39,14 @@ export function MilestonesCard({
   milestones,
   currency,
   canManage,
+  billedByMilestone = true,
 }: {
   projectId: string;
   milestones: MilestoneItem[];
   currency: string;
   canManage: boolean;
+  /** The project bills by milestone, so new ones start as payments. */
+  billedByMilestone?: boolean;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -57,15 +62,24 @@ export function MilestonesCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Milestones</CardTitle>
-        {canManage ? <AddMilestoneDialog projectId={projectId} /> : null}
+        <CardTitle className="text-base">Milestones &amp; deliverables</CardTitle>
+        {canManage ? (
+          <AddMilestoneDialog
+            projectId={projectId}
+            defaultKind={billedByMilestone ? "payment" : "deliverable"}
+          />
+        ) : null}
       </CardHeader>
       <CardContent>
         {milestones.length === 0 ? (
           <EmptyState
             icon={Flag}
-            title="No milestones yet"
-            description="Add fixed-price milestones to bill this project by deliverable instead of by the hour."
+            title="No milestones or deliverables yet"
+            description={
+              billedByMilestone
+                ? "Add fixed-price milestones to bill this project by deliverable instead of by the hour, or deliverables to track dates without billing them."
+                : "Add deliverables to track what's due and when. Payment milestones are billed once complete."
+            }
           />
         ) : (
           <ul className="flex flex-col divide-y divide-border">
@@ -79,12 +93,17 @@ export function MilestonesCard({
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{m.name}</span>
                         <StatusBadge status={status} />
+                        {!m.billable ? (
+                          <span className="rounded border border-border px-1.5 py-0.5 text-xs text-muted-foreground">
+                            Deliverable
+                          </span>
+                        ) : null}
                       </div>
                       {m.description ? (
                         <p className="mt-0.5 text-muted-foreground">{m.description}</p>
                       ) : null}
                       <p className="mt-0.5 text-muted-foreground">
-                        {formatCurrency(m.amount, currency)}
+                        {m.billable ? formatCurrency(m.amount, currency) : "Not billed"}
                         {m.dueDate ? ` · Due ${formatDate(m.dueDate)}` : ""}
                         {m.completedAt
                           ? ` · Completed ${formatDate(m.completedAt)}${m.completedByName ? ` by ${m.completedByName}` : ""}`
@@ -107,6 +126,9 @@ export function MilestonesCard({
                         >
                           {isExpanded ? "Hide evidence" : "View evidence"}
                         </Button>
+                      ) : null}
+                      {status !== "INVOICED" && canManage ? (
+                        <AddMilestoneDialog projectId={projectId} milestone={m} />
                       ) : null}
                       {status === "COMPLETED" && canManage ? (
                         <form action={reopenMilestoneAction.bind(null, m.id, projectId)}>

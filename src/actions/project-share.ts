@@ -4,17 +4,21 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { generateShareToken } from "@/lib/services/project-share";
+import { parseShareExpiry } from "@/lib/share-gate";
 
-export async function generateShareLinkAction(projectId: string) {
+/** Generate or regenerate the project link, with an optional expiry
+ * ("Expires" on the card). */
+export async function generateShareLinkAction(projectId: string, formData?: FormData) {
   const { org, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
+  const shareExpiresAt = parseShareExpiry(formData);
 
   await prisma.project.update({
     where: { id: projectId },
-    data: { shareToken: generateShareToken() },
+    data: { shareToken: generateShareToken(), shareExpiresAt },
   });
   revalidatePath(`/projects/${projectId}`);
 }
@@ -26,7 +30,7 @@ export async function revokeShareLinkAction(projectId: string) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.orgId !== org.id) throw new Error("Project not found.");
 
-  await prisma.project.update({ where: { id: projectId }, data: { shareToken: null } });
+  await prisma.project.update({ where: { id: projectId }, data: { shareToken: null, shareExpiresAt: null } });
   revalidatePath(`/projects/${projectId}`);
 }
 

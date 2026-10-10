@@ -16,10 +16,11 @@ that's the people on it, plus owners and admins.
 1. Open the project and click **Add task** on the **Tasks** card, or click
    **New task** under **Tasks** and pick the **Project**.
 2. Enter a **Title** and, optionally, a **Description**.
-3. Optional: set **Estimated hours**. You're alerted when logged time passes
+3. Optional: set a **Due date** (see [Due dates](#due-dates)).
+4. Optional: set **Estimated hours**. You're alerted when logged time passes
    it (see [Estimates](#estimates)).
-4. Optional: pick an **Assignee**. They're notified.
-5. Click **Add task**.
+5. Optional: pick an **Assignee**. They're notified.
+6. Click **Add task**.
 
 <Note>
 A project needs at least one person on its team before it can have tasks. If
@@ -35,6 +36,11 @@ Go to **Tasks** in the sidebar. Tasks are grouped by project.
 - **Mine** shows tasks assigned to you; **Everyone** shows all tasks.
 - **Open** shows tasks that aren't done; **Done** and **All** do what they
   say.
+- **Overdue** shows tasks past their due date that aren't done; **Due this
+  week** shows tasks due from today through Sunday; **Any date** shows all.
+- **By due date** puts the soonest due first (tasks without one last), and
+  the projects with the soonest deadline first; **By status** puts tasks in
+  progress first.
 
 ## How to change status or assignee
 
@@ -48,8 +54,8 @@ A task is **To do**, **In progress** or **Done**.
 Assigning someone notifies them. If the project is linked to Linear with
 changes sent back, status and assignee changes go to the issue too.
 
-To edit a task's title, description or estimate, click the pencil on its row
-(**Edit task**). To delete it, click the bin icon and confirm. Deleting a
+To edit a task's title, description, due date or estimate, click the pencil
+on its row (**Edit task**). To delete it, click the bin icon and confirm. Deleting a
 task also deletes its comments. Time logged on it is kept, just no longer
 linked to a task.
 
@@ -63,6 +69,7 @@ Click a task's title (on its project page or under **Tasks**) to open its
 sheet. It shows:
 
 - **Status** and **Assignee**, which you can change right there.
+- **Due**: the due date, or *No due date*.
 - **Hours** logged on the task next to its estimate, marked **over estimate**
   once it passes.
 - **Linear**: the issue key (for example `RING-12`) and **Open issue**, for a
@@ -73,6 +80,25 @@ sheet. It shows:
 
 The page URL gets `?task=…` while the sheet is open. Copy it to send someone
 straight to the task.
+
+## Due dates
+
+A task's due date shows on its row (on the project page and under **Tasks**)
+and on its sheet: *Due Aug 14*, amber on the day before and the day itself
+(*Due tomorrow*, *Due today*), red once it's past. Done tasks stay grey. Due
+dates are whole days.
+
+- The assignee is reminded the day before (**A task is due tomorrow**) and
+  once it's overdue (**A task or milestone is overdue**), in the app and by
+  email. Changing the date re-arms both. See
+  [Deadline reminders](/concepts/calendar#deadline-reminders).
+- Due dates show on the [calendar](/concepts/calendar) and the dashboard's
+  **Upcoming** card, and in your [calendar subscription](/concepts/calendar#subscribe-in-your-calendar-app).
+- On a project synced with [Linear](/integrations/linear), the due date syncs
+  both ways with the issue's due date.
+
+If the date isn't valid you'll see *That date doesn't exist.* (for example
+February 30).
 
 ## How to track time on a task
 
@@ -150,6 +176,7 @@ stays there.
 ## Over MCP
 
 AI agents connected through the [MCP server](/mcp-server) can use
-`list_my_tasks`, `create_task`, `update_task`, `update_task_status`,
+`list_my_tasks` (soonest due first), `create_task` and `update_task` (both
+take a `dueDate`, `YYYY-MM-DD`; `null` clears it on `update_task`), `update_task_status`,
 `list_task_comments`, `add_task_comment`, `delete_task_comment`, `watch_task`,
 `start_timer` and `stop_timer`.

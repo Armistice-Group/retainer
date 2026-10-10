@@ -40,12 +40,12 @@ export default defineConfig({
     { name: "setup", testMatch: /global\.setup\.ts/, fullyParallel: false },
     {
       name: "api",
-      testMatch: /(api|mcp|actions|features)\.spec\.ts/,
+      testMatch: /(api|mcp|actions|features|vault-links)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {
       name: "chromium",
-      testMatch: /(ui|smoke)\.spec\.ts/,
+      testMatch: /(ui|smoke|share-gate|schedule)\.spec\.ts/,
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"] },
     },

@@ -122,7 +122,7 @@ in Consultainer only; tasks with time logged are kept.
 **From Linear to Consultainer** (every sync and every webhook delivery):
 
 - New issues that match the link become tasks.
-- Title, description, status and assignee are updated on tasks already
+- Title, description, due date, status and assignee are updated on tasks already
   pulled in. The assignee is matched by email to a member of your
   organization; no match leaves the task unassigned.
 - Linear status types map to task statuses: *Triage*, *Backlog* and
@@ -138,7 +138,7 @@ on):
 - A task created in Consultainer — in the app, the REST API or over MCP —
   becomes a Linear issue in the linked team, with the link's Linear project
   and labels applied.
-- Title, description, status and assignee edits are sent to the issue.
+- Title, description, due date, status and assignee edits are sent to the issue.
   Statuses go to the first workflow state of the matching type in that team.
 - Comments on a linked task are posted to the issue too. Untick **Also post
   to Linear** under the comment box to keep one internal.

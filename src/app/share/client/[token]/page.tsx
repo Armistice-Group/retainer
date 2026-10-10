@@ -14,6 +14,8 @@ import { PaymentMethodsList } from "@/components/payment-methods-list";
 import { isPaymentProcessing, PaymentReturnBanner } from "@/components/payment-return-banner";
 import { SharedDocuments } from "@/components/documents/shared-documents";
 import { clientVisibleDocuments } from "@/lib/services/documents";
+import { accessGranted, getShareAccess, resolveShare } from "@/lib/share-gate";
+import { ShareBlocked } from "@/components/share/share-blocked";
 
 export const metadata: Metadata = {
   title: "Client report",
@@ -29,6 +31,12 @@ export default async function SharedClientPage({
 }) {
   const { token } = await params;
   const { paid, reason, invoice: returnedInvoiceId } = await searchParams;
+  // Expired link, or email verification on and not done yet: no data.
+  const target = await resolveShare("client", token);
+  if (!target) notFound();
+  const access = target.expired ? null : await getShareAccess(target);
+  if (!access || !accessGranted(access)) return <ShareBlocked target={target} access={access} />;
+
   const report = await getClientByShareToken(token);
   if (!report) notFound();
 
@@ -199,6 +207,7 @@ export default async function SharedClientPage({
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Shared by {org.name} via Consultainer.
+          {access.state === "verified" ? ` Verified as ${access.contactName}.` : ""}
         </p>
       </main>
     </div>

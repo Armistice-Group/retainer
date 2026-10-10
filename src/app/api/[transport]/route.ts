@@ -10,7 +10,13 @@ import {
   canAssignOnProject,
   invoiceVisibilityWhere,
 } from "@/lib/project-access";
-import { taskStatusValues } from "@/lib/validations/task";
+import { taskStatusValues, isoDay, dueDateValue } from "@/lib/validations/task";
+import { dueDateData, milestoneDueDateData } from "@/lib/services/deadlines";
+import {
+  cancelScheduledSend,
+  scheduleInvoiceSend,
+  ScheduleError,
+} from "@/lib/services/scheduled-invoices";
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -38,6 +44,7 @@ import { soloMemberId } from "@/lib/org";
 import { defaultBillRateFor, resolveBillRate } from "@/lib/bill-rates";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { visibleAgreements } from "@/lib/services/agreements";
+import { listVaultLinks, vaultLinkJson, VaultLinkError } from "@/lib/services/vault-links";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import {
   CalendarError,
@@ -364,7 +371,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_my_tasks",
-      "List open (not-done) tasks assigned to the authenticated user, optionally filtered to one project. linearKey (e.g. RING-12) is set on tasks linked to a Linear issue.",
+      "List open (not-done) tasks assigned to the authenticated user, optionally filtered to one project, soonest due date first (tasks without one last). linearKey (e.g. RING-12) is set on tasks linked to a Linear issue.",
       { projectId: z.string().optional() },
       async ({ projectId }, extra) => {
         const ctx = ctxFrom(extra);
@@ -379,7 +386,7 @@ const handler = createMcpHandler(
             project: { select: { id: true, name: true } },
             externalLink: { select: { source: true, externalKey: true, externalUrl: true } },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }],
         });
         return text(
           tasks.map(({ externalLink, ...task }) => ({
@@ -419,13 +426,14 @@ const handler = createMcpHandler(
 
     server.tool(
       "create_task",
-      "Create a new task on a project.",
+      "Create a new task on a project, optionally with a due date (the assignee is reminded the day before, and again if it's overdue).",
       {
         projectId: z.string(),
         title: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         assigneeId: z.string().optional(),
         estimatedHours: z.number().positive().optional(),
+        dueDate: isoDay.optional().describe("YYYY-MM-DD"),
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -442,6 +450,7 @@ const handler = createMcpHandler(
             description: args.description ?? null,
             assigneeId: args.assigneeId || (await soloMemberId(ctx.orgId)),
             estimatedHours: args.estimatedHours ?? null,
+            dueDate: dueDateValue(args.dueDate) ?? null,
           },
         });
         await pushTaskToLinear(task.id);
@@ -451,20 +460,24 @@ const handler = createMcpHandler(
 
     server.tool(
       "update_task",
-      "Update a task's title, description, or hour estimate (not its status or assignee — see update_task_status).",
+      "Update a task's title, description, hour estimate or due date (not its status or assignee — see update_task_status). Omit dueDate to keep it, or pass null to clear it.",
       {
         taskId: z.string(),
         projectId: z.string(),
         title: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
         estimatedHours: z.number().positive().optional(),
+        dueDate: isoDay.nullable().optional().describe("YYYY-MM-DD, or null to clear"),
       },
       async ({ taskId, projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
 
-        const existing = await prisma.task.findFirst({ where: { id: taskId, projectId }, select: { id: true } });
+        const existing = await prisma.task.findFirst({
+          where: { id: taskId, projectId },
+          select: { id: true, dueDate: true },
+        });
         if (!existing) return errorResult("Task not found on that project.");
         const task = await prisma.task.update({
           where: { id: taskId, projectId },
@@ -472,6 +485,7 @@ const handler = createMcpHandler(
             title: args.title,
             description: args.description ?? null,
             estimatedHours: args.estimatedHours ?? null,
+            ...dueDateData(existing.dueDate, dueDateValue(args.dueDate)),
           },
         });
         await pushTaskToLinear(task.id);
@@ -706,7 +720,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_audit_log",
-      "Owner/admin only: who changed what in the organization, newest first. Filter by actor (user id, or 'system'), entity type (e.g. Invoice, Task, PaymentMethod), action (create, update, delete, sign_in, view, download, export, password_reset, password_reset_link), and date range.",
+      "Owner/admin only: who changed what in the organization, newest first. Filter by actor (user id, or 'system'), entity type (e.g. Invoice, Task, PaymentMethod), action (create, update, delete, sign_in, view, download, export, password_reset, password_reset_link, share_verify, share_sign_out), and date range.",
       {
         actor: z.string().optional(),
         type: z.string().optional(),
@@ -908,8 +922,27 @@ const handler = createMcpHandler(
     );
 
     server.tool(
+      "list_vault_links",
+      "List a client's credential links: pointers to items in 1Password, Bitwarden or another password manager (label, note, provider, link). Never the secrets themselves — open the link in the password manager, which decides access. Includes its projects' links you can see; pass projectId for one project's links.",
+      { clientId: z.string(), projectId: z.string().optional() },
+      async ({ clientId, projectId }, extra) => {
+        const ctx = ctxFrom(extra);
+        try {
+          const links = await listVaultLinks(
+            { orgId: ctx.orgId, userId: ctx.actorId, role: ctx.role },
+            { clientId, projectId }
+          );
+          return text(links.map(vaultLinkJson));
+        } catch (err) {
+          if (err instanceof VaultLinkError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
       "list_milestones",
-      "List fixed-price milestones for a project.",
+      "List a project's milestones and deliverables. billable is false for a deliverable (tracked and dated, never invoiced, amount 0).",
       { projectId: z.string() },
       async ({ projectId }, extra) => {
         const ctx = ctxFrom(extra);
@@ -925,13 +958,14 @@ const handler = createMcpHandler(
 
     server.tool(
       "create_milestone",
-      "Owner/admin only: create a fixed-price milestone on a project.",
+      "Owner/admin only: create a milestone on a project — a fixed-price payment milestone (billable, the default; amount required), or a deliverable (billable: false; never invoiced, no amount).",
       {
         projectId: z.string(),
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
-        amount: z.number().positive(),
-        dueDate: isoDate().optional().describe("ISO date"),
+        billable: z.boolean().default(true).describe("false for a deliverable that is never invoiced"),
+        amount: z.number().positive().optional().describe("Required when billable"),
+        dueDate: isoDay.optional().describe("YYYY-MM-DD"),
       },
       async ({ projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -940,6 +974,9 @@ const handler = createMcpHandler(
         }
         const project = await requireProjectForActor(projectId, ctx);
         if (!project) return errorResult("Project not found.");
+        if (args.billable && !args.amount) {
+          return errorResult("A billable milestone needs an amount (or set billable: false for a deliverable).");
+        }
 
         const count = await prisma.milestone.count({ where: { projectId } });
         const milestone = await prisma.milestone.create({
@@ -947,8 +984,9 @@ const handler = createMcpHandler(
             projectId,
             name: args.name,
             description: args.description ?? null,
-            amount: args.amount,
-            dueDate: args.dueDate ? new Date(args.dueDate) : null,
+            billable: args.billable,
+            amount: args.billable ? args.amount! : 0,
+            dueDate: dueDateValue(args.dueDate) ?? null,
             sortOrder: count,
           },
         });
@@ -958,14 +996,15 @@ const handler = createMcpHandler(
 
     server.tool(
       "update_milestone",
-      "Owner/admin only: update a milestone's name, description, amount, or due date (not yet invoiced).",
+      "Owner/admin only: update a milestone's or deliverable's name, description, amount, billable flag, or due date (not yet invoiced). Omitting dueDate clears it; omitting billable or amount keeps them.",
       {
         milestoneId: z.string(),
         projectId: z.string(),
         name: z.string().min(1).max(200),
         description: z.string().max(2000).optional(),
-        amount: z.number().positive(),
-        dueDate: isoDate().optional().describe("ISO date"),
+        billable: z.boolean().optional().describe("false makes it a deliverable that is never invoiced"),
+        amount: z.number().positive().optional(),
+        dueDate: isoDay.optional().describe("YYYY-MM-DD"),
       },
       async ({ milestoneId, projectId, ...args }, extra) => {
         const ctx = ctxFrom(extra);
@@ -982,14 +1021,20 @@ const handler = createMcpHandler(
         if (milestone.invoicedAt) {
           return errorResult("This milestone has already been invoiced and can't be edited.");
         }
+        const billable = args.billable ?? milestone.billable;
+        const amount = billable ? (args.amount ?? Number(milestone.amount)) : 0;
+        if (billable && !(amount > 0)) {
+          return errorResult("A billable milestone needs an amount (or set billable: false for a deliverable).");
+        }
 
         const updated = await prisma.milestone.update({
           where: { id: milestoneId },
           data: {
             name: args.name,
             description: args.description ?? null,
-            amount: args.amount,
-            dueDate: args.dueDate ? new Date(args.dueDate) : null,
+            billable,
+            amount,
+            ...milestoneDueDateData(milestone.dueDate, dueDateValue(args.dueDate) ?? null),
           },
         });
         return text(updated);
@@ -1285,6 +1330,42 @@ const handler = createMcpHandler(
           );
         } catch (err) {
           if (err instanceof InvoiceDeliveryError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
+      "schedule_invoice_send",
+      "Owner/admin only: schedule a draft invoice to be emailed to the client's default invoice recipients at a set time (sent within the hour after it), or pass sendAt: null to cancel. When it goes out, its issue date becomes the send date and its due date moves with it. If it can't be sent it stays a draft and owners/admins are alerted.",
+      {
+        invoiceId: z.string(),
+        sendAt: z
+          .string()
+          .refine((v) => !Number.isNaN(new Date(v).getTime()), "Use an ISO date-time, e.g. 2026-07-23T09:00:00Z.")
+          .nullable()
+          .describe("ISO date-time with a time zone, e.g. 2026-07-23T09:00:00-05:00; null cancels"),
+      },
+      async ({ invoiceId, sendAt }, extra) => {
+        const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can schedule invoices.");
+        }
+        const invoice = await prisma.invoice.findFirst({ where: visibleInvoiceWhere(ctx, invoiceId) });
+        if (!invoice) return errorResult("Invoice not found.");
+        try {
+          const updated =
+            sendAt === null
+              ? await cancelScheduledSend({ orgId: ctx.orgId }, invoiceId)
+              : await scheduleInvoiceSend({ orgId: ctx.orgId, actorId: ctx.actorId }, invoiceId, new Date(sendAt));
+          return text({
+            id: updated.id,
+            number: updated.number,
+            status: updated.status,
+            scheduledSendAt: updated.scheduledSendAt,
+          });
+        } catch (err) {
+          if (err instanceof ScheduleError) return errorResult(err.message);
           throw err;
         }
       }

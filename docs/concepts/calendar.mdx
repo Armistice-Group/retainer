@@ -1,0 +1,150 @@
+---
+title: Calendar
+description: Your meetings and every deadline in one place, reminders before things are due, and a feed for your own calendar app
+---
+
+**Calendar** in the sidebar shows, on one month, everything with a date that
+you're allowed to see. The dashboard's **Upcoming** card shows the next two
+weeks of it.
+
+**Who can do this:** everyone. What's on it depends on your role and on which
+projects you can see (see [What's on it](#whats-on-it)).
+
+## What's on it
+
+Each kind of item has its own icon and colour, and links to where you can act
+on it.
+
+| Item | Shows | Who sees it |
+| --- | --- | --- |
+| **Meetings** | Your meetings from the calendars you connected under **Profile → Calendars**, at their time, marked **To sort**, **Logged** or **Ignored** as in **Time → Meetings**. Only meetings that have happened (the last two weeks are pulled in). | Only you. Nobody sees anyone else's meetings. |
+| **Tasks** | Due dates of your tasks, or everyone's (**Everyone's tasks**). Overdue ones are red; done ones are struck through. | Anyone, for projects they can see. |
+| **Milestones & deliverables** | Due dates of [milestones and deliverables](/concepts/milestones). | Anyone, for projects they can see. |
+| **Project dates** | A project's start and end dates (set with **Edit** on the project). | Anyone, for projects they can see. |
+| **Invoices due** | Due dates of sent, unpaid invoices. | Owners and admins. |
+| **Scheduled sends** | Drafts [scheduled to send](/concepts/invoicing#how-to-schedule-an-invoice), at their time. One that failed is red. | Owners and admins. |
+| **Recurring invoices** | The next run of each active [retainer](/concepts/invoicing#retainers). | Owners and admins. |
+| **Billing cycles** | When each client's [billing cycle](/concepts/invoicing#billing-cycles) next closes and invoices its unbilled work. | Owners and admins. |
+| **Estimate expiries** | The last day a draft or sent [estimate](/concepts/estimates) can be accepted. | Owners and admins. |
+
+Nothing from a [confidential project](/concepts/clients-and-projects#confidential-projects)
+you aren't on appears, and archived projects are left out.
+
+## How to use it
+
+<Steps>
+  <Step title="Open Calendar">
+    Click **Calendar** in the sidebar. It opens on this month, with today
+    circled.
+  </Step>
+  <Step title="Move between months">
+    Use the arrows next to the month name; **Today** brings you back. The
+    month is in the address (`?month=2026-11`), so you can bookmark or share
+    a view.
+  </Step>
+  <Step title="Switch views">
+    **Month** is a grid; a day with more than four items shows **+N more**,
+    which opens that day in **Agenda**. **Agenda** lists every day of the
+    month that has something on it, with the client and project of each item.
+    On a phone, the month shows only days with something on them.
+  </Step>
+  <Step title="Filter">
+    Pick a client or a project, and **My tasks** or **Everyone's tasks**. Click
+    the chips (**Meetings**, **Tasks**, …) to hide or show each kind.
+  </Step>
+</Steps>
+
+Meeting times are shown in your browser's time zone (the page says which, at
+the bottom). Due dates are whole days and are the same everywhere.
+
+## Due dates on tasks
+
+Give a task a **Due date** when you add it, or with the pencil (**Edit task**)
+later. It shows on the task's row and sheet: red once it's past, amber the day
+before and on the day. See [Tasks](/concepts/tasks#due-dates).
+
+## Deadline reminders
+
+The daily job (see [Self-hosting → Scheduled jobs](/self-hosting#scheduled-jobs))
+sends these once per due date. Changing the due date re-arms them.
+
+| Reminder | Who gets it |
+| --- | --- |
+| **A task is due tomorrow** | The task's assignee, in the app and by email to their own address. |
+| **A task or milestone is overdue**, for a task | The task's assignee, in the app and by email to them. |
+| **A task or milestone is overdue**, for a milestone or deliverable | Owners, admins and the people on the project, in the app; Slack and the alert email list, per **Settings → Alerts**. |
+
+Done tasks, completed milestones, unassigned tasks and projects that are
+completed or archived don't get reminders. Owners and admins choose Slack and
+email for each under **Settings → Alerts** (see
+[Alerts](/concepts/alerts-and-audit#the-alerts)); the in-app notification is
+always sent. On a confidential project, Slack and email leave out the task,
+milestone and project names.
+
+## Subscribe in your calendar app
+
+Get your deadlines in Google Calendar, Apple Calendar or Outlook with a
+private address only you have.
+
+<Steps>
+  <Step title="Create the address">
+    Go to **Profile → Subscribe in your calendar app** and click **Create
+    calendar address**. Copy it: it's shown only once.
+  </Step>
+  <Step title="Add it to your calendar app">
+    - **Google Calendar:** **Other calendars → + → From URL**, paste it, then
+      **Add calendar**.
+    - **Apple Calendar:** **File → New Calendar Subscription**, paste it.
+    - **Outlook:** **Add calendar → Subscribe from web**, paste it.
+  </Step>
+</Steps>
+
+The feed has all-day events for your tasks' due dates, milestones and
+deliverables, and project start and end dates, plus (for owners and admins)
+invoice due dates, scheduled sends, recurring invoice runs, billing cycle
+closes and estimate expiries: from two months back to a year ahead, for the
+organization you had open when you created it. Done items end in *(done)*.
+Each event links back to the app. Meetings are never in it; they're in your
+calendar already.
+
+It's worked out from your access whenever it's read, so if you leave a
+project or the organization, its items drop out (within a few minutes). Only
+a hash of the address is stored.
+
+**Make a new address** replaces it: the old one stops working at once.
+**Turn off** removes it. Do either if the address might have leaked: anyone
+with it can read your deadlines.
+
+### Check it worked
+
+Your calendar app shows a calendar named *Consultainer — your organization*,
+and **Profile** says *last read by a calendar app* with a date. Opening the
+address in a browser shows (or downloads) a calendar file that starts with
+`BEGIN:VCALENDAR`.
+
+### Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The address says Not found">
+    It was replaced (**Make a new address**) or turned off, or you're no longer
+    in the organization. Create a new one and update your calendar app.
+  </Accordion>
+  <Accordion title="A new due date doesn't show in my calendar app yet">
+    Calendar apps fetch subscriptions on their own schedule: Google Calendar can
+    take several hours, Apple Calendar uses the refresh interval you picked.
+    The app also caches each feed for a few minutes.
+  </Accordion>
+  <Accordion title="The calendar app can't reach the address">
+    It has to reach your instance from the internet. If something in front of
+    the app requires a login, let `/api/calendar/*` through (see
+    [Self-hosting](/self-hosting#behind-an-authenticating-proxy)).
+  </Accordion>
+</AccordionGroup>
+
+## Over the API and MCP
+
+Tasks take a `dueDate` (`YYYY-MM-DD`) when created or updated, over the
+[REST API](/api-reference/tasks) and the [MCP server](/mcp-server)
+(`create_task`, `update_task`; `list_my_tasks` lists the soonest due first).
+An invalid date gets a 422 (API) or an error (MCP). Owners and admins can
+schedule invoices with `schedule_invoice_send`.

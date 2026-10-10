@@ -124,3 +124,56 @@ The signed copy itself is only downloadable in the app.
 **Errors:** `404` `{ "error": "Client not found." }` for a client in
 another organization or that doesn't exist.
 
+## List credential links for a client
+
+```
+GET /api/v1/clients/{id}/vault-links
+```
+
+Any role. Returns the client's [credential links](/concepts/credentials) —
+pointers to items in 1Password, Bitwarden or another password manager —
+sorted by label: client-wide ones, plus those on its projects. Links on a
+confidential project are only included if the key's user can see that
+project. Consultainer never stores the secrets, so none are returned; `url`
+opens the item in the password manager, which decides whether the person
+can see it. There's no API to add or change links: owners and admins do
+that on the client or project page.
+
+<ParamField query="projectId" type="string">
+  Only that project's links (not the client-wide ones).
+</ParamField>
+
+```bash
+curl https://<your-instance>/api/v1/clients/cm9.../vault-links \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "vaultLinks": [
+    {
+      "id": "cmw...",
+      "label": "Client AWS root",
+      "note": "Break-glass only.",
+      "url": "https://start.1password.com/open/i?a=...&v=...&i=...&h=acme.1password.com",
+      "provider": "ONEPASSWORD",
+      "providerName": "1Password",
+      "itemKind": "login",
+      "projectId": null,
+      "projectName": null,
+      "createdAt": "2026-10-14T15:02:11.204Z",
+      "updatedAt": "2026-10-14T15:02:11.204Z"
+    }
+  ]
+}
+```
+
+`provider` is one of `ONEPASSWORD`, `BITWARDEN`, `KEEPER`, `DASHLANE`,
+`LASTPASS`, `PROTON_PASS` or `OTHER`. `itemKind` is `login`, `ssh_key`,
+`api_key`, `document`, `other` or `null`.
+
+**Errors:** `404` `{ "error": "Client not found." }` for a client in
+another organization or that doesn't exist; `404`
+`{ "error": "Project not found." }` for a `projectId` that isn't this
+client's or that the key's user can't see.
+

@@ -7,11 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
 import { milestoneSchema, completeMilestoneSchema } from "@/lib/validations/milestone";
+import { dueDateValue } from "@/lib/validations/task";
+import { milestoneDueDateData } from "@/lib/services/deadlines";
 import type { ActionState } from "@/actions/auth";
 import type { Role } from "@/generated/prisma/client";
 
-// Milestones are billing terms: only owners and admins add, edit, complete,
-// reopen or delete them (members see them read-only).
+// Milestones are billing terms (or, when not billable, deliverables): only
+// owners and admins add, edit, complete, reopen or delete them (members see
+// them read-only).
 async function requireProject(projectId: string, orgId: string, userId: string, role: Role) {
   requireRole(role, ["OWNER", "ADMIN"]);
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -32,6 +35,7 @@ export async function createMilestoneAction(
     projectId,
     name: formData.get("name"),
     description: formData.get("description"),
+    billable: formData.get("kind") !== "deliverable",
     amount: formData.get("amount"),
     dueDate: formData.get("dueDate"),
   });
@@ -46,8 +50,9 @@ export async function createMilestoneAction(
       projectId,
       name: parsed.data.name,
       description: parsed.data.description || null,
+      billable: parsed.data.billable,
       amount: parsed.data.amount,
-      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+      dueDate: dueDateValue(parsed.data.dueDate) ?? null,
       sortOrder: count,
     },
   });
@@ -75,6 +80,7 @@ export async function updateMilestoneAction(
     projectId,
     name: formData.get("name"),
     description: formData.get("description"),
+    billable: formData.get("kind") !== "deliverable",
     amount: formData.get("amount"),
     dueDate: formData.get("dueDate"),
   });
@@ -87,8 +93,9 @@ export async function updateMilestoneAction(
     data: {
       name: parsed.data.name,
       description: parsed.data.description || null,
+      billable: parsed.data.billable,
       amount: parsed.data.amount,
-      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+      ...milestoneDueDateData(milestone.dueDate, dueDateValue(parsed.data.dueDate) ?? null),
     },
   });
 

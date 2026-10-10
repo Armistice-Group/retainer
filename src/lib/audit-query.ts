@@ -23,6 +23,8 @@ const ACTIONS = new Set([
   "sign_in",
   "password_reset",
   "password_reset_link",
+  "share_verify",
+  "share_sign_out",
   "view",
   "download",
   "export",
@@ -98,6 +100,8 @@ export function describeAudit(entry: {
   if (entry.action === "sign_in") return "signed in";
   if (entry.action === "password_reset") return "reset their password";
   if (entry.action === "password_reset_link") return "created a password reset link for";
+  if (entry.action === "share_verify") return "verified their email on a client link:";
+  if (entry.action === "share_sign_out") return "signed out client link visitors:";
   if (entry.action === "export") {
     if (entry.entityType === "Organization") return "exported all of the organization's data";
     if (entry.entityType === "Client") return "exported a client's records";

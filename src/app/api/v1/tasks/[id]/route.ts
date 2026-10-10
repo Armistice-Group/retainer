@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized, type ApiAuthContext } from "@/lib/api-auth";
-import { taskStatusValues } from "@/lib/validations/task";
+import { taskStatusValues, optionalDueDate, dueDateValue } from "@/lib/validations/task";
+import { dueDateData } from "@/lib/services/deadlines";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { canAssignOnProject, canViewProject } from "@/lib/project-access";
 import { notify } from "@/lib/notifications";
@@ -26,7 +27,13 @@ export async function PATCH(
   if (!task) return Response.json({ error: "Task not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const data: { status?: (typeof taskStatusValues)[number]; assigneeId?: string | null } = {};
+  const data: {
+    status?: (typeof taskStatusValues)[number];
+    assigneeId?: string | null;
+    dueDate?: Date | null;
+    dueSoonNotifiedAt?: null;
+    overdueNotifiedAt?: null;
+  } = {};
 
   if (body.status !== undefined) {
     if (!taskStatusValues.includes(body.status)) {
@@ -45,6 +52,14 @@ export async function PATCH(
       );
     }
     data.assigneeId = body.assigneeId || null;
+  }
+  if (body.dueDate !== undefined) {
+    // "YYYY-MM-DD", or null to clear it.
+    const due = optionalDueDate.safeParse(body.dueDate);
+    if (!due.success) {
+      return Response.json({ error: { dueDate: due.error.issues.map((i) => i.message) } }, { status: 422 });
+    }
+    Object.assign(data, dueDateData(task.dueDate, dueDateValue(due.data) ?? null));
   }
 
   const updated = await prisma.task.update({ where: { id }, data });

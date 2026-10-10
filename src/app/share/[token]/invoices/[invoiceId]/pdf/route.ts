@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeShareRequest } from "@/lib/share-gate";
 import { renderInvoicePdf } from "@/lib/invoice-pdf";
 import { recordInvoiceView } from "@/lib/services/invoice-delivery";
 import { getShareTokenInvoiceIfAuthorized } from "@/lib/services/project-share";
@@ -8,6 +9,11 @@ export async function GET(
   { params }: { params: Promise<{ token: string; invoiceId: string }> }
 ) {
   const { token, invoiceId } = await params;
+  // Same gate as the share page: expired links and unverified visitors
+  // (when email verification is on) get nothing.
+  if (!(await authorizeShareRequest("project", token))) {
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
 
   const invoice = await getShareTokenInvoiceIfAuthorized(token, invoiceId);
   if (!invoice) {

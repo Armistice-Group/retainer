@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { OrgSecurityForm } from "../org-security-form";
 import { RequireTwoFactorForm } from "../require-two-factor-form";
 import { SsoCard } from "../sso-card";
+import { ShareVerificationForm } from "../share-verification-form";
+import { isEmailConfigured } from "@/lib/email";
 import { getRequestOrigin } from "@/lib/url";
 import { SSO_CALLBACK_PATH } from "@/lib/integrations/sso";
 
@@ -59,6 +61,19 @@ export default async function OrgSecurityPage() {
             canEdit={role === "OWNER"}
             ownTwoFactor={ownTwoFactor}
             missingCount={readOnly ? 0 : missingTwoFactor}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Client link verification</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ShareVerificationForm
+            enabled={org.requireShareVerification}
+            canEdit={!readOnly}
+            emailConfigured={await isEmailConfigured()}
           />
         </CardContent>
       </Card>

@@ -4,7 +4,8 @@ description: Generate invoices from unbilled work, send them, track opens, and g
 ---
 
 An invoice bills one client for work you've already recorded: billable time,
-completed milestones and approved expenses. You generate a draft, check it,
+completed payment milestones and approved expenses (never
+[deliverables](/concepts/milestones), which aren't billed). You generate a draft, check it,
 send it, and record payments against it until it's paid (or let online
 payments do that). For money taken up front, bill a
 [deposit](/concepts/deposits-and-credit); to give money back as credit,
@@ -149,6 +150,69 @@ Opens through that link are tracked the same way.
 
 Click **Mark as sent** if you delivered the invoice some other way (for
 example from [QuickBooks](/integrations/quickbooks)).
+
+## How to schedule an invoice
+
+Have a draft emailed on a date you pick, for example on the 1st of the month.
+Owners and admins only; it needs email set up on your instance (**Settings →
+Integrations**) and an email address for the client.
+
+<Steps>
+  <Step title="Open the draft">
+    Go to **Invoices** and open the draft you want to send later.
+  </Step>
+  <Step title="Pick when">
+    Click **Schedule send**, then pick the **Date** and **Time (your time
+    zone)**. It defaults to tomorrow at 9:00. The dialog shows who it goes to:
+    the same people **Email to client** starts with.
+  </Step>
+  <Step title="Schedule it">
+    Click **Schedule**. The invoice shows *Scheduled to send …* under its
+    title, and **Invoices** shows *Sends …* next to its status. It also shows
+    on the [calendar](/concepts/calendar).
+  </Step>
+</Steps>
+
+To change the time, click **Reschedule**. To stop it, click **Cancel
+schedule** on the invoice. Sending it yourself before then (**Email to
+client** or **Mark as sent**) also means the schedule never fires, because
+only drafts are sent.
+
+### What happens when it's sent
+
+The hourly job emails it within the hour after the time you picked, exactly
+like **Email to client**, with no message. Replies go to whoever scheduled it.
+It's marked sent, owners and admins get **An invoice is sent**, and
+**Activity** shows *Emailed automatically to …*.
+
+Its **Issue date** becomes the day it's sent, and the **Due date** moves by the
+same number of days, so the payment terms still hold. For example, a Net 30
+draft dated October 20 and scheduled for November 1 goes out dated November 1,
+due December 1. Without this, a draft written well before it's sent would
+arrive with part of its terms already used up.
+
+### Check it worked
+
+The invoice shows **Sent**, and **Activity** has *Emailed automatically to
+…*. Until then it shows *Scheduled to send …*.
+
+### Troubleshooting
+
+If it can't be sent, nothing changes silently: the invoice stays a **Draft**
+with its original dates and schedule, owners and admins get **A scheduled
+invoice couldn't be sent** (Slack and email by default), and the invoice says
+*Scheduled to send …, but it wasn't sent:* followed by the reason. It isn't
+retried on its own; fix the cause, then **Reschedule** it or send it now.
+
+| Reason shown | What to do |
+| --- | --- |
+| *Email isn't set up on this instance (Settings → Integrations).* | Set up [email](/integrations/email), then reschedule. |
+| *… has no invoice contact, billing email or email address.* | Add an email on the client (or tick **Include on invoice emails** on a contact), then reschedule. |
+| *The email couldn't be delivered.* | Check your email settings, then reschedule or click **Email to client**. |
+
+When scheduling, *Pick a time in the future.* means the time you picked has
+passed, and *Only draft invoices can be scheduled.* means it was sent or
+voided already.
 
 ## The client invoice page
 
@@ -453,8 +517,8 @@ time of day depends on when the stack was last started. A run date means
 ## Over MCP
 
 `list_invoices` (with `amountPaid`, `creditApplied` and `balanceDue`),
-`generate_invoice`, `email_invoice`, `get_invoice_activity`,
+`generate_invoice`, `email_invoice`, `schedule_invoice_send`, `get_invoice_activity`,
 `mark_invoice_sent`, `mark_invoice_paid` (records a payment for the whole
 balance), `record_invoice_payment`, `list_invoice_payments` and
-`void_invoice`. Generating, emailing, recording payments and the three status
-tools need an owner or admin key. See the [MCP server](/mcp-server).
+`void_invoice`. Generating, emailing, scheduling, recording payments and the
+three status tools need an owner or admin key. See the [MCP server](/mcp-server).

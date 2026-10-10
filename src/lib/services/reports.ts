@@ -243,7 +243,7 @@ async function unbilledByClient(orgId: string, billRate: Map<string, number>) {
       },
     }),
     prisma.milestone.findMany({
-      where: { project: { orgId }, completedAt: { not: null }, invoiceLineItemId: null },
+      where: { project: { orgId }, completedAt: { not: null }, invoiceLineItemId: null, billable: true },
       select: { amount: true, project: { select: { client: { select: { id: true, name: true } } } } },
     }),
     prisma.expense.findMany({

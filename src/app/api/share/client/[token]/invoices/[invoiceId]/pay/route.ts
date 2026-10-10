@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { authorizeShareRequest } from "@/lib/share-gate";
 import { createInvoicePaymentCheckoutUrl, InvoicePaymentError } from "@/lib/services/invoice-payment";
 import { getClientShareTokenInvoiceIfAuthorized } from "@/lib/services/client-share";
 import { getRequestOrigin } from "@/lib/url";
@@ -12,6 +13,9 @@ export async function GET(
   const { token, invoiceId } = await params;
   const origin = await getRequestOrigin();
   const pageUrl = `${origin}/share/client/${encodeURIComponent(token)}`;
+
+  // Not verified (or expired): back to the page, which shows the gate.
+  if (!(await authorizeShareRequest("client", token))) return NextResponse.redirect(pageUrl, 303);
 
   const invoice = await getClientShareTokenInvoiceIfAuthorized(token, invoiceId);
   // The share page shows its own not-found, or the invoice list without it.

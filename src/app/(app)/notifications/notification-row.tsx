@@ -16,6 +16,7 @@ import {
   AtSign,
   Gauge,
   CalendarCheck,
+  CalendarClock,
   Eye,
   ShieldAlert,
   Receipt,
@@ -49,6 +50,9 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   EXPENSE_REVIEWED: Receipt,
   ESTIMATE_ACCEPTED: CheckCircle2,
   ESTIMATE_DECLINED: AlertTriangle,
+  TASK_DUE_SOON: CalendarClock,
+  DEADLINE_OVERDUE: AlertTriangle,
+  INVOICE_SEND_FAILED: AlertTriangle,
 };
 
 export function NotificationRow({

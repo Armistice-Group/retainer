@@ -22,6 +22,7 @@ import {
   type LinearIssueWithScope,
 } from "@/lib/integrations/linear";
 import type { ExternalProjectLink, LinearConnection } from "@/generated/prisma/client";
+import { dueDateData } from "@/lib/services/deadlines";
 
 export class LinearSyncError extends Error {}
 
@@ -157,7 +158,8 @@ export async function removeStaleLinearTasks(projectId: string) {
 
 /** Mirrors a task to Linear after it's created or changed in Consultainer:
  * creates the issue (in the link's team / Linear project, with its labels)
- * the first time, then updates title, description, status, and assignee.
+ * the first time, then updates title, description, due date, status, and
+ * assignee.
  * Best effort — a Linear outage or a read-only connection never blocks the
  * change in Consultainer itself; the reason is returned for logging. */
 export async function pushTaskToLinear(
@@ -179,7 +181,13 @@ export async function pushTaskToLinear(
       stateIdForStatus(token, ctx.link.externalId, task.status),
       task.assignee ? findUserIdByEmail(token, task.assignee.email) : Promise.resolve(null),
     ]);
-    const fields = { title: task.title, description: task.description, stateId, assigneeId };
+    const fields = {
+      title: task.title,
+      description: task.description,
+      dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      stateId,
+      assigneeId,
+    };
 
     if (task.externalLink?.source === "linear") {
       const issue = await updateIssue(token, task.externalLink.externalId, fields);
@@ -295,6 +303,7 @@ async function applyIssue(
   const fields = {
     title: issue.title,
     description: issue.description,
+    dueDate: issue.dueDate ? new Date(`${issue.dueDate}T00:00:00Z`) : null,
     status: mapLinearStateType(issue.state.type),
     assigneeId,
   };
@@ -306,7 +315,15 @@ async function applyIssue(
 
   if (existing && existing.task.projectId !== projectId) return "skipped";
   if (existing) {
-    await prisma.task.update({ where: { id: existing.taskId }, data: fields });
+    const current = await prisma.task.findUnique({
+      where: { id: existing.taskId },
+      select: { dueDate: true },
+    });
+    await prisma.task.update({
+      where: { id: existing.taskId },
+      // A changed due date gets its own reminders.
+      data: { ...fields, ...dueDateData(current?.dueDate ?? null, fields.dueDate) },
+    });
     await prisma.externalTaskLink.update({
       where: { id: existing.id },
       data: { externalKey: issue.identifier, externalUrl: issue.url, lastSyncedAt: new Date() },

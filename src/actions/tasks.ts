@@ -9,7 +9,9 @@ import {
   taskUpdateSchema,
   taskStatusValues,
   taskCommentSchema,
+  dueDateValue,
 } from "@/lib/validations/task";
+import { dueDateData } from "@/lib/services/deadlines";
 import { notify } from "@/lib/notifications";
 import type { ActionState } from "@/actions/auth";
 import { soloMemberId } from "@/lib/org";
@@ -36,6 +38,7 @@ export async function createTaskAction(
     description: formData.get("description"),
     assigneeId: formData.get("assigneeId"),
     estimatedHours: formData.get("estimatedHours") || undefined,
+    dueDate: formData.get("dueDate") ?? undefined,
   });
 
   if (!parsed.success) {
@@ -56,6 +59,7 @@ export async function createTaskAction(
       description: parsed.data.description || null,
       assigneeId: parsed.data.assigneeId || (await soloMemberId(org.id)),
       estimatedHours: parsed.data.estimatedHours ?? null,
+      dueDate: dueDateValue(parsed.data.dueDate) ?? null,
     },
   });
   // Projects linked to Linear get a matching issue (best effort).
@@ -92,6 +96,8 @@ export async function updateTaskAction(
     title: formData.get("title"),
     description: formData.get("description"),
     estimatedHours: formData.get("estimatedHours") || undefined,
+    // Absent from the form = leave the due date alone.
+    dueDate: formData.has("dueDate") ? formData.get("dueDate") : undefined,
   });
 
   if (!parsed.success) {
@@ -102,12 +108,19 @@ export async function updateTaskAction(
   if (!project || project.orgId !== org.id) return { error: "Project not found." };
   if (!(await canViewProject(project, user.id, role))) return { error: "Project not found." };
 
+  const existing = await prisma.task.findFirst({
+    where: { id: taskId, projectId },
+    select: { dueDate: true },
+  });
+  if (!existing) return { error: "Task not found." };
+
   await prisma.task.update({
     where: { id: taskId, projectId },
     data: {
       title: parsed.data.title,
       description: parsed.data.description || null,
       estimatedHours: parsed.data.estimatedHours ?? null,
+      ...dueDateData(existing.dueDate, dueDateValue(parsed.data.dueDate)),
     },
   });
   await pushTaskToLinear(taskId);

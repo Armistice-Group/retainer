@@ -21,6 +21,7 @@ first, each with its `assignee` (`{ id, name }` or `null`).
       "description": null,
       "status": "IN_PROGRESS",
       "estimatedHours": "6",
+      "dueDate": "2026-08-14T00:00:00.000Z",
       "projectId": "cm9...",
       "assigneeId": "cm9...",
       "assignee": { "id": "cm9...", "name": "Dana Ruiz" },
@@ -53,6 +54,12 @@ Any role that can see the project. Returns `201` with `{ "task": { ... } }`.
   leave it out and the organization has only one person, the task is assigned
   to them.
 </ParamField>
+<ParamField body="estimatedHours" type="number">Greater than zero.</ParamField>
+<ParamField body="dueDate" type="string | null">
+  A day, `YYYY-MM-DD` (for example `2026-08-14`). The assignee is reminded the
+  day before and if it passes (see [Calendar](/concepts/calendar#deadline-reminders)).
+  It comes back as midnight UTC on that day.
+</ParamField>
 
 If the project is linked to Linear, the task is also created there.
 
@@ -64,7 +71,9 @@ curl -X POST https://<your-instance>/api/v1/projects/cm9.../tasks \
 ```
 
 **Errors:** `404` `"Project not found."`; `422` with field errors such as
-`{ "error": { "title": ["Title is required"] } }`; `422` `"That person can't
+`{ "error": { "title": ["Title is required"] } }` or
+`{ "error": { "dueDate": ["Use a date like 2026-07-23 (YYYY-MM-DD)."] } }`
+(also `"That date doesn't exist."` for, say, `2026-02-30`); `422` `"That person can't
 be assigned tasks on this project."` for an `assigneeId` who can't see the
 project.
 
@@ -86,6 +95,10 @@ issue, if any.
   able to see the project. A new assignee is notified in the app unless
   they're the key's owner.
 </ParamField>
+<ParamField body="dueDate" type="string | null">
+  `YYYY-MM-DD`, or `null` to clear it. A new date re-arms the due-date
+  reminders.
+</ParamField>
 
 To change a task's title, description or estimate, use the app or the MCP
 `update_task` tool.
@@ -93,7 +106,8 @@ To change a task's title, description or estimate, use the app or the MCP
 **Errors:** `404` `"Task not found."` if the task doesn't exist, is in
 another organization, or is on a confidential project the key's owner isn't
 on; `422` `"Invalid status."`; `422` `"Invalid assigneeId."` (not a string or
-`null`); `422` `"That person can't be assigned tasks on this project."`.
+`null`); `422` `{ "error": { "dueDate": [...] } }` for a due date that isn't
+`YYYY-MM-DD` or doesn't exist; `422` `"That person can't be assigned tasks on this project."`.
 
 ## Delete a task
 

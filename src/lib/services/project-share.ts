@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { paidShare } from "@/lib/invoice-balance";
 import { mentionsToPlain } from "@/lib/mentions";
+import { isShareExpired } from "@/lib/share-gate";
 
 export function generateShareToken() {
   return randomBytes(24).toString("base64url");
@@ -17,7 +18,7 @@ export async function getProjectByShareToken(token: string) {
       milestones: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
     },
   });
-  if (!project) return null;
+  if (!project || isShareExpired(project.shareExpiresAt)) return null;
   const org = project.org;
 
   const [loggedAgg, billedAgg, paidAgg, invoices] = await Promise.all([
@@ -114,7 +115,7 @@ export async function getProjectByShareToken(token: string) {
 
 export async function getShareTokenInvoiceIfAuthorized(token: string, invoiceId: string) {
   const project = await prisma.project.findUnique({ where: { shareToken: token } });
-  if (!project) return null;
+  if (!project || isShareExpired(project.shareExpiresAt)) return null;
 
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },

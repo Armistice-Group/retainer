@@ -1,34 +1,64 @@
 ---
-title: Milestones
-description: Bill a project by deliverable instead of by the hour
+title: Milestones & deliverables
+description: Bill a project by milestone, and track deliverables and their due dates
 ---
 
-Milestones let you bill a project per deliverable: each one has a fixed
-amount, and becomes billable once you mark it complete with evidence of what
-was delivered. They're available on projects whose **Billing type** is
-**Milestone-based** (set it with **Edit** on the project page).
+A project's **Milestones & deliverables** card holds two kinds of item:
 
-Only owners and admins add, edit, complete, reopen and delete milestones, in
-the app and over an API key or the MCP server alike. Members see them
-read-only.
+- **Payment milestones** have a fixed amount and become billable once you mark
+  them complete with evidence of what was delivered. Use them to bill a
+  project per milestone instead of by the hour.
+- **Deliverables** are tracked the same way (name, due date, completion with
+  evidence) but are never billed: they don't appear on **New invoice**, aren't
+  picked up by billing cycles, and don't count as unbilled work in reports.
+  Use them for what you owe the client on any project, hourly or flat fee.
 
-## How to add a milestone
+Both show on the [calendar](/concepts/calendar) on their due date, and you're
+reminded when one is [overdue](/concepts/calendar#deadline-reminders).
 
-1. Open the project and find the **Milestones** card.
-2. Click **Add milestone**.
-3. Enter a **Name**, an optional **Description**, the **Amount**, and an
-   optional **Due date**.
-4. Click **Add milestone**. It shows as **Pending**.
+The card is on every project for owners and admins. On a project whose
+**Billing type** is **Milestone-based**, new items start as payment
+milestones; on other projects they start as deliverables. Members see the card
+read-only (on projects that aren't milestone-based, only once there's
+something on it).
 
-To change a milestone's name, amount or due date, delete it and add it again
-(or use the `update_milestone` MCP tool). Once it's invoiced it can't be
-changed.
+**Who can do this:** only owners and admins add, edit, complete, reopen and
+delete milestones and deliverables, in the app and over an API key or the
+MCP server alike.
 
-## How to complete a milestone
+## How to add a milestone or deliverable
 
-Completing a milestone records what was actually delivered, not just a tick.
+<Steps>
+  <Step title="Open the card">
+    Open the project and find **Milestones & deliverables**. Click **Add**.
+  </Step>
+  <Step title="Pick the type">
+    Under **Type**, pick **Payment milestone (billed when complete)** or
+    **Deliverable (not billed)**.
+  </Step>
+  <Step title="Fill it in">
+    Enter a **Name**, an optional **Description**, the **Amount** (payment
+    milestones only), and an optional **Due date**.
+  </Step>
+  <Step title="Save">
+    Click **Add**. It shows as **Pending**; a deliverable is also badged
+    **Deliverable** and shows *Not billed* instead of an amount.
+  </Step>
+</Steps>
 
-1. Click **Mark complete** on the milestone.
+To change one, click the pencil next to it. You can change its type too, for
+example to stop billing a milestone the client no longer pays for separately.
+Once a milestone is invoiced it can't be changed.
+
+If you leave the amount empty on a payment milestone you'll see *Amount must be
+greater than zero (or make it a deliverable, which isn't billed)*. A due date
+that doesn't exist (say, February 30) gets *That date doesn't exist.*
+
+## How to complete one
+
+Completing records what was actually delivered, not just a tick.
+
+1. Click **Mark complete**.
 2. Under **Evidence of completion**, describe what was delivered and how it
    was verified (required), for example *Signed off by client on call 3/14,
    deployed to production*.
@@ -37,19 +67,18 @@ Completing a milestone records what was actually delivered, not just a tick.
    S3-compatible storage).
 4. Click **Mark complete**. It shows as **Completed**.
 
-Click **View evidence** on a completed milestone to see the note, link and
-file.
+Click **View evidence** on a completed one to see the note, link and file.
 
-## How to reopen a milestone
+## How to reopen one
 
-Click the reopen (circular arrow) button on a completed milestone. It goes
-back to **Pending** and its evidence is cleared. You can only reopen a
-milestone that hasn't been invoiced.
+Click the reopen (circular arrow) button on a completed milestone or
+deliverable. It goes back to **Pending** and its evidence is cleared. You can
+only reopen a milestone that hasn't been invoiced.
 
-## How a milestone gets billed
+## How a payment milestone gets billed
 
-A completed milestone that isn't on an invoice yet shows up on **New invoice**
-for the project's client (and is picked up by the client's
+A completed payment milestone that isn't on an invoice yet shows up on **New
+invoice** for the project's client (and is picked up by the client's
 [billing cycle](/concepts/invoicing#billing-cycles), if it has one). It
 becomes its own line: *Project — Milestone: name*, quantity 1 at the
 milestone's amount.
@@ -58,14 +87,20 @@ Once it's on an invoice it shows as **Invoiced** and is locked: it can't be
 edited, reopened or deleted. If the invoice is a draft that gets deleted, or
 the line is removed from the draft, the milestone goes back to **Completed**.
 
-## How to delete a milestone
+Deliverables never get here. Asking for one by id anyway (over the API or
+MCP) is refused with *No eligible unbilled time entries, milestones, or
+expenses were selected.*
 
-Click the bin icon on the milestone and confirm. Invoiced milestones can't be
-deleted.
+## How to delete one
+
+Click the bin icon and confirm. Invoiced milestones can't be deleted.
 
 ## Over MCP
 
-`list_milestones` (any role), and `create_milestone`, `update_milestone`,
-`complete_milestone` and `reopen_milestone` (owner and admin keys; a member's
-key gets *Only owners and admins can manage milestones.*). See the
-[MCP server](/mcp-server).
+`list_milestones` (any role; `billable` is `false` for a deliverable), and
+`create_milestone`, `update_milestone`, `complete_milestone` and
+`reopen_milestone` (owner and admin keys; a member's key gets *Only owners and
+admins can manage milestones.*). `create_milestone` takes `billable` (default
+`true`) and needs an `amount` for a billable one; `update_milestone` keeps the
+current type and amount when you leave them out. Due dates are `YYYY-MM-DD`.
+See the [MCP server](/mcp-server).

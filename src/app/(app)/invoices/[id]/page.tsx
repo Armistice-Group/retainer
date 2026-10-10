@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Download, Plus, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { PageHeader } from "@/components/layout/page-header";
@@ -31,6 +31,10 @@ import { toISODate } from "@/lib/date";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
 import { SendInvoiceButton } from "./send-invoice-button";
+import { ScheduleSendDialog } from "./schedule-send-dialog";
+import { cancelScheduledSendAction } from "@/actions/invoice-schedule";
+import { LocalDateTime } from "@/components/local-date-time";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MarkPaidDialog } from "./mark-paid-dialog";
 import { ApplyCreditDialog, RecordPaymentDialog } from "./payment-dialogs";
 import { InvoicePaymentsCard } from "./invoice-payments-card";
@@ -135,6 +139,15 @@ export default async function InvoiceDetailPage({
             ) : null}
             {/* Sending, marking paid and voiding are for owners and admins;
                 members can generate and edit drafts. */}
+            {isDraft && canManage ? (
+              <ScheduleSendDialog
+                invoiceId={invoice.id}
+                invoiceNumber={invoice.number}
+                recipients={recipients}
+                emailConfigured={emailConfigured}
+                scheduledSendAt={invoice.scheduledSendAt?.toISOString() ?? null}
+              />
+            ) : null}
             {isDraft && canManage ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
             {invoice.status === "SENT" && canManage ? (
               <>
@@ -180,6 +193,33 @@ export default async function InvoiceDetailPage({
           </>
         }
       />
+
+      {isDraft && invoice.scheduledSendAt ? (
+        <Alert variant={invoice.scheduledSendError ? "destructive" : "default"} className="mb-4">
+          <CalendarClock />
+          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {invoice.scheduledSendError ? (
+              <span>
+                Scheduled to send <LocalDateTime iso={invoice.scheduledSendAt.toISOString()} />, but
+                it wasn&apos;t sent: {invoice.scheduledSendError} It&apos;s still a draft. Send it
+                now, or reschedule it once that&apos;s fixed.
+              </span>
+            ) : (
+              <span>
+                Scheduled to send <LocalDateTime iso={invoice.scheduledSendAt.toISOString()} /> to{" "}
+                {recipients.join(", ") || "the client"}. The issue date becomes the day it goes out.
+              </span>
+            )}
+            {canManage ? (
+              <form action={cancelScheduledSendAction.bind(null, invoice.id)}>
+                <Button type="submit" variant="link" size="sm" className="h-auto p-0">
+                  Cancel schedule
+                </Button>
+              </form>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="mb-6 flex items-center gap-2">
         <InvoiceStatusBadge invoice={invoice} />

@@ -100,6 +100,14 @@ async function describe(entry: {
           link: "/settings/security",
         };
       }
+      if (changes.requireShareVerification) {
+        return {
+          text: changes.requireShareVerification.to
+            ? "turned on email verification for client links"
+            : "turned off email verification for client links",
+          link: "/settings/security",
+        };
+      }
       const fields = ["domain", "autoJoinDomain"].filter((f) => f in changes);
       return fields.length
         ? { text: `changed sign-in settings (${fields.join(", ")})`, link: "/settings/security" }

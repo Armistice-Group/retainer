@@ -16,7 +16,9 @@ or **Settings → Audit log**.
 Every alert goes to three places, depending on your settings:
 
 - **In the app (always).** Every owner and admin gets it under the bell in the
-  top bar and on the **Notifications** page. You can't turn this off. The
+  top bar and on the **Notifications** page. You can't turn this off. (The
+  task deadline reminders are the exception: they go to the task's assignee
+  instead.) The
   person who caused the alert (for example, the admin who changed a role)
   isn't notified about their own change.
 - **Slack (optional).** Posted to one channel through a Slack incoming
@@ -46,6 +48,9 @@ You choose Slack and email separately for each alert on **Settings → Alerts**.
 | An expense is waiting for approval | A member logs an [expense](/concepts/expenses#approval) above the approval threshold, from the app or the MCP server. Not sent for expenses that are approved automatically. On a [confidential project](/concepts/clients-and-projects), Slack and email say only *… logged a … expense on a confidential project that's waiting for approval.*, without the project or description; the in-app alert has them, since owners and admins can see every project. | Slack + email |
 | Someone logs time | Anyone logs time. Not sent when the person logging is the only owner or admin, and never to the person who logged it. | Slack |
 | A recurring invoice or billing cycle needs review | A recurring invoice or billing cycle generates a draft for you to review and send, or one set to [send automatically](/concepts/invoicing#sending-automatically) couldn't be emailed (it's still marked sent; the alert says why). Ones emailed automatically use **An invoice is sent** instead. | Slack |
+| A scheduled invoice couldn't be sent | A draft [scheduled to send](/concepts/invoicing#how-to-schedule-an-invoice) couldn't be emailed when its time came: email isn't set up, the client has no address, or delivery failed. The invoice stays a draft and isn't retried until someone sends or reschedules it; the alert and the invoice say why. | Slack + email |
+| A task is due tomorrow | The daily job finds a task due tomorrow that isn't done. Goes only to the task's assignee: in the app, and by email to their own address (not the alert email list). Not sent for unassigned tasks. See [Deadline reminders](/concepts/calendar#deadline-reminders). | Email |
+| A task or milestone is overdue | The daily job finds a task, milestone or deliverable past its due date and not done. An overdue task goes only to its assignee (in the app and by email to them); an overdue milestone or deliverable goes to owners, admins and the people on the project in the app, and to Slack and the alert email list. On a [confidential project](/concepts/clients-and-projects), Slack and email leave out the task, milestone and project names. | Slack + email |
 
 ## How to connect Slack
 
@@ -240,7 +245,7 @@ audit log already filtered.
 
 Click **Export CSV**. The file uses your current filters and holds up to
 50,000 entries; narrow the dates for more. It has one row per entry with
-`time`, `actor`, `actor_email`, `via` (`web`, `api` or `system`), `action`,
+`time`, `actor`, `actor_email`, `via` (`web`, `api`, `system`, or `share` for a client contact verifying on a client link), `action`,
 `summary`, `record_type`, `record_id`, `record`, `count`, `changes` (JSON),
 `ip_address` and `user_agent`. Each export is itself recorded in the log.
 

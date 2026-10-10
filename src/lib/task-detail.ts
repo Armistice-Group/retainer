@@ -13,6 +13,8 @@ export type TaskDetail = {
   status: string;
   assigneeId: string | null;
   estimatedHours: number | null;
+  /** YYYY-MM-DD */
+  dueDate: string | null;
   actualHours: number;
   project: { id: string; name: string; clientName: string };
   members: { id: string; name: string }[];
@@ -88,6 +90,7 @@ export async function getTaskDetail(
     status: task.status,
     assigneeId: task.assigneeId,
     estimatedHours: task.estimatedHours ? Number(task.estimatedHours) : null,
+    dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
     actualHours: task.timeEntries.reduce((sum, e) => sum + Number(e.hours), 0),
     project: { id: task.project.id, name: task.project.name, clientName: task.project.client.name },
     members: task.project.members.map((m) => ({ id: m.user.id, name: m.user.name })),

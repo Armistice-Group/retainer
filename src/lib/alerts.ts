@@ -38,6 +38,10 @@ export async function sendAlert(params: {
   excludeUserId?: string | null;
   /** In-app recipients beyond owners/admins (e.g. a task's assignee). */
   alsoNotify?: string[];
+  /** A personal alert (e.g. "your task is due tomorrow"): in-app and email go
+   * only to these people instead of owners/admins and the org's alert list.
+   * Slack still follows the org's setting for the event. */
+  onlyTo?: string[];
 }) {
   try {
     const org = await prisma.organization.findUnique({
@@ -47,10 +51,10 @@ export async function sendAlert(params: {
     if (!org) return;
     const channels = channelsFor(org.alertSettings, params.event);
 
-    const admins = await getOrgAdminUserIds(prisma, params.orgId);
+    const admins = params.onlyTo ? [] : await getOrgAdminUserIds(prisma, params.orgId);
     await notify(prisma, {
       orgId: params.orgId,
-      userIds: [...admins, ...(params.alsoNotify ?? [])].filter(
+      userIds: [...admins, ...(params.alsoNotify ?? []), ...(params.onlyTo ?? [])].filter(
         (id) => id !== params.excludeUserId
       ),
       type: params.notificationType ?? (params.event as NotificationType),
@@ -69,7 +73,15 @@ export async function sendAlert(params: {
     if (channels.email) {
       const origin = await getOrigin().catch(() => "");
       const url = `${origin}${params.link}`;
-      for (const to of await alertRecipients(params.orgId, org.alertEmails)) {
+      const recipients = params.onlyTo
+        ? (
+            await prisma.user.findMany({
+              where: { id: { in: params.onlyTo } },
+              select: { email: true },
+            })
+          ).map((u) => u.email)
+        : await alertRecipients(params.orgId, org.alertEmails);
+      for (const to of recipients) {
         await sendEmail({
           to,
           subject: message.slice(0, 150),
@@ -123,5 +135,11 @@ function headlineFor(event: AlertEvent) {
       return "Invoice generated";
     case "EXPENSE_SUBMITTED":
       return "Expense to approve";
+    case "INVOICE_SEND_FAILED":
+      return "Scheduled invoice not sent";
+    case "TASK_DUE_SOON":
+      return "Task due tomorrow";
+    case "DEADLINE_OVERDUE":
+      return "Deadline passed";
   }
 }

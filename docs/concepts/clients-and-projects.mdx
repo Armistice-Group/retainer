@@ -266,7 +266,9 @@ recorded in the [audit log](/concepts/alerts-and-audit#audit-log).
 
 A client link is a read-only web page you send the client. It needs no login
 and never shows internal rates, costs or comments. Only owners and admins can
-create, regenerate or revoke one.
+create, regenerate or revoke one. You can make a link expire, and you can
+require visitors to prove they're one of the client's contacts with a code
+sent by email (see [Email verification](#email-verification)).
 
 There are two kinds:
 
@@ -292,24 +294,138 @@ both pages are in your organization's **Default currency**.
 ### How to share a project with the client
 
 1. Open the project and find the **Links** card.
-2. Click **Generate client link**.
-3. Optional: turn on **Show tasks** to list task titles and their status. Task
+2. Optional: under **Expires**, pick **In 7 days**, **In 30 days**, **In 90
+   days** or **On a date…** (the link works through the end of that day,
+   UTC). The default is **Never**.
+3. Click **Generate client link**.
+4. Optional: turn on **Show tasks** to list task titles and their status. Task
    comments stay hidden unless you mark one **Share with client** (see
    [Tasks](/concepts/tasks#how-to-share-a-comment-with-the-client)).
-4. Click **Copy link** and send the link to the client.
+5. Click **Copy link** and send the link to the client.
 
 To check it worked, open the link in a private browser window: you should see
-the project without signing in.
+the project without signing in (or, with email verification on, the
+**Verify your email** page). Under the link, the card shows **Never expires**
+or **Expires** and the date.
 
 To cut off access, click **Revoke** (the link stops working at once) or
-**Regenerate** (the old link stops working and you get a new one to send).
+**Regenerate** (the old link stops working and you get a new one to send;
+pick a new **Expires** next to the button first).
 
 ### How to share all of a client's projects
 
 1. Open the client and find **Client link (all projects)**.
-2. Click **Generate client link**, then **Copy link**.
+2. Optional: pick when it **Expires**.
+3. Click **Generate client link**, then **Copy link**.
 
-**Regenerate** and **Revoke** work the same as for a project link.
+**Regenerate** and **Revoke** work the same as for a project link. They also
+sign out everyone who verified their email on this client's links.
+
+### Link expiry
+
+An expired link shows *This link has expired. Ask (your organization) for a
+new one.* and nothing else: no client name, invoices or files, and its PDF
+and document links stop working too. To send a working link again, pick a
+new **Expires** and click **Regenerate**. Links made before expiry existed,
+and links set to **Never**, don't expire.
+
+### Email verification
+
+With email verification on, a client or project link first asks the visitor
+for their email address. If it matches one of the client's
+[contacts](#how-to-add-contacts) (ignoring upper/lower case; contacts without
+an email can't get in), Consultainer emails them a 6-digit code. Once they
+enter it, that browser stays verified for 30 days, on the client link and on
+all of the client's project links.
+
+It needs [email](/integrations/email) set up, so the settings below only
+appear once it is.
+
+**Turn it on for every client** (owners and admins):
+
+<Steps>
+  <Step title="Open the security settings">
+    Go to **Settings → Security** and find **Client link verification**.
+  </Step>
+  <Step title="Turn it on">
+    Tick **Require email verification on client links** and click **Save**.
+  </Step>
+</Steps>
+
+**Turn it on or off for one client** (owners and admins):
+
+<Steps>
+  <Step title="Open the client">
+    On the client page, find **Client link (all projects)**.
+  </Step>
+  <Step title="Pick a setting">
+    Under **Require email verification**, choose **Organization default**
+    (follows Settings → Security), **On** or **Off**, and click **Save**. It
+    covers the client link and the client's project links; a project card
+    shows *Email verification on* when it applies.
+  </Step>
+</Steps>
+
+What your client sees:
+
+1. **Verify your email**, with only your organization's name or logo. Nothing
+   about the client, projects or invoices is shown before they verify.
+2. They enter their email and click **Send code**. Whatever they type, the
+   page says *If that address is on file, we've sent a code to it.*, so
+   nobody can use it to find out which addresses you have.
+3. They enter the code from the email (subject *Your code for (your
+   organization)*) and click **Verify**. The code lasts 10 minutes and works
+   once. After 5 wrong tries it stops working and they need a new one
+   (**Use a different email or send a new code**).
+4. The page opens, with *Verified as (their name)* at the bottom. PDFs,
+   document downloads and **Pay now** on the page need the same
+   verification.
+
+Invoice links (`/i/…`) and estimate links (`/e/…`) in your emails are never
+gated, so the client can always pay an invoice or accept an estimate. They
+don't link to the client or project pages.
+
+**Who has verified:** with verification on, the client's
+**Client link (all projects)** card lists **Verified visitors**: contact name,
+email and when they last opened a page. Click **Sign out** next to one, or
+**Sign out everyone**. A visitor is also signed out when you:
+
+- delete their contact, or change the contact's email;
+- regenerate or revoke the client link;
+- turn verification off for the client (turning it back on asks everyone
+  again).
+
+Each verification and sign-out is recorded in the
+[audit log](/concepts/alerts-and-audit#audit-log) (actions **Verified on a
+client link** and **Signed out client link visitors**; a verification shows
+**Client contact** as who did it).
+
+**Check it worked:** open the link in a private browser window. You should
+see **Verify your email**. Enter one of the client's contacts' email
+addresses, then the code from the email; the page opens and the visitor
+appears under **Verified visitors**.
+
+#### Troubleshooting
+
+- **The client sees *This page needs email verification, which isn't
+  available right now. Contact (your organization).*** Verification is on but
+  email isn't set up (or was removed), so nobody new can get a code. People
+  who already verified still get in. Set up email under **Settings →
+  Integrations**, or turn verification off.
+- **Saving says *Set up email first (Settings → Integrations): verification
+  sends a code by email.*** Set up [email](/integrations/email) before
+  turning verification on.
+- **No code arrives.** Check that the address is on one of the client's
+  contacts, exactly (case doesn't matter). Look in spam. Codes are limited to
+  5 per address per client and 20 per network per hour; after that the page
+  says *Too many requests. Wait a while and try again.*
+- ***That code is wrong or has expired.*** The code was mistyped, is older
+  than 10 minutes, or a newer code was sent (only the newest works). Click
+  **Use a different email or send a new code**.
+- ***Too many wrong codes. Ask for a new code.*** Five wrong tries; click
+  **Use a different email or send a new code**.
+- **A verified client is asked again.** Their 30 days ran out, they use a
+  different browser, or they were signed out (see above).
 
 ## How to import clients and projects
 

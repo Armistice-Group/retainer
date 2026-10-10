@@ -17,6 +17,7 @@ import { EditTaskDialog } from "@/components/tasks/edit-task-dialog";
 import { TaskSheet, useOpenTask } from "@/components/tasks/task-sheet";
 import { LinearKeyBadge } from "@/components/tasks/linear-key-badge";
 import { TaskTimerButton } from "@/components/tasks/task-timer-button";
+import { DueDateBadge } from "@/components/tasks/due-date-badge";
 import type { TaskDetail } from "@/lib/task-detail";
 
 const STATUS_ORDER = ["TODO", "IN_PROGRESS", "DONE"] as const;
@@ -29,6 +30,8 @@ export type TaskItem = {
   assigneeId: string | null;
   assigneeName: string | null;
   estimatedHours: number | null;
+  /** YYYY-MM-DD */
+  dueDate: string | null;
   actualHours: number;
   linearKey: string | null;
   linearUrl: string | null;
@@ -123,6 +126,7 @@ export function TaskList({
                 <StatusBadge status={task.status} />
               </button>
               <LinearKeyBadge linearKey={task.linearKey} url={task.linearUrl} />
+              <DueDateBadge dueDate={task.dueDate} done={task.status === "DONE"} />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

@@ -29,7 +29,10 @@ import { DocumentsCard } from "@/components/documents/documents-card";
 import { documentCardData } from "@/lib/services/documents";
 import { AgreementsCard } from "@/components/agreements/agreements-card";
 import { agreementsCardData } from "@/lib/services/agreements";
+import { CredentialsCard } from "@/components/vault-links/credentials-card";
+import { canManageVaultLinks, listVaultLinks } from "@/lib/services/vault-links";
 import { ClientShareLinkCard } from "./client-share-link-card";
+import { clientShareCardData } from "@/lib/services/share-visitors";
 import { ClientInvoicesCard } from "./client-invoices-card";
 import { ClientCreditCard } from "./client-credit-card";
 import { RecurringScheduleCard } from "./recurring-schedule-card";
@@ -71,6 +74,7 @@ export default async function ClientDetailPage({
 
   const canManage = role === "OWNER" || role === "ADMIN";
   const origin = canManage ? await getOrigin() : "";
+  const shareCard = canManage ? await clientShareCardData(org, client) : null;
 
   const [invoices, retainerAgg, loggedAgg] = await Promise.all([
     prisma.invoice.findMany({
@@ -111,6 +115,7 @@ export default async function ClientDetailPage({
     { orgId: org.id, userId: user.id, role },
     { clientId: client.id }
   );
+  const vaultLinks = await listVaultLinks({ orgId: org.id, userId: user.id, role }, { clientId: client.id });
 
   const recurringScheduleItems = client.recurringInvoiceSchedules.map((s) => ({
     id: s.id,
@@ -411,6 +416,13 @@ export default async function ClientDetailPage({
               showProject
             />
           ) : null}
+
+          <CredentialsCard
+            clientId={client.id}
+            projects={client.projects.map((p) => ({ id: p.id, name: p.name }))}
+            links={vaultLinks}
+            canManage={canManageVaultLinks(role)}
+          />
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
@@ -474,10 +486,14 @@ export default async function ClientDetailPage({
             />
           ) : null}
 
-          {canManage ? (
+          {shareCard ? (
             <ClientShareLinkCard
               clientId={client.id}
               shareUrl={client.shareToken ? `${origin}/share/client/${client.shareToken}` : null}
+              expiresAt={client.shareExpiresAt}
+              now={shareCard.now}
+              verification={shareCard.verification}
+              visitors={shareCard.visitors}
             />
           ) : null}
 

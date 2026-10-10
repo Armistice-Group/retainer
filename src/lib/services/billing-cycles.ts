@@ -52,7 +52,12 @@ async function billClient(cycle: ClientBillingCycle, cutoff: Date, now: Date) {
       select: { id: true },
     }),
     prisma.milestone.findMany({
-      where: { invoiceLineItemId: null, completedAt: { not: null, lt: cutoff }, project: projectScope },
+      where: {
+        invoiceLineItemId: null,
+        completedAt: { not: null, lt: cutoff },
+        billable: true,
+        project: projectScope,
+      },
       select: { id: true },
     }),
     prisma.expense.findMany({

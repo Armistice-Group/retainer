@@ -107,6 +107,13 @@ export function AddTaskDialog({
             <Textarea id="task-description" name="description" rows={3} />
           </div>
           <div className="flex flex-col gap-2">
+            <Label htmlFor="task-due">Due date (optional)</Label>
+            <Input id="task-due" name="dueDate" type="date" />
+            {state?.fieldErrors?.dueDate ? (
+              <p className="text-sm text-destructive">{state.fieldErrors.dueDate[0]}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
             <Label htmlFor="task-estimate">Estimated hours (optional)</Label>
             <Input
               id="task-estimate"

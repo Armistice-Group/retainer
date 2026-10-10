@@ -54,7 +54,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     fields: [
       "id", "name", "website", "description", "email", "phone", "address", "billingEmail",
       "billingAddress", "status", "paymentTerms", "invoiceReminders", "useOrgPaymentMethods",
-      "createdAt", "updatedAt",
+      "shareExpiresAt", "shareVerification", "createdAt", "updatedAt",
     ],
     where: (s) => (s.clientId ? { orgId: s.orgId, id: s.clientId } : org(s)),
   },
@@ -63,6 +63,14 @@ export const EXPORT_MODELS: ExportModel[] = [
     file: "contacts",
     fields: ["id", "clientId", "name", "email", "phone", "title", "contactRole", "isPrimary", "receivesInvoices", "createdAt"],
     where: (s) => ({ client: theClient(s) }),
+  },
+  // Who verified on a client's share links (never the session token). Org
+  // export only. ShareCode and RateLimitHit are short-lived and not exported.
+  {
+    model: "ShareSession",
+    file: "share-sessions",
+    fields: ["id", "clientId", "contactId", "email", "expiresAt", "lastSeenAt", "createdAt"],
+    where: (s) => (s.clientId ? null : { client: { orgId: s.orgId } }),
   },
   {
     model: "Link",
@@ -75,7 +83,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     file: "projects",
     fields: [
       "id", "clientId", "name", "description", "status", "startDate", "endDate", "confidential",
-      "budgetHours", "billingType", "flatFeeAmount", "paymentTerms", "shareTasks", "createdAt", "updatedAt",
+      "budgetHours", "billingType", "flatFeeAmount", "paymentTerms", "shareTasks", "shareExpiresAt", "createdAt", "updatedAt",
     ],
     where: (s) => (s.clientId ? { orgId: s.orgId, clientId: s.clientId } : org(s)),
   },
@@ -120,7 +128,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     model: "Milestone",
     file: "milestones",
     fields: [
-      "id", "projectId", "name", "description", "amount", "dueDate", "sortOrder", "completedAt",
+      "id", "projectId", "name", "description", "amount", "billable", "dueDate", "sortOrder", "completedAt",
       "completedById", "completionNote", "completionUrl", "completionFileName",
       "completionFileContentType", "invoiceLineItemId", "invoicedAt", "createdAt", "updatedAt",
     ],
@@ -138,7 +146,8 @@ export const EXPORT_MODELS: ExportModel[] = [
   {
     model: "Task",
     file: "tasks",
-    fields: ["id", "projectId", "title", "description", "status", "estimatedHours", "assigneeId", "createdAt", "updatedAt"],
+    fields: ["id", "projectId", "title", "description", "status", "estimatedHours", "dueDate", "assigneeId", "createdAt", "updatedAt"],
+    dates: ["dueDate"],
     where: (s) => ({ project: clientProjects(s) }),
   },
   {
@@ -163,6 +172,13 @@ export const EXPORT_MODELS: ExportModel[] = [
     file: "timesheets",
     fields: ["id", "userId", "weekStart", "status", "note", "submittedAt", "reviewedAt", "reviewedById", "createdAt"],
     dates: ["weekStart"],
+    where: orgOnly,
+  },
+  {
+    // Who has a calendar subscription — never its token (hash).
+    model: "CalendarSubscription",
+    file: "calendar-subscriptions",
+    fields: ["id", "userId", "createdAt", "lastFetchedAt"],
     where: orgOnly,
   },
   {
@@ -191,7 +207,7 @@ export const EXPORT_MODELS: ExportModel[] = [
       "id", "number", "kind", "clientId", "status", "issueDate", "dueDate", "paymentTerms", "poNumber",
       "paymentMethod", "paidAt", "subtotal", "taxRate", "taxAmount", "total", "amountPaid", "creditApplied", "currency", "notes",
       "retainerHoursIncluded", "recurringScheduleId", "firstViewedAt", "lastViewedAt", "viewCount",
-      "createdAt", "updatedAt",
+      "scheduledSendAt", "createdAt", "updatedAt",
     ],
     dates: ["issueDate", "dueDate"],
     where: clientProjects,
@@ -265,6 +281,15 @@ export const EXPORT_MODELS: ExportModel[] = [
     },
   },
   {
+    // Links to password-manager items — never secrets, but they map out the
+    // vault (account, vault and item ids), so they're in the owner-only full
+    // export and left out of a per-client export (a handover to the client).
+    model: "VaultLink",
+    file: "vault-links",
+    fields: ["id", "clientId", "projectId", "label", "provider", "itemKind", "url", "note", "createdById", "createdAt", "updatedAt"],
+    where: orgOnly,
+  },
+  {
     model: "ClientDocument",
     file: "documents",
     fields: [
@@ -318,7 +343,7 @@ export const EXPORT_MODELS: ExportModel[] = [
 const ORGANIZATION_FIELDS = [
   "id", "name", "slug", "domain", "defaultCurrency", "defaultTaxRate", "defaultBillRate",
   "invoicePrefix", "defaultPaymentTerms", "overheadPercent", "timesheetApproval",
-  "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "createdAt",
+  "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "requireShareVerification", "createdAt",
 ];
 
 /** Never exported, whatever a table row says. */

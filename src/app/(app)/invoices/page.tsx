@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { CalendarClock, FileText, Plus } from "lucide-react";
+import { LocalDateTime } from "@/components/local-date-time";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { invoiceVisibilityWhere } from "@/lib/project-access";
@@ -83,8 +84,24 @@ export default async function InvoicesPage() {
                   </Link>
                 </TableCell>
                 <TableCell className="p-0">
-                  <Link href={`/invoices/${invoice.id}`} className="block p-2">
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1 p-2"
+                  >
                     <InvoiceStatusBadge invoice={invoice} />
+                    {invoice.status === "DRAFT" && invoice.scheduledSendAt ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 text-xs",
+                          invoice.scheduledSendError ? "text-destructive" : "text-muted-foreground"
+                        )}
+                        title={invoice.scheduledSendError ?? undefined}
+                      >
+                        <CalendarClock className="size-3" />
+                        {invoice.scheduledSendError ? "Scheduled send failed" : "Sends"}{" "}
+                        <LocalDateTime iso={invoice.scheduledSendAt.toISOString()} dateOnly />
+                      </span>
+                    ) : null}
                   </Link>
                 </TableCell>
                 <TableCell className="p-0">

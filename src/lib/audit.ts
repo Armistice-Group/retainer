@@ -21,6 +21,7 @@ export const AUDITED_MODELS = [
   "LinearConnection",
   "AgreementConnection",
   "Agreement",
+  "VaultLink",
   "ExternalProjectLink",
   "Client",
   "Contact",
@@ -54,6 +55,8 @@ const IGNORED_FIELDS = new Set([
   "setupCardDismissedAt",
   "budgetAlertLevel",
   "overEstimateAlertedAt",
+  "dueSoonNotifiedAt",
+  "overdueNotifiedAt",
   "approvedAt",
   // Bookkeeping the app updates on its own.
   "nextInvoiceNumber",
@@ -385,6 +388,9 @@ export async function recordAuditEvent(
     entityType: string;
     entityId?: string | null;
     entityLabel?: string | null;
+    /** Overrides the request's channel, e.g. "share" for a client contact
+     * on a share page (who isn't a user). */
+    via?: string;
   }
 ) {
   try {
@@ -394,7 +400,7 @@ export async function recordAuditEvent(
         data: event.orgIds.map((orgId) => ({
           orgId,
           actorId: event.actorId,
-          via: actor?.via ?? "web",
+          via: event.via ?? actor?.via ?? "web",
           action: event.action,
           entityType: event.entityType,
           entityId: event.entityId ?? null,

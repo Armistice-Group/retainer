@@ -245,6 +245,8 @@ export type LinearIssue = {
   description: string | null;
   url: string;
   updatedAt: string;
+  /** YYYY-MM-DD, or null. */
+  dueDate: string | null;
   state: { name: string; type: string };
   assignee: { email: string } | null;
 };
@@ -279,6 +281,7 @@ export async function fetchIssue(accessToken: string, issueId: string) {
             description
             url
             updatedAt
+            dueDate
             state {
               name
               type
@@ -449,6 +452,7 @@ export async function listScopedIssues(accessToken: string, scope: IssueScope) {
               description
               url
               updatedAt
+              dueDate
               state {
                 name
                 type
@@ -527,6 +531,8 @@ export async function findUserIdByEmail(accessToken: string, email: string) {
 export type IssueFields = {
   title?: string;
   description?: string | null;
+  /** YYYY-MM-DD; null clears it. */
+  dueDate?: string | null;
   stateId?: string | null;
   assigneeId?: string | null;
 };
@@ -562,6 +568,7 @@ export async function createIssue(
         labelIds: scope.labelIds?.length ? scope.labelIds : undefined,
         title: fields.title,
         description: fields.description ?? undefined,
+        dueDate: fields.dueDate ?? undefined,
         stateId: fields.stateId ?? undefined,
         assigneeId: fields.assigneeId ?? undefined,
       },

@@ -109,12 +109,43 @@ export const B = {
   invoice: { id: "e2e_inv_b", number: "B-0001" },
 } as const;
 
+/** Org E: client share-link email verification and expiry
+ * (share-gate.spec.ts). No members — everything is reached through share
+ * links, so nothing here shows up in other orgs' tests. */
+export const E = {
+  org: { id: "e2e_org_e", name: "E2E Org Gate", prefix: "E" },
+  /** Requires email verification (client override ON). */
+  gated: { id: "e2e_client_e_gated", name: "Gamma Gated Client", shareToken: "e2e-share-client-e-gated" },
+  gatedProject: { id: "e2e_project_e_gated", name: "Gamma Gated Project", shareToken: "e2e-share-project-e-gated" },
+  /** Sent, on the gated project. */
+  invoice: { id: "e2e_inv_e_gated", number: "E-0001", viewToken: "e2e-view-inv-e-gated" },
+  /** Uploaded, shared with the client. */
+  document: { id: "e2e_doc_e_gated", fileName: "gamma-brief.txt" },
+  contacts: {
+    /** Goes through the code form. */
+    code: { id: "e2e_contact_e_code", name: "Cora Code", email: "cora@gamma.test" },
+    /** Runs out of code attempts. */
+    attempts: { id: "e2e_contact_e_attempts", name: "Ada Attempts", email: "ada@gamma.test" },
+    /** Gets a session; their email is then changed. */
+    renamed: { id: "e2e_contact_e_renamed", name: "Rene Renamed", email: "rene@gamma.test" },
+    /** Gets a session; then deleted. */
+    removed: { id: "e2e_contact_e_removed", name: "Rita Removed", email: "rita@gamma.test" },
+  },
+  /** Client and project links whose expiry has passed. */
+  expired: { id: "e2e_client_e_expired", name: "Delta Expired Client", shareToken: "e2e-share-client-e-expired" },
+  expiredProject: { id: "e2e_project_e_expired", name: "Delta Expired Project", shareToken: "e2e-share-project-e-expired" },
+} as const;
+
 /** All share tokens in the seed; none may ever show up in a member's API output. */
 export const SHARE_TOKENS = [
   A.client.shareToken,
   A.openProject.shareToken,
   A.secretProject.shareToken,
   B.client.shareToken,
+  E.gated.shareToken,
+  E.gatedProject.shareToken,
+  E.expired.shareToken,
+  E.expiredProject.shareToken,
 ];
 
 export const STORAGE = {
@@ -123,4 +154,47 @@ export const STORAGE = {
   memberA: "tests/e2e/.auth/member-a.json",
   ownerB: "tests/e2e/.auth/owner-b.json",
   adminD: "tests/e2e/.auth/admin-d.json",
+} as const;
+
+/** Credential links (pointers to password-manager items; no secrets). */
+export const VAULT = {
+  /** Client-wide, on Alpha Client: everyone in org A sees it. */
+  clientWide: {
+    id: "e2e_vault_a_client",
+    label: "Alpha AWS root",
+    url: "https://start.1password.com/open/i?a=E2EACCOUNTAAAAAAAAAAAAAAAA&v=e2evaultaaaaaaaaaaaaaaaaaa&i=e2eitemclientaaaaaaaaaaaaa&h=alpha.1password.com",
+  },
+  /** On the open project: every member of org A sees it. */
+  openProject: {
+    id: "e2e_vault_a_open",
+    label: "Alpha staging database",
+    url: "https://vault.bitwarden.com/#/vault?itemId=0b6c1f0e-1d0a-4c4e-9f5e-e2e000000001",
+  },
+  /** On the confidential project: owner/admin only (the member isn't on it). */
+  secretProject: {
+    id: "e2e_vault_a_secret",
+    label: "Alpha confidential deploy key",
+    url: "https://vault.bitwarden.com/#/vault?itemId=0b6c1f0e-1d0a-4c4e-9f5e-e2e000000002",
+  },
+  /** Org B's client. */
+  orgB: {
+    id: "e2e_vault_b_client",
+    label: "Beta registrar login",
+    url: "https://start.1password.com/open/i?a=E2EACCOUNTBBBBBBBBBBBBBBBB&v=e2evaultbbbbbbbbbbbbbbbbbb&i=e2eitembbbbbbbbbbbbbbbbbbb&h=beta.1password.com",
+  },
+} as const;
+
+/** Due dates, deliverables and the calendar feed (schedule.spec.ts). Days
+ * are counted from the day the seed runs. */
+export const SCHEDULE = {
+  /** Due dates set on A.openTask (the member's) and A.secretTask (the owner's). */
+  openTaskDueIn: 2,
+  secretTaskDueIn: 3,
+  /** Billable, on the confidential project. */
+  secretMilestone: { id: "e2e_milestone_a_secret", name: "Alpha secret milestone", dueIn: 4 },
+  /** Not billable and already complete, on the confidential project (so the
+   * open project keeps exactly one milestone): never offered for invoicing. */
+  deliverable: { id: "e2e_deliverable_a", name: "Alpha secret deliverable", dueIn: 5 },
+  /** Member A's calendar subscription token (only its hash is stored). */
+  memberFeedToken: "e2e-calendar-feed-member-a-0123456789abcdef",
 } as const;

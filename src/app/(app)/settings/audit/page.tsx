@@ -113,6 +113,8 @@ export default async function AuditLogPage({
                 <option value="sign_in">Signed in</option>
                 <option value="password_reset">Reset a password</option>
                 <option value="password_reset_link">Created a password reset link</option>
+                <option value="share_verify">Verified on a client link</option>
+                <option value="share_sign_out">Signed out client link visitors</option>
                 <option value="view">Viewed a document</option>
                 <option value="download">Downloaded a document</option>
                 <option value="export">Exported the audit log</option>
@@ -172,7 +174,12 @@ export default async function AuditLogPage({
                 <li key={entry.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:px-6">
                   <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                     <span className="font-medium">
-                      {entry.actor?.name ?? (entry.via === "system" ? "System" : "Unknown user")}
+                      {entry.actor?.name ??
+                        (entry.via === "system"
+                          ? "System"
+                          : entry.via === "share"
+                            ? "Client contact"
+                            : "Unknown user")}
                     </span>
                     <span className="text-muted-foreground">{describeAudit(entry)}</span>
                     {entry.entityLabel &&

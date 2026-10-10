@@ -12,6 +12,7 @@ import { SessionsCard } from "./sessions-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ContractorProfileCard } from "./contractor-profile-card";
 import { CalendarsCard } from "./calendars-card";
+import { CalendarSubscriptionCard } from "./calendar-subscription-card";
 import { FileConnectionsCard } from "./file-connections-card";
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { FILE_PROVIDERS } from "@/lib/integrations/storage/types";
@@ -80,6 +81,10 @@ export default async function ProfilePage({
     }),
     prisma.calendarRule.count({ where: { userId: user.id } }),
   ]);
+  const calendarSubscription = await prisma.calendarSubscription.findUnique({
+    where: { userId_orgId: { userId: user.id, orgId: org.id } },
+    select: { createdAt: true, lastFetchedAt: true },
+  });
 
   return (
     <div>
@@ -143,6 +148,18 @@ export default async function ProfilePage({
               lastError: f.lastError,
             }))}
             rememberedCount={rememberedCount}
+          />
+
+          <CalendarSubscriptionCard
+            orgName={org.name}
+            subscription={
+              calendarSubscription
+                ? {
+                    createdAt: calendarSubscription.createdAt.toISOString(),
+                    lastFetchedAt: calendarSubscription.lastFetchedAt?.toISOString() ?? null,
+                  }
+                : null
+            }
           />
 
           <PasskeysCard

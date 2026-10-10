@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { EditTaskDialog } from "@/components/tasks/edit-task-dialog";
+import { DueDateBadge } from "@/components/tasks/due-date-badge";
 import { TimeEntryDialog } from "@/app/(app)/time/time-entry-dialog";
 import {
   addTaskCommentAction,
@@ -210,6 +211,14 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                 ))}
               </SelectContent>
             </Select>
+          </dd>
+          <dt className="text-muted-foreground">Due</dt>
+          <dd>
+            {task.dueDate ? (
+              <DueDateBadge dueDate={task.dueDate} done={task.status === "DONE"} className="text-sm" />
+            ) : (
+              <span className="text-muted-foreground">No due date</span>
+            )}
           </dd>
           <dt className="text-muted-foreground">Hours</dt>
           <dd className="tabular-figures">

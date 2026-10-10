@@ -100,6 +100,9 @@ enum NotificationType {
   PAYMENT_FAILED
   EXPENSE_SUBMITTED
   EXPENSE_REVIEWED
+  TASK_DUE_SOON
+  DEADLINE_OVERDUE
+  INVOICE_SEND_FAILED
 }
 
 enum Plan {
@@ -182,6 +185,9 @@ model Organization {
   // Everyone must use an authenticator app (TOTP) to get past the sign-in
   // gate in requireOrgContext. SSO sign-ins are exempt (the IdP owns MFA).
   requireTwoFactor           Boolean               @default(false)
+  // Default for client share links: visitors prove they're one of the
+  // client's contacts with an emailed code. Clients can override it.
+  requireShareVerification   Boolean               @default(false)
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses
@@ -229,11 +235,13 @@ model Organization {
   activeTimers              ActiveTimer[]
   agreementConnections      AgreementConnection[]
   agreements                Agreement[]
+  vaultLinks                VaultLink[]
   importBatches             ImportBatch[]
   estimates                 Estimate[]
   payments                  Payment[]
   creditNotes               CreditNote[]
   creditApplications        CreditApplication[]
+  calendarSubscriptions     CalendarSubscription[]
 }
 
 model User {
@@ -283,6 +291,7 @@ model User {
   paymentsRecorded            Payment[]              @relation("PaymentRecordedBy")
   creditNotesIssued           CreditNote[]           @relation("CreditNoteCreatedBy")
   creditApplications          CreditApplication[]    @relation("CreditApplicationAppliedBy")
+  calendarSubscriptions       CalendarSubscription[]
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
@@ -376,6 +385,11 @@ model Client {
   paymentTerms                PaymentTerms?
   status                      ClientStatus  @default(ACTIVE)
   shareToken                  String?       @unique
+  // Null: the client link never expires.
+  shareExpiresAt              DateTime?
+  // Emailed-code check on this client's share pages (client + project
+  // links); INHERIT follows Organization.requireShareVerification.
+  shareVerification           ShareVerificationMode @default(INHERIT)
   createdAt                   DateTime      @default(now())
   updatedAt                   DateTime      @updatedAt
 
@@ -391,6 +405,7 @@ model Client {
   invoices                  Invoice[]
   documents                 ClientDocument[]
   agreements                Agreement[]
+  vaultLinks                VaultLink[]
   recurringInvoiceSchedules RecurringInvoiceSchedule[]
   billingCycle              ClientBillingCycle?
   paymentMethods            PaymentMethod[]
@@ -398,6 +413,8 @@ model Client {
   payments                  Payment[]
   creditNotes               CreditNote[]
   creditApplications        CreditApplication[]
+  shareSessions             ShareSession[]
+  shareCodes                ShareCode[]
 
   @@index([orgId])
 }
@@ -481,7 +498,75 @@ model Contact {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
+  // Deleting a contact signs them out of the client's share pages.
+  shareSessions ShareSession[]
+  shareCodes    ShareCode[]
+
   @@index([clientId])
+}
+
+enum ShareVerificationMode {
+  INHERIT
+  ON
+  OFF
+}
+
+// A visitor who proved, with an emailed code, that they're one of the
+// client's contacts. The browser holds the raw token in an httpOnly cookie;
+// only its SHA-256 is stored. Deleted on sign-out, contact removal, and when
+// the client link is regenerated or revoked.
+model ShareSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  // The address that was verified; the session only counts while the
+  // contact still has it.
+  email      String
+  ip         String?
+  userAgent  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, lastSeenAt])
+  @@index([contactId])
+}
+
+// A 6-digit code emailed to a client contact for the share-page check.
+// Single use, 10 minutes, 5 tries. The browser holds a random challenge in a
+// cookie; both it and the code are stored only as hashes.
+model ShareCode {
+  id            String    @id @default(cuid())
+  challengeHash String    @unique
+  codeHash      String
+  email         String
+  attempts      Int       @default(0)
+  expiresAt     DateTime
+  usedAt        DateTime?
+  ip            String?
+  createdAt     DateTime  @default(now())
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([contactId])
+}
+
+// One request against a DB-backed rate limit (lib/rate-limit.ts). The key is
+// a SHA-256 of e.g. "share-code:ip:1.2.3.4", so no emails or IPs are stored.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }
 
 // A user can type any new email into "Change email" — this holds the change
@@ -582,6 +667,8 @@ model Project {
   // project's work; null uses the client's.
   paymentTerms     PaymentTerms?
   shareToken       String?       @unique
+  // Null: the project link never expires.
+  shareExpiresAt   DateTime?
   // Show tasks (and comments marked for the client) on the share page.
   shareTasks       Boolean       @default(false)
   createdAt        DateTime      @default(now())
@@ -605,6 +692,7 @@ model Project {
   calendarEvents   CalendarEvent[]
   documents        ClientDocument[]
   agreements       Agreement[]
+  vaultLinks       VaultLink[]
   estimates        Estimate[]
 
   @@index([orgId])
@@ -615,11 +703,20 @@ model Milestone {
   id          String    @id @default(cuid())
   name        String
   description String?
-  amount      Decimal   @db.Decimal(12, 2)
+  // 0 for a deliverable (billable = false).
+  amount      Decimal   @default(0) @db.Decimal(12, 2)
   dueDate     DateTime? @db.Date
   sortOrder   Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // false = a deliverable: tracked, dated and completed like any milestone,
+  // but never offered for invoicing (generateInvoice, billing cycles and
+  // unbilled reports all filter on billable = true).
+  billable          Boolean   @default(true)
+  // Set once the "overdue" reminder went out; cleared when the due date
+  // changes, so a new date can be reminded about again.
+  overdueNotifiedAt DateTime?
 
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -658,6 +755,11 @@ model Task {
   // Set once logged hours pass the estimate and we've said so; cleared if
   // they drop back under (or the estimate grows).
   overEstimateAlertedAt DateTime?
+  dueDate               DateTime?  @db.Date
+  // Deadline reminders already sent for the current due date (cleared when
+  // it changes): "due tomorrow" and "overdue".
+  dueSoonNotifiedAt     DateTime?
+  overdueNotifiedAt     DateTime?
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -675,6 +777,7 @@ model Task {
 
   @@index([projectId])
   @@index([assigneeId])
+  @@index([dueDate])
 }
 
 // Internal discussion on a task — never shown on the client share link. When
@@ -965,6 +1068,25 @@ model CalendarRule {
   @@unique([userId, kind, value])
 }
 
+// A person's secret calendar subscription (iCal) of the deadlines they can
+// see in one org: task and milestone due dates, project dates and (owners and
+// admins) invoice dates. Only a hash of the token in the URL is stored; what
+// the feed shows is worked out from the person's access each time it's read.
+model CalendarSubscription {
+  id            String    @id @default(cuid())
+  tokenHash     String    @unique
+  createdAt     DateTime  @default(now())
+  lastFetchedAt DateTime?
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
 // A person's own connection to a file/doc service, used to browse and look up
 // what they link (with their own permissions — never shared with others).
 model UserConnection {
@@ -1105,9 +1227,18 @@ model Invoice {
   creditApplications  CreditApplication[]
   creditNotes         CreditNote[]
 
+  // A draft set to be emailed to the client on its own (the hourly job sends
+  // it once this time has passed). scheduledSendById is who scheduled it —
+  // replies go to them. scheduledSendError is why the last attempt failed;
+  // the invoice stays a draft and isn't retried until it's rescheduled.
+  scheduledSendAt    DateTime?
+  scheduledSendById  String?
+  scheduledSendError String?
+
   @@unique([orgId, number])
   @@index([orgId])
   @@index([clientId])
+  @@index([scheduledSendAt])
 }
 
 enum RecurringInterval {
@@ -1925,6 +2056,37 @@ model Agreement {
 
   @@unique([orgId, provider, externalId])
   @@index([orgId, clientId])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+// A pointer to an item in a password manager (1Password, Bitwarden, …) so
+// people can find the right credential for a client or project and open it
+// in their vault. Never a secret: only the item's link, a label and a
+// non-secret note. The vault decides who can open the item.
+model VaultLink {
+  id          String   @id @default(cuid())
+  label       String
+  // Non-secret context ("Use for Terraform only").
+  note        String?
+  url         String
+  // ONEPASSWORD, BITWARDEN, KEEPER, DASHLANE, LASTPASS, PROTON_PASS or OTHER.
+  provider    String
+  // login, ssh_key, api_key, document or other — a hint only.
+  itemKind    String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Set: only people who can see the project see the link.
+  projectId String?
+  project   Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
   @@index([clientId])
   @@index([projectId])
 }

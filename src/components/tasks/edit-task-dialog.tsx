@@ -23,7 +23,14 @@ export function EditTaskDialog({
   task,
 }: {
   projectId: string;
-  task: { id: string; title: string; description: string | null; estimatedHours: number | null };
+  task: {
+    id: string;
+    title: string;
+    description: string | null;
+    estimatedHours: number | null;
+    /** YYYY-MM-DD */
+    dueDate: string | null;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const action = updateTaskAction.bind(null, task.id, projectId);
@@ -69,6 +76,13 @@ export function EditTaskDialog({
               rows={3}
               defaultValue={task.description ?? ""}
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="edit-task-due">Due date (optional)</Label>
+            <Input id="edit-task-due" name="dueDate" type="date" defaultValue={task.dueDate ?? ""} />
+            {state?.fieldErrors?.dueDate ? (
+              <p className="text-sm text-destructive">{state.fieldErrors.dueDate[0]}</p>
+            ) : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="edit-task-estimate">Estimated hours (optional)</Label>
