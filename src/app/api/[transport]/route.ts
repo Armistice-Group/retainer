@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { listBookings } from "@/lib/services/scheduling";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { authenticateApiRequest, hideShareToken, type ApiAuthContext } from "@/lib/api-auth";
@@ -166,15 +168,53 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_clients",
-      "List all clients in the current organization.",
-      {},
-      async (_args, extra) => {
+      "List clients in the current organization. Draft clients (status LEAD, draft: true) are people who booked a call through Cal.com or Calendly and haven't been made a client yet; they can't be invoiced or get projects. status filters.",
+      { status: z.enum(["ACTIVE", "INACTIVE", "LEAD"]).optional() },
+      async ({ status }, extra) => {
         const ctx = ctxFrom(extra);
         const clients = await prisma.client.findMany({
-          where: { orgId: ctx.orgId },
+          where: { orgId: ctx.orgId, ...(status ? { status } : {}) },
           orderBy: { name: "asc" },
         });
-        return text(clients.map((c) => hideShareToken(c, ctx.role)));
+        return text(clients.map((c) => ({ ...hideShareToken(c, ctx.role), draft: c.status === "LEAD" })));
+      }
+    );
+
+    server.tool(
+      "list_bookings",
+      "Meetings booked through Cal.com or Calendly. Owners and admins see all of the organization's; others the ones they host. Each has its client (draft: true for a draft client created from the booking), invitee, time, status and the booking form's answers.",
+      {
+        from: isoDate().optional().describe("ISO date: bookings starting on or after"),
+        to: isoDate().optional().describe("ISO date: bookings starting before"),
+        clientId: z.string().optional(),
+        status: z.enum(["SCHEDULED", "CANCELLED", "RESCHEDULED", "NO_SHOW"]).optional(),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        const bookings = await listBookings(
+          { orgId: ctx.orgId, userId: ctx.actorId, role: ctx.role },
+          {
+            from: args.from ? new Date(`${args.from}T00:00:00Z`) : undefined,
+            to: args.to ? new Date(`${args.to}T00:00:00Z`) : undefined,
+            clientId: args.clientId,
+            status: args.status,
+          }
+        );
+        return text(
+          bookings.map((b) => ({
+            id: b.id,
+            provider: b.provider,
+            title: b.title,
+            eventType: b.eventTypeName,
+            start: b.startAt,
+            end: b.endAt,
+            status: b.status,
+            invitee: { name: b.inviteeName, email: b.inviteeEmail, phone: b.inviteePhone },
+            client: b.client ? { id: b.client.id, name: b.client.name, draft: b.client.status === "LEAD" } : null,
+            joinUrl: b.joinUrl,
+            answers: b.answers,
+          }))
+        );
       }
     );
 
@@ -216,12 +256,18 @@ const handler = createMcpHandler(
         billingEmail: z.string().email().optional(),
         billingAddress: z.string().max(500).optional(),
         paymentTerms: defaultTermsArg,
-        status: z.enum(clientStatusValues).default("ACTIVE"),
+        status: z
+          .enum(clientStatusValues)
+          .optional()
+          .describe("Leave out to keep the current status. On a draft client, ACTIVE makes it a client (owners and admins)."),
       },
       async ({ clientId, ...rest }, extra) => {
         const ctx = ctxFrom(extra);
         const existing = await prisma.client.findUnique({ where: { id: clientId } });
         if (!existing || existing.orgId !== ctx.orgId) return errorResult("Client not found.");
+        if (existing.status === "LEAD" && rest.status && ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can make a draft client a client.");
+        }
         const client = await prisma.client.update({
           where: { id: clientId },
           data: rest,
@@ -269,6 +315,7 @@ const handler = createMcpHandler(
         const ctx = ctxFrom(extra);
         const client = await prisma.client.findUnique({ where: { id: args.clientId } });
         if (!client || client.orgId !== ctx.orgId) return errorResult("Client not found.");
+        if (isDraftClient(client)) return errorResult(DRAFT_CLIENT_ERROR);
 
         const project = await prisma.project.create({
           data: {
@@ -333,6 +380,7 @@ const handler = createMcpHandler(
 
         const client = await prisma.client.findUnique({ where: { id: args.clientId } });
         if (!client || client.orgId !== ctx.orgId) return errorResult("Client not found.");
+        if (isDraftClient(client)) return errorResult(DRAFT_CLIENT_ERROR);
 
         const project = await prisma.project.update({
           where: { id: projectId },
@@ -773,6 +821,10 @@ const handler = createMcpHandler(
             attendees: m.attendees,
             suggestedProjectId: m.suggestedProjectId,
             suggestionReason: m.suggestionReason,
+            bookedBy: m.booking?.client
+              ? { clientId: m.booking.client.id, name: m.booking.client.name, draft: m.booking.client.status === "LEAD" }
+              : null,
+            suggestedBillable: m.booking?.eventType?.billable ?? true,
           }))
         );
       }

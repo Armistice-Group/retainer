@@ -10,7 +10,8 @@ Calendars are personal: every member connects their own on their profile, and
 only they see their meetings. Nothing needs setting up by an admin.
 
 Your meetings also show on the [Calendar](/concepts/calendar) page next to
-your deadlines. To go the other way, and see your deadlines in your calendar
+your deadlines, including the ones coming up in the next 30 days, and your
+next ones are on the dashboard's **Upcoming** card. To go the other way, and see your deadlines in your calendar
 app, use [Subscribe in your calendar app](/concepts/calendar#subscribe-in-your-calendar-app).
 
 ## Connect a calendar
@@ -31,7 +32,7 @@ app below, then:
   </Step>
   <Step title="Click Connect calendar">
     Consultainer checks that the link returns a calendar and pulls in your
-    meetings from the last two weeks.
+    meetings from the last two weeks and the next 30 days.
   </Step>
 </Steps>
 
@@ -134,11 +135,24 @@ Over MCP: `list_meetings`, `log_meeting`, `ignore_meeting`.
 
 ### Which meetings show up
 
-Meetings from the last 14 days that have already ended, between 5 minutes and
-10 hours long. Left out: all-day events, events marked *free*, cancelled
-meetings, and meetings you declined. Meeting rooms and resources don't count
-as attendees. An unsorted meeting that's deleted or cancelled in your
-calendar disappears from the list.
+Each sync reads your meetings from the last 14 days and the next 30 days,
+between 5 minutes and 10 hours long. Left out: all-day events, events marked
+*free*, cancelled meetings, and meetings you declined. Meeting rooms and
+resources don't count as attendees.
+
+- **Upcoming meetings** (not over yet) show only on the
+  [Calendar](/concepts/calendar) page (marked *Upcoming*) and the
+  dashboard's **Upcoming** card. They're not in **Time → Meetings**, and a
+  remembered series isn't applied to them yet.
+- **Once a meeting has ended**, the next hourly sync moves it to **Time →
+  Meetings** with its suggested project, or sorts it by its remembered
+  series.
+- A meeting that's moved, cancelled or deleted in your calendar before you
+  sort it disappears (a moved one comes back at its new time).
+
+So a meeting that ended a few minutes ago can take up to an hour to reach
+**Time → Meetings**; click the calendar's refresh icon on your profile to
+sync it now.
 
 Declines and "you" are recognized by the email address on your Consultainer
 account. If your calendar uses a different address, declined meetings still
@@ -148,14 +162,23 @@ show up and you're counted as an attendee.
 
 From the active projects you can see, in this order:
 
-1. The project you logged earlier meetings of the **same recurring series**
+1. If the meeting was **booked through Cal.com or Calendly** (same start
+   time, and the person who booked it is an attendee): the default project
+   set for its event type under [Settings → Scheduling](/integrations/scheduling#map-your-event-types),
+   or else a project of the client who booked. **Billable** starts ticked or
+   not as the event type says, and the meeting shows who booked it.
+2. The project you logged earlier meetings of the **same recurring series**
    to.
-2. A **client whose email domain matches an attendee** — from the client's
+3. A **client whose email domain matches an attendee** — from the client's
    email, billing email, website and contacts (public domains like gmail.com,
    and your own team's domains, are ignored) — on the project you've logged
    to most recently for that client.
-3. A **project or client named in the meeting title** (names of four or more
+4. A **project or client named in the meeting title** (names of four or more
    characters).
+
+Draft clients (people who booked an intake call and aren't clients yet) are
+never suggested. A meeting whose Cal.com or Calendly booking was cancelled or
+moved is taken out of **Time → Meetings** (marked ignored).
 
 ## When it syncs
 
@@ -205,5 +228,9 @@ sync.
   It's retried every hour.
 - **"The calendar is too large."** — Over 10 MB. Use a smaller calendar.
 - **"You can connect up to 5 calendars."** — Remove one first.
-- No meetings appear — Only meetings that have ended in the last two weeks
-  are shown. Check the meeting isn't all-day, marked free, or declined.
+- No meetings appear — **Time → Meetings** only shows meetings that ended in
+  the last two weeks; ones still to come are on the Calendar page. Check the
+  meeting isn't all-day, marked free, or declined.
+- A meeting that just ended isn't in **Time → Meetings** yet — It moves there
+  at the next hourly sync. Click the calendar's refresh icon on your profile
+  to sync now.

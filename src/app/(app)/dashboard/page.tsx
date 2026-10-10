@@ -24,7 +24,7 @@ import { balanceDue } from "@/lib/invoice-balance";
 import { MaximizeValueCard, type MaximizeValueItem } from "./maximize-value-card";
 import { pendingExpenses } from "@/lib/services/expense-alerts";
 import { cookies } from "next/headers";
-import { upcomingItems } from "@/lib/services/calendar-items";
+import { isValidTimeZone, upcomingItems } from "@/lib/services/calendar-items";
 import { CALENDAR_STYLE } from "@/components/calendar/item-style";
 import { cn } from "@/lib/utils";
 
@@ -109,6 +109,11 @@ export default async function DashboardPage() {
     tz = undefined;
   }
   const upcoming = await upcomingItems({ orgId: org.id, userId: user.id, role }, tz);
+  const upcomingTime = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: isValidTimeZone(tz) ? tz : "UTC",
+  });
 
   const outstandingTotal = outstandingInvoices
     .filter((i) => i.status === "SENT")
@@ -303,7 +308,7 @@ export default async function DashboardPage() {
         <CardContent>
           {upcoming.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CalendarDays className="size-4" /> Nothing due in the next two weeks.
+              <CalendarDays className="size-4" /> Nothing due or booked in the next two weeks.
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-border">
@@ -326,6 +331,7 @@ export default async function DashboardPage() {
                       </span>
                       <span className="shrink-0 tabular-figures text-xs text-muted-foreground">
                         {formatDate(item.day)}
+                        {item.start ? ` · ${upcomingTime.format(new Date(item.start))}` : ""}
                       </span>
                     </Link>
                   </li>

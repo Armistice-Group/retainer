@@ -90,6 +90,11 @@ export const ALERT_EVENTS = {
     hint: "Goes to the task's assignee only (in the app, and by email to them). Slack gets it too if you turn it on.",
     defaults: { email: true, slack: false },
   },
+  NEW_LEAD: {
+    label: "A new client books a call",
+    hint: "Someone you don't know yet books through Cal.com or Calendly. They're added as a draft client for you to review.",
+    defaults: { email: true, slack: true },
+  },
   DEADLINE_OVERDUE: {
     label: "A task or milestone is overdue",
     hint: "An overdue task goes to its assignee; an overdue milestone or deliverable to owners, admins and the project's members. On a confidential project, Slack and email leave out the names.",

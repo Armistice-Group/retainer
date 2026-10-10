@@ -14,7 +14,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
   const [project, clients] = await Promise.all([
     prisma.project.findUnique({ where: { id } }),
     prisma.client.findMany({
-      where: { orgId: org.id },
+      where: { orgId: org.id, status: { not: "LEAD" } },
       orderBy: { name: "asc" },
       select: { id: true, name: true, paymentTerms: true },
     }),

@@ -12,7 +12,8 @@ process.env.E2E_BASE_URL = BASE_URL;
 const serverEnv = {
   DATABASE_URL: process.env.DATABASE_URL,
   AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-auth-secret-not-for-production-use",
-  // base64 of 32 bytes, as the app requires.
+  // base64 of 32 bytes, as the app requires. tests/e2e/fixtures.ts
+  // (E2E_ENCRYPTION_KEY) uses the same default to seed encrypted secrets.
   INTEGRATION_ENCRYPTION_KEY:
     process.env.INTEGRATION_ENCRYPTION_KEY ?? "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
   CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret",
@@ -40,7 +41,7 @@ export default defineConfig({
     { name: "setup", testMatch: /global\.setup\.ts/, fullyParallel: false },
     {
       name: "api",
-      testMatch: /(api|mcp|actions|features|vault-links)\.spec\.ts/,
+      testMatch: /(api|mcp|actions|features|vault-links|booking)\.spec\.ts/,
       dependencies: ["setup"],
     },
     {

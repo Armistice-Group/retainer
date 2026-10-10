@@ -18,7 +18,7 @@ export default async function WelcomePage() {
     prisma.ssoConnection.findUnique({ where: { orgId: org.id }, select: { enabled: true } }),
     prisma.membership.count({ where: { orgId: org.id } }),
     prisma.invite.count({ where: { orgId: org.id, usedAt: null } }),
-    prisma.client.count({ where: { orgId: org.id } }),
+    prisma.client.count({ where: { orgId: org.id, status: { not: "LEAD" } } }),
   ]);
   const emailEnabled = await isEmailConfigured();
 

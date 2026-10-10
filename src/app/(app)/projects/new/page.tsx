@@ -14,7 +14,8 @@ export default async function NewProjectPage({
   const { clientId } = await searchParams;
 
   const clients = await prisma.client.findMany({
-    where: { orgId: org.id },
+    // Draft clients (from bookings) can't be invoiced or get projects yet.
+    where: { orgId: org.id, status: { not: "LEAD" } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, paymentTerms: true },
   });

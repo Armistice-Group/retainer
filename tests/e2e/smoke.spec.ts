@@ -1,7 +1,7 @@
 // Every main page loads for an owner (and the everyday ones for a member)
 // with no server error, no uncaught exception and nothing in the console.
 import { test, expect, type Page } from "@playwright/test";
-import { A, STORAGE } from "./fixtures";
+import { A, BOOKING, STORAGE } from "./fixtures";
 
 const OWNER_PAGES = [
   "/dashboard",
@@ -39,6 +39,10 @@ const OWNER_PAGES = [
   "/settings/alerts",
   "/settings/audit",
   "/settings/agreements",
+  "/settings/scheduling",
+  "/clients?view=drafts",
+  `/clients/${BOOKING.draft.id}`,
+  `/clients/${BOOKING.draft.id}/edit`,
   "/settings/import",
   "/settings/export",
 ];
@@ -46,6 +50,8 @@ const OWNER_PAGES = [
 const MEMBER_PAGES = [
   "/dashboard",
   "/clients",
+  "/clients?view=drafts",
+  `/clients/${BOOKING.draft.id}`,
   `/clients/${A.client.id}`,
   "/projects",
   `/projects/${A.openProject.id}`,

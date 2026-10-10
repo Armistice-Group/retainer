@@ -198,3 +198,35 @@ export const SCHEDULE = {
   /** Member A's calendar subscription token (only its hash is stored). */
   memberFeedToken: "e2e-calendar-feed-member-a-0123456789abcdef",
 } as const;
+
+/** Must match INTEGRATION_ENCRYPTION_KEY in playwright.config.ts: the seed
+ * encrypts the scheduling secrets below with it, and the server decrypts. */
+export const E2E_ENCRYPTION_KEY =
+  process.env.INTEGRATION_ENCRYPTION_KEY ?? "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=";
+
+/** Cal.com / Calendly intake (booking.spec.ts). Org A. */
+export const BOOKING = {
+  calcom: {
+    id: "e2e_sched_calcom_a",
+    /** Path token in /api/webhooks/scheduling/calcom/<token>. */
+    token: "e2e-calcom-hook-token-a-0123456789abcdef",
+    secret: "e2e-calcom-signing-secret-a",
+  },
+  calendly: {
+    id: "e2e_sched_calendly_a",
+    token: "e2e-calendly-hook-token-a-0123456789abcdef",
+    secret: "e2e-calendly-signing-key-a",
+  },
+  /** A Cal.com event type mapped to Ignore. */
+  ignoredEventType: { id: "e2e_sched_type_ignored", externalId: "9999", name: "Internal sync" },
+  /** A contact with an email on Alpha Client: their bookings attach there. */
+  knownContact: { id: "e2e_contact_a_known", name: "Kim Known", email: "kim.known@alpha-client.test" },
+  /** A seeded draft client (status LEAD) with an upcoming booking hosted by
+   * owner A. Members try to make it a client, merge or discard it. */
+  draft: { id: "e2e_client_a_draft", name: "Delta Draft Co", email: "dana@delta-draft.test" },
+  draftContact: { id: "e2e_contact_a_draft", name: "Dana Draft" },
+  draftBooking: { id: "e2e_booking_a_draft", title: "Intro call with Dana Draft", inDays: 3 },
+  /** Owner A's calendar feed, with one meeting that hasn't happened yet. */
+  feed: { id: "e2e_feed_owner_a" },
+  upcomingMeeting: { id: "e2e_meeting_owner_a_upcoming", title: "E2E upcoming kickoff", inDays: 2 },
+} as const;

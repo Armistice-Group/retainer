@@ -94,6 +94,11 @@ export async function importClientsAndProjects(
       if (existing) {
         clientId = existing.id;
         summary.clientsMatched++;
+        // Importing projects for a draft client (from a booking) makes it a
+        // client: drafts can't have projects.
+        if (existing.status === "LEAD") {
+          await prisma.client.update({ where: { id: existing.id }, data: { status: "ACTIVE", leadDiscardedAt: null } });
+        }
       } else {
         const created = await prisma.client.create({
           data: {

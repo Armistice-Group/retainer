@@ -1,4 +1,5 @@
 import "server-only";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { Prisma, type PaymentSource, type Role } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendAlert } from "@/lib/alerts";
@@ -461,6 +462,7 @@ export async function issueCreditNote(ctx: PaymentContext, input: IssueCreditNot
   const result = await prisma.$transaction(async (tx) => {
     const client = await tx.client.findFirst({ where: { id: input.clientId, orgId: ctx.orgId } });
     if (!client) throw new PaymentError("Client not found.");
+    if (isDraftClient(client)) throw new PaymentError(DRAFT_CLIENT_ERROR);
     const linked = input.invoiceId
       ? await tx.invoice.findFirst({ where: { id: input.invoiceId, orgId: ctx.orgId, clientId: client.id } })
       : null;
@@ -559,6 +561,7 @@ export type DepositInvoiceInput = {
 export async function createDepositInvoice(ctx: DepositInvoiceContext, input: DepositInvoiceInput) {
   const client = await prisma.client.findFirst({ where: { id: input.clientId, orgId: ctx.orgId } });
   if (!client) throw new PaymentError("Client not found.");
+  if (isDraftClient(client)) throw new PaymentError(DRAFT_CLIENT_ERROR);
   const project = input.projectId
     ? await prisma.project.findFirst({
         where: {

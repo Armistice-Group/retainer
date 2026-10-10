@@ -20,6 +20,7 @@ import {
   Eye,
   ShieldAlert,
   Receipt,
+  UserRoundPlus,
 } from "lucide-react";
 import type { NotificationType } from "@/generated/prisma/client";
 import { markNotificationReadAction } from "@/actions/notifications";
@@ -53,6 +54,7 @@ const TYPE_ICON: Record<NotificationType, typeof Bell> = {
   TASK_DUE_SOON: CalendarClock,
   DEADLINE_OVERDUE: AlertTriangle,
   INVOICE_SEND_FAILED: AlertTriangle,
+  NEW_LEAD: UserRoundPlus,
 };
 
 export function NotificationRow({

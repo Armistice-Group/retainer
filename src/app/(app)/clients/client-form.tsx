@@ -29,7 +29,7 @@ type ClientFormValues = {
   billingAddress: string | null;
   paymentTerms: string | null;
   invoiceReminders: boolean;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "LEAD";
 };
 
 export function ClientForm({
@@ -78,6 +78,9 @@ export function ClientForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {initialValues?.status === "LEAD" ? (
+                <SelectItem value="LEAD">Draft client</SelectItem>
+              ) : null}
               <SelectItem value="ACTIVE">Active</SelectItem>
               <SelectItem value="INACTIVE">Inactive</SelectItem>
             </SelectContent>

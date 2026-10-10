@@ -693,6 +693,12 @@ export async function createProjectFromEstimate(ctx: EstimateContext, estimateId
         budgetHours: plan.budgetHours,
       },
     });
+    // A draft client (from a booking) whose estimate became a project is a
+    // client now.
+    await tx.client.updateMany({
+      where: { id: estimate.clientId, status: "LEAD" },
+      data: { status: "ACTIVE", leadDiscardedAt: null },
+    });
     // Conditional, so two clicks can't both create a project (the loser's
     // transaction, project included, rolls back).
     const linked = await updateIf(

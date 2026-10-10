@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, Landmark, CreditCard } from "lucide-react";
+import { Download, Landmark, CreditCard, CalendarPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/status-badge";
@@ -46,6 +46,8 @@ export default async function SharedClientPage({
     ? `data:${org.logoContentType};base64,${Buffer.from(org.logoData).toString("base64")}`
     : org.logoUrl;
   const paymentMethods = await effectivePaymentMethods(org.id, client.id);
+  // The client's own booking link, else the org's default (both https only).
+  const bookingUrl = client.bookingUrl ?? org.bookingUrl;
   // Back from "Pay now" for one of the invoices listed below.
   const returned = invoices.find((inv) => inv.id === returnedInvoiceId);
 
@@ -74,11 +76,20 @@ export default async function SharedClientPage({
           />
         ) : null}
 
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {projects.length} active project{projects.length === 1 ? "" : "s"}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {projects.length} active project{projects.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          {bookingUrl ? (
+            <Button variant="outline" asChild>
+              <a href={bookingUrl} target="_blank" rel="noopener noreferrer">
+                <CalendarPlus className="size-4" /> Book a meeting
+              </a>
+            </Button>
+          ) : null}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

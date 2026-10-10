@@ -9,6 +9,8 @@ import { PrismaClient } from "../../src/generated/prisma/client";
 import { A, B, E, ORG, ORG_D_PEOPLE, PASSWORD, TWO_FACTOR_USER, USERS, type OrgKey, type RoleName } from "./fixtures";
 import { VAULT } from "./fixtures";
 import { SCHEDULE } from "./fixtures";
+import { BOOKING, E2E_ENCRYPTION_KEY } from "./fixtures";
+import { createCipheriv, randomBytes } from "crypto";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!/@(localhost|127\.0\.0\.1|postgres)(:\d+)?\//.test(url)) {
@@ -393,6 +395,116 @@ async function seedSchedule() {
   });
 }
 
+/** Same format as src/lib/crypto.ts encrypt(), with the server's key. */
+function encryptForServer(plaintext: string) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", Buffer.from(E2E_ENCRYPTION_KEY, "base64"), iv);
+  const data = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return [iv, cipher.getAuthTag(), data].map((b) => b.toString("base64")).join(".");
+}
+
+/** Cal.com and Calendly connections, a draft client with an upcoming
+ * booking, a known contact, and an upcoming meeting in owner A's calendar. */
+async function seedBookings() {
+  const orgId = ORG.A.id;
+  for (const [provider, c] of [
+    ["CALCOM", BOOKING.calcom],
+    ["CALENDLY", BOOKING.calendly],
+  ] as const) {
+    await prisma.schedulingConnection.create({
+      data: {
+        id: c.id,
+        orgId,
+        provider,
+        baseUrl: provider === "CALCOM" ? "https://api.cal.com" : null,
+        apiToken: encryptForServer(`e2e-${provider.toLowerCase()}-api-token`),
+        accountName: `E2E ${provider}`,
+        webhookTokenHash: hashKey(c.token),
+        webhookToken: encryptForServer(c.token),
+        webhookSecret: encryptForServer(c.secret),
+        connectedById: USERS.A.OWNER.id,
+      },
+    });
+  }
+  await prisma.schedulingEventType.create({
+    data: {
+      id: BOOKING.ignoredEventType.id,
+      orgId,
+      connectionId: BOOKING.calcom.id,
+      externalId: BOOKING.ignoredEventType.externalId,
+      name: BOOKING.ignoredEventType.name,
+      purpose: "IGNORE",
+    },
+  });
+  await prisma.contact.create({
+    data: { ...BOOKING.knownContact, clientId: A.client.id },
+  });
+  await prisma.client.create({
+    data: {
+      id: BOOKING.draft.id,
+      orgId,
+      name: BOOKING.draft.name,
+      email: BOOKING.draft.email,
+      website: "delta-draft.test",
+      status: "LEAD",
+      leadSource: "Cal.com",
+      leadBookedAt: new Date(),
+      description: "Booked an intro call through Cal.com.",
+      contacts: {
+        create: { id: BOOKING.draftContact.id, name: BOOKING.draftContact.name, email: BOOKING.draft.email, isPrimary: true },
+      },
+    },
+  });
+  const start = daysFromNow(BOOKING.draftBooking.inDays);
+  start.setUTCHours(16);
+  await prisma.booking.create({
+    data: {
+      id: BOOKING.draftBooking.id,
+      orgId,
+      provider: "CALCOM",
+      externalId: "e2e-seeded-booking-uid",
+      connectionId: BOOKING.calcom.id,
+      title: BOOKING.draftBooking.title,
+      startAt: start,
+      endAt: new Date(start.getTime() + 30 * 60_000),
+      inviteeName: BOOKING.draftContact.name,
+      inviteeEmail: BOOKING.draft.email,
+      answers: [{ question: "What do you need?", answer: "A new website" }],
+      hostEmail: USERS.A.OWNER.email,
+      hostUserId: USERS.A.OWNER.id,
+      clientId: BOOKING.draft.id,
+      contactId: BOOKING.draftContact.id,
+      createdLead: true,
+    },
+  });
+
+  await prisma.calendarFeed.create({
+    data: {
+      id: BOOKING.feed.id,
+      orgId,
+      userId: USERS.A.OWNER.id,
+      name: "E2E work calendar",
+      url: encryptForServer("https://calendar.invalid/e2e-owner-a.ics"),
+      lastSyncedAt: new Date(),
+    },
+  });
+  const meetingStart = daysFromNow(BOOKING.upcomingMeeting.inDays);
+  meetingStart.setUTCHours(15);
+  await prisma.calendarEvent.create({
+    data: {
+      id: BOOKING.upcomingMeeting.id,
+      feedId: BOOKING.feed.id,
+      userId: USERS.A.OWNER.id,
+      uid: "e2e-upcoming-kickoff@calendar.invalid",
+      title: BOOKING.upcomingMeeting.title,
+      start: meetingStart,
+      end: new Date(meetingStart.getTime() + 60 * 60_000),
+      attendees: ["someone@alpha-client.test"],
+      status: "UPCOMING",
+    },
+  });
+}
+
 async function main() {
   await truncateAll();
   const passwordHash = await bcrypt.hash(PASSWORD, 4);
@@ -402,6 +514,7 @@ async function main() {
   await seedOrgE();
   await seedVaultLinks();
   await seedSchedule();
+  await seedBookings();
   // Setup is done once a user exists; record the instance URL too so pages
   // that build share links don't fall back to guessing.
   await prisma.instanceSetting.create({

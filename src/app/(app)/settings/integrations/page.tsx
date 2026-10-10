@@ -5,6 +5,8 @@ import { LinearCard } from "../linear-card";
 import { FilesIntegrationsCard, type FileServiceSetup } from "../files-integrations-card";
 import { FilingCard } from "../filing-card";
 import { AgreementsPointerCard } from "../agreements/pointer-card";
+import { SchedulingPointerCard } from "../scheduling/pointer-card";
+import { SCHEDULING_PROVIDER_LABELS, type SchedulingProviderId } from "@/lib/integrations/scheduling/parse";
 import { AGREEMENT_PROVIDER_LABELS, type AgreementProviderId } from "@/lib/integrations/agreements/parse";
 import { StorageCard } from "../storage-card";
 import { objectStorage } from "@/lib/object-storage";
@@ -181,6 +183,13 @@ export default async function IntegrationsPage({
         connected={(
           await prisma.agreementConnection.findMany({ where: { orgId: org.id }, select: { provider: true } })
         ).map((c) => AGREEMENT_PROVIDER_LABELS[c.provider as AgreementProviderId] ?? c.provider)}
+      />
+
+      <SchedulingPointerCard
+        readOnly={readOnly}
+        connected={(
+          await prisma.schedulingConnection.findMany({ where: { orgId: org.id }, select: { provider: true } })
+        ).map((c) => SCHEDULING_PROVIDER_LABELS[c.provider as SchedulingProviderId] ?? c.provider)}
       />
 
       <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />

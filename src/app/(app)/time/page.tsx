@@ -16,6 +16,7 @@ import { TimesheetBar } from "./timesheet-bar";
 import { TimesheetApprovals } from "./timesheet-approvals";
 import { MeetingsInbox } from "./meetings-inbox";
 import { meetingHours, pendingMeetings } from "@/lib/services/calendar";
+import { SCHEDULING_PROVIDER_LABELS, type SchedulingProviderId } from "@/lib/integrations/scheduling/parse";
 import {
   getTimesheet,
   modeCovers,
@@ -191,6 +192,15 @@ export default async function TimePage({
             attendees: m.attendees,
             suggestedProjectId: m.suggestedProjectId,
             suggestionReason: m.suggestionReason,
+            booking: m.booking
+              ? {
+                  source: SCHEDULING_PROVIDER_LABELS[m.booking.provider as SchedulingProviderId] ?? m.booking.provider,
+                  clientId: m.booking.client?.id ?? null,
+                  clientName: m.booking.client?.name ?? null,
+                  draft: m.booking.client?.status === "LEAD",
+                  billable: m.booking.eventType?.billable ?? true,
+                }
+              : null,
           }))}
         />
       ) : approvalsView ? (

@@ -12,7 +12,9 @@ export const clientSchema = z.object({
   billingAddress: z.string().trim().max(500).optional().or(z.literal("")),
   paymentTerms: defaultPaymentTermsSchema,
   invoiceReminders: z.boolean().default(true),
-  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
+  // LEAD (draft client) only comes from Cal.com/Calendly bookings; the form
+  // offers it only to keep a draft a draft (see updateClientAction).
+  status: z.enum(["ACTIVE", "INACTIVE", "LEAD"]).default("ACTIVE"),
 });
 
 export const clientDocumentSchema = z.object({

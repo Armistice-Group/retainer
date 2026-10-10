@@ -30,6 +30,10 @@ export async function pushInvoiceToQuickBooks(orgId: string, invoiceId: string) 
   if (invoice.lineItems.length === 0) {
     throw new QuickBooksError("This invoice has no line items to push.");
   }
+  // Draft clients (from bookings) never go to QuickBooks.
+  if (invoice.client.status === "LEAD") {
+    throw new QuickBooksError("This invoice's client is a draft client. Make it a client first.");
+  }
   // Lines go over without tax, so QuickBooks would show a smaller total than
   // the client was billed. Sales tax setup differs by company and region in
   // QuickBooks, so rather than guess at it, don't push a wrong invoice.

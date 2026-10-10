@@ -1,11 +1,16 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { invoiceVisibilityWhere, projectVisibilityWhere } from "@/lib/project-access";
+import { bookingVisibilityWhere } from "@/lib/services/scheduling";
+import { SCHEDULING_PROVIDER_LABELS, type SchedulingProviderId } from "@/lib/integrations/scheduling/parse";
 import type { Prisma, Role } from "@/generated/prisma/client";
 
 // Everything with a date that one person may see, for the /calendar page,
 // the dashboard's Upcoming card and the calendar subscription feed:
-//   - their own meetings (from their calendar feeds — never anyone else's)
+//   - their own meetings (from their calendar feeds — never anyone else's),
+//     past and upcoming
+//   - Cal.com/Calendly bookings: owners and admins see all, others the ones
+//     they host (left out when the same meeting is already in their feed)
 //   - task due dates (theirs, or everyone's on projects they can see)
 //   - milestone / deliverable due dates, project start and end dates
 //   - owners and admins only: unpaid invoice due dates, scheduled invoice
@@ -14,6 +19,7 @@ import type { Prisma, Role } from "@/generated/prisma/client";
 
 export const CALENDAR_TYPES = [
   "meeting",
+  "booking",
   "task",
   "milestone",
   "project",
@@ -36,6 +42,7 @@ export const BILLING_TYPES: CalendarType[] = [
 
 export const CALENDAR_TYPE_LABELS: Record<CalendarType, string> = {
   meeting: "Meetings",
+  booking: "Bookings",
   task: "Tasks",
   milestone: "Milestones & deliverables",
   project: "Project dates",
@@ -65,8 +72,10 @@ export type CalendarItem = {
   done: boolean;
   /** Past its date and not done. */
   overdue: boolean;
-  /** Meetings: PENDING (to sort), LOGGED or IGNORED. */
-  meetingStatus?: "PENDING" | "LOGGED" | "IGNORED";
+  /** Meetings: UPCOMING (not over yet), PENDING (to sort), LOGGED or IGNORED. */
+  meetingStatus?: "UPCOMING" | "PENDING" | "LOGGED" | "IGNORED";
+  /** Bookings: SCHEDULED, CANCELLED, RESCHEDULED or NO_SHOW. */
+  bookingStatus?: "SCHEDULED" | "CANCELLED" | "RESCHEDULED" | "NO_SHOW";
   /** Milestones: false = a deliverable. */
   billable?: boolean;
 };
@@ -85,7 +94,8 @@ export type CalendarQuery = {
   tasks?: "mine" | "all";
   /** IANA zone for placing timed items on a day. Defaults to UTC. */
   timeZone?: string;
-  /** Leave out finished things (done tasks, completed milestones, meetings). */
+  /** Leave out finished things (done tasks, completed milestones, meetings
+   * and bookings that are over or cancelled). */
   openOnly?: boolean;
 };
 
@@ -158,7 +168,8 @@ export async function getCalendarItems(viewer: CalendarViewer, q: CalendarQuery)
   const items: CalendarItem[] = [];
   const jobs: Promise<void>[] = [];
 
-  if (want.has("meeting") && !q.openOnly) {
+  const now = new Date();
+  if (want.has("meeting")) {
     jobs.push(
       (async () => {
         const meetings = await prisma.calendarEvent.findMany({
@@ -168,6 +179,7 @@ export async function getCalendarItems(viewer: CalendarViewer, q: CalendarQuery)
             feed: { orgId: viewer.orgId },
             start: { gte: wideFrom, lt: wideTo },
             ...(q.clientId || q.projectId ? { projectId: { in: projectIds } } : {}),
+            ...(q.openOnly ? { status: "UPCOMING" as const, end: { gt: now } } : {}),
           },
           select: { id: true, title: true, start: true, end: true, status: true, projectId: true },
           orderBy: { start: "asc" },
@@ -186,12 +198,68 @@ export async function getCalendarItems(viewer: CalendarViewer, q: CalendarQuery)
             end: m.end.toISOString(),
             title: m.title,
             detail: project ? label(project.id) : m.status === "PENDING" ? "To sort" : null,
-            href: m.status === "PENDING" ? "/time?view=meetings" : "/time",
+            href: m.status === "PENDING" ? "/time?view=meetings" : m.status === "UPCOMING" ? "/calendar" : "/time",
             clientId: project?.clientId ?? null,
             projectId: project?.id ?? null,
             done: m.status === "IGNORED",
             overdue: false,
             meetingStatus: m.status,
+          });
+        }
+      })()
+    );
+  }
+
+  if (want.has("booking") && !q.projectId) {
+    jobs.push(
+      (async () => {
+        const bookings = await prisma.booking.findMany({
+          where: {
+            ...bookingVisibilityWhere(viewer),
+            startAt: { gte: wideFrom, lt: wideTo },
+            ...(q.clientId ? { clientId: q.clientId } : {}),
+            ...(q.openOnly ? { endAt: { gt: now } } : {}),
+            // The same meeting from the viewer's own calendar shows instead,
+            // and a moved booking shows at its new time.
+            calendarEvents: { none: { userId: viewer.userId } },
+            status: q.openOnly ? "SCHEDULED" : { not: "RESCHEDULED" },
+          },
+          select: {
+            id: true,
+            title: true,
+            startAt: true,
+            endAt: true,
+            status: true,
+            provider: true,
+            inviteeName: true,
+            inviteeEmail: true,
+            clientId: true,
+            client: { select: { name: true, status: true } },
+          },
+          orderBy: { startAt: "asc" },
+          take: 1000,
+        });
+        for (const b of bookings) {
+          const day = dayIn(b.startAt, tz);
+          if (!inRange(day)) continue;
+          const source = SCHEDULING_PROVIDER_LABELS[b.provider as SchedulingProviderId] ?? b.provider;
+          const who = b.client
+            ? `${b.client.name}${b.client.status === "LEAD" ? " (draft client)" : ""}`
+            : (b.inviteeName ?? b.inviteeEmail ?? source);
+          items.push({
+            key: `booking:${b.id}`,
+            type: "booking",
+            day,
+            start: b.startAt.toISOString(),
+            end: b.endAt.toISOString(),
+            title: b.title,
+            detail: `${who} · ${source}`,
+            href: b.clientId ? `/clients/${b.clientId}` : "/calendar",
+            clientId: b.clientId,
+            projectId: null,
+            done: b.status === "CANCELLED" || b.status === "RESCHEDULED",
+            overdue: false,
+            bookingStatus: b.status,
           });
         }
       })()
@@ -492,7 +560,8 @@ export async function getCalendarItems(viewer: CalendarViewer, q: CalendarQuery)
   );
 }
 
-/** The dashboard's "Upcoming": the next two weeks of open deadlines. */
+/** The dashboard's "Upcoming": the next two weeks of open deadlines, the
+ * viewer's own meetings that haven't happened yet, and bookings. */
 export async function upcomingItems(viewer: CalendarViewer, timeZone?: string, limit = 8) {
   const now = new Date();
   const tz = isValidTimeZone(timeZone) ? timeZone : "UTC";
@@ -504,7 +573,6 @@ export async function upcomingItems(viewer: CalendarViewer, timeZone?: string, l
     timeZone: tz,
     tasks: "mine",
     openOnly: true,
-    types: CALENDAR_TYPES.filter((t) => t !== "meeting"),
   });
   return items.slice(0, limit);
 }

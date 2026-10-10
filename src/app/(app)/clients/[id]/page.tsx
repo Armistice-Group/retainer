@@ -47,6 +47,10 @@ import { websiteHref } from "@/lib/format";
 import { paymentTermsLabel } from "@/lib/payment-terms";
 import { invoiceVisibilityWhere, projectVisibilityWhere } from "@/lib/project-access";
 import { getOrigin } from "@/lib/url";
+import { clientBookings, DISCARD_PURGE_DAYS } from "@/lib/services/scheduling";
+import { DraftBanner } from "./draft-banner";
+import { BookingsCard } from "./bookings-card";
+import { BookingLinkCard } from "./booking-link-card";
 
 export default async function ClientDetailPage({
   params,
@@ -73,8 +77,20 @@ export default async function ClientDetailPage({
   if (!client || client.orgId !== org.id) notFound();
 
   const canManage = role === "OWNER" || role === "ADMIN";
+  // A draft client (from a Cal.com/Calendly booking) has no billing, share
+  // link or projects until it's made a client.
+  const isDraft = client.status === "LEAD";
   const origin = canManage ? await getOrigin() : "";
-  const shareCard = canManage ? await clientShareCardData(org, client) : null;
+  const shareCard = canManage && !isDraft ? await clientShareCardData(org, client) : null;
+  const bookings = await clientBookings(org.id, client.id);
+  const mergeTargets =
+    isDraft && canManage
+      ? await prisma.client.findMany({
+          where: { orgId: org.id, status: { not: "LEAD" } },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : [];
 
   const [invoices, retainerAgg, loggedAgg] = await Promise.all([
     prisma.invoice.findMany({
@@ -191,6 +207,23 @@ export default async function ClientDetailPage({
         <StatusBadge status={client.status} />
       </div>
 
+      {isDraft ? (
+        <DraftBanner
+          clientId={client.id}
+          clientName={client.name}
+          source={client.leadSource}
+          bookedAt={client.leadBookedAt?.toISOString() ?? null}
+          discardedAt={client.leadDiscardedAt?.toISOString() ?? null}
+          purgeAt={
+            client.leadDiscardedAt
+              ? new Date(client.leadDiscardedAt.getTime() + DISCARD_PURGE_DAYS * 86_400_000).toISOString()
+              : null
+          }
+          canManage={canManage}
+          mergeTargets={mergeTargets}
+        />
+      ) : null}
+
       {justCreated && client.contacts.length === 0 ? (
         <Alert className="mb-4">
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -261,6 +294,7 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
 
+          {isDraft ? null : (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Billing</CardTitle>
@@ -314,7 +348,9 @@ export default async function ClientDetailPage({
               )}
             </CardContent>
           </Card>
+          )}
 
+          {isDraft ? null : (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Payment methods</CardTitle>
@@ -337,6 +373,7 @@ export default async function ClientDetailPage({
               </div>
             </CardContent>
           </Card>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -426,21 +463,29 @@ export default async function ClientDetailPage({
         </div>
 
         <div className="flex flex-col gap-4 lg:col-span-2">
+          <BookingsCard bookings={bookings} />
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Projects</CardTitle>
-              <Button size="sm" asChild>
-                <Link href={`/projects/new?clientId=${client.id}`}>
-                  <Plus className="size-3.5" /> New project
-                </Link>
-              </Button>
+              {isDraft ? null : (
+                <Button size="sm" asChild>
+                  <Link href={`/projects/new?clientId=${client.id}`}>
+                    <Plus className="size-3.5" /> New project
+                  </Link>
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {client.projects.length === 0 ? (
                 <EmptyState
                   icon={FolderKanban}
                   title="No projects yet"
-                  description="Create a project under this client to start tracking time and billing."
+                  description={
+                    isDraft
+                      ? "Projects come once this draft is made a client (or its estimate is accepted and turned into a project)."
+                      : "Create a project under this client to start tracking time and billing."
+                  }
                 />
               ) : (
                 <ul className="flex flex-col divide-y divide-border">
@@ -465,13 +510,15 @@ export default async function ClientDetailPage({
             </CardContent>
           </Card>
 
-          <ClientInvoicesCard
-            clientId={client.id}
-            invoices={invoiceItems}
-            retainerBalance={retainerBalance}
-          />
+          {isDraft ? null : (
+            <ClientInvoicesCard
+              clientId={client.id}
+              invoices={invoiceItems}
+              retainerBalance={retainerBalance}
+            />
+          )}
 
-          {canManage ? (
+          {canManage && !isDraft ? (
             <ClientCreditCard
               clientId={client.id}
               defaultCurrency={org.defaultCurrency}
@@ -497,13 +544,17 @@ export default async function ClientDetailPage({
             />
           ) : null}
 
-          {canManage ? <BillingCycleCard
+          {canManage && !isDraft ? (
+            <BookingLinkCard clientId={client.id} value={client.bookingUrl} orgDefault={org.bookingUrl} />
+          ) : null}
+
+          {canManage && !isDraft ? <BillingCycleCard
               clientId={client.id}
               cycle={billingCycleItem}
               defaultTerms={client.paymentTerms ?? org.defaultPaymentTerms}
             /> : null}
 
-          {canManage ? (
+          {canManage && !isDraft ? (
             <RecurringScheduleCard clientId={client.id} schedules={recurringScheduleItems} />
           ) : null}
         </div>

@@ -295,7 +295,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       )}
       <p className="mt-4 text-xs text-muted-foreground">
         Times are in {tz === "UTC" ? "UTC" : tz.replace(/_/g, " ")}. Meetings are your own, from the
-        calendars you connected under Profile. Want these deadlines in your own calendar app? See{" "}
+        calendars you connected under Profile (the last two weeks and the next 30 days). Bookings
+        come from Cal.com and Calendly{canManage ? "" : " (the ones you host)"}. Want these deadlines in your own calendar app? See{" "}
         <Link href="/profile#calendar-subscription" className="text-brand hover:underline">
           Profile → Subscribe in your calendar app
         </Link>
@@ -305,13 +306,26 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   );
 }
 
-const MEETING_STATUS: Record<string, string> = { PENDING: "To sort", LOGGED: "Logged", IGNORED: "Ignored" };
+const MEETING_STATUS: Record<string, string> = {
+  UPCOMING: "Upcoming",
+  PENDING: "To sort",
+  LOGGED: "Logged",
+  IGNORED: "Ignored",
+};
+const BOOKING_STATUS: Record<string, string | null> = {
+  SCHEDULED: null,
+  CANCELLED: "Cancelled",
+  RESCHEDULED: "Moved",
+  NO_SHOW: "No-show",
+};
 
 function ItemLink({ item, time, compact = false }: { item: CalendarItem; time: string | null; compact?: boolean }) {
   const { icon: Icon, className } = CALENDAR_STYLE[item.type];
   const status = item.meetingStatus
     ? MEETING_STATUS[item.meetingStatus]
-    : item.overdue
+    : item.bookingStatus
+      ? BOOKING_STATUS[item.bookingStatus]
+      : item.overdue
       ? item.type === "scheduled_send"
         ? "Failed"
         : "Overdue"

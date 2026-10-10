@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { parseLocalDate } from "@/lib/date";
@@ -31,6 +32,7 @@ export async function createRecurringScheduleAction(
 
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
+  if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
 
   await prisma.recurringInvoiceSchedule.create({
     data: {
@@ -104,6 +106,7 @@ export async function saveBillingCycleAction(
 
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
+  if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
 
   const start = alignToInterval(parseLocalDate(parsed.data.startDate), parsed.data.interval);
   const data = {

@@ -141,5 +141,7 @@ function headlineFor(event: AlertEvent) {
       return "Task due tomorrow";
     case "DEADLINE_OVERDUE":
       return "Deadline passed";
+    case "NEW_LEAD":
+      return "New client booked a call";
   }
 }

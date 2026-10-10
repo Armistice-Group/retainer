@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { recordAuditEvent } from "@/lib/audit";
@@ -20,6 +21,7 @@ async function manageableClient(clientId: string) {
   requireRole(role, ["OWNER", "ADMIN"]);
   const client = await prisma.client.findUnique({ where: { id: clientId } });
   if (!client || client.orgId !== org.id) throw new Error("Client not found.");
+  if (isDraftClient(client)) throw new Error(DRAFT_CLIENT_ERROR);
   return { org, user, client };
 }
 

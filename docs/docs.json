@@ -55,7 +55,8 @@
               "integrations/payments",
               "integrations/email",
               "integrations/quickbooks",
-              "integrations/agreements"
+              "integrations/agreements",
+        "integrations/scheduling"
             ]
           },
           {

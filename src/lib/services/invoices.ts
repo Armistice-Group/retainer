@@ -1,4 +1,5 @@
 import "server-only";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { invoiceableTimeWhere } from "@/lib/services/timesheets";
 import {
   dueDateFor,
@@ -210,6 +211,7 @@ export type GenerateInvoiceInput = {
 export async function generateInvoice(ctx: GenerateInvoiceContext, input: GenerateInvoiceInput) {
   const client = await prisma.client.findUnique({ where: { id: input.clientId } });
   if (!client || client.orgId !== ctx.orgId) throw new InvoiceError("Client not found.");
+  if (isDraftClient(client)) throw new InvoiceError(DRAFT_CLIENT_ERROR);
 
   const approval = await prisma.organization.findUniqueOrThrow({
     where: { id: ctx.orgId },

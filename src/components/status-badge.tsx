@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 const STYLES: Record<string, string> = {
   ACTIVE: "bg-chart-3/15 text-chart-3 border-chart-3/30",
   INACTIVE: "bg-muted text-muted-foreground border-border",
+  LEAD: "bg-chart-4/15 text-chart-4 border-chart-4/30",
   ON_HOLD: "bg-chart-4/15 text-chart-4 border-chart-4/30",
   COMPLETED: "bg-chart-2/15 text-chart-2 border-chart-2/30",
   ARCHIVED: "bg-muted text-muted-foreground border-border",
@@ -26,6 +27,7 @@ const STYLES: Record<string, string> = {
 const LABELS: Record<string, string> = {
   ACTIVE: "Active",
   INACTIVE: "Inactive",
+  LEAD: "Draft client",
   ON_HOLD: "On hold",
   COMPLETED: "Completed",
   ARCHIVED: "Archived",

@@ -19,6 +19,7 @@ export function SettingsNav({ showAuditLog }: { showAuditLog: boolean }) {
     ? [
         ...links,
         { href: "/settings/agreements", label: "Agreements" },
+        { href: "/settings/scheduling", label: "Scheduling" },
         { href: "/settings/alerts", label: "Alerts" },
         { href: "/settings/import", label: "Import" },
         { href: "/settings/export", label: "Export" },

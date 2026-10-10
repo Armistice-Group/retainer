@@ -16,6 +16,10 @@ enum Role {
 enum ClientStatus {
   ACTIVE
   INACTIVE
+  // A draft client: someone who booked an intake call through Cal.com or
+  // Calendly. Kept out of invoicing, projects and share links until an
+  // owner or admin makes it a client (or merges or discards it).
+  LEAD
 }
 
 enum BillingType {
@@ -103,6 +107,7 @@ enum NotificationType {
   TASK_DUE_SOON
   DEADLINE_OVERDUE
   INVOICE_SEND_FAILED
+  NEW_LEAD
 }
 
 enum Plan {
@@ -188,6 +193,9 @@ model Organization {
   // Default for client share links: visitors prove they're one of the
   // client's contacts with an emailed code. Clients can override it.
   requireShareVerification   Boolean               @default(false)
+  // Default "Book a meeting" link on client share pages (any https URL, e.g.
+  // a Cal.com or Calendly page). Clients can have their own.
+  bookingUrl                 String?
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses
@@ -242,6 +250,9 @@ model Organization {
   creditNotes               CreditNote[]
   creditApplications        CreditApplication[]
   calendarSubscriptions     CalendarSubscription[]
+  schedulingConnections     SchedulingConnection[]
+  schedulingEventTypes      SchedulingEventType[]
+  bookings                  Booking[]
 }
 
 model User {
@@ -283,6 +294,7 @@ model User {
   invoiceEvents               InvoiceEvent[]
   calendarFeeds               CalendarFeed[]
   calendarEvents              CalendarEvent[]
+  hostedBookings              Booking[]
   calendarRules               CalendarRule[]
   connections                 UserConnection[]
   passwordResetTokens         PasswordResetToken[]
@@ -358,7 +370,7 @@ model Invite {
 }
 
 model Client {
-  id                          String        @id @default(cuid())
+  id                          String                @id @default(cuid())
   name                        String
   website                     String?
   description                 String?
@@ -372,26 +384,35 @@ model Client {
   // "use the org default" — an empty override isn't representable on
   // purpose, since "this client has no payment instructions at all" isn't a
   // real state anyone wants; they'd just fall back to the org default.
-  paymentInstructions         String?       @db.Text
+  paymentInstructions         String?               @db.Text
   paymentInstructionsPrivate  Boolean?
   // Whether the org's payment methods are offered alongside the client's
   // own, minus any switched off for this client.
-  useOrgPaymentMethods        Boolean       @default(true)
-  excludedOrgPaymentMethodIds String[]      @default([])
+  useOrgPaymentMethods        Boolean               @default(true)
+  excludedOrgPaymentMethodIds String[]              @default([])
   // Whether this client gets the org's overdue reminder emails.
-  invoiceReminders            Boolean       @default(true)
+  invoiceReminders            Boolean               @default(true)
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
   paymentTerms                PaymentTerms?
-  status                      ClientStatus  @default(ACTIVE)
-  shareToken                  String?       @unique
+  status                      ClientStatus          @default(ACTIVE)
+  shareToken                  String?               @unique
   // Null: the client link never expires.
   shareExpiresAt              DateTime?
   // Emailed-code check on this client's share pages (client + project
   // links); INHERIT follows Organization.requireShareVerification.
   shareVerification           ShareVerificationMode @default(INHERIT)
-  createdAt                   DateTime      @default(now())
-  updatedAt                   DateTime      @updatedAt
+  // Drafts (status LEAD): where the booking came from ("Cal.com",
+  // "Calendly"), when it was booked, and when it was discarded (hidden from
+  // Drafts; restorable until it's purged 30 days later).
+  leadSource                  String?
+  leadBookedAt                DateTime?
+  leadDiscardedAt             DateTime?
+  // "Book a meeting" link shown on this client's share page; null uses the
+  // org's default (Organization.bookingUrl).
+  bookingUrl                  String?
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
 
   orgId String
   org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -415,6 +436,7 @@ model Client {
   creditApplications        CreditApplication[]
   shareSessions             ShareSession[]
   shareCodes                ShareCode[]
+  bookings                  Booking[]
 
   @@index([orgId])
 }
@@ -501,6 +523,7 @@ model Contact {
   // Deleting a contact signs them out of the client's share pages.
   shareSessions ShareSession[]
   shareCodes    ShareCode[]
+  bookings      Booking[]
 
   @@index([clientId])
 }
@@ -680,20 +703,21 @@ model Project {
   clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  links            Link[]
-  members          ProjectMember[]
-  tasks            Task[]
-  timeEntries      TimeEntry[]
-  invoiceLineItems InvoiceLineItem[]
-  milestones       Milestone[]
-  expenses         Expense[]
-  externalLink     ExternalProjectLink?
-  activeTimers     ActiveTimer[]
-  calendarEvents   CalendarEvent[]
-  documents        ClientDocument[]
-  agreements       Agreement[]
-  vaultLinks       VaultLink[]
-  estimates        Estimate[]
+  links                Link[]
+  members              ProjectMember[]
+  tasks                Task[]
+  timeEntries          TimeEntry[]
+  invoiceLineItems     InvoiceLineItem[]
+  milestones           Milestone[]
+  expenses             Expense[]
+  externalLink         ExternalProjectLink?
+  activeTimers         ActiveTimer[]
+  calendarEvents       CalendarEvent[]
+  schedulingEventTypes SchedulingEventType[]
+  documents            ClientDocument[]
+  agreements           Agreement[]
+  vaultLinks           VaultLink[]
+  estimates            Estimate[]
 
   @@index([orgId])
   @@index([clientId])
@@ -1010,6 +1034,9 @@ model CalendarFeed {
 }
 
 enum CalendarEventStatus {
+  // Not over yet: shown on the calendar, not in the meetings inbox. Becomes
+  // PENDING (or is sorted by a series rule) at the first sync after it ends.
+  UPCOMING
   PENDING
   LOGGED
   IGNORED
@@ -1045,9 +1072,15 @@ model CalendarEvent {
   timeEntryId String?    @unique
   timeEntry   TimeEntry? @relation(fields: [timeEntryId], references: [id], onDelete: SetNull)
 
+  // The Cal.com/Calendly booking this meeting is (same start, the invitee
+  // among the attendees): names the client and suggests the project.
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
   @@unique([feedId, uid, start])
   @@index([userId, status, start])
   @@index([uid])
+  @@index([bookingId])
 }
 
 // "Always put this series / these attendees on that project" (projectId
@@ -1842,21 +1875,21 @@ enum EstimateStatus {
 // the resulting project would have. Once accepted it can become a project
 // (projectId), with milestones from the lines flagged as milestones.
 model Estimate {
-  id          String         @id @default(cuid())
-  number      String
-  title       String
+  id        String         @id @default(cuid())
+  number    String
+  title     String
   // Scope / intro text; light markdown (headings, lists, bold, links),
   // rendered as React elements, never as raw HTML.
-  intro       String?        @db.Text
-  status      EstimateStatus @default(DRAFT)
-  issueDate   DateTime       @db.Date
+  intro     String?        @db.Text
+  status    EstimateStatus @default(DRAFT)
+  issueDate DateTime       @db.Date
   // Last day the client can accept; null = never expires.
-  expiresAt   DateTime?      @db.Date
-  currency    String         @default("USD")
-  subtotal    Decimal        @default(0) @db.Decimal(12, 2)
-  taxRate     Decimal        @default(0) @db.Decimal(5, 2)
-  taxAmount   Decimal        @default(0) @db.Decimal(12, 2)
-  total       Decimal        @default(0) @db.Decimal(12, 2)
+  expiresAt DateTime?      @db.Date
+  currency  String         @default("USD")
+  subtotal  Decimal        @default(0) @db.Decimal(12, 2)
+  taxRate   Decimal        @default(0) @db.Decimal(5, 2)
+  taxAmount Decimal        @default(0) @db.Decimal(12, 2)
+  total     Decimal        @default(0) @db.Decimal(12, 2)
 
   // What the project created from this estimate gets. Null budget = the
   // estimate's subtotal; null billing type = milestone-based when any line
@@ -1896,7 +1929,7 @@ model Estimate {
   // project's visibility.
   projectCreatedAt DateTime?
   projectId        String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  project          Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   lineItems EstimateLineItem[]
 
@@ -2089,4 +2122,143 @@ model VaultLink {
   @@index([orgId])
   @@index([clientId])
   @@index([projectId])
+}
+
+// ── Scheduling (Cal.com, Calendly) ──────────────────────────────────────────
+// Bookings come in by webhook (or, for Calendly accounts without webhooks,
+// an hourly pull). A booking from someone we don't know becomes a draft
+// client (Client.status LEAD); one from a known contact is linked to their
+// client.
+
+model SchedulingConnection {
+  id               String    @id @default(cuid())
+  // CALCOM | CALENDLY
+  provider         String
+  // Cal.com: the API address (https://api.cal.com or a self-hosted one).
+  baseUrl          String?
+  // Encrypted. Cal.com API key / Calendly personal access token.
+  apiToken         String
+  accountName      String?
+  accountEmail     String?
+  // Cal.com user id; Calendly user URI.
+  externalUserId   String?
+  // Calendly organization URI; Cal.com username.
+  externalOrgId    String?
+  // The unguessable part of our webhook URL: its SHA-256 (for lookup) and
+  // the token itself, encrypted (to show the URL again).
+  webhookTokenHash String    @unique
+  webhookToken     String
+  // Encrypted. The secret payloads are signed with (Cal.com: the webhook's
+  // secret; Calendly: the signing key we set on the subscription).
+  webhookSecret    String
+  // The provider's id for a webhook we created through its API (so
+  // disconnecting removes it). Null: set up by hand, or polling.
+  webhookId        String?
+  // WEBHOOK | POLLING (Calendly without a paid plan: pulled hourly).
+  mode             String    @default("WEBHOOK")
+  // Which booking question holds the company name (its label or slug,
+  // matched case-insensitively). Null: look for one that says company,
+  // organisation or business.
+  companyQuestion  String?
+  lastWebhookAt    DateTime?
+  lastSyncedAt     DateTime?
+  lastError        String?
+  connectedById    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  eventTypes SchedulingEventType[]
+  bookings   Booking[]
+
+  @@unique([orgId, provider])
+}
+
+// One of the connected account's event types, and what its bookings mean.
+model SchedulingEventType {
+  id         String   @id @default(cuid())
+  // Cal.com event type id; Calendly event type URI.
+  externalId String
+  name       String
+  slug       String?
+  // Where people book it.
+  bookingUrl String?
+  // INTAKE (new clients) | CLIENTS (existing clients) | IGNORE
+  purpose    String   @default("INTAKE")
+  // Existing-client meetings: the project and billable flag the meetings
+  // inbox suggests for them.
+  billable   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  orgId        String
+  org          Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  connectionId String
+  connection   SchedulingConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  projectId    String?
+  project      Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  bookings Booking[]
+
+  @@unique([connectionId, externalId])
+  @@index([orgId])
+}
+
+enum BookingStatus {
+  SCHEDULED
+  CANCELLED
+  RESCHEDULED
+  NO_SHOW
+}
+
+// A meeting someone booked through Cal.com or Calendly.
+model Booking {
+  id              String        @id @default(cuid())
+  provider        String
+  // Cal.com booking uid; Calendly invitee URI.
+  externalId      String
+  // Calendly: the scheduled event URI (for polling); Cal.com: null.
+  externalEventId String?
+  title           String
+  eventTypeName   String?
+  startAt         DateTime
+  endAt           DateTime
+  status          BookingStatus @default(SCHEDULED)
+  inviteeName     String?
+  inviteeEmail    String?
+  inviteePhone    String?
+  timeZone        String?
+  joinUrl         String?
+  location        String?
+  // [{ question, answer }] — plain text, trimmed.
+  answers         Json          @default("[]")
+  cancelReason    String?
+  hostEmail       String?
+  // Whether this booking created its client as a draft.
+  createdLead     Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  orgId        String
+  org          Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  connectionId String?
+  connection   SchedulingConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  eventTypeId  String?
+  eventType    SchedulingEventType?  @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
+  // The org member hosting it (matched by email), if any.
+  hostUserId   String?
+  hostUser     User?                 @relation(fields: [hostUserId], references: [id], onDelete: SetNull)
+  clientId     String?
+  client       Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contactId    String?
+  contact      Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  calendarEvents CalendarEvent[]
+
+  @@unique([orgId, provider, externalId])
+  @@index([orgId, startAt])
+  @@index([clientId])
+  @@index([hostUserId, startAt])
 }

@@ -54,7 +54,8 @@ export const EXPORT_MODELS: ExportModel[] = [
     fields: [
       "id", "name", "website", "description", "email", "phone", "address", "billingEmail",
       "billingAddress", "status", "paymentTerms", "invoiceReminders", "useOrgPaymentMethods",
-      "shareExpiresAt", "shareVerification", "createdAt", "updatedAt",
+      "shareExpiresAt", "shareVerification", "leadSource", "leadBookedAt", "leadDiscardedAt", "bookingUrl",
+      "createdAt", "updatedAt",
     ],
     where: (s) => (s.clientId ? { orgId: s.orgId, id: s.clientId } : org(s)),
   },
@@ -280,6 +281,34 @@ export const EXPORT_MODELS: ExportModel[] = [
       present: { OR: [{ fileData: { not: null } }, { storageKey: { not: null } }] },
     },
   },
+  // Cal.com / Calendly. The connection without its API key, webhook URL
+  // token or signing secret (none are listed; SECRET_FIELD would drop them).
+  {
+    model: "SchedulingConnection",
+    file: "scheduling-connections",
+    fields: ["id", "provider", "baseUrl", "accountName", "accountEmail", "mode", "companyQuestion", "lastSyncedAt", "createdAt", "updatedAt"],
+    where: orgOnly,
+  },
+  {
+    model: "SchedulingEventType",
+    file: "scheduling-event-types",
+    fields: ["id", "connectionId", "externalId", "name", "slug", "bookingUrl", "purpose", "projectId", "billable", "createdAt", "updatedAt"],
+    where: orgOnly,
+  },
+  {
+    model: "Booking",
+    file: "bookings",
+    fields: [
+      "id", "provider", "externalId", "title", "eventTypeName", "eventTypeId", "startAt", "endAt", "status",
+      "inviteeName", "inviteeEmail", "inviteePhone", "timeZone", "joinUrl", "location", "answers", "cancelReason",
+      "hostEmail", "hostUserId", "clientId", "contactId", "createdLead", "createdAt", "updatedAt",
+    ],
+    clientFields: [
+      "id", "provider", "title", "eventTypeName", "startAt", "endAt", "status", "inviteeName", "inviteeEmail",
+      "joinUrl", "location", "answers", "clientId", "contactId", "createdAt",
+    ],
+    where: clientProjects,
+  },
   {
     // Links to password-manager items — never secrets, but they map out the
     // vault (account, vault and item ids), so they're in the owner-only full
@@ -343,7 +372,7 @@ export const EXPORT_MODELS: ExportModel[] = [
 const ORGANIZATION_FIELDS = [
   "id", "name", "slug", "domain", "defaultCurrency", "defaultTaxRate", "defaultBillRate",
   "invoicePrefix", "defaultPaymentTerms", "overheadPercent", "timesheetApproval",
-  "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "requireShareVerification", "createdAt",
+  "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "requireShareVerification", "bookingUrl", "createdAt",
 ];
 
 /** Never exported, whatever a table row says. */

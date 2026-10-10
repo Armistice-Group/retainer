@@ -175,10 +175,54 @@ export async function fetchPublicBytes(
   return { bytes: result.bytes ?? Buffer.alloc(0), contentType: result.contentType ?? null };
 }
 
+/** Calls a JSON API on a user-supplied host (a self-hosted Cal.com) with any
+ * method. Redirects aren't followed, so credentials never travel to another
+ * host. Resolves with the parsed body (null when empty) on 2xx, else throws
+ * SafeFetchError ("Cal.com answered 401."). */
+export async function requestPublicJson(
+  raw: string,
+  opts: {
+    method?: "GET" | "POST" | "PATCH" | "DELETE";
+    headers?: Record<string, string>;
+    body?: unknown;
+    timeoutMs?: number;
+    maxBytes?: number;
+    what?: string;
+  } = {}
+): Promise<unknown> {
+  const url = normalizePublicUrl(raw);
+  const what = opts.what ?? "the server";
+  const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
+  const result = await requestOnce(url, {
+    method: opts.method ?? "GET",
+    headers: {
+      "User-Agent": "Consultainer",
+      Accept: "application/json",
+      ...(body !== undefined
+        ? { "Content-Type": "application/json", "Content-Length": String(Buffer.byteLength(body)) }
+        : {}),
+      ...opts.headers,
+    },
+    body,
+    maxBytes: opts.maxBytes ?? 5 * 1024 * 1024,
+    timeoutMs: opts.timeoutMs ?? 15_000,
+    what,
+    tooLarge: "The response is too large.",
+  });
+  if (result.redirect) throw new SafeFetchError(`${what[0].toUpperCase()}${what.slice(1)} answered with a redirect.`);
+  const text = result.body ?? "";
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new SafeFetchError(`${what[0].toUpperCase()}${what.slice(1)} didn't answer with JSON.`);
+  }
+}
+
 function requestOnce(
   url: URL,
   opts: {
-    method: "GET" | "POST";
+    method: "GET" | "POST" | "PATCH" | "DELETE";
     headers: Record<string, string>;
     body?: string;
     maxBytes: number;

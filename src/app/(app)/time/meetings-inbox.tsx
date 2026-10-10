@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { CalendarDays, Check, Sparkles, Users, X } from "lucide-react";
+import { CalendarCheck, CalendarDays, Check, Sparkles, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ export type Meeting = {
   attendees: string[];
   suggestedProjectId: string | null;
   suggestionReason: string | null;
+  /** Booked through Cal.com/Calendly: who booked it, and the billable flag
+   * its event type sets. */
+  booking: { source: string; clientId: string | null; clientName: string | null; draft: boolean; billable: boolean } | null;
 };
 
 const selectClass =
@@ -93,7 +96,7 @@ export function MeetingsInbox({
                 for (const m of suggested) {
                   const r = await logMeetingAction(m.id, {
                     projectId: m.suggestedProjectId!,
-                    billable: true,
+                    billable: m.booking?.billable ?? true,
                     date: toISODate(new Date(m.start)),
                     remember: false,
                   });
@@ -150,7 +153,7 @@ function MeetingRow({
     ? meeting.suggestedProjectId!
     : "";
   const [projectId, setProjectId] = useState(suggestion);
-  const [billable, setBillable] = useState(true);
+  const [billable, setBillable] = useState(meeting.booking?.billable ?? true);
   const [remember, setRemember] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -191,6 +194,19 @@ function MeetingRow({
             <span className="flex items-center gap-1" title={meeting.attendees.join(", ")}>
               <Users className="size-3" />
               {meeting.attendees.length}
+            </span>
+          ) : null}
+          {meeting.booking ? (
+            <span className="flex items-center gap-1" title={`Booked through ${meeting.booking.source}`}>
+              <CalendarCheck className="size-3" />
+              {meeting.booking.clientId ? (
+                <Link href={`/clients/${meeting.booking.clientId}`} className="hover:underline">
+                  {meeting.booking.clientName}
+                  {meeting.booking.draft ? " (draft client)" : ""}
+                </Link>
+              ) : (
+                `Booked through ${meeting.booking.source}`
+              )}
             </span>
           ) : null}
           {meeting.suggestionReason && projectId === suggestion ? (

@@ -7,11 +7,16 @@ import { fetchPublicText, normalizePublicUrl, SafeFetchError } from "@/lib/safe-
 import { isPublicEmailDomain } from "@/lib/free-email-domains";
 import { projectVisibilityWhere } from "@/lib/project-access";
 import { createTimeEntry, TimeEntryError, type TimeEntryContext } from "@/lib/services/time-entries";
+import { bookingForMeeting } from "@/lib/services/scheduling";
+import { SCHEDULING_PROVIDER_LABELS, type SchedulingProviderId } from "@/lib/integrations/scheduling/parse";
 
 export class CalendarError extends Error {}
 
 /** How far back a sync looks for meetings to sort. */
 export const LOOKBACK_DAYS = 14;
+/** How far ahead a sync looks for upcoming meetings (shown on the calendar
+ * only; they reach the inbox once they're over). */
+export const LOOKAHEAD_DAYS = 30;
 const DAY_MS = 86_400_000;
 const MIN_MINUTES = 5;
 const MAX_HOURS = 10;
@@ -119,7 +124,7 @@ function localDay(date: Date, timeZone: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
-/** Finished, timed, attended meetings in the window — one per occurrence. */
+/** Timed, attended meetings that end inside the window — one per occurrence. */
 function occurrences(data: ReturnType<typeof parse>, me: string, from: Date, to: Date): Occurrence[] {
   const out: Occurrence[] = [];
   for (const component of Object.values(data)) {
@@ -139,7 +144,7 @@ function occurrences(data: ReturnType<typeof parse>, me: string, from: Date, to:
       if (ev.transparency === "TRANSPARENT") continue;
       const start = new Date(inst.start);
       const end = new Date(inst.end ?? inst.start);
-      if (end > to || end <= start) continue; // Only meetings that are over.
+      if (end > to || end <= start) continue; // Only meetings that end in the window.
       const minutes = (end.getTime() - start.getTime()) / 60000;
       if (minutes < MIN_MINUTES || minutes > MAX_HOURS * 60) continue;
       const people = attendeeList(ev);
@@ -164,9 +169,12 @@ function occurrences(data: ReturnType<typeof parse>, me: string, from: Date, to:
   return out;
 }
 
-/** Pulls a feed's recent meetings in: new ones become PENDING (with a
- * suggested project) or are sorted by the person's remembered series
- * rules; pending ones that vanished from the calendar are dropped. */
+/** Pulls a feed's meetings in: the last LOOKBACK_DAYS and the next
+ * LOOKAHEAD_DAYS. Ones not over yet are UPCOMING (calendar only). Once a
+ * meeting has ended it becomes PENDING (with a suggested project) or is
+ * sorted by the person's remembered series rule. Upcoming and pending ones
+ * that vanished from the calendar (cancelled, moved) are dropped. A meeting
+ * that is a Cal.com/Calendly booking is linked to it. */
 export async function syncFeed(feedId: string, opts: { text?: string; now?: Date } = {}) {
   const feed = await prisma.calendarFeed.findUnique({
     where: { id: feedId },
@@ -175,11 +183,12 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
   if (!feed) return { added: 0 };
   const now = opts.now ?? new Date();
   const from = new Date(now.getTime() - LOOKBACK_DAYS * DAY_MS);
+  const to = new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS);
 
   let found: Occurrence[];
   try {
     const text = opts.text ?? (await download(decrypt(feed.url)));
-    found = occurrences(parse(text), feed.user.email.toLowerCase(), from, now);
+    found = occurrences(parse(text), feed.user.email.toLowerCase(), from, to);
   } catch (err) {
     const message = err instanceof CalendarError ? err.message : "Couldn't sync this calendar.";
     await prisma.calendarFeed.update({ where: { id: feedId }, data: { lastError: message } });
@@ -200,13 +209,15 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
   };
 
   const existing = await prisma.calendarEvent.findMany({
-    where: { feedId, start: { gte: from } },
-    select: { id: true, uid: true, start: true, status: true },
+    where: { feedId, start: { gte: from }, end: { lte: to } },
+    select: { id: true, uid: true, start: true, status: true, bookingId: true },
   });
   const key = (uid: string, start: Date) => `${uid}|${start.toISOString()}`;
   const seen = new Set(found.map((o) => key(o.uid, o.start)));
   const known = new Map(existing.map((e) => [key(e.uid, e.start), e]));
-  const suggester = await makeSuggester(ctx);
+  let suggester: Awaited<ReturnType<typeof makeSuggester>> | null = null;
+  const suggest = async (occ: Occurrence, booking: MeetingBooking) =>
+    (suggester ??= await makeSuggester(ctx))(occ, booking);
   const rules = new Map(
     (await prisma.calendarRule.findMany({ where: { userId: feed.userId, kind: "SERIES" } })).map((r) => [
       r.value,
@@ -214,19 +225,66 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
     ])
   );
 
+  /** An ended meeting reaches the inbox: suggested project, or its series
+   * rule applied. Returns whether it's waiting to be sorted. */
+  const settle = async (eventId: string, occ: Occurrence, booking: MeetingBooking) => {
+    if (booking && booking.status !== "SCHEDULED" && booking.status !== "NO_SHOW") {
+      // Cancelled or moved in Cal.com/Calendly: nothing to log.
+      await prisma.calendarEvent.update({ where: { id: eventId }, data: { status: "IGNORED" } });
+      return false;
+    }
+    const suggestion = await suggest(occ, booking);
+    await prisma.calendarEvent.update({
+      where: { id: eventId },
+      data: {
+        status: "PENDING",
+        suggestedProjectId: suggestion?.projectId ?? null,
+        suggestionReason: suggestion?.reason ?? null,
+      },
+    });
+    const rule = rules.get(occ.uid);
+    if (rule) {
+      // Remembered series: sort it the same way without asking.
+      try {
+        if (rule.projectId) {
+          await logMeeting(ctx, eventId, {
+            projectId: rule.projectId,
+            billable: rule.billable,
+            date: localDay(occ.start, occ.timeZone),
+          });
+        } else {
+          await prisma.calendarEvent.update({ where: { id: eventId }, data: { status: "IGNORED" } });
+        }
+        return false;
+      } catch (err) {
+        // e.g. the project's gone or the week is locked — leave it to sort.
+        console.warn("[calendar] Rule couldn't apply", eventId, err);
+      }
+    }
+    return true;
+  };
+
   let added = 0;
   for (const occ of found) {
+    const ended = occ.end <= now;
     const prior = known.get(key(occ.uid, occ.start));
+    const booking = await bookingForMeeting(feed.orgId, occ.start, occ.attendees);
     if (prior) {
-      if (prior.status === "PENDING") {
+      if (prior.status === "PENDING" || prior.status === "UPCOMING") {
         await prisma.calendarEvent.update({
           where: { id: prior.id },
-          data: { title: occ.title, location: occ.location, end: occ.end, attendees: occ.attendees },
+          data: {
+            title: occ.title,
+            location: occ.location,
+            end: occ.end,
+            attendees: occ.attendees,
+            ...(booking && !prior.bookingId ? { bookingId: booking.id } : {}),
+          },
         });
+        if (prior.status === "UPCOMING" && ended && (await settle(prior.id, occ, booking))) added++;
       }
       continue;
     }
-    const suggestion = await suggester(occ);
     const created = await prisma.calendarEvent.create({
       data: {
         feedId,
@@ -237,34 +295,17 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
         start: occ.start,
         end: occ.end,
         attendees: occ.attendees,
-        suggestedProjectId: suggestion?.projectId ?? null,
-        suggestionReason: suggestion?.reason ?? null,
+        status: "UPCOMING",
+        bookingId: booking?.id ?? null,
       },
     });
-    const rule = rules.get(occ.uid);
-    if (rule) {
-      // Remembered series: sort it the same way without asking.
-      try {
-        if (rule.projectId) {
-          await logMeeting(ctx, created.id, {
-            projectId: rule.projectId,
-            billable: rule.billable,
-            date: localDay(occ.start, occ.timeZone),
-          });
-        } else {
-          await prisma.calendarEvent.update({ where: { id: created.id }, data: { status: "IGNORED" } });
-        }
-        continue;
-      } catch (err) {
-        // e.g. the project's gone or the week is locked — leave it to sort.
-        console.warn("[calendar] Rule couldn't apply", created.id, err);
-      }
-    }
-    added++;
+    if (ended && (await settle(created.id, occ, booking))) added++;
   }
 
-  // Meetings cancelled or deleted since: drop them if nobody sorted them.
-  const gone = existing.filter((e) => e.status === "PENDING" && !seen.has(key(e.uid, e.start)));
+  // Meetings cancelled, moved or deleted since: drop them if nobody sorted them.
+  const gone = existing.filter(
+    (e) => (e.status === "PENDING" || e.status === "UPCOMING") && !seen.has(key(e.uid, e.start))
+  );
   if (gone.length) {
     await prisma.calendarEvent.deleteMany({ where: { id: { in: gone.map((g) => g.id) } } });
   }
@@ -276,6 +317,8 @@ export async function syncFeed(feedId: string, opts: { text?: string; now?: Date
   await nudge(feed.id, feed.userId, feed.orgId, feed.lastNudgedAt, now);
   return { added };
 }
+
+type MeetingBooking = Awaited<ReturnType<typeof bookingForMeeting>>;
 
 async function nudge(feedId: string, userId: string, orgId: string, last: Date | null, now: Date) {
   if (last && now.getTime() - last.getTime() < NUDGE_EVERY_MS) return;
@@ -321,9 +364,10 @@ function hostOf(website: string | null) {
   }
 }
 
-/** Builds a project suggester for one person: same series as before, then
- * attendee domains matching a client, then the title naming a project or
- * client. */
+/** Builds a project suggester for one person: a Cal.com/Calendly booking's
+ * project or client, then same series as before, then attendee domains
+ * matching a client, then the title naming a project or client. Draft
+ * clients are never suggested. */
 async function makeSuggester(ctx: Ctx) {
   const [projects, clients, members, recent] = await Promise.all([
     prisma.project.findMany({
@@ -331,7 +375,7 @@ async function makeSuggester(ctx: Ctx) {
       select: { id: true, name: true, clientId: true },
     }),
     prisma.client.findMany({
-      where: { orgId: ctx.orgId },
+      where: { orgId: ctx.orgId, status: { not: "LEAD" } },
       select: {
         id: true,
         name: true,
@@ -376,7 +420,18 @@ async function makeSuggester(ctx: Ctx) {
       .sort((a, b) => (recentRank.get(a.id) ?? 1e9) - (recentRank.get(b.id) ?? 1e9))[0];
   const clientName = new Map(clients.map((c) => [c.id, c.name]));
 
-  return async (occ: Occurrence): Promise<{ projectId: string; reason: string } | null> => {
+  return async (occ: Occurrence, booking?: MeetingBooking): Promise<{ projectId: string; reason: string } | null> => {
+    // Booked through Cal.com/Calendly: the event type's project, else the
+    // booking's client.
+    if (booking) {
+      const source = SCHEDULING_PROVIDER_LABELS[booking.provider as SchedulingProviderId] ?? booking.provider;
+      const typeProject = booking.eventType?.projectId;
+      if (typeProject && activeIds.has(typeProject)) {
+        return { projectId: typeProject, reason: `Booked through ${source}: ${booking.eventType!.name}` };
+      }
+      const project = booking.clientId ? projectFor(booking.clientId) : undefined;
+      if (project) return { projectId: project.id, reason: `Booked through ${source} by ${booking.client!.name}` };
+    }
     const series = await prisma.calendarEvent.findFirst({
       where: { userId: ctx.actorId, uid: occ.uid, status: "LOGGED", projectId: { not: null } },
       orderBy: { start: "desc" },
@@ -517,5 +572,14 @@ export async function pendingMeetings(userId: string, orgId: string) {
     where: { userId, status: "PENDING", feed: { orgId } },
     orderBy: { start: "desc" },
     take: 200,
+    include: {
+      booking: {
+        select: {
+          provider: true,
+          client: { select: { id: true, name: true, status: true } },
+          eventType: { select: { name: true, billable: true, purpose: true } },
+        },
+      },
+    },
   });
 }

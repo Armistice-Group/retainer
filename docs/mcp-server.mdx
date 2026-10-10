@@ -201,9 +201,10 @@ what that person can see.
 
 | Tool | What it does |
 | --- | --- |
-| `list_clients` | List all clients in the organization. A member's key doesn't get the clients' `shareToken`; the same goes for every client and project tool below. |
+| `list_clients` | List all clients in the organization, or those with one `status` (`ACTIVE`, `INACTIVE`, `LEAD`). Each has `draft: true` when it's a [draft client](/concepts/clients-and-projects#draft-clients) from a Cal.com or Calendly booking. A member's key doesn't get the clients' `shareToken`; the same goes for every client and project tool below. |
 | `create_client` | Create a client. |
-| `update_client` | Update a client's details. |
+| `update_client` | Update a client's details. Leave out `status` to keep it; `ACTIVE` on a draft client makes it a client (owners and admins). |
+| `list_bookings` | Meetings booked through [Cal.com or Calendly](/integrations/scheduling) (`from`, `to`, `clientId`, `status`): time, invitee, client (with `draft`), join link and the booking form's answers. Owners and admins get all; others the ones they host. |
 | `list_projects` | List projects you can see, optionally for one client. |
 | `create_project` | Create a project for a client. A member who makes it confidential is added to it so they keep access. |
 | `update_project` | Update a project's details. |
@@ -238,7 +239,7 @@ what that person can see.
 | `submit_timesheet` | Submit a week of your time for approval. |
 | `list_pending_timesheets` | Owner/admin: submitted timesheets waiting for review. |
 | `review_timesheet` | Owner/admin: approve a timesheet, or send it back with a note. |
-| `list_meetings` | Unsorted meetings from your connected calendars (last two weeks), each with a suggested project. |
+| `list_meetings` | Unsorted meetings from your connected calendars (last two weeks, already over), each with a suggested project and, for a Cal.com/Calendly booking, `bookedBy` and `suggestedBillable`. |
 | `log_meeting` | Log a meeting as time on a project, optionally for the whole recurring series. |
 | `ignore_meeting` | Mark a meeting as not project work, optionally for the whole series. |
 

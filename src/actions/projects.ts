@@ -1,6 +1,7 @@
 "use server";
 
 import { randomBytes } from "crypto";
+import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -41,6 +42,7 @@ export async function createProjectAction(
 
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
+  if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
 
   const project = await prisma.project.create({
     data: {
@@ -115,6 +117,7 @@ export async function updateProjectAction(
 
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
+  if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
 
   await prisma.project.update({
     where: { id: projectId, orgId: org.id },

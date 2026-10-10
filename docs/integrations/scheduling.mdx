@@ -1,0 +1,298 @@
+---
+title: Cal.com and Calendly
+description: Turn intake calls into draft clients, and see client bookings on the client and your calendar
+---
+
+Connect Cal.com or Calendly and every booking comes into Consultainer as it
+happens:
+
+- **Someone new books an intake call** → a [draft client](/concepts/clients-and-projects#draft-clients)
+  is created with them as the contact, named after their company, with their
+  booking-form answers. It waits under **Clients → Drafts** for you to make
+  it a client, merge it into one, or discard it. Owners and admins get the
+  alert *A new client books a call*.
+- **A contact of one of your clients books** → the booking shows on that
+  client's page and on the [Calendar](/concepts/calendar). When the meeting
+  is also in the host's own [calendar](/integrations/calendars), the
+  meetings inbox shows who booked it and suggests the project you chose for
+  that event type.
+
+Consultainer only reads from Cal.com and Calendly. It never books, moves or
+cancels a meeting.
+
+**Who can do what**
+
+| | Owner | Admin | Member |
+| --- | --- | --- | --- |
+| Connect or disconnect Cal.com and Calendly, map event types | Yes | Yes | |
+| Set the default and per-client **Book a meeting** links | Yes | Yes | |
+| Make client, Create estimate, Merge into…, Discard, Restore a draft | Yes | Yes | |
+| See draft clients and their bookings | Yes | Yes | Yes |
+| See bookings on the Calendar | All | All | The ones they host |
+
+Everything below happens in **Settings → Scheduling**, a tab only owners and
+admins see. **Settings → Integrations** has a **Scheduling (Cal.com,
+Calendly)** card that links to it.
+
+<Warning>
+Cal.com and Calendly deliver bookings to your instance's public address, so
+it has to be reachable from the internet. If **Settings → Scheduling** warns
+that your address is `localhost`, set **Instance URL** under **Settings →
+General** (or `AUTH_URL`) to the address your team uses, then connect.
+Calendly accounts on the free plan don't need this (see
+[Calendly without webhooks](#calendly-without-webhooks)).
+</Warning>
+
+## Connect Cal.com
+
+Works with Cal.com's cloud and with self-hosted Cal.com (its API v2
+service). It uses an API key.
+
+<Steps>
+  <Step title="Create an API key in Cal.com">
+    In Cal.com, open **Settings → Developer → API keys** and click **New**
+    (or **+ Add**). Name it Consultainer, choose when it expires (or never),
+    and copy the key. Cal.com shows it only once. Keys start with `cal_live_`
+    (or `cal_` for test mode).
+  </Step>
+  <Step title="Connect">
+    In **Settings → Scheduling → Cal.com**, leave **Cal.com API address** as
+    `https://api.cal.com`, or enter your self-hosted Cal.com's API v2
+    address. Paste the key as **API key**, keep **Create the webhook in
+    Cal.com for me** ticked, and click **Connect Cal.com**.
+
+    Consultainer checks the key (it reads `/v2/me`), reads your event types,
+    and creates a webhook in Cal.com for *Booking created*, *Booking
+    rescheduled* and *Booking cancelled* (plus *Booking requested*,
+    *Booking rejected* and no-show updates when your Cal.com offers them),
+    signed with a secret only Consultainer and Cal.com know. The key is
+    stored encrypted.
+  </Step>
+  <Step title="Map your event types">
+    See [Map your event types](#map-your-event-types).
+  </Step>
+</Steps>
+
+### Add the webhook by hand
+
+If Consultainer couldn't create the webhook (the card says *Couldn't create
+the webhook in Cal.com …*), or you untick the box, add it yourself:
+
+<Steps>
+  <Step title="Copy the URL and secret">
+    On the Cal.com card, the **Webhook** box shows the **Subscriber URL**
+    (`https://your-instance/api/webhooks/scheduling/calcom/<token>`) and the
+    **Secret**, each with **Copy**.
+  </Step>
+  <Step title="Create the webhook in Cal.com">
+    In Cal.com, open **Settings → Developer → Webhooks** and click **New**.
+    Paste the subscriber URL and the secret, tick **Booking created**,
+    **Booking rescheduled** and **Booking cancelled** (and no-show updates
+    if listed), and save. Leave the custom payload template empty.
+  </Step>
+  <Step title="Test it">
+    Click **Ping test** in Cal.com. It should succeed.
+  </Step>
+</Steps>
+
+**New secret** on the card makes a new secret; paste it into the webhook in
+Cal.com straight away, since deliveries signed with the old one are refused.
+Reconnecting (pasting a new API key) keeps the same URL and secret.
+
+## Connect Calendly
+
+Calendly uses a personal access token. Consultainer subscribes to your
+bookings itself, so there's nothing to set up on Calendly's side.
+
+<Steps>
+  <Step title="Create a personal access token">
+    In Calendly, open **Integrations & apps → API & webhooks**. Under
+    **Personal access tokens**, click **Get a token now** (or **Generate new
+    token**), name it Consultainer, click **Create token** and copy it.
+    Calendly shows it only once.
+  </Step>
+  <Step title="Connect">
+    In **Settings → Scheduling → Calendly**, paste it as **Personal access
+    token** and click **Connect Calendly**. Consultainer checks the token,
+    reads your event types, and creates a webhook subscription for
+    `invitee.created`, `invitee.canceled`, `invitee_no_show.created` and
+    `invitee_no_show.deleted`, signed with a key it makes for it.
+  </Step>
+  <Step title="Map your event types">
+    See [Map your event types](#map-your-event-types).
+  </Step>
+</Steps>
+
+The subscription covers the token owner's bookings (Calendly's `user`
+scope). Connect with the account whose booking pages your clients use.
+Clicking **Reconnect** with a token replaces the subscription.
+
+### Calendly without webhooks
+
+Calendly only offers webhooks on its paid plans (Standard and up). On the
+free plan, connecting still works: the card says *Checking for new bookings
+every hour*, and Consultainer asks Calendly every hour for bookings starting
+from two days ago to 180 days ahead, reading the invitees of events that
+changed since the last check. Click **Check now** to check straight away.
+After upgrading your Calendly plan, click **Reconnect** to switch to
+webhooks.
+
+## Map your event types
+
+Under each connection, **Event types** lists your Cal.com or Calendly event
+types. For each, choose what it's for and click **Save**:
+
+| Choice | A booking from a contact of a client | A booking from someone unknown |
+| --- | --- | --- |
+| **Intake (new clients)** (the default) | Goes on that client | Becomes a draft client (or joins a draft from the same company) |
+| **Existing clients** | Goes on that client | Goes on the client whose website or contacts share the person's company domain, if exactly one does; otherwise becomes a draft client |
+| **Ignore** | Not brought in | Not brought in |
+
+The **project** and **Billable** next to each are what **Time → Meetings**
+suggests when the meeting shows up from the host's
+[calendar](/integrations/calendars#how-the-project-is-suggested).
+
+Event types are refreshed every hour and when you click **Refresh**. A new
+event type also appears with its first booking (as **Intake**).
+
+## How a booking becomes a draft client
+
+For each new booking (not an ignored event type), Consultainer looks at the
+invitee's email address, in this order:
+
+1. **A contact of a client** has that email (or it's a client's own or
+   billing email) → the booking goes on that client. No draft.
+2. **Someone on your team** (a member's email, or your organization's or
+   members' company domain) → the booking is kept, with no client.
+3. **A draft from the same company** (a draft whose website or a contact's
+   email has the same domain, not counting gmail.com and similar) → they're
+   added to that draft as a contact.
+4. Otherwise a **new draft client**:
+   - **Name**: the answer to your company question (see below); else the
+     email's domain (`jane@acme-labs.com` → *Acme Labs*); for Gmail, Outlook
+     and similar addresses, the person's name.
+   - **Website**: the email's domain (not for Gmail and similar).
+   - **Email** and **phone**: the invitee's, and they're added as the
+     primary contact.
+   - **Notes**: *Booked "(title)" through Cal.com for (time) (their time
+     zone)*, then each booking question and answer. Answers are kept as
+     plain text: HTML and control characters are removed.
+
+A booking that's already cancelled when it first arrives doesn't create a
+draft.
+
+**Company question.** By default, the first booking question whose label
+mentions *company*, *organization*/*organisation*, *business*, *employer*,
+*firm*, *agency* or *brand* names the draft. To use a different one, type
+its label exactly as it appears on your booking page (or, for Cal.com, its
+identifier) under **Booking question with the company name**, and click
+**Save**.
+
+### Reschedules, cancellations and no-shows
+
+- **Rescheduled**: the old booking is marked moved and the new one takes
+  its client.
+- **Cancelled**: the booking is marked cancelled. If its meeting is waiting
+  in someone's **Time → Meetings**, it's taken out (marked ignored).
+- **No-show** (Calendly; Cal.com when it sends no-show updates): marked
+  **No-show**, and unmarked if the no-show is removed.
+
+A cancelled or moved booking is never brought back by a repeated delivery.
+Every delivery is matched on the booking's id at Cal.com or Calendly, so a
+delivery that arrives twice changes nothing.
+
+## Book a meeting links
+
+Clients can book with you from their [client link](/concepts/clients-and-projects#book-a-meeting-link):
+
+- **Settings → Scheduling → Default booking link**: shown as **Book a
+  meeting** on every client's share page.
+- **Booking link** card on a client's page: that client's own link instead.
+
+Any `https://` link works (your Cal.com or Calendly page, or another tool).
+Consultainer doesn't call any API for these.
+
+## Check it worked
+
+- The connection's card says **Connected**, with your account name, and its
+  event types are listed.
+- Book a test meeting on one of your intake event types with an email
+  address that isn't a contact (a colleague's address won't work, see step 2
+  above). Within seconds the card says **Last booking update received**
+  (now), a draft client appears under **Clients → Drafts**, and owners and
+  admins get the alert.
+- On Calendly's free plan, click **Check now** instead and look under
+  **Clients → Drafts**.
+
+## API and MCP
+
+- `GET /api/v1/clients?status=LEAD` lists draft clients; every client in
+  the list has `draft: true` or `false`.
+- `GET /api/v1/bookings` lists bookings (`from`, `to`, `clientId`,
+  `status`). Owners and admins get all, others the ones they host.
+- MCP: `list_clients` (with `status`) marks drafts; `list_bookings` lists
+  bookings; `update_client` with `status: ACTIVE` makes a draft a client
+  (owners and admins).
+- Generating an invoice for a draft client, or creating a project for one,
+  answers `422` / an error: *This is a draft client. Make it a client first
+  (Make client, on its page).*
+
+The [export](/concepts/import-export) includes `scheduling-connections`
+(without the API key, token, webhook URL or secret), `scheduling-event-types`
+and `bookings`.
+
+## Disconnecting
+
+**Disconnect** (owner or admin) deletes the stored key or token and removes
+the webhook Consultainer created in Cal.com or Calendly. Bookings and draft
+clients already here stay. A webhook you added to Cal.com by hand stays in
+Cal.com; delete it there (its deliveries are refused once you've
+disconnected). To revoke access on the provider's side too, delete the API
+key in Cal.com or the personal access token in Calendly.
+
+## Troubleshooting
+
+Errors show on the connect form, or in red under the connection's name.
+
+- **"Couldn't connect: Cal.com answered 401. Check the API key."** — The key
+  is wrong, expired or deleted. Create a new one.
+- **"Couldn't connect: Cal.com answered 404."** — The API address is wrong.
+  Use `https://api.cal.com`, or your self-hosted Cal.com's API v2 address
+  (not the web app's address).
+- **"Couldn't connect: That address isn't reachable from here."** — Your
+  self-hosted Cal.com is on a private address. Set `ALLOW_PRIVATE_FETCH=true`
+  in `.env` and run `docker compose up -d`.
+- **"Couldn't create the webhook in Cal.com (…). Add it by hand with the URL
+  and secret below."** — The key can't create webhooks, or Cal.com refused
+  the URL (Cal.com's cloud only accepts public `https://` addresses). Fix
+  the instance address, or [add the webhook by hand](#add-the-webhook-by-hand).
+- **"Couldn't connect: Calendly answered 401: … Check the personal access
+  token."** — The token is wrong or was revoked. Create a new one.
+- **"Couldn't set up the Calendly webhook (…). Checking for new bookings
+  every hour instead."** — Calendly refused the subscription for a reason
+  other than the plan (often an address it can't reach). Bookings still
+  arrive hourly. Fix the instance address and click **Reconnect**.
+- **Ping test or deliveries fail with 401 (`Bad signature`)** in Cal.com's
+  webhook log — The secret in Cal.com doesn't match the one on the card.
+  Copy the secret again into the webhook in Cal.com.
+- **Deliveries fail with 404 (`Not found`)** — The URL is from an old or
+  removed connection. Copy the current subscriber URL from the card.
+- **No draft for a test booking** — The email was a contact of a client
+  (the booking is on that client instead), a colleague's address, or the
+  event type is set to **Ignore**. Also check **Clients → Discarded**.
+- **"This is a draft client. Make it a client first (Make client, on its
+  page)."** — Shown when invoicing, creating a project, a retainer, a
+  billing cycle, credit or a client link for a draft. Click **Make client**
+  on its page first.
+- **"The link must start with https://."** — Booking links must be
+  `https://`.
+
+<Note>
+Details Consultainer relies on that the providers' docs leave open: Cal.com
+signs deliveries with a hex HMAC-SHA256 of the body in
+`X-Cal-Signature-256` (confirmed in Cal.com's source); Consultainer asks
+Cal.com's event-types endpoint for version `2024-06-14`; and a Calendly
+signature older than 10 minutes is refused (Calendly's own examples use
+three). If your self-hosted Cal.com doesn't run the API v2 service, connect
+fails with a 404; add the webhook by hand only after connecting works.
+</Note>

@@ -1,6 +1,6 @@
 ---
 title: Clients
-description: List and create clients
+description: List and create clients, and list bookings
 ---
 
 ## List clients
@@ -9,7 +9,15 @@ description: List and create clients
 GET /api/v1/clients
 ```
 
-Any role. Returns every client in the organization, sorted by name.
+Any role. Returns every client in the organization, sorted by name,
+[draft clients](/concepts/clients-and-projects#draft-clients) included. Each
+has `"draft": true` when its `status` is `LEAD` (someone who booked through
+Cal.com or Calendly and isn't a client yet).
+
+<ParamField query="status" type="string">
+  `ACTIVE`, `INACTIVE` or `LEAD` to list only those. Anything else answers
+  `422`.
+</ParamField>
 
 `shareToken` (the secret in the client's all-projects
 [client link](/concepts/clients-and-projects#client-links), or `null`) is
@@ -33,6 +41,7 @@ curl https://<your-instance>/api/v1/clients \
       "billingEmail": null,
       "paymentTerms": null,
       "status": "ACTIVE",
+      "draft": false,
       "createdAt": "2026-08-01T14:02:11.000Z",
       "...": "..."
     }
@@ -58,7 +67,8 @@ Any role. Returns `201` with `{ "client": { ... } }`.
 <ParamField body="address" type="string">Up to 500 characters.</ParamField>
 <ParamField body="description" type="string">Up to 2,000 characters.</ParamField>
 <ParamField body="status" type="string" default="ACTIVE">
-  `ACTIVE` or `INACTIVE`.
+  `ACTIVE` or `INACTIVE`. `LEAD` answers `422`: draft clients only come from
+  bookings.
 </ParamField>
 
 Only these fields are saved; anything else in the body is ignored. Set the
@@ -177,3 +187,50 @@ another organization or that doesn't exist; `404`
 `{ "error": "Project not found." }` for a `projectId` that isn't this
 client's or that the key's user can't see.
 
+
+## List bookings
+
+```
+GET /api/v1/bookings
+```
+
+Meetings booked through [Cal.com or Calendly](/integrations/scheduling),
+sorted by start time (up to 500). Owner and admin keys get every booking in
+the organization; a member's key gets the ones that member hosts.
+
+<ParamField query="from" type="string">ISO date: bookings starting on or after.</ParamField>
+<ParamField query="to" type="string">ISO date: bookings starting before.</ParamField>
+<ParamField query="clientId" type="string">Only this client's bookings.</ParamField>
+<ParamField query="status" type="string">
+  `SCHEDULED`, `CANCELLED`, `RESCHEDULED` (moved; the new time is its own
+  booking) or `NO_SHOW`.
+</ParamField>
+
+```bash
+curl "https://<your-instance>/api/v1/bookings?from=2026-10-01&status=SCHEDULED" \
+  -H "Authorization: Bearer ch_live_..."
+```
+
+```json
+{
+  "bookings": [
+    {
+      "id": "cmv...",
+      "provider": "CALCOM",
+      "title": "Intro call between Sam and Jane Doe",
+      "eventType": "Intro call",
+      "startAt": "2026-10-14T17:00:00.000Z",
+      "endAt": "2026-10-14T17:30:00.000Z",
+      "status": "SCHEDULED",
+      "invitee": { "name": "Jane Doe", "email": "jane@globex.com", "phone": null, "timeZone": "Europe/Berlin" },
+      "client": { "id": "cmv...", "name": "Globex", "draft": true },
+      "joinUrl": "https://app.cal.com/video/...",
+      "location": null,
+      "answers": [{ "question": "What do you need?", "answer": "A new website" }]
+    }
+  ]
+}
+```
+
+**Errors:** `422` with the field's message for a `from`/`to` that isn't a
+date or an unknown `status`.

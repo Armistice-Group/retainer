@@ -30,6 +30,9 @@ export async function createClientAction(
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
+  if (parsed.data.status === "LEAD") {
+    return { error: "Draft clients come from Cal.com and Calendly bookings. Pick Active or Inactive." };
+  }
 
   const client = await prisma.client.create({
     data: {
@@ -57,7 +60,7 @@ export async function updateClientAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { org } = await requireOrgContext();
+  const { org, role } = await requireOrgContext();
 
   const parsed = clientSchema.safeParse({
     name: formData.get("name"),
@@ -77,6 +80,15 @@ export async function updateClientAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const current = await prisma.client.findFirst({ where: { id: clientId, orgId: org.id }, select: { status: true } });
+  if (!current) return { error: "Client not found." };
+  if (parsed.data.status === "LEAD" && current.status !== "LEAD") {
+    return { error: "A client can't be turned back into a draft." };
+  }
+  if (current.status === "LEAD" && parsed.data.status !== "LEAD" && role !== "OWNER" && role !== "ADMIN") {
+    return { error: "Only owners and admins can make a draft client a client." };
+  }
+
   await prisma.client.update({
     where: { id: clientId, orgId: org.id },
     data: {
@@ -91,6 +103,7 @@ export async function updateClientAction(
       paymentTerms: parsed.data.paymentTerms,
       invoiceReminders: parsed.data.invoiceReminders,
       status: parsed.data.status,
+      ...(current.status === "LEAD" && parsed.data.status !== "LEAD" ? { leadDiscardedAt: null } : {}),
     },
   });
 

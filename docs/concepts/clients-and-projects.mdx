@@ -36,6 +36,47 @@ with all of its projects, time entries **and invoices**, including paid ones.
 It can't be undone. To retire a client, set its status to **Inactive** instead.
 </Warning>
 
+## Draft clients
+
+When someone you don't know yet books a call through
+[Cal.com or Calendly](/integrations/scheduling), Consultainer adds them as a
+**draft client**: a client page named after their company, with them as the
+contact and their booking-form answers in the notes. Drafts are listed under
+**Clients → Drafts** (with a count), not with your clients, and owners and
+admins get the *A new client books a call* alert.
+
+A draft client:
+
+- **can** have contacts, links, documents, credentials, agreements,
+  bookings and [estimates](/concepts/estimates);
+- **can't** have projects, invoices, retainers, billing cycles, payments,
+  credit or a client link, isn't offered in the invoice or project client
+  pickers, isn't counted as a client, and never goes to QuickBooks.
+
+**Who can do this:** owners and admins. Members see drafts and their page,
+but not the buttons.
+
+Open the draft from **Clients → Drafts**. The banner says where it came from
+and when they booked, with:
+
+| Button | What it does |
+| --- | --- |
+| **Make client** | Turns it into an active client. Everything stays. |
+| **Create estimate** | Opens a new [estimate](/concepts/estimates) for it. When the estimate is accepted and you click **Create project**, the draft becomes an active client automatically. |
+| **Merge into…** | Pick an existing client: the draft's contacts, bookings, links, documents, credentials, agreements and estimates move there (a contact whose email the client already has isn't copied), the notes too if the client has none, and the draft is deleted. Use it when someone from a client books through your intake page. |
+| **Discard** | Hides it from Drafts and moves it to **Clients → Discarded**. Open it there and click **Restore** to bring it back. 30 days after it was discarded, it's deleted (unless it has an estimate or agreement). |
+
+If someone whose draft you discarded books again, the draft comes back to
+Drafts and you get the alert again.
+
+**Check it worked:** after **Make client**, the client shows under
+**Clients** with status **Active**, and **New project** appears on its page.
+
+You can also make a draft a client with **Edit** → **Status** → **Active**
+(owners and admins), and [importing](#how-to-import-clients-and-projects)
+projects for a client whose name matches a draft makes it a client too. A
+client can't be turned back into a draft.
+
 ## How to add contacts
 
 Contacts are the people you work with at the client.
@@ -320,6 +361,15 @@ pick a new **Expires** next to the button first).
 
 **Regenerate** and **Revoke** work the same as for a project link. They also
 sign out everyone who verified their email on this client's links.
+
+### Book a meeting link
+
+A client link can show a **Book a meeting** button that opens your booking
+page (Cal.com, Calendly or any `https://` link). Set a default for every
+client under **Settings → Scheduling → Default booking link**, or a link
+just for one client in the **Booking link** card on its page (owners and
+admins). The client's own link wins; leave it empty to use the default.
+Nothing is shown when neither is set.
 
 ### Link expiry
 

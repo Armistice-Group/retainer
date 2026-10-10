@@ -20,7 +20,8 @@ export async function getClientByShareToken(token: string) {
       },
     },
   });
-  if (!client || isShareExpired(client.shareExpiresAt)) return null;
+  // Drafts never have a working link (none can be made; this covers old ones).
+  if (!client || client.status === "LEAD" || isShareExpired(client.shareExpiresAt)) return null;
 
   const projectIds = client.projects.map((p) => p.id);
   if (projectIds.length === 0) {
