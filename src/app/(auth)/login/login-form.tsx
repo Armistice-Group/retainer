@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GoogleSignInButton } from "@/components/auth/google-signin-button";
 import { PasskeySignInButton } from "@/components/auth/passkey-signin-button";
 import { MagicLinkForm } from "./magic-link-form";
+import { ForgotPasswordForm } from "./forgot-password-form";
 import { SsoSignInButton, type SsoProvider } from "./sso-signin-button";
 
-type Mode = "password" | "magic-link";
+type Mode = "password" | "magic-link" | "forgot-password";
 
 export function LoginForm({
   callbackUrl,
@@ -36,6 +37,8 @@ export function LoginForm({
   const description =
     mode === "magic-link"
       ? "We'll email you a link to log in — no password needed."
+      : mode === "forgot-password"
+        ? "Enter your email and we'll send you a link to choose a new password."
       : needsCode
         ? "Enter the 6-digit code from your authenticator app."
         : "Welcome back. Enter your details to continue.";
@@ -43,12 +46,17 @@ export function LoginForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Log in</CardTitle>
+        <CardTitle>{mode === "forgot-password" ? "Reset your password" : "Log in"}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         {mode === "magic-link" ? (
           <MagicLinkForm onBack={() => setMode("password")} />
+        ) : mode === "forgot-password" ? (
+          <ForgotPasswordForm
+            emailEnabled={magicLinkEnabled}
+            onBack={() => setMode("password")}
+          />
         ) : (
           <>
             {!needsCode ? (
@@ -119,6 +127,13 @@ export function LoginForm({
                     {state?.fieldErrors?.password ? (
                       <p className="text-sm text-destructive">{state.fieldErrors.password[0]}</p>
                     ) : null}
+                    <button
+                      type="button"
+                      className="self-end text-xs text-brand hover:underline"
+                      onClick={() => setMode("forgot-password")}
+                    >
+                      Forgot password?
+                    </button>
                   </div>
                 </>
               ) : (

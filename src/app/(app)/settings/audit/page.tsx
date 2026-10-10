@@ -111,6 +111,8 @@ export default async function AuditLogPage({
                 <option value="update">Updated</option>
                 <option value="delete">Deleted</option>
                 <option value="sign_in">Signed in</option>
+                <option value="password_reset">Reset a password</option>
+                <option value="password_reset_link">Created a password reset link</option>
                 <option value="view">Viewed a document</option>
                 <option value="download">Downloaded a document</option>
                 <option value="export">Exported the audit log</option>
@@ -173,7 +175,9 @@ export default async function AuditLogPage({
                       {entry.actor?.name ?? (entry.via === "system" ? "System" : "Unknown user")}
                     </span>
                     <span className="text-muted-foreground">{describeAudit(entry)}</span>
-                    {entry.entityLabel && entry.action !== "sign_in" ? (
+                    {entry.entityLabel &&
+                    entry.action !== "sign_in" &&
+                    entry.action !== "password_reset" ? (
                       href ? (
                         <Link href={href} className="min-w-0 truncate hover:underline">
                           {entry.entityLabel}

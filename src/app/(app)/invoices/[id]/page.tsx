@@ -119,15 +119,17 @@ export default async function InvoiceDetailPage({
             {!isDraft && invoice.status !== "VOID" ? (
               <CopyClientLinkButton invoiceId={invoice.id} />
             ) : null}
-            {isDraft ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
-            {invoice.status === "SENT" ? (
+            {/* Sending, marking paid and voiding are for owners and admins;
+                members can generate and edit drafts. */}
+            {isDraft && canManage ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
+            {invoice.status === "SENT" && canManage ? (
               <>
                 <MarkPaidDialog invoiceId={invoice.id} />
                 <form action={setInvoiceStatusAction.bind(null, invoice.id, "VOID")}>
                   <ConfirmSubmitButton
                     variant="outline"
                     size="sm"
-                    confirmMessage="Void this invoice? This can't be undone."
+                    confirmMessage="Void this invoice? This can't be undone. Its time entries, milestones and expenses become unbilled again so you can invoice them on a new invoice; the voided invoice keeps its lines as a record."
                   >
                     Void
                   </ConfirmSubmitButton>

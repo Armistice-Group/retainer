@@ -25,6 +25,7 @@ export default async function LoginPage({
     "no-account": "There's no account for that email. Ask an admin to invite you.",
     "email-verification-expired": "That email confirmation link is invalid or has expired.",
     "email-already-taken": "That email is now used by another account.",
+    "session-ended": "You've been signed out. Log in again to continue.",
   };
 
   const ssoConnections = await prisma.ssoConnection.findMany({

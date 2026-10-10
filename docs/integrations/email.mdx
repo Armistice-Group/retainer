@@ -1,6 +1,6 @@
 ---
 title: Email
-description: Send invites, login links, invoices and alerts through Resend
+description: Send invites, login and password reset links, invoices and alerts through Resend
 ---
 
 Consultainer sends email through [Resend](https://resend.com). Email is
@@ -13,6 +13,7 @@ email-only features are off. An **owner** sets it up once for the instance.
 | --- | --- | --- |
 | Invitation | The person invited | An owner or admin invites someone under **Settings → Members**. |
 | Login link | The person signing in | They click **Email me a login link** on the login page (valid 15 minutes). |
+| Reset your password | The person who forgot it | They click **Forgot password?** on the login page (valid 1 hour, at most 3 an hour). Never sent for people who have to sign in with SSO. |
 | Confirm your new email | The new address | Someone changes their email on **Profile**. |
 | Invoice | The client's invoice recipients | Someone clicks **Email to client** (or **Email again**) on an invoice. Replies go to the sender. |
 | Overdue reminder | The client's invoice recipients | Daily, at the days set under **Settings → Payments → Overdue reminders**. |
@@ -21,8 +22,9 @@ email-only features are off. An **owner** sets it up once for the instance.
 | Weekly digest | Alert recipients | Mondays, if the digest is on under **Settings → Alerts**. |
 
 **Without email:** invites and contractor reviews give you a link to copy,
-the login page hides **Email me a login link**, email changes apply after a
-password check, and invoice emails, overdue reminders, email alerts and the
+the login page hides **Email me a login link**, **Forgot password?** tells
+people to ask an owner or admin for a reset link (**Settings → Members → ⋯ →
+Create password reset link**), email changes apply after a password check, and invoice emails, overdue reminders, email alerts and the
 weekly digest are off. Invoices can still be shared with **Copy client link**.
 
 ## Set it up

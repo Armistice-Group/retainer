@@ -22,6 +22,7 @@ type Org = {
   invoicePrefix: string;
   defaultCurrency: string;
   defaultTaxRate: string;
+  defaultBillRate: string;
   defaultPaymentTerms: string;
   overheadPercent: string;
   expenseApprovalThreshold: string;
@@ -86,6 +87,31 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             disabled={readOnly}
             required
           />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="defaultBillRate">Default bill rate ({org.defaultCurrency}/hr)</Label>
+          <Input
+            id="defaultBillRate"
+            name="defaultBillRate"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Not set"
+            defaultValue={org.defaultBillRate}
+            disabled={readOnly}
+          />
+          {state?.fieldErrors?.defaultBillRate ? (
+            <p className="text-sm text-destructive">{state.fieldErrors.defaultBillRate[0]}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              What people start at when they&apos;re put on a project, unless they have their own
+              rate under{" "}
+              <Link href="/settings/members" className="text-brand hover:underline">
+                Members
+              </Link>
+              . Changing it doesn&apos;t touch existing projects.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="defaultPaymentTerms">Default payment terms</Label>

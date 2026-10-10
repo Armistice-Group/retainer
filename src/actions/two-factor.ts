@@ -55,7 +55,9 @@ export async function confirmTwoFactorSetupAction(
     data: { twoFactorEnabled: true, twoFactorRecoveryCodes: hashed },
   });
 
-  revalidatePath("/profile");
+  // Not from the required-2FA setup page: re-rendering it now would send
+  // the person on to the app before they've seen their recovery codes.
+  if (formData.get("from") !== "required-setup") revalidatePath("/profile");
   return { recoveryCodes };
 }
 

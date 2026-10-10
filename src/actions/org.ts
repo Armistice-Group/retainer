@@ -39,6 +39,7 @@ export async function updateOrgGeneralAction(
     invoicePrefix: formData.get("invoicePrefix"),
     defaultCurrency: formData.get("defaultCurrency"),
     defaultTaxRate: formData.get("defaultTaxRate"),
+    defaultBillRate: formData.get("defaultBillRate"),
     overheadPercent: formData.get("overheadPercent"),
     expenseApprovalThreshold: formData.get("expenseApprovalThreshold"),
     externalBillingLabel: formData.get("externalBillingLabel"),
@@ -60,6 +61,7 @@ export async function updateOrgGeneralAction(
       invoicePrefix: parsed.data.invoicePrefix,
       defaultCurrency: parsed.data.defaultCurrency,
       defaultTaxRate: parsed.data.defaultTaxRate,
+      defaultBillRate: parsed.data.defaultBillRate,
       overheadPercent: parsed.data.overheadPercent,
       expenseApprovalThreshold: parsed.data.expenseApprovalThreshold,
       externalBillingLabel: parsed.data.externalBillingLabel || null,
@@ -302,17 +304,39 @@ export async function removeMemberAction(membershipId: string) {
   revalidatePath("/settings/members");
 }
 
+/** Parses an inline hourly-rate field: blank clears it (null). */
+function parseHourlyRate(value: string, what: string) {
+  const trimmed = String(value ?? "").trim();
+  const rate = trimmed === "" ? null : Number(trimmed);
+  if (rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 100000)) {
+    throw new Error(`Enter an hourly ${what} of 0 or more.`);
+  }
+  return rate;
+}
+
+async function requireOrgMembership(membershipId: string, orgId: string) {
+  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
+  if (!membership || membership.orgId !== orgId) throw new Error("Member not found.");
+  return membership;
+}
+
 export async function setMemberCostRateAction(membershipId: string, value: string) {
   const { org, role } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
-  const membership = await prisma.membership.findUnique({ where: { id: membershipId } });
-  if (!membership || membership.orgId !== org.id) throw new Error("Member not found.");
-  const trimmed = value.trim();
-  const rate = trimmed === "" ? null : Number(trimmed);
-  if (rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 100000)) {
-    throw new Error("Enter an hourly cost of 0 or more.");
-  }
+  await requireOrgMembership(membershipId, org.id);
+  const rate = parseHourlyRate(value, "cost");
   await prisma.membership.update({ where: { id: membershipId }, data: { costRate: rate } });
   revalidatePath("/settings/members");
   revalidatePath("/reports");
+}
+
+/** A person's default bill rate — what they start at when put on a project.
+ * Never touches rates on projects they're already on. */
+export async function setMemberBillRateAction(membershipId: string, value: string) {
+  const { org, role } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+  await requireOrgMembership(membershipId, org.id);
+  const rate = parseHourlyRate(value, "bill rate");
+  await prisma.membership.update({ where: { id: membershipId }, data: { billRate: rate } });
+  revalidatePath("/settings/members");
 }

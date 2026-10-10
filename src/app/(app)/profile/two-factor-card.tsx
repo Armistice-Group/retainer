@@ -17,7 +17,15 @@ import {
 } from "@/actions/two-factor";
 import type { ActionState } from "@/actions/auth";
 
-export function TwoFactorCard({ enabled }: { enabled: boolean }) {
+export function TwoFactorCard({
+  enabled,
+  doneHref,
+}: {
+  enabled: boolean;
+  /** Where "Done" goes after saving recovery codes (default: reload). Set on
+   * the required-2FA setup page. */
+  doneHref?: string;
+}) {
   const [isPending, startTransition] = useTransition();
   const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
   const [confirmState, confirmAction] = useActionState<TwoFactorConfirmState, FormData>(
@@ -47,7 +55,10 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
               <div key={code}>{code}</div>
             ))}
           </div>
-          <Button onClick={() => window.location.reload()} className="self-start">
+          <Button
+            onClick={() => (doneHref ? window.location.assign(doneHref) : window.location.reload())}
+            className="self-start"
+          >
             Done
           </Button>
         </CardContent>
@@ -112,6 +123,7 @@ export function TwoFactorCard({ enabled }: { enabled: boolean }) {
             </a>
           </div>
           <form action={confirmAction} className="flex flex-col gap-3">
+            {doneHref ? <input type="hidden" name="from" value="required-setup" /> : null}
             {confirmState?.error ? (
               <Alert variant="destructive">
                 <AlertDescription>{confirmState.error}</AlertDescription>

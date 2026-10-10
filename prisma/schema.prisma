@@ -114,6 +114,9 @@ model Organization {
   nextInvoiceNumber          Int                   @default(1)
   defaultCurrency            String                @default("USD")
   defaultTaxRate             Decimal               @default(0) @db.Decimal(5, 2)
+  // Hourly bill rate for anyone without their own (Membership.billRate),
+  // used when someone is put on a project. Null = not set (falls back to 0).
+  defaultBillRate            Decimal?              @db.Decimal(10, 2)
   // Whose weekly time needs an admin's approval before it can be invoiced.
   timesheetApproval          TimesheetApprovalMode @default(OFF)
   // Starting payment terms for new invoices, unless the client or project
@@ -166,6 +169,9 @@ model Organization {
   // UI accent. Off by default; invoices use the logo/color regardless.
   appBranding                Boolean               @default(false)
   appAccentFromBrand         Boolean               @default(false)
+  // Everyone must use an authenticator app (TOTP) to get past the sign-in
+  // gate in requireOrgContext. SSO sign-ins are exempt (the IdP owns MFA).
+  requireTwoFactor           Boolean               @default(false)
 
   // A non-admin's logged expense above this amount needs OWNER/ADMIN
   // approval before it can be pulled onto an invoice; admins' own expenses
@@ -254,9 +260,15 @@ model User {
   calendarEvents              CalendarEvent[]
   calendarRules               CalendarRule[]
   connections                 UserConnection[]
+  passwordResetTokens         PasswordResetToken[]
 
   // Dashboard "Get more out of Consultainer" card, hidden for good.
   setupCardDismissedAt DateTime?
+
+  // Bumped when the password is reset; sessions carry the value they were
+  // issued with and stop working once it no longer matches (JWT sessions
+  // can't be revoked any other way).
+  sessionVersion Int @default(0)
 }
 
 enum MembershipType {
@@ -271,6 +283,10 @@ model Membership {
   // What an hour of this person's time costs the org (salary or contractor
   // rate), for profit on Reports. Owners and admins only; null = unknown.
   costRate       Decimal?       @db.Decimal(10, 2)
+  // This person's usual hourly bill rate, prefilled when they're put on a
+  // project (falls back to Organization.defaultBillRate). Owners and admins
+  // only; never changes rates on projects they're already on.
+  billRate       Decimal?       @db.Decimal(10, 2)
 
   // Contractor profile — self-edited from Profile, shown to clients on a
   // per-project approval review when requested for a CONTRACTOR.
@@ -454,6 +470,24 @@ model PendingEmailChange {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Single-use password reset link. Only a SHA-256 of the token is stored;
+// issuing a new one invalidates the user's older unused ones.
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  userId      String
+  // Owner/admin who created the link from Settings → Members; null when the
+  // person asked for it themselves ("Forgot password?").
+  createdById String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model MagicLinkToken {

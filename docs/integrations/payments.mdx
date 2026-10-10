@@ -252,7 +252,8 @@ reminders** on its edit page. Reminders need [email](/integrations/email).
   week — check that the Stripe webhook also sends
   **`checkout.session.async_payment_succeeded`** and
   **`checkout.session.async_payment_failed`**. If it was added late, find
-  the payment in Stripe and mark the invoice paid yourself.
+  the payment in Stripe and click **Mark as paid** on the invoice yourself
+  (owners and admins).
 - A client sees *Online payment isn't available for this invoice right now*
   — usually Stripe onboarding isn't complete (click **Continue setup**) or,
   with Mercury, the client has no email address on file (add one). If

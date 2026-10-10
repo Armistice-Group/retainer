@@ -51,7 +51,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Credentials({
       id: "magic-link",
       name: "Magic Link",
-      credentials: { token: { label: "Token", type: "text" } },
+      credentials: {
+        token: { label: "Token", type: "text" },
+        code: { label: "2FA code", type: "text" },
+      },
       authorize: async (credentials) => {
         const token = credentials?.token as string | undefined;
         if (!token) return null;
@@ -62,6 +65,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email: record.email } });
         if (!user) return null;
         if (await isLocalLoginBlocked(user.id)) return null;
+
+        // An emailed link proves only the inbox, so it can't stand in for
+        // the authenticator: ask for the code before using up the link.
+        if (user.twoFactorEnabled && user.twoFactorSecret) {
+          const code = credentials?.code as string | undefined;
+          if (!code) throw new TwoFactorRequiredError();
+          const ok = await verifyLoginTwoFactor(user.id, user.twoFactorSecret, code);
+          if (!ok) throw new InvalidTwoFactorCodeError();
+        }
 
         await prisma.magicLinkToken.update({
           where: { id: record.id },
@@ -117,6 +129,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
+    // Runs on every auth() call on the server (not in the proxy, which
+    // can't reach the database). Checks the session is still current —
+    // a password reset bumps User.sessionVersion and signs everyone out —
+    // and refreshes the 2FA state the required-2FA gate reads.
+    async jwt(params) {
+      const token = authConfig.callbacks.jwt(params);
+      const { user, account } = params;
+      if (user?.id && account) token.signInMethod = account.provider;
+      if (typeof token.id !== "string") return token;
+
+      const dbUser = await prisma.user.findUnique({
+        where: { id: token.id },
+        select: { sessionVersion: true, twoFactorEnabled: true },
+      });
+      if (!dbUser) return null;
+      if (user?.id) {
+        token.sessionVersion = dbUser.sessionVersion;
+      } else if ((token.sessionVersion ?? 0) !== dbUser.sessionVersion) {
+        return null;
+      }
+      token.twoFactorEnabled = dbUser.twoFactorEnabled;
+      return token;
+    },
+    session(params) {
+      const session = authConfig.callbacks.session(params);
+      const { token } = params;
+      if (session.user) {
+        session.user.twoFactorEnabled = token.twoFactorEnabled === true;
+        session.user.signInMethod =
+          typeof token.signInMethod === "string" ? token.signInMethod : null;
+      }
+      return session;
+    },
     async signIn({ user, account }) {
       if (account?.provider !== "google") return true;
       if (!user.email) return false;

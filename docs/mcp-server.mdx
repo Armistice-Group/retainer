@@ -207,7 +207,7 @@ what that person can see.
 | `list_projects` | List projects you can see, optionally for one client. |
 | `create_project` | Create a project for a client. A member who makes it confidential is added to it so they keep access. |
 | `update_project` | Update a project's details. |
-| `list_members` | List the organization's members and their roles. |
+| `list_members` | List the organization's members and their roles. For owner and admin keys, also each person's default `billRate`. |
 
 **Tasks**
 
@@ -264,7 +264,7 @@ what that person can see.
 | `get_invoice_activity` | When an invoice was emailed, reminded and opened, plus its client link. |
 | `mark_invoice_sent` | Owner/admin: mark a draft invoice as sent (it needs at least one line item). |
 | `mark_invoice_paid` | Owner/admin: mark a sent invoice as paid, optionally with the payment method. |
-| `void_invoice` | Owner/admin: void a draft or sent invoice (not a paid one). |
+| `void_invoice` | Owner/admin: void a draft or sent invoice (not a paid one). Its time entries, milestones and expenses go back to unbilled so they can be invoiced again (the result's `released` gives the counts); the voided invoice keeps its lines as a record. |
 
 **Audit**
 

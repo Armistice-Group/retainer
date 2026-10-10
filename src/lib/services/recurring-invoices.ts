@@ -4,13 +4,12 @@ import { addDays } from "@/lib/date";
 import { nextRunDate } from "@/lib/billing-interval";
 import { sendAlert } from "@/lib/alerts";
 import { formatCurrency } from "@/lib/format";
-import { notifyInvoiceStatusChange } from "@/lib/services/invoices";
+import { autoSendInvoice } from "@/lib/services/invoice-delivery";
 import type { RecurringInvoiceSchedule } from "@/generated/prisma/client";
 
 async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Date) {
   const issueDate = now;
   const dueDate = addDays(issueDate, schedule.dueInDays);
-  const status = schedule.autoSend ? "SENT" : "DRAFT";
   const amount = Number(schedule.amount);
 
   const invoice = await prisma.$transaction(async (tx) => {
@@ -22,7 +21,8 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
         orgId: schedule.orgId,
         clientId: schedule.clientId,
         number,
-        status,
+        // Always a draft first; autoSend emails it (and marks it sent) below.
+        status: "DRAFT",
         issueDate,
         dueDate,
         currency: org.defaultCurrency,
@@ -62,14 +62,11 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
     include: { client: true },
   });
 
-  // Same path as billing cycles: an auto-sent invoice gets the "invoice sent"
-  // alert (and filing); a draft gets the "review and send" alert.
+  // Same path as billing cycles: an auto-send schedule emails the invoice to
+  // the client (alerting if it can't); a draft gets the "review and send"
+  // alert.
   if (schedule.autoSend) {
-    const org = await prisma.organization.findUniqueOrThrow({
-      where: { id: schedule.orgId },
-      select: { id: true, name: true, slackWebhookUrl: true },
-    });
-    await notifyInvoiceStatusChange(org, withClient, "SENT");
+    await autoSendInvoice(schedule.orgId, invoice.id, "recurring");
   } else {
     const total = formatCurrency(withClient.total, withClient.currency);
     await sendAlert({

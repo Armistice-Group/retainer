@@ -22,11 +22,12 @@ import {
   generateInvoice,
   invoiceStatusChangeError,
   notifyInvoiceStatusChange,
+  voidInvoice,
   InvoiceError,
 } from "@/lib/services/invoices";
-import { fileInvoice } from "@/lib/services/filing";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { soloMemberId } from "@/lib/org";
+import { defaultBillRateFor, resolveBillRate } from "@/lib/bill-rates";
 import { pushTaskToLinear } from "@/lib/services/linear-sync";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import {
@@ -248,7 +249,7 @@ const handler = createMcpHandler(
             data: {
               projectId: project.id,
               userId: ctx.actorId,
-              billRate: 0,
+              billRate: await defaultBillRateFor(ctx.orgId, ctx.actorId),
               currency: ctx.defaultCurrency,
             },
           });
@@ -306,7 +307,7 @@ const handler = createMcpHandler(
             create: {
               projectId,
               userId: ctx.actorId,
-              billRate: 0,
+              billRate: await defaultBillRateFor(ctx.orgId, ctx.actorId),
               currency: ctx.defaultCurrency,
             },
             update: {},
@@ -660,7 +661,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_audit_log",
-      "Owner/admin only: who changed what in the organization, newest first. Filter by actor (user id, or 'system'), entity type (e.g. Invoice, Task, PaymentMethod), action (create, update, delete, sign_in, view, download, export), and date range.",
+      "Owner/admin only: who changed what in the organization, newest first. Filter by actor (user id, or 'system'), entity type (e.g. Invoice, Task, PaymentMethod), action (create, update, delete, sign_in, view, download, export, password_reset, password_reset_link), and date range.",
       {
         actor: z.string().optional(),
         type: z.string().optional(),
@@ -1303,7 +1304,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "void_invoice",
-      "Owner/admin only: void a draft or sent invoice.",
+      "Owner/admin only: void a draft or sent invoice. Its time entries, milestones and expenses go back to unbilled so they can be invoiced again; the voided invoice keeps its line items as a record.",
       { invoiceId: z.string() },
       async ({ invoiceId }, extra) => {
         const ctx = ctxFrom(extra);
@@ -1315,27 +1316,36 @@ const handler = createMcpHandler(
         const statusError = invoiceStatusChangeError(invoice.status, "VOID");
         if (statusError) return errorResult(statusError);
 
-        const updated = await prisma.invoice.update({
-          where: { id: invoiceId },
-          data: { status: "VOID" },
-        });
-        // A filed copy is refreshed so it shows VOID.
-        await fileInvoice(invoiceId);
-        return text(updated);
+        try {
+          const { invoice: updated, released } = await voidInvoice(ctx.orgId, invoiceId);
+          return text({ ...updated, released });
+        } catch (err) {
+          if (err instanceof InvoiceError) return errorResult(err.message);
+          throw err;
+        }
       }
     );
 
     server.tool(
       "list_members",
-      "List the current organization's team members and their roles.",
+      "List the current organization's team members and their roles. For owner and admin keys, billRate is each person's default hourly bill rate (their own, else the organization's, else 0; in the org's default currency) — the rate they start at when added to a project.",
       {},
       async (_args, extra) => {
         const ctx = ctxFrom(extra);
-        const memberships = await prisma.membership.findMany({
-          where: { orgId: ctx.orgId },
-          include: { user: { select: { id: true, name: true, email: true } } },
-          orderBy: { createdAt: "asc" },
-        });
+        const canSeeRates = ctx.role === "OWNER" || ctx.role === "ADMIN";
+        const [memberships, org] = await Promise.all([
+          prisma.membership.findMany({
+            where: { orgId: ctx.orgId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+            orderBy: { createdAt: "asc" },
+          }),
+          canSeeRates
+            ? prisma.organization.findUnique({
+                where: { id: ctx.orgId },
+                select: { defaultBillRate: true },
+              })
+            : null,
+        ]);
         return text(
           memberships.map((m) => ({
             userId: m.user.id,
@@ -1343,6 +1353,7 @@ const handler = createMcpHandler(
             email: m.user.email,
             role: m.role,
             employmentType: m.employmentType,
+            ...(canSeeRates ? { billRate: resolveBillRate(m.billRate, org?.defaultBillRate) } : {}),
           }))
         );
       }

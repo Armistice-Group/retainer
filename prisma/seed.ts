@@ -15,6 +15,7 @@ async function main() {
       invoicePrefix: "INV",
       defaultCurrency: "USD",
       defaultTaxRate: 0,
+      defaultBillRate: 150,
     },
   });
 
@@ -27,7 +28,7 @@ async function main() {
   });
 
   await prisma.membership.create({
-    data: { userId: user.id, orgId: org.id, role: "OWNER" },
+    data: { userId: user.id, orgId: org.id, role: "OWNER", billRate: 175 },
   });
 
   const client = await prisma.client.create({

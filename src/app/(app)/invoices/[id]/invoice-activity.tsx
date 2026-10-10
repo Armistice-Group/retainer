@@ -24,6 +24,7 @@ export type InvoiceActivityEvent = {
 function describe(e: InvoiceActivityEvent) {
   switch (e.type) {
     case "EMAILED":
+      if (e.detail === "auto") return `Emailed automatically to ${e.recipients.join(", ")}`;
       return `${e.actorName ?? "Someone"} emailed it to ${e.recipients.join(", ")}`;
     case "REMINDED":
       return `Reminder (${e.detail} days overdue) sent to ${e.recipients.join(", ")}`;

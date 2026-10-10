@@ -47,7 +47,9 @@ Contacts are the people you work with at the client.
 4. Tick **Include on invoice emails** for everyone who should get invoices.
 5. Click **Add contact**.
 
-Who gets invoice emails and overdue reminders:
+Who gets invoice emails (including ones
+[sent automatically](/concepts/invoicing#sending-automatically) by a billing
+cycle or retainer) and overdue reminders:
 
 1. Every contact with **Include on invoice emails** ticked (and an email).
 2. If there are none, the client's **Billing email**.
@@ -99,8 +101,20 @@ Each person on a project has their own hourly rate there, independent of any
 other project. Billable time is invoiced at that rate unless an owner or admin
 sets a **Rate override** on the entry.
 
+The rate someone starts at comes from their default rate:
+
+1. Their own **Rate** on **Settings → Members**, if set.
+2. Otherwise the organization's **Default bill rate** on **Settings →
+   General**.
+3. Otherwise **0**.
+
+Changing a default never changes rates on projects people are already on.
+
+To add someone:
+
 1. On the project page, click **Add team member** (in **Team & bill rates**).
-2. Pick the **Team member**, enter their **Hourly rate** and check the
+2. Pick the **Team member**. Their **Hourly rate** is filled in from their
+   default rate; change it for this project if you need to, and check the
    **Currency**.
 3. If they're a contractor, you can tick **Email the client to approve this
    contractor before they start**. The client's primary contact is emailed a
@@ -113,9 +127,15 @@ sets a **Rate override** on the entry.
 To change a rate, click the pencil next to it (**Edit rate**). Rate changes
 apply to time not yet invoiced. To take someone off, click the bin icon.
 
+If anyone on an hourly project is at **$0/hr**, owners and admins see a note
+under the team list: their billable time would invoice at zero. Fix it with
+the pencil, and set default rates so new projects don't start at zero.
+
 <Note>
 Tasks can only be added once someone is on the project. In a one-person
-organization you're added to every project automatically.
+organization you're added to every project automatically, at your default
+rate. The same happens when a member creates a confidential project (so they
+can still see it).
 </Note>
 
 <Note>

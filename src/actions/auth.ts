@@ -62,6 +62,29 @@ export async function requestMagicLinkAction(
   return { magicLinkSent: true };
 }
 
+/** Second step of a magic-link login for an account with two-factor on. */
+export async function verifyMagicLinkCodeAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const token = (formData.get("token") as string) || "";
+  const code = ((formData.get("code") as string) || "").trim();
+  if (!code) return { fieldErrors: { code: ["Enter the code from your authenticator app."] } };
+
+  try {
+    await signIn("magic-link", { token, code, redirectTo: "/dashboard" });
+  } catch (err) {
+    if (err instanceof InvalidTwoFactorCodeError) {
+      return { fieldErrors: { code: ["Invalid code. Try again."] } };
+    }
+    if (err instanceof AuthError) {
+      return { error: "That login link is invalid or has expired. Request a new one." };
+    }
+    throw err;
+  }
+  return null;
+}
+
 export async function loginAction(
   _prevState: ActionState,
   formData: FormData

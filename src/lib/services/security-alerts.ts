@@ -92,6 +92,14 @@ async function describe(entry: {
         link: "/settings/security",
       };
     case "Organization": {
+      if (changes.requireTwoFactor) {
+        return {
+          text: changes.requireTwoFactor.to
+            ? "turned on Require two-factor authentication"
+            : "turned off Require two-factor authentication",
+          link: "/settings/security",
+        };
+      }
       const fields = ["domain", "autoJoinDomain"].filter((f) => f in changes);
       return fields.length
         ? { text: `changed sign-in settings (${fields.join(", ")})`, link: "/settings/security" }

@@ -1,6 +1,7 @@
 import "server-only";
 import Papa from "papaparse";
 import { prisma } from "@/lib/prisma";
+import { defaultBillRateFor } from "@/lib/bill-rates";
 
 export class ImportError extends Error {}
 
@@ -70,6 +71,7 @@ export async function importClientsAndProjects(
 
   const memberCount = await prisma.membership.count({ where: { orgId: ctx.orgId } });
   const soloOrg = memberCount === 1;
+  const creatorRate = soloOrg ? await defaultBillRateFor(ctx.orgId, ctx.actorId) : 0;
 
   const clientCache = new Map<string, string>();
 
@@ -137,7 +139,7 @@ export async function importClientsAndProjects(
         data: {
           projectId: project.id,
           userId: ctx.actorId,
-          billRate: 0,
+          billRate: creatorRate,
           currency: ctx.defaultCurrency,
         },
       });

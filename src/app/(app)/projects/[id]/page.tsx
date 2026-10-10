@@ -30,6 +30,7 @@ import { ShareLinkCard } from "./share-link-card";
 import { getOrigin } from "@/lib/url";
 import { CopyButton } from "@/components/copy-button";
 import { getTaskDetail } from "@/lib/task-detail";
+import { resolveBillRate } from "@/lib/bill-rates";
 
 export default async function ProjectDetailPage({
   params,
@@ -135,7 +136,17 @@ export default async function ProjectDetailPage({
       name: m.user.name,
       email: m.user.email,
       isContractor: m.employmentType === "CONTRACTOR",
+      // Their default bill rate (own, else the org's) — prefilled in the
+      // add dialog, which only owners and admins get.
+      defaultRate: canManage ? resolveBillRate(m.billRate, org.defaultBillRate) : 0,
+      hasOwnRate: canManage && m.billRate != null,
     }));
+  const noDefaultRates =
+    canManage && org.defaultBillRate == null && orgMembers.every((m) => m.billRate == null);
+  const zeroRateMembers =
+    canManage && project.billingType === "HOURLY"
+      ? project.members.filter((m) => Number(m.billRate) === 0)
+      : [];
   const projectMemberOptions = project.members.map((m) => ({
     id: m.user.id,
     name: m.user.name,
@@ -271,6 +282,7 @@ export default async function ProjectDetailPage({
                   projectId={project.id}
                   members={availableMembers}
                   currency={org.defaultCurrency}
+                  orgDefaultRate={org.defaultBillRate != null ? Number(org.defaultBillRate) : null}
                 />
               ) : null}
             </CardHeader>
@@ -340,6 +352,28 @@ export default async function ProjectDetailPage({
                   ))}
                 </ul>
               )}
+              {zeroRateMembers.length > 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {zeroRateMembers.length === 1
+                    ? `${zeroRateMembers[0].user.name ?? zeroRateMembers[0].user.email} is`
+                    : `${zeroRateMembers.length} people are`}{" "}
+                  at {formatCurrency(0, org.defaultCurrency)}/hr, so their billable time here invoices
+                  at zero. Click the pencil to set a rate.{" "}
+                  {noDefaultRates ? (
+                    <>
+                      To start people at a real rate on new projects, set a default under{" "}
+                      <Link href="/settings" className="text-brand hover:underline">
+                        Settings → General
+                      </Link>{" "}
+                      or per person under{" "}
+                      <Link href="/settings/members" className="text-brand hover:underline">
+                        Settings → Members
+                      </Link>
+                      .
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
 

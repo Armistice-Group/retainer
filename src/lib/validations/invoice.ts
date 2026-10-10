@@ -58,6 +58,15 @@ export const orgGeneralSchema = z.object({
   invoicePrefix: z.string().trim().min(1).max(20),
   defaultCurrency: z.string().trim().min(1).max(10),
   defaultTaxRate: z.coerce.number().min(0).max(100),
+  // Blank = no org-wide default (people without their own rate start at 0).
+  defaultBillRate: z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.coerce
+      .number("Enter an hourly rate")
+      .min(0, "Rate must be zero or more")
+      .max(100000, "Rate is too high")
+      .nullable()
+  ),
   overheadPercent: z.coerce.number().min(0).max(500),
   expenseApprovalThreshold: z.coerce.number().min(0),
   externalBillingLabel: z.string().trim().max(100).optional().or(z.literal("")),

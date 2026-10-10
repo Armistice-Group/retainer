@@ -16,7 +16,17 @@ export type AuditFilters = {
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const ACTIONS = new Set(["create", "update", "delete", "sign_in", "view", "download", "export"]);
+const ACTIONS = new Set([
+  "create",
+  "update",
+  "delete",
+  "sign_in",
+  "password_reset",
+  "password_reset_link",
+  "view",
+  "download",
+  "export",
+]);
 
 export function parseAuditFilters(params: Record<string, string | undefined>): AuditFilters {
   return {
@@ -70,6 +80,8 @@ const VERBS: Record<string, string> = {
   update: "updated",
   delete: "deleted",
   sign_in: "signed in",
+  password_reset: "reset their password",
+  password_reset_link: "created a password reset link for",
   export: "exported",
   view: "viewed",
   download: "downloaded",
@@ -82,6 +94,8 @@ export function describeAudit(entry: {
   count: number | null;
 }) {
   if (entry.action === "sign_in") return "signed in";
+  if (entry.action === "password_reset") return "reset their password";
+  if (entry.action === "password_reset_link") return "created a password reset link for";
   if (entry.action === "export") return "exported the audit log";
   const verb = VERBS[entry.action] ?? entry.action;
   if (entry.count !== null) {

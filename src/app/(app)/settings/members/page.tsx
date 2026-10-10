@@ -10,6 +10,8 @@ import { CopyButton } from "@/components/copy-button";
 import { revokeInviteAction } from "@/actions/org";
 import { X } from "lucide-react";
 import { getOrigin } from "@/lib/url";
+import { formatCurrency } from "@/lib/format";
+import Link from "next/link";
 
 export default async function MembersPage() {
   const { org, role, user } = await requireOrgContext();
@@ -30,6 +32,13 @@ export default async function MembersPage() {
   ]);
 
   const origin = await getOrigin();
+  // With SSO enforced, everyone but owners signs in through the identity
+  // provider — exempt from required 2FA, and no local password to reset.
+  const sso = await prisma.ssoConnection.findUnique({
+    where: { orgId: org.id },
+    select: { enabled: true, enforced: true },
+  });
+  const ssoOnly = (memberRole: string) => !!sso?.enabled && sso.enforced && memberRole !== "OWNER";
 
   return (
     <div className="flex flex-col gap-6">
@@ -41,9 +50,18 @@ export default async function MembersPage() {
         <CardContent>
           {canManage ? (
             <p className="mb-2 text-xs text-muted-foreground">
-              Cost is what an hour of someone&apos;s time costs you (salary or contractor rate),
-              used for profit on Reports — only owners and admins see it. Use the ⋯ menu to change a
-              role, mark a contractor, or remove someone.
+              Rate is what someone bills per hour by default — it&apos;s filled in when they&apos;re
+              added to a project, and changing it doesn&apos;t touch projects they&apos;re already on.
+              Blank uses the{" "}
+              <Link href="/settings" className="text-brand hover:underline">
+                organization default
+              </Link>
+              {org.defaultBillRate != null
+                ? ` (${formatCurrency(org.defaultBillRate, org.defaultCurrency)}/h)`
+                : ` (not set, so ${formatCurrency(0, org.defaultCurrency)})`}
+              . Cost is what an hour of their time costs you (salary or contractor rate), used for
+              profit on Reports. Only owners and admins see either. Use the ⋯ menu to change a role,
+              mark a contractor, create a password reset link, or remove someone.
             </p>
           ) : null}
           <ul className="flex flex-col divide-y divide-border">
@@ -57,25 +75,51 @@ export default async function MembersPage() {
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {canManage ? (
-                    <CostRateField
-                      membershipId={m.id}
-                      value={m.costRate?.toString() ?? ""}
-                      name={m.user.name}
-                    />
+                    <>
+                      <CostRateField
+                        kind="bill"
+                        membershipId={m.id}
+                        value={m.billRate?.toString() ?? ""}
+                        name={m.user.name}
+                        placeholder={org.defaultBillRate?.toString() ?? "—"}
+                        currency={org.defaultCurrency}
+                      />
+                      <CostRateField
+                        membershipId={m.id}
+                        value={m.costRate?.toString() ?? ""}
+                        name={m.user.name}
+                        currency={org.defaultCurrency}
+                      />
+                    </>
                   ) : null}
                   {m.employmentType === "CONTRACTOR" ? (
                     <Badge variant="outline" className="font-normal">
                       Contractor
                     </Badge>
                   ) : null}
+                  {canManage && !m.user.twoFactorEnabled && !ssoOnly(m.role) ? (
+                    <Badge
+                      variant={org.requireTwoFactor ? "destructive" : "outline"}
+                      className="font-normal"
+                      title={
+                        org.requireTwoFactor
+                          ? "Hasn't set up an authenticator app yet — they can't use the app until they do (unless they sign in with SSO)."
+                          : "Hasn't set up an authenticator app (two-factor authentication)."
+                      }
+                    >
+                      No 2FA
+                    </Badge>
+                  ) : null}
                   <Badge variant="outline" className="font-normal">
                     {m.role === "OWNER" ? "Owner" : m.role === "ADMIN" ? "Admin" : "Member"}
                   </Badge>
-                  {canManage && m.role !== "OWNER" ? (
+                  {canManage && (m.role !== "OWNER" || (role === "OWNER" && m.userId !== user.id)) ? (
                     <MemberRowActions
                       membershipId={m.id}
+                      name={m.user.name}
                       role={m.role}
                       employmentType={m.employmentType}
+                      canResetPassword={m.userId !== user.id && !ssoOnly(m.role)}
                     />
                   ) : null}
                 </div>

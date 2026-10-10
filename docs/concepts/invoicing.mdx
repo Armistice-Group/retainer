@@ -8,9 +8,10 @@ completed milestones and approved expenses. You generate a draft, check it,
 send it, and mark it paid (or let online payments do that).
 
 **Who can do what:** in the app, anyone in the organization can generate
-invoices, edit drafts, and mark invoices sent, paid or void. Emailing an
-invoice, deleting a draft, pushing to QuickBooks, and setting up billing
-cycles and retainers are for owners and admins. Over an API key or the
+invoices and edit drafts. Sending an invoice (**Email to client** or **Mark
+as sent**), marking it paid, voiding it, deleting a draft, pushing to
+QuickBooks, and setting up billing cycles and retainers are for owners and
+admins; members don't see those buttons. Over an API key or the
 [MCP server](/mcp-server), generating, emailing and changing an invoice's
 status are for owner and admin keys only.
 
@@ -93,7 +94,8 @@ An invoice only moves forward:
   before sending.*),
 - **Sent → Paid**,
 - **Draft or Sent → Void** (in the app, **Void** is on sent invoices; throw
-  away a draft with **Delete** instead).
+  away a draft with **Delete** instead). Voiding puts the invoice's work back
+  to unbilled; see [How to void an invoice](#how-to-void-an-invoice).
 
 Nothing goes back to **Draft**, and a paid invoice can't be voided. Trying
 anyway says, for example, *Only sent invoices can be marked paid.* or *Paid
@@ -101,8 +103,8 @@ invoices can't be voided.*
 
 ## How to send an invoice
 
-You have three options. All of them change a draft to **Sent**, which locks
-it, sends the *invoice sent* alert, and
+You have three options, all for owners and admins. All of them change a
+draft to **Sent**, which locks it, sends the *invoice sent* alert, and
 [files the PDF](/integrations/files) if filing is set up.
 
 ### Email it from Consultainer (owners and admins)
@@ -186,6 +188,8 @@ Things to know:
 
 ### How to mark an invoice paid
 
+Owners and admins can mark an invoice paid.
+
 1. On a sent invoice, click **Mark as paid**.
 2. Optional: enter the **Payment method** (for example Wire, ACH, Check).
 3. Click **Mark as paid**.
@@ -229,17 +233,28 @@ To stop reminders for one client, open the client, click **Edit**, untick
 
 ## How to void an invoice
 
-Click **Void** on a sent invoice and confirm. Voiding can't be undone. A
-voided invoice stays in your list (and its client page says it was voided) but
-stops counting as outstanding. If filing is set up, the filed PDF is replaced
-with the void version.
+Owners and admins can void a sent invoice (a paid one can't be voided).
 
-<Warning>
-Voiding doesn't release the time, milestones or expenses on the invoice: they
-stay marked as billed and won't show up on **New invoice** again. To bill the work again, add lines by hand to the
-client's next draft invoice (a new invoice needs at least one unbilled item). If the invoice is still a draft, delete it instead: that
-does release its items.
-</Warning>
+1. On the sent invoice, click **Void**.
+2. Read the confirmation and click **OK**. Voiding can't be undone.
+
+What happens:
+
+- The invoice is marked **Void**. It stays in your list (and its client page
+  says it was voided) but stops counting as invoiced or outstanding.
+- Its time entries, completed milestones and approved expenses go back to
+  **unbilled**. They show up on **New invoice** again, so you can bill them on
+  a corrected invoice, and a [billing cycle](#billing-cycles) picks them up on
+  its next run.
+- The voided invoice keeps its lines and total as a record of what was sent.
+- If filing is set up, the filed PDF is replaced with the void version.
+
+Voiding doesn't create a replacement invoice. Retainers aren't re-run either:
+a voided retainer invoice isn't generated again, so if you still want to bill
+that period, create the invoice by hand.
+
+If the invoice is still a draft, **Delete** it instead (that also releases its
+work).
 
 ## Billing cycles
 
@@ -254,8 +269,9 @@ you don't have to remember to. Owners and admins set it up on the client page.
    Monthly, Quarterly or Yearly.
 4. Set the **First invoice date**.
 5. Check the **Payment terms** (they start from the client's default).
-6. Optional: tick **Mark as sent automatically instead of leaving a draft to
-   review (doesn't email the client)** (see the note below).
+6. Optional: tick **Send automatically (emails the invoice to the client)
+   instead of leaving a draft to review** (see
+   [Sending automatically](#sending-automatically)).
 7. Click **Start billing cycle**.
 
 What each run does:
@@ -267,11 +283,10 @@ What each run does:
 - It uses the cycle's payment terms and your default tax rate.
 - If there's nothing to bill, it creates nothing and **Last run** says
   *Nothing unbilled — no invoice created*.
-- Without **Mark as sent automatically**, the invoice is left as a draft and
-  owners and admins get the **A recurring invoice or billing cycle creates a
-  draft** alert to review and send it. With it, they get **An invoice is
-  sent** instead, and the PDF is filed if filing is set up. (See
-  [Alerts](/concepts/alerts-and-audit) for where each goes.)
+- Without **Send automatically**, the invoice is left as a draft and owners
+  and admins get the **A recurring invoice or billing cycle needs review**
+  alert to review and send it. With it, the invoice is emailed to the client
+  and marked sent (see [Sending automatically](#sending-automatically)).
 - If the server was down over several run dates, the next run bills once, up
   to the latest date, then carries on.
 - If a run fails, owners and admins are notified and the work rolls into the
@@ -280,13 +295,6 @@ What each run does:
 Use **Edit** to change the cycle, the pause button to pause or resume it, and
 the bin icon to stop it. Invoices already generated aren't affected.
 
-<Warning>
-**Mark as sent automatically** marks the invoice as sent. It does **not**
-email it to the client. Send it yourself afterwards with **Email again** or
-**Copy client link**. If [overdue reminders](#overdue-reminders) are on, a
-client who was never sent the invoice will still get reminders once it's
-overdue.
-</Warning>
 
 ## Retainers
 
@@ -305,23 +313,40 @@ client can have several.
    The client's invoices card then shows hours billed against hours logged.
 6. Set the **First invoice date** and **Due (days after issue)** (30 by
    default).
-7. Optional: tick **Mark as sent automatically instead of leaving a draft to
-   review (doesn't email the client)** (see the note below). The retainer
-   then shows *Marks sent automatically* instead of *Drafts for review*.
+7. Optional: tick **Send automatically (emails the invoice to the client)
+   instead of leaving a draft to review** (see
+   [Sending automatically](#sending-automatically)). The retainer then shows
+   *Sends automatically* instead of *Drafts for review*.
 8. Click **Create schedule**.
 
 Each run creates an invoice with one line for the amount and no tax. A draft
-raises the **A recurring invoice or billing cycle creates a draft** alert; an
-invoice marked sent automatically raises **An invoice is sent** and is filed
-like any other sent invoice.
+raises the **A recurring invoice or billing cycle needs review** alert; with
+**Send automatically**, the invoice is emailed to the client and marked sent.
 Use the pause and bin buttons on the retainer to pause, resume or delete it;
 invoices already generated aren't affected.
 
-<Warning>
-**Mark as sent automatically** only marks the invoice as sent. It doesn't
-email the client. Send it yourself with **Email again** or **Copy client
-link**.
-</Warning>
+## Sending automatically
+
+Billing cycles and retainers with **Send automatically** ticked email each
+invoice to the client as soon as it's generated, the same way
+**Email to client** does:
+
+- It goes to the client's contacts with **Include on invoice emails** ticked,
+  else its billing email, else its main email (the same people the
+  **Email to client** dialog starts with), with no message.
+- Replies go to the organization's owner.
+- The invoice is marked sent, owners and admins get the **An invoice is
+  sent** alert, and the PDF is filed if filing is set up.
+- It shows under **Activity** as *Emailed automatically to …*, opens are
+  [tracked](#tracking-opens), and [overdue reminders](#overdue-reminders) go
+  out as for any emailed invoice.
+
+If it can't be emailed — email isn't set up on your instance, the client has
+no email address, or delivery failed — the invoice is still marked sent, and
+owners and admins get the **A recurring invoice or billing cycle needs
+review** alert saying why, for example *…marked sent, but it wasn't emailed:
+Acme has no invoice contact, billing email or email address.* Fix the cause,
+then send it yourself with **Email again** or **Copy client link**.
 
 ## When scheduled invoicing runs
 

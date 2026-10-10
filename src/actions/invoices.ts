@@ -13,8 +13,10 @@ import {
   InvoiceError,
   notifyInvoiceStatusChange,
   invoiceStatusChangeError,
+  canChangeInvoiceStatusByKey,
+  releaseInvoicedWork,
+  voidInvoice,
 } from "@/lib/services/invoices";
-import { fileInvoice } from "@/lib/services/filing";
 import {
   pushInvoiceToQuickBooks,
   syncInvoiceStatusFromQuickBooks,
@@ -187,14 +189,7 @@ export async function removeLineItemAction(lineItemId: string, invoiceId: string
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
 
   await prisma.$transaction(async (tx) => {
-    await tx.timeEntry.updateMany({
-      where: { invoiceLineItemId: lineItemId },
-      data: { invoiceLineItemId: null },
-    });
-    await tx.milestone.updateMany({
-      where: { invoiceLineItemId: lineItemId },
-      data: { invoiceLineItemId: null, invoicedAt: null },
-    });
+    await releaseInvoicedWork(tx, { lineItemId });
     await tx.invoiceLineItem.delete({ where: { id: lineItemId, invoiceId } });
     await recomputeInvoiceTotals(tx, invoiceId);
   });
@@ -208,15 +203,34 @@ export async function setInvoiceStatusAction(
   formData?: FormData
 ) {
   const { org, user, role } = await requireOrgContext();
+  // Owners and admins only, as on the API and MCP server; members can
+  // generate and edit drafts.
+  if (!canChangeInvoiceStatusByKey(role)) {
+    throw new Error("Only owners and admins can send, mark paid or void invoices.");
+  }
   const invoice = await prisma.invoice.findFirst({
     where: visibleInvoice(invoiceId, org.id, user.id, role),
     include: { client: true },
   });
   if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
-  // Any member can send, mark paid or void in the app (the invoice page shows
-  // them those buttons); keys need owner/admin, see the MCP tools.
   const statusError = invoiceStatusChangeError(invoice.status, status);
   if (statusError) throw new Error(statusError);
+
+  if (status === "VOID") {
+    // Releases the invoice's time, milestones and expenses and refreshes a
+    // filed copy — shared with the API and MCP server.
+    try {
+      await voidInvoice(org.id, invoiceId);
+    } catch (err) {
+      if (err instanceof InvoiceError) throw new Error(err.message);
+      throw err;
+    }
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices");
+    revalidatePath("/time");
+    return;
+  }
+
   if (status === "SENT") {
     const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
     if (lineItemCount === 0) throw new Error("Add at least one line item before sending.");
@@ -240,9 +254,6 @@ export async function setInvoiceStatusAction(
 
   if (status === "SENT" || status === "PAID") {
     await notifyInvoiceStatusChange(org, invoice, status);
-  } else if (status === "VOID") {
-    // A filed copy is refreshed so it shows VOID.
-    await fileInvoice(invoiceId);
   }
 }
 
@@ -257,6 +268,9 @@ export async function sendInvoiceAction(
   _formData: FormData // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<SendInvoiceState> {
   const { org, user, role } = await requireOrgContext();
+  if (!canChangeInvoiceStatusByKey(role)) {
+    return { error: "Only owners and admins can send invoices." };
+  }
   const invoice = await prisma.invoice.findFirst({
     where: visibleInvoice(invoiceId, org.id, user.id, role),
     include: { client: true },
@@ -286,14 +300,7 @@ export async function deleteInvoiceAction(invoiceId: string) {
   if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be deleted.");
 
   await prisma.$transaction(async (tx) => {
-    await tx.timeEntry.updateMany({
-      where: { invoiceLineItem: { invoiceId } },
-      data: { invoiceLineItemId: null },
-    });
-    await tx.milestone.updateMany({
-      where: { invoiceLineItem: { invoiceId } },
-      data: { invoiceLineItemId: null, invoicedAt: null },
-    });
+    await releaseInvoicedWork(tx, { invoiceId });
     await tx.invoice.delete({ where: { id: invoiceId } });
   });
 
@@ -347,7 +354,7 @@ export async function emailInvoiceAction(
   formData: FormData
 ): Promise<ActionState> {
   const { org, user, role } = await requireOrgContext();
-  if (role !== "OWNER" && role !== "ADMIN") return { error: "Only owners and admins can send invoices." };
+  if (!canChangeInvoiceStatusByKey(role)) return { error: "Only owners and admins can send invoices." };
   const to = [
     ...formData.getAll("to").map(String),
     ...String(formData.get("extra") ?? "").split(/[\s,;]+/),

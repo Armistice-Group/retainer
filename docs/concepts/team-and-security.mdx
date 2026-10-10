@@ -1,6 +1,6 @@
 ---
 title: Team & security
-description: Roles, invites, cost rates, single sign-on, two-factor authentication and API keys
+description: Roles, invites, cost rates, password resets, single sign-on, two-factor authentication and API keys
 ---
 
 Everyone in Consultainer belongs to an **organization** with one of three
@@ -25,22 +25,24 @@ can do, how people join, and how to secure sign-in with single sign-on
 | See the whole team's time, log time for others, approve timesheets | | Yes | Yes |
 | Add, edit, complete, reopen and delete milestones | | Yes | Yes |
 | See invoices | All except ones with a line on a confidential project they're not on | All | All |
-| Generate draft invoices, edit line items, **Mark as sent**, **Mark as paid**, **Void** (in the app) | Yes | Yes | Yes |
-| **Email to client**, delete a draft invoice, push to QuickBooks | | Yes | Yes |
+| Generate draft invoices, edit line items | Yes | Yes | Yes |
+| Send invoices (**Email to client**, **Mark as sent**), **Mark as paid**, **Void**, delete a draft invoice, push to QuickBooks | | Yes | Yes |
 | Client and project share links, retainers, billing cycles | | Yes | Yes |
 | **Reports**, **Settings → Alerts**, **Settings → Audit log** | | Yes | Yes |
 | Change settings under General, Payments, Security, Members | View only | Yes | Yes |
 | Connect Stripe, Mercury, QuickBooks, Linear; set up filing | | Yes | Yes |
-| Invite people, change roles, set cost rates, remove people (not owners; see [The owner](#the-owner)) | | Yes | Yes |
+| Invite people, change roles, set default bill rates and cost rates, remove people (not owners; see [The owner](#the-owner)) | | Yes | Yes |
 | Enter instance-wide integration credentials (**Settings → Integrations** and **Payments** credential fields) | | | Yes |
 | Change the **Instance URL** (**Settings → General**) | | | Yes |
+| Create a password reset link for someone (see [Password resets](#password-resets)) | | Yes (not for owners) | Yes |
+| Turn **Require two-factor authentication** on or off | | | Yes |
 | Keep password sign-in when SSO is required | | | Yes |
 | Create their own API keys | Yes | Yes | Yes |
 
 Over the [REST API](/api-reference/introduction) and [MCP server](/mcp-server)
 a key acts as the person who made it, with their role, with some extra
-limits: generating invoices, emailing invoices, marking invoices sent or paid,
-voiding them, approving expenses, reading pending timesheets and reading the
+limits: generating invoices (which members can do in the app), emailing
+invoices, marking invoices sent or paid, voiding them, approving expenses, reading pending timesheets and reading the
 audit log need an Admin or Owner key. A member's key also never sees the
 client or project `shareToken` (the secret in client links).
 
@@ -106,10 +108,36 @@ Who can do it: **Owner**, **Admin**. On **Settings → Members**, open the
   **Contractor** badge. Contractors can be asked to confirm their rate on a
   project, and **Timesheet approval → Contractors** (Settings → General)
   applies only to them.
+- **Create password reset link**: makes a one-time link for them to choose
+  a new password. See [Password resets](#password-resets).
 - **Remove**: takes them out of the organization. Their time entries and
   other work stay. Their API keys stop working for this organization.
 
-The owner's row has no menu.
+The owner's row has no menu for admins. Another owner sees just **Create
+password reset link** there. Your own row has no menu: change your own
+password on **Profile**.
+
+Owners and admins also see a **No 2FA** badge next to anyone who hasn't set
+up an authenticator app, so you can ask them to. It turns red while
+[Require two-factor authentication](#require-two-factor-authentication) is
+on. People who have to sign in with SSO don't get the badge.
+
+### Default bill rates
+
+Each member row shows a **Rate** field: what that person bills per hour by
+default, in your organization's default currency.
+
+1. Go to **Settings → Members**.
+2. Type a number in **Rate** next to the person and press Enter or click
+   away to save.
+
+When someone is added to a project, their rate there starts at this number
+(you can still change it in the **Add team member** dialog). Leave it empty
+to use the organization's **Default bill rate** (Settings → General), shown
+greyed out in the empty field; with neither set, people start at 0. Changing
+it never changes their rate on projects they're already on: use **Edit
+rate** on the project for that. Changes trigger the **Billing or payment
+details change** alert.
 
 ### Cost rates
 
@@ -117,10 +145,78 @@ Each member row shows a **Cost** field: what an hour of that person's time
 costs you (salary or contractor rate), per hour. Type a number and press
 Enter or click away to save. Leave it empty if you don't track it.
 
-Cost rates are only shown to owners and admins. [Reports](/concepts/reports)
+Default bill rates and cost rates are only shown to owners and admins. [Reports](/concepts/reports)
 use them, together with **Overhead (%)** from Settings → General, to work out
 profit per project. They never appear on invoices; what clients pay comes
 from each person's bill rate on the project.
+
+## Password resets
+
+There are two ways to reset a forgotten password: the person asks for an
+email themselves, or an owner or admin creates a link and hands it over. The
+second also works on a server without [email](/integrations/email).
+
+### Reset your own password
+
+<Steps>
+  <Step title="Ask for a link">
+    On the login page, click **Forgot password?** under the password box,
+    enter your email address, and click **Email me a reset link**.
+  </Step>
+  <Step title="Open the email">
+    You see *If an account exists for that email, we've sent a link to reset
+    your password.* whether or not there is one. Open the **Reset your
+    Consultainer password** email and click **Choose a new password**. The
+    link works once and expires in 1 hour.
+  </Step>
+  <Step title="Choose a new password">
+    Enter it twice (at least 10 characters, with a letter and a number) and
+    click **Set new password**, then **Log in**.
+  </Step>
+</Steps>
+
+If the server can't send email, **Forgot password?** says so and tells you
+to ask an owner or admin for a link instead.
+
+### Create a reset link for someone
+
+Who can do it: **Owner**, **Admin** (admins can't do it for owners).
+
+<Steps>
+  <Step title="Open the menu">
+    Go to **Settings → Members** and open the **⋯** menu next to the person.
+  </Step>
+  <Step title="Create the link">
+    Click **Create password reset link**. A dialog shows the link with a
+    **Copy** button.
+  </Step>
+  <Step title="Send it to them">
+    Send it yourself, by chat or in person. It isn't emailed. It works once
+    and expires in 24 hours.
+  </Step>
+</Steps>
+
+**Check it worked:** **Settings → Audit log** shows *created a password reset
+link for* the person, and later *reset their password* once they've used
+it. Both also raise the **Access or security settings change** alert.
+
+### What a reset changes
+
+- **Only the newest link works.** Asking for or creating a new link cancels
+  any older unused one.
+- **Everyone is signed out.** The person's other sessions, on every device,
+  end straight away, and unused login links stop working.
+- **Two-factor authentication stays on.** A reset never removes the
+  authenticator app or passkeys, so the next password login still asks for
+  a code. Someone who has lost their authenticator too uses a recovery
+  code, or see [Self-hosting troubleshooting](/self-hosting#troubleshooting).
+- **SSO still applies.** If [Require SSO](#single-sign-on-sso) is on, people
+  who have to use SSO get no reset email, and the **⋯** menu has no reset
+  link for them. Reset their password in your identity provider. Owners
+  keep password sign-in, so they can still reset theirs.
+- **Limits.** One account gets at most 3 reset emails an hour, and one
+  network address can ask 10 times an hour. Extra requests show the same
+  message but send nothing.
 
 ## Auto-join by email domain
 
@@ -344,10 +440,9 @@ for a test provider on `localhost`, `127.0.0.1` or `[::1]`.
 
 ## Two-factor authentication and passkeys
 
-Each person sets these up for their own account, on **Profile**. There's no
-organization-wide setting that forces two-factor authentication; to
-enforce stronger sign-in for everyone, use [Require SSO](#single-sign-on-sso)
-with an identity provider that requires MFA.
+Each person sets these up for their own account, on **Profile**. Owners can
+also [require two-factor authentication](#require-two-factor-authentication)
+for everyone in the organization.
 
 ### Turn on two-factor authentication
 
@@ -369,8 +464,50 @@ with an identity provider that requires MFA.
   </Step>
 </Steps>
 
-From then on, password sign-in asks for a code. To turn it off, enter your
+From then on, signing in with your password or an emailed login link asks
+for a code. To turn it off, enter your
 password under **Confirm password** and click **Disable 2FA**.
+
+### Require two-factor authentication
+
+Who can do it: **Owner**.
+
+<Steps>
+  <Step title="Turn it on for yourself first">
+    Set up two-factor authentication on your own **Profile** (see above).
+    Otherwise saving fails with *Set up two-factor authentication on your own
+    Profile first, so turning this on can't lock you out.*
+  </Step>
+  <Step title="Turn it on for the organization">
+    Go to **Settings → Security**. In the **Two-factor authentication** card,
+    tick **Require two-factor authentication** and click **Save**.
+  </Step>
+  <Step title="Chase anyone who hasn't set it up">
+    The card shows how many people haven't set it up yet. On **Settings →
+    Members** they have a red **No 2FA** badge.
+  </Step>
+</Steps>
+
+What people without an authenticator app see:
+
+- They can still log in, but every page takes them to **Set up two-factor
+  authentication** instead. The rest of the app, including its server
+  actions and downloads, stays closed until they click **Enable 2FA**,
+  confirm a code and save their recovery codes. **Done** then takes them to
+  the dashboard.
+- If they belong to several organizations and any of them requires
+  two-factor authentication, the requirement applies everywhere.
+- Only an **authenticator app** counts. Passkeys don't, because password
+  sign-in never asks for one, so someone with only a passkey is asked to add
+  an authenticator app too.
+- People who signed in with the organization's **SSO** are exempt, because
+  the identity provider handles their second factor. Turn on MFA in your
+  identity provider.
+- **API keys keep working.** The REST API and MCP server never ask for a
+  second factor. Revoke the key of anyone who shouldn't keep access.
+
+Turning it off lifts the requirement straight away. Turning it on or off
+raises the **Access or security settings change** alert.
 
 ### Passkeys
 
@@ -404,8 +541,10 @@ organization.
 | Where | What |
 | --- | --- |
 | **Settings → Security → Domain** | Organization domain and Google auto-join. |
+| **Settings → Security → Two-factor authentication** | Require two-factor authentication for everyone (owners only). |
 | **Settings → Security → Single sign-on (OIDC)** | SSO connection, automatic accounts, allowed domains, Require SSO. |
-| **Settings → Members** | Roles, contractor flag, cost rates, invites. |
+| **Settings → Members** | Roles, contractor flag, default bill rates, cost rates, invites, password reset links, **No 2FA** badges. |
 | **Settings → Audit log** | Every change to organization data, and every sign-in. See [Alerts & audit log](/concepts/alerts-and-audit). |
 | **Settings → Alerts** | Which access and security changes reach Slack or email. |
 | **Profile** | Your password, two-factor authentication, passkeys and API keys. |
+| **Login page → Forgot password?** | Email yourself a password reset link. |

@@ -63,7 +63,7 @@ export function RecurringScheduleCard({
                     {" · "}
                     {s.active ? `Next ${formatDate(s.nextRunAt)}` : "Not running"}
                     {s.lastRunAt ? ` · Last ${formatDate(s.lastRunAt)}` : ""}
-                    {s.autoSend ? " · Marks sent automatically" : " · Drafts for review"}
+                    {s.autoSend ? " · Sends automatically" : " · Drafts for review"}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

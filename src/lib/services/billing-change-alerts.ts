@@ -15,6 +15,7 @@ const BILLING_FIELDS: Record<string, string[] | null> = {
     "paymentInstructionsPrivate",
     "defaultCurrency",
     "defaultTaxRate",
+    "defaultBillRate",
     "overheadPercent",
     "defaultPaymentTerms",
     "externalBillingUrl",
@@ -33,7 +34,7 @@ const BILLING_FIELDS: Record<string, string[] | null> = {
   ],
   Project: ["billingType", "flatFeeAmount", "paymentTerms"],
   ProjectMember: ["billRate", "currency"],
-  Membership: ["costRate"],
+  Membership: ["costRate", "billRate"],
   Contact: ["receivesInvoices", "email"],
   PaymentMethod: null,
   ClientBillingCycle: null,
@@ -90,7 +91,7 @@ export async function alertOnBillingChange(entry: {
       } else return;
     }
 
-    const subject = await describe(entry.model, entry.row ?? entry.before);
+    const subject = await describe(entry.model, entry.row ?? entry.before, touched);
     if (!subject) return;
     const actorName = entry.actorId
       ? ((await prisma.user.findUnique({ where: { id: entry.actorId }, select: { name: true } }))
@@ -141,7 +142,11 @@ async function clientName(clientId: unknown) {
   return c?.name ?? null;
 }
 
-async function describe(model: string, row: Row | null): Promise<{ text: string; link: string } | null> {
+async function describe(
+  model: string,
+  row: Row | null,
+  touched: string[] = []
+): Promise<{ text: string; link: string } | null> {
   if (!row) return null;
   switch (model) {
     case "Organization":
@@ -160,7 +165,13 @@ async function describe(model: string, row: Row | null): Promise<{ text: string;
         typeof row.userId === "string"
           ? await prisma.user.findUnique({ where: { id: row.userId }, select: { name: true } })
           : null;
-      return { text: `${user?.name ?? "a member"}'s cost rate`, link: "/settings/members" };
+      const what =
+        touched.length === 1
+          ? touched[0] === "billRate"
+            ? "default bill rate"
+            : "cost rate"
+          : "cost and default bill rates";
+      return { text: `${user?.name ?? "a member"}'s ${what}`, link: "/settings/members" };
     }
     case "ProjectMember": {
       const [user, project] = await Promise.all([

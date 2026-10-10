@@ -16,7 +16,9 @@ isn't on.
 
 <ParamField query="status" type="string">
   Only `DRAFT`, `SENT`, `PAID`, or `VOID` invoices. Any other value is
-  ignored.
+  ignored. A `VOID` invoice keeps its lines and total, but the time
+  entries, milestones and expenses on it were released when it was voided
+  and can be generated onto a new invoice.
 </ParamField>
 
 ```bash

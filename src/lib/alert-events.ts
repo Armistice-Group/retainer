@@ -12,7 +12,7 @@ export const ALERT_EVENTS = {
   },
   SECURITY_ALERT: {
     label: "Access or security settings change",
-    hint: "Roles, members removed, invites, API keys, SSO, sign-in rules, two-factor turned off, many deletions at once.",
+    hint: "Roles, members removed, invites, API keys, SSO, sign-in rules, two-factor turned off or required, password resets, many deletions at once.",
     defaults: { email: true, slack: true },
   },
   INVOICE_SENT: {
@@ -51,8 +51,8 @@ export const ALERT_EVENTS = {
     defaults: { email: false, slack: true },
   },
   RECURRING_INVOICE_GENERATED: {
-    label: "A recurring invoice or billing cycle creates a draft",
-    hint: "Drafts waiting for review. Ones set to send automatically use \"An invoice is sent\" instead.",
+    label: "A recurring invoice or billing cycle needs review",
+    hint: "Drafts waiting for review, and invoices set to send automatically that couldn't be emailed (they're still marked sent). Ones emailed automatically use \"An invoice is sent\" instead.",
     defaults: { email: false, slack: true },
   },
 } as const;

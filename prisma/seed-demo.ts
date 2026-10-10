@@ -37,6 +37,7 @@ async function main() {
       domain: "northwind.example",
       invoicePrefix: "NWL",
       defaultCurrency: "USD",
+      defaultBillRate: 175,
       nextInvoiceNumber: 1,
     },
   });
@@ -69,10 +70,12 @@ async function main() {
   });
 
   const people = [
-    { name: "Maya Chen", email: "maya@northwind.example", role: "OWNER", title: "Principal" },
-    { name: "Diego Alvarez", email: "diego@northwind.example", role: "ADMIN", title: "Staff Engineer" },
+    // billRate: their default when put on a project; Priya has none, so she
+    // starts at the org's default.
+    { name: "Maya Chen", email: "maya@northwind.example", role: "OWNER", title: "Principal", billRate: 210 },
+    { name: "Diego Alvarez", email: "diego@northwind.example", role: "ADMIN", title: "Staff Engineer", billRate: 185 },
     { name: "Priya Nair", email: "priya@northwind.example", role: "MEMBER", title: "Security Engineer" },
-    { name: "Sam Okafor", email: "sam@contractor.example", role: "MEMBER", title: "Designer", contractor: true },
+    { name: "Sam Okafor", email: "sam@contractor.example", role: "MEMBER", title: "Designer", contractor: true, billRate: 140 },
   ] as const;
 
   const users: User[] = [];
@@ -85,6 +88,7 @@ async function main() {
         role: p.role,
         title: p.title,
         employmentType: "contractor" in p ? "CONTRACTOR" : "EMPLOYEE",
+        billRate: "billRate" in p ? p.billRate : null,
       },
     });
     users.push(user);

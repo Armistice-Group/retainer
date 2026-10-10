@@ -12,6 +12,7 @@ import { canViewProject } from "@/lib/project-access";
 import { sendEmail } from "@/lib/email";
 import { ContractorReviewEmail } from "@/emails/contractor-review-email";
 import { getOrigin } from "@/lib/url";
+import { defaultBillRateFor } from "@/lib/bill-rates";
 import type { ActionState } from "@/actions/auth";
 
 export async function createProjectAction(
@@ -69,7 +70,12 @@ export async function createProjectAction(
     parsed.data.confidential && role !== "OWNER" && role !== "ADMIN";
   if (soloOrg || nonAdminConfidentialCreator) {
     await prisma.projectMember.create({
-      data: { projectId: project.id, userId: user.id, billRate: 0, currency: org.defaultCurrency },
+      data: {
+        projectId: project.id,
+        userId: user.id,
+        billRate: await defaultBillRateFor(org.id, user.id),
+        currency: org.defaultCurrency,
+      },
     });
   }
 
@@ -130,7 +136,12 @@ export async function updateProjectAction(
   if (parsed.data.confidential && role !== "OWNER" && role !== "ADMIN") {
     await prisma.projectMember.upsert({
       where: { projectId_userId: { projectId, userId: user.id } },
-      create: { projectId, userId: user.id, billRate: 0, currency: org.defaultCurrency },
+      create: {
+        projectId,
+        userId: user.id,
+        billRate: await defaultBillRateFor(org.id, user.id),
+        currency: org.defaultCurrency,
+      },
       update: {},
     });
   }

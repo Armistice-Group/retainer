@@ -42,8 +42,9 @@ export async function notifyInvoiceStatusChange(
   await fileInvoice(invoice.id);
 }
 
-/** Owners and admins only, for the API and MCP server — same as generating
- * and emailing invoices there. (In the app, any member can.) */
+/** Only owners and admins can send, mark paid or void an invoice — in the
+ * app, the API and the MCP server alike. Members can generate and edit
+ * drafts. */
 export function canChangeInvoiceStatusByKey(role: Role) {
   return role === "OWNER" || role === "ADMIN";
 }
@@ -61,6 +62,52 @@ export function invoiceStatusChangeError(
   }
   if (to === "DRAFT") return "Invoices can't be moved back to draft.";
   return null;
+}
+
+/** Unlinks the time entries, milestones and expenses billed on an invoice
+ * (or on one of its line items) so they're unbilled again. The line items
+ * themselves are left alone. */
+export async function releaseInvoicedWork(
+  tx: Prisma.TransactionClient,
+  scope: { invoiceId: string } | { lineItemId: string }
+) {
+  const where =
+    "invoiceId" in scope
+      ? { invoiceLineItem: { invoiceId: scope.invoiceId } }
+      : { invoiceLineItemId: scope.lineItemId };
+  const [timeEntries, milestones, expenses] = await Promise.all([
+    tx.timeEntry.updateMany({ where, data: { invoiceLineItemId: null } }),
+    tx.milestone.updateMany({ where, data: { invoiceLineItemId: null, invoicedAt: null } }),
+    tx.expense.updateMany({ where, data: { invoiceLineItemId: null, invoicedAt: null } }),
+  ]);
+  return { timeEntries: timeEntries.count, milestones: milestones.count, expenses: expenses.count };
+}
+
+/** Voids a draft or sent invoice — the one path the app, API and MCP server
+ * all use. Its time, milestones and expenses go back to unbilled so they can
+ * be invoiced again; the voided invoice keeps its line items as a record.
+ * Throws InvoiceError if the invoice can't be voided. */
+export async function voidInvoice(orgId: string, invoiceId: string) {
+  const result = await prisma.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({ where: { id: invoiceId, orgId } });
+    if (!invoice) throw new InvoiceError("Invoice not found.");
+    const statusError = invoiceStatusChangeError(invoice.status, "VOID");
+    if (statusError) throw new InvoiceError(statusError);
+    // Conditional on the status we checked, so a concurrent payment or void
+    // can't slip in between.
+    const { count } = await tx.invoice.updateMany({
+      where: { id: invoiceId, status: invoice.status },
+      data: { status: "VOID" },
+    });
+    if (count === 0) throw new InvoiceError("This invoice changed while voiding it. Try again.");
+    const released = await releaseInvoicedWork(tx, { invoiceId });
+    const updated = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    return { invoice: updated, released };
+  });
+  // A filed copy is refreshed so it shows VOID.
+  const { fileInvoice } = await import("@/lib/services/filing");
+  await fileInvoice(invoiceId);
+  return result;
 }
 
 // Called once a day by the recurring-invoices cron job. overdueNotifiedAt is

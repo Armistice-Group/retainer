@@ -603,26 +603,41 @@ docker compose exec -T consultainer-db sh -c 'psql -U "$POSTGRES_USER" -d "$POST
     Private-network addresses are blocked by default. Set
     `ALLOW_PRIVATE_FETCH=true` and run `docker compose up -d`.
   </Accordion>
-  <Accordion title="The owner is locked out">
-    If email is set up, use **Email me a login link instead** on the login page.
-    Otherwise reset the password from the server. Generate a hash for the
-    new password:
+  <Accordion title="Someone is locked out">
+    Try these in order:
+
+    1. **Forgot password?** on the login page emails a reset link, if
+       [email](/integrations/email) is set up.
+    2. Another owner, or an admin for anyone who isn't an owner, opens
+       **Settings → Members**, picks **Create password reset link** from the
+       **⋯** menu, and sends them the link. See
+       [Password resets](/concepts/team-and-security#password-resets).
+    3. Lost authenticator: sign in with one of the recovery codes saved when
+       two-factor authentication was turned on, then turn it off and on again
+       on **Profile**.
+
+    If none of those work, for example a single owner who has lost both their
+    password and their authenticator on a server without email, reset it from
+    the server. Generate a hash for the new password:
 
     ```bash
     docker compose exec consultainer-app node -e 'console.log(require("bcryptjs").hashSync(process.argv[1], 12))' 'a-new-long-password1'
     ```
 
-    Then set it, and turn off two-factor authentication if the
-    authenticator is lost too:
+    Then set it (this also signs out their existing sessions), and turn off
+    two-factor authentication if the authenticator is lost too:
 
     ```bash
     docker compose exec consultainer-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
     ```
 
     ```sql
-    UPDATE "User" SET "passwordHash" = '<hash from above>' WHERE email = 'you@example.com';
+    UPDATE "User" SET "passwordHash" = '<hash from above>', "sessionVersion" = "sessionVersion" + 1 WHERE email = 'you@example.com';
     -- only if needed:
     UPDATE "User" SET "twoFactorEnabled" = false, "twoFactorSecret" = NULL, "twoFactorRecoveryCodes" = '{}' WHERE email = 'you@example.com';
     ```
+
+    If the organization has **Require two-factor authentication** on, they're
+    asked to set up a new authenticator app right after logging in.
   </Accordion>
 </AccordionGroup>

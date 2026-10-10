@@ -50,6 +50,9 @@ exact buttons in the app.
     - **Invoice number prefix**, **Default currency**, **Default tax rate (%)**
       and **Default payment terms** (Net 30 unless you change it). New
       clients and invoices start from these.
+    - **Default bill rate**: what you charge per hour, in your default
+      currency. People start at this rate when they're put on a project
+      (you can give someone their own rate on **Settings → Members**).
     - **Timesheet approval**: **Off**, **Contractors**, or **Everyone except
       admins**. When on, covered people submit each week from **Time**, and
       their time can't be invoiced until an admin approves it.
@@ -74,6 +77,12 @@ exact buttons in the app.
 
     In the member list, fill in each person's **Cost** (what an hour of
     their time costs you) so [Reports](/concepts/reports) can show profit.
+
+    To make everyone use an authenticator app, set one up on your own
+    **Profile**, then tick **Require two-factor authentication** under
+    **Settings → Security**. If someone forgets their password, they can use
+    **Forgot password?** on the login page, or you can make them a reset link
+    from the **⋯** menu on **Settings → Members**.
 
     Prefer single sign-on? Set it up under **Settings → Security** instead;
     see [Team & security](/concepts/team-and-security) for what each role can
@@ -105,14 +114,18 @@ exact buttons in the app.
     **Create project**.
 
     On the project page, in **Team & bill rates**, click **Add team member**,
-    pick a person, enter their **Hourly rate**, and click **Add to project**.
-    Do this for everyone who will log time here.
+    pick a person, check their **Hourly rate** (it's filled in from their
+    default rate), and click **Add to project**. Do this for everyone who
+    will log time here.
 
     <Warning>
       Billable time is invoiced at the person's rate on the project. If
       you're the only person in the organization, you're added to new
-      projects automatically at **$0/hr**: click the pencil next to your
-      rate and set it before you invoice.
+      projects automatically at your default rate. Set your default rate
+      first (**Default bill rate** on Settings → General, or your own **Rate**
+      on Settings → Members); with neither set you start at **$0/hr**, and
+      you'd need to click the pencil next to your rate on each project
+      before you invoice.
     </Warning>
   </Step>
 
@@ -163,7 +176,7 @@ exact buttons in the app.
 
 <CardGroup cols={2}>
   <Card title="Team & security" icon="shield" href="/concepts/team-and-security">
-    Roles, SSO, two-factor authentication and API keys.
+    Roles, password resets, SSO, required two-factor authentication and API keys.
   </Card>
   <Card title="Alerts & audit log" icon="bell" href="/concepts/alerts-and-audit">
     Choose what reaches Slack and email, and see who changed what.
