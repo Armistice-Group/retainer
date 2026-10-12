@@ -15,6 +15,7 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
 import { updateOrgGeneralAction } from "@/actions/org";
+import { CLOCK_ROUNDING_OPTIONS, clockRoundingLabel } from "@/lib/clock-time";
 import type { ActionState } from "@/actions/auth";
 
 type Org = {
@@ -27,6 +28,7 @@ type Org = {
   overheadPercent: string;
   expenseApprovalThreshold: string;
   timesheetApproval: string;
+  clockRoundingMinutes: string;
   externalBillingLabel: string | null;
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
@@ -181,6 +183,29 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
           </p>
         </div>
         <div className="flex flex-col gap-2">
+          <Label htmlFor="clockRoundingMinutes">Round clock times to</Label>
+          <Select
+            name="clockRoundingMinutes"
+            defaultValue={org.clockRoundingMinutes}
+            disabled={readOnly}
+          >
+            <SelectTrigger id="clockRoundingMinutes" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CLOCK_ROUNDING_OPTIONS.map((m) => (
+                <SelectItem key={m} value={String(m)}>
+                  {clockRoundingLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            When time is logged with a start and end, the hours are rounded to this. The times
+            themselves are kept as entered.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="brandColor">Brand color</Label>
           <div className="flex items-center gap-2">
             <input
@@ -220,7 +245,7 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             disabled={readOnly}
           />
         </div>
-        <div className="flex flex-col gap-2 sm:col-span-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="externalBillingUrl">External billing tool link</Label>
           <Input
             id="externalBillingUrl"

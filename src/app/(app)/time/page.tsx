@@ -27,12 +27,12 @@ import { deleteTimeEntryAction } from "@/actions/time-entries";
 import {
   addDays,
   formatWeekLabel,
-  isSameDay,
   parseLocalDate,
   startOfWeek,
   toISODate,
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import { formatClockRange, formatClockTime } from "@/lib/clock-time";
 
 export default async function TimePage({
   searchParams,
@@ -76,7 +76,7 @@ export default async function TimePage({
     prisma.timeEntry.findMany({
       where: entryWhere,
       include: { project: { include: { client: true } }, user: true },
-      orderBy: { date: "asc" },
+      orderBy: [{ date: "asc" }, { startMinute: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
     canManageTeam
       ? prisma.membership.findMany({
@@ -104,6 +104,7 @@ export default async function TimePage({
     id: p.id,
     name: p.name,
     clientName: p.client.name,
+    requireClockTimes: p.client.requireClockTimes,
   }));
   const memberOptions = teamMembers.map((m) => ({ id: m.userId, name: m.user.name }));
 
@@ -121,6 +122,7 @@ export default async function TimePage({
       tasks={tasks}
       canManageTeam={canManageTeam}
       teamMembers={memberOptions}
+      clockRounding={org.clockRoundingMinutes}
     />
   );
 
@@ -267,7 +269,10 @@ export default async function TimePage({
           ) : (
             <div className="flex flex-col gap-4">
               {days.map((day) => {
-                const dayEntries = entries.filter((e) => isSameDay(new Date(e.date), day));
+                // An entry's date is a calendar date (stored at UTC midnight);
+                // the week's days are local midnights.
+                const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+                const dayEntries = entries.filter((e) => toISODate(e.date) === dayKey);
                 if (dayEntries.length === 0) return null;
                 const dayTotal = dayEntries.reduce((sum, e) => sum + Number(e.hours), 0);
 
@@ -328,6 +333,11 @@ export default async function TimePage({
                                 </p>
                               ) : null}
                             </div>
+                            {entry.startMinute != null ? (
+                              <span className="tabular-figures text-sm text-muted-foreground">
+                                {formatClockRange(entry.startMinute, entry.endMinute)}
+                              </span>
+                            ) : null}
                             <span className="tabular-figures text-sm">
                               {Number(entry.hours).toFixed(2)}h
                             </span>
@@ -338,12 +348,17 @@ export default async function TimePage({
                                   tasks={tasks}
                                   canManageTeam={canManageTeam}
                                   teamMembers={memberOptions}
+                                  clockRounding={org.clockRoundingMinutes}
                                   editValues={{
                                     id: entry.id,
                                     projectId: entry.projectId,
                                     taskId: entry.taskId ?? "",
                                     date: toISODate(new Date(entry.date)),
                                     hours: entry.hours.toString(),
+                                    startTime:
+                                      entry.startMinute != null ? formatClockTime(entry.startMinute) : "",
+                                    endTime:
+                                      entry.endMinute != null ? formatClockTime(entry.endMinute) : "",
                                     description: entry.description ?? "",
                                     billable: entry.billable,
                                     userId: entry.userId,

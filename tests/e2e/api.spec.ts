@@ -335,3 +335,134 @@ test("an owner can generate an invoice from unbilled time", async ({ request }) 
   );
   expect(entry.invoiceLineItemId).not.toBeNull();
 });
+
+test.describe("start and end times", () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const clocked = (data: Record<string, unknown>) => ({ projectId: A.clockProject.id, ...data });
+
+  test("start and end without hours work out the hours (rounded to 15 minutes)", async ({ request }) => {
+    const res = await request.post("/api/v1/time-entries", {
+      headers: ownerA,
+      data: clocked({ date: "2025-03-03", startTime: "09:00", endTime: "10:40" }),
+    });
+    const body = await json(res);
+    expect(res.status()).toBe(201);
+    expect(Number(body.timeEntry.hours)).toBe(1.75);
+    expect(body.timeEntry).toMatchObject({ startTime: "09:00", endTime: "10:40" });
+    expect(body.timeEntry).not.toHaveProperty("startMinute");
+    expect(body.warnings).toEqual([]);
+    const [row] = await sql<{ startMinute: number; endMinute: number }>(
+      `SELECT "startMinute", "endMinute" FROM "TimeEntry" WHERE id = $1`,
+      [body.timeEntry.id]
+    );
+    expect(row).toEqual({ startMinute: 540, endMinute: 640 });
+  });
+
+  test("an end before the start runs past midnight", async ({ request }) => {
+    const res = await request.post("/api/v1/time-entries", {
+      headers: ownerA,
+      data: clocked({ date: "2025-03-04", startTime: "22:30", endTime: "01:00" }),
+    });
+    const body = await json(res);
+    expect(res.status()).toBe(201);
+    expect(Number(body.timeEntry.hours)).toBe(2.5);
+    expect(body.timeEntry.date.slice(0, 10)).toBe("2025-03-04");
+  });
+
+  test("hours can be less than the span, but not more", async ({ request }) => {
+    const ok = await request.post("/api/v1/time-entries", {
+      headers: ownerA,
+      data: clocked({ date: "2025-03-05", startTime: "09:00", endTime: "12:00", hours: 2.5 }),
+    });
+    expect(ok.status()).toBe(201);
+    expect(Number((await json(ok)).timeEntry.hours)).toBe(2.5);
+
+    const tooMany = await request.post("/api/v1/time-entries", {
+      headers: ownerA,
+      data: clocked({ date: "2025-03-06", startTime: "09:00", endTime: "10:00", hours: 1.5 }),
+    });
+    expect(tooMany.status()).toBe(422);
+    expect((await json(tooMany)).error.hours[0]).toContain("more than the time between start and end");
+  });
+
+  test("a start without an end, or a bad time, is a field error", async ({ request }) => {
+    for (const data of [
+      { startTime: "09:00", hours: 1 },
+      { startTime: "9am", endTime: "10:00" },
+      { startTime: "24:00", endTime: "10:00" },
+    ]) {
+      const res = await request.post("/api/v1/time-entries", {
+        headers: ownerA,
+        data: { projectId: A.openProject.id, date: "2025-03-07", ...data },
+      });
+      expect(res.status(), JSON.stringify(data)).toBe(422);
+      expect(typeof (await json(res)).error).toBe("object");
+    }
+  });
+
+  test("a client that requires times rejects an entry without them", async ({ request }) => {
+    const res = await request.post("/api/v1/time-entries", {
+      headers: memberA,
+      data: clocked({ date: "2025-03-10", hours: 1 }),
+    });
+    expect(res.status()).toBe(422);
+    expect((await json(res)).error.startTime[0]).toBe("This client needs a start and end time on every entry.");
+
+    // Nor can an update drop them.
+    const patch = await request.patch(`/api/v1/time-entries/${A.clockEntries[0].id}`, {
+      headers: ownerA,
+      data: clocked({ date: today, hours: 1.5 }),
+    });
+    expect(patch.status()).toBe(422);
+    const [row] = await sql<{ startMinute: number }>(`SELECT "startMinute" FROM "TimeEntry" WHERE id = $1`, [
+      A.clockEntries[0].id,
+    ]);
+    expect(row.startMinute).toBe(540);
+  });
+
+  test("GET returns start and end times", async ({ request }) => {
+    const { timeEntries } = await json(
+      await request.get(`/api/v1/time-entries?projectId=${A.clockProject.id}&from=${today}&to=${today}`, {
+        headers: ownerA,
+      })
+    );
+    for (const seeded of A.clockEntries) {
+      const entry = timeEntries.find((e: { id: string }) => e.id === seeded.id);
+      expect(entry).toMatchObject({ startTime: seeded.start, endTime: seeded.end });
+    }
+    const { timeEntries: plain } = await json(
+      await request.get(`/api/v1/time-entries?projectId=${A.openProject.id}`, { headers: memberA })
+    );
+    const member = plain.find((e: { id: string }) => e.id === A.memberEntry.id);
+    expect(member).toMatchObject({ startTime: null, endTime: null });
+  });
+
+  test("overlapping time saves, with a warning", async ({ request }) => {
+    const res = await request.post("/api/v1/time-entries", {
+      headers: ownerA,
+      data: clocked({ date: today, startTime: "10:00", endTime: "11:00", description: "Overlap check" }),
+    });
+    const body = await json(res);
+    expect(res.status()).toBe(201);
+    expect(body.warnings).toEqual([`Overlaps 09:00–10:30 on ${A.clockClient.name} · ${A.clockProject.name}`]);
+    // Keep the seeded day as it was for the UI tests.
+    await sql(`DELETE FROM "TimeEntry" WHERE id = $1`, [body.timeEntry.id]);
+  });
+
+  test("time past midnight overlaps the next morning", async ({ request }) => {
+    const first = await request.post("/api/v1/time-entries", {
+      headers: memberA,
+      data: clocked({ date: "2025-04-01", startTime: "23:00", endTime: "02:00" }),
+    });
+    expect(first.status()).toBe(201);
+    const second = await json(
+      await request.post("/api/v1/time-entries", {
+        headers: memberA,
+        data: clocked({ date: "2025-04-02", startTime: "01:00", endTime: "03:00" }),
+      })
+    );
+    expect(second.warnings).toEqual([
+      `Overlaps 23:00–02:00 (2025-04-01) on ${A.clockClient.name} · ${A.clockProject.name}`,
+    ]);
+  });
+});

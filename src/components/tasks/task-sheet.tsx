@@ -43,7 +43,8 @@ import {
 } from "@/actions/tasks";
 import { startTimerAction, stopTimerAction } from "@/actions/timer";
 import { formatDate } from "@/lib/format";
-import { toISODate } from "@/lib/date";
+import { browserTimeZone } from "@/lib/clock-time";
+import { toast } from "sonner";
 import type { TaskDetail } from "@/lib/task-detail";
 import type { ActionState } from "@/actions/auth";
 
@@ -144,8 +145,9 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
   function stopTimer() {
     setTimerError(null);
     startTransition(async () => {
-      const result = await stopTimerAction(toISODate(new Date()));
+      const result = await stopTimerAction(browserTimeZone());
       if (result?.error) setTimerError(result.error);
+      result?.warnings?.forEach((w) => toast.warning(w));
     });
   }
 
@@ -157,7 +159,7 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
         task.id,
         null,
         true,
-        toISODate(new Date())
+        browserTimeZone()
       );
       if (result?.error) setTimerError(result.error);
     });
@@ -283,8 +285,14 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
               </Button>
               <TimeEntryDialog
                 projects={[
-                  { id: projectId, name: task.project.name, clientName: task.project.clientName },
+                  {
+                    id: projectId,
+                    name: task.project.name,
+                    clientName: task.project.clientName,
+                    requireClockTimes: task.project.requireClockTimes,
+                  },
                 ]}
+                clockRounding={task.clockRounding}
                 tasks={[{ id: task.id, title: task.title, projectId }]}
                 defaultProjectId={projectId}
                 defaultTaskId={task.id}
@@ -321,7 +329,12 @@ function TaskSheetBody({ task }: { task: TaskDetail }) {
                       <p className="text-muted-foreground">{entry.description}</p>
                     ) : null}
                   </div>
-                  <span className="tabular-figures shrink-0">{entry.hours.toFixed(2)}h</span>
+                  <span className="tabular-figures shrink-0">
+                    {entry.clock ? (
+                      <span className="mr-2 text-muted-foreground">{entry.clock}</span>
+                    ) : null}
+                    {entry.hours.toFixed(2)}h
+                  </span>
                 </li>
               ))}
             </ul>

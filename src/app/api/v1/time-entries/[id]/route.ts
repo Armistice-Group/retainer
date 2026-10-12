@@ -1,5 +1,6 @@
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
-import { timeEntrySchema } from "@/lib/validations/time-entry";
+import { clockFields, timeEntrySchema } from "@/lib/validations/time-entry";
+import { withClockTimes } from "@/lib/clock-time";
 import { updateTimeEntry, deleteTimeEntry, TimeEntryError } from "@/lib/services/time-entries";
 
 export async function PATCH(
@@ -17,7 +18,7 @@ export async function PATCH(
   }
 
   try {
-    const entry = await updateTimeEntry(
+    const { entry, warnings } = await updateTimeEntry(
       {
         orgId: ctx.orgId,
         slackWebhookUrl: ctx.slackWebhookUrl,
@@ -30,17 +31,20 @@ export async function PATCH(
         projectId: parsed.data.projectId,
         taskId: parsed.data.taskId || null,
         date: parsed.data.date,
-        hours: parsed.data.hours,
+        ...clockFields(parsed.data),
         description: parsed.data.description || null,
         billable: parsed.data.billable,
         userId: parsed.data.userId || null,
         rateOverride: parsed.data.rateOverride === "" ? null : (parsed.data.rateOverride ?? null),
       }
     );
-    return Response.json({ timeEntry: entry });
+    return Response.json({ timeEntry: withClockTimes(entry), warnings });
   } catch (err) {
     if (err instanceof TimeEntryError) {
-      return Response.json({ error: err.message }, { status: 422 });
+      return Response.json(
+        { error: err.field ? { [err.field]: [err.message] } : err.message },
+        { status: 422 }
+      );
     }
     throw err;
   }
@@ -68,7 +72,10 @@ export async function DELETE(
     return Response.json({ ok: true });
   } catch (err) {
     if (err instanceof TimeEntryError) {
-      return Response.json({ error: err.message }, { status: 422 });
+      return Response.json(
+        { error: err.field ? { [err.field]: [err.message] } : err.message },
+        { status: 422 }
+      );
     }
     throw err;
   }

@@ -62,7 +62,7 @@ export async function syncCalendarFeedAction(feedId: string): Promise<{ added?: 
 
 export async function logMeetingAction(
   eventId: string,
-  input: { projectId: string; billable: boolean; date: string; remember: boolean }
+  input: { projectId: string; billable: boolean; date: string; remember: boolean; timeZone?: string }
 ): Promise<{ error?: string; alsoLogged?: number }> {
   try {
     const result = await logMeeting(await context(), eventId, input);

@@ -53,7 +53,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     file: "clients",
     fields: [
       "id", "name", "website", "description", "email", "phone", "address", "billingEmail",
-      "billingAddress", "status", "paymentTerms", "invoiceReminders", "useOrgPaymentMethods",
+      "billingAddress", "status", "paymentTerms", "invoiceReminders", "requireClockTimes", "useOrgPaymentMethods",
       "shareExpiresAt", "shareVerification", "leadSource", "leadBookedAt", "leadDiscardedAt", "bookingUrl",
       "createdAt", "updatedAt",
     ],
@@ -161,7 +161,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     model: "TimeEntry",
     file: "time-entries",
     fields: [
-      "id", "date", "hours", "description", "billable", "rateOverride", "approvedAt", "projectId",
+      "id", "date", "hours", "startMinute", "endMinute", "description", "billable", "rateOverride", "approvedAt", "projectId",
       "userId", "taskId", "invoiceLineItemId", "createdAt", "updatedAt",
     ],
     dates: ["date"],
@@ -372,7 +372,7 @@ export const EXPORT_MODELS: ExportModel[] = [
 const ORGANIZATION_FIELDS = [
   "id", "name", "slug", "domain", "defaultCurrency", "defaultTaxRate", "defaultBillRate",
   "invoicePrefix", "defaultPaymentTerms", "overheadPercent", "timesheetApproval",
-  "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "requireShareVerification", "bookingUrl", "createdAt",
+  "clockRoundingMinutes", "expenseApprovalThreshold", "brandColor", "requireTwoFactor", "requireShareVerification", "bookingUrl", "createdAt",
 ];
 
 /** Never exported, whatever a table row says. */
@@ -667,6 +667,9 @@ function readme(
     "            =, +, - or @ gets a leading ' so it isn't run as a formula).",
     "            Records refer to each other by id (projectId, clientId, userId...).",
     "            Money and hours are exact decimals; dates are YYYY-MM-DD, times UTC.",
+    "            A time entry's startMinute/endMinute are its local start and end",
+    "            as minutes after midnight on its date (an end before the start ran",
+    "            past midnight); blank when only hours were logged.",
     "files/      Uploaded files: documents, expense receipts, milestone evidence",
     "            and more. The exportedFile column of each CSV points here.",
     "invoices/   Every invoice as a PDF, as it renders today.",

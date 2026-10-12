@@ -34,6 +34,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           billingAddress: client.billingAddress,
           paymentTerms: client.paymentTerms,
           invoiceReminders: client.invoiceReminders,
+          requireClockTimes: client.requireClockTimes,
           status: client.status,
         }}
       />

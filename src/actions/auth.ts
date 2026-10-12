@@ -28,6 +28,8 @@ export type ActionState = {
   /** Submitted values echoed back on a validation error, so a form can
    * refill fields (React resets uncontrolled forms after an action). */
   values?: Record<string, string>;
+  /** Saved, with something worth telling the person (e.g. overlapping time). */
+  warnings?: string[];
 } | null;
 
 export async function signInWithGoogleAction(callbackUrl: string) {

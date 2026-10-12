@@ -99,6 +99,7 @@ export function MeetingsInbox({
                     billable: m.booking?.billable ?? true,
                     date: toISODate(new Date(m.start)),
                     remember: false,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                   });
                   if (!r.error) {
                     ok++;
@@ -164,6 +165,7 @@ function MeetingRow({
         billable,
         date: toISODate(new Date(meeting.start)),
         remember,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       if (r.error) {
         toast.error(r.error);

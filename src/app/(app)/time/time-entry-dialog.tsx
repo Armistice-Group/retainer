@@ -25,9 +25,23 @@ import { SubmitButton } from "@/components/forms/submit-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createTimeEntryAction, updateTimeEntryAction } from "@/actions/time-entries";
 import { toISODate } from "@/lib/date";
+import { toast } from "sonner";
+import {
+  clockHours,
+  clockSpanMinutes,
+  endsNextDay,
+  maxClockHours,
+  parseClockTime,
+} from "@/lib/clock-time";
 import type { ActionState } from "@/actions/auth";
 
-type ProjectOption = { id: string; name: string; clientName: string };
+type ProjectOption = {
+  id: string;
+  name: string;
+  clientName: string;
+  /** The client wants start and end times on every entry. */
+  requireClockTimes?: boolean;
+};
 type TaskOption = { id: string; title: string; projectId: string };
 type MemberOption = { id: string; name: string };
 
@@ -37,6 +51,9 @@ type EditValues = {
   taskId: string;
   date: string;
   hours: string;
+  /** "HH:MM", or "" when the entry has no times. */
+  startTime: string;
+  endTime: string;
   description: string;
   billable: boolean;
   userId: string;
@@ -52,6 +69,7 @@ export function TimeEntryDialog({
   teamMembers = [],
   defaultProjectId,
   defaultTaskId,
+  clockRounding = 15,
   trigger,
 }: {
   projects: ProjectOption[];
@@ -62,6 +80,8 @@ export function TimeEntryDialog({
   teamMembers?: MemberOption[];
   defaultProjectId?: string;
   defaultTaskId?: string;
+  /** The org's "Round clock times to", in minutes. */
+  clockRounding?: number;
   /** Replaces the default "Log time" button. */
   trigger?: ReactNode;
 }) {
@@ -76,9 +96,13 @@ export function TimeEntryDialog({
   useEffect(() => {
     if (wasPending.current && !isPending && !state?.error && !state?.fieldErrors) {
       setOpen(false);
+      // Saved anyway; overlapping time is worth a look.
+      state?.warnings?.forEach((w) => toast.warning(w));
     }
     wasPending.current = isPending;
   }, [isPending, state]);
+
+  const requireClockTimes = !!projects.find((p) => p.id === projectId)?.requireClockTimes;
 
   const availableTasks = useMemo(
     () => tasks.filter((t) => t.projectId === projectId),
@@ -147,34 +171,23 @@ export function TimeEntryDialog({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="te-date">Date</Label>
-              <Input
-                id="te-date"
-                name="date"
-                type="date"
-                defaultValue={editValues?.date ?? defaultDate ?? toISODate(new Date())}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="te-hours">Hours</Label>
-              <Input
-                id="te-hours"
-                name="hours"
-                type="number"
-                step="0.25"
-                min="0"
-                max="24"
-                defaultValue={editValues?.hours}
-                required
-              />
-              {state?.fieldErrors?.hours ? (
-                <p className="text-sm text-destructive">{state.fieldErrors.hours[0]}</p>
-              ) : null}
-            </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="te-date">Date</Label>
+            <Input
+              id="te-date"
+              name="date"
+              type="date"
+              className="sm:w-1/2"
+              defaultValue={editValues?.date ?? defaultDate ?? toISODate(new Date())}
+              required
+            />
           </div>
+          <ClockFields
+            editValues={editValues}
+            rounding={clockRounding}
+            required={requireClockTimes}
+            fieldErrors={state?.fieldErrors}
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor="te-description">Description</Label>
             <Textarea
@@ -238,5 +251,99 @@ export function TimeEntryDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Start, End and Hours. Filling both times works out the hours (rounded to
+ * the org's increment); hours stay editable, e.g. to take off a break, but
+ * can't be more than the time between them.
+ */
+function ClockFields({
+  editValues,
+  rounding,
+  required,
+  fieldErrors,
+}: {
+  editValues?: EditValues;
+  rounding: number;
+  required: boolean;
+  fieldErrors?: Record<string, string[]>;
+}) {
+  const [startTime, setStartTime] = useState(editValues?.startTime ?? "");
+  const [endTime, setEndTime] = useState(editValues?.endTime ?? "");
+  const [hours, setHours] = useState(editValues?.hours ?? "");
+
+  const start = startTime ? parseClockTime(startTime) : null;
+  const end = endTime ? parseClockTime(endTime) : null;
+  const timed = start != null && end != null;
+  const maxHours = timed ? maxClockHours(start, end, rounding) : null;
+  const tooLong = maxHours != null && hours !== "" && Number(hours) > maxHours;
+
+  function changeTime(nextStart: string, nextEnd: string) {
+    setStartTime(nextStart);
+    setEndTime(nextEnd);
+    const s = nextStart ? parseClockTime(nextStart) : null;
+    const e = nextEnd ? parseClockTime(nextEnd) : null;
+    if (s != null && e != null) setHours(String(clockHours(clockSpanMinutes(s, e), rounding)));
+  }
+
+  const timeError = fieldErrors?.startTime?.[0] ?? fieldErrors?.endTime?.[0];
+  const hoursError = tooLong
+    ? `Can't be more than the time between start and end (${maxHours}h).`
+    : fieldErrors?.hours?.[0];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="grid grid-cols-[1fr_1fr_4.5rem] gap-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="te-start">Start{required ? "" : " (optional)"}</Label>
+          <Input
+            id="te-start"
+            name="startTime"
+            type="time"
+            value={startTime}
+            onChange={(e) => changeTime(e.target.value, endTime)}
+            required={required || !!endTime}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="te-end">End{required ? "" : " (optional)"}</Label>
+          <Input
+            id="te-end"
+            name="endTime"
+            type="time"
+            value={endTime}
+            onChange={(e) => changeTime(startTime, e.target.value)}
+            required={required || !!startTime}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="te-hours">Hours</Label>
+          <Input
+            id="te-hours"
+            name="hours"
+            type="number"
+            step="0.01"
+            min="0"
+            max="24"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            aria-invalid={tooLong || undefined}
+            required={!timed}
+          />
+        </div>
+      </div>
+      {timed && endsNextDay(start, end) ? (
+        <p className="text-xs text-muted-foreground">Ends the next day.</p>
+      ) : null}
+      {required ? (
+        <p className="text-xs text-muted-foreground">
+          This client needs a start and end time on every entry.
+        </p>
+      ) : null}
+      {timeError ? <p className="text-sm text-destructive">{timeError}</p> : null}
+      {hoursError ? <p className="text-sm text-destructive">{hoursError}</p> : null}
+    </div>
   );
 }

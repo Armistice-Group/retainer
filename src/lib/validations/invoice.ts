@@ -85,6 +85,10 @@ export const orgGeneralSchema = z.object({
     .or(z.literal("")),
   defaultPaymentTerms: z.enum(defaultTermsValues).default("NET30"),
   timesheetApproval: z.enum(["OFF", "CONTRACTORS", "EVERYONE"]).optional(),
+  clockRoundingMinutes: z.coerce
+    .number()
+    .refine((v) => [1, 6, 15].includes(v), "Pick exact, 6 or 15 minutes.")
+    .optional(),
   brandColor: z
     .string()
     .trim()

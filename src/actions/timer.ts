@@ -17,18 +17,18 @@ async function buildContext(): Promise<TimerContext> {
   };
 }
 
-export type TimerActionState = { error?: string } | null;
+export type TimerActionState = { error?: string; warnings?: string[] } | null;
 
 export async function startTimerAction(
   projectId: string,
   taskId: string | null,
   description: string | null,
   billable: boolean,
-  today: string
+  timeZone: string
 ): Promise<TimerActionState> {
   const ctx = await buildContext();
   try {
-    await startTimer(ctx, { projectId, taskId, description, billable }, today);
+    await startTimer(ctx, { projectId, taskId, description, billable }, { timeZone });
   } catch (err) {
     if (err instanceof TimerError || err instanceof TimeEntryError) return { error: err.message };
     throw err;
@@ -37,17 +37,19 @@ export async function startTimerAction(
   return null;
 }
 
-export async function stopTimerAction(today: string): Promise<TimerActionState> {
+/** timeZone: the browser's IANA zone, so the entry's start and end are its local times. */
+export async function stopTimerAction(timeZone: string): Promise<TimerActionState> {
   const ctx = await buildContext();
+  let warnings: string[] = [];
   try {
-    await stopActiveTimer(ctx, today);
+    warnings = (await stopActiveTimer(ctx, { timeZone }))?.warnings ?? [];
   } catch (err) {
     if (err instanceof TimeEntryError) return { error: err.message };
     throw err;
   }
   revalidatePath("/", "layout");
   revalidatePath("/time");
-  return null;
+  return warnings.length ? { warnings } : null;
 }
 
 export async function discardTimerAction() {

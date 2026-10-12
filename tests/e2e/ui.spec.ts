@@ -142,3 +142,40 @@ test.describe("export", () => {
     });
   });
 });
+
+test.describe("start and end times", () => {
+  test.use({ storageState: STORAGE.ownerA });
+
+  test("typing a start and end fills in the hours", async ({ page }) => {
+    await page.goto("/time");
+    await page.getByRole("button", { name: "Log time" }).first().click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(/^Start/).fill("09:10");
+    await dialog.getByLabel(/^End/).fill("11:45");
+    await expect(dialog.getByLabel("Hours")).toHaveValue("2.5");
+    await expect(dialog.getByText("Ends the next day.")).toHaveCount(0);
+
+    await dialog.getByLabel(/^Start/).fill("22:00");
+    await dialog.getByLabel(/^End/).fill("01:00");
+    await expect(dialog.getByLabel("Hours")).toHaveValue("3");
+    await expect(dialog.getByText("Ends the next day.")).toBeVisible();
+
+    // Hours stay editable, but not past the span.
+    await dialog.getByLabel("Hours").fill("3.5");
+    await expect(dialog.getByText(/Can't be more than the time between start and end/)).toBeVisible();
+
+    await dialog.getByRole("combobox", { name: "Project" }).click();
+    await page.getByRole("option", { name: `${A.clockClient.name} — ${A.clockProject.name}` }).click();
+    await expect(dialog.getByText("This client needs a start and end time on every entry.")).toBeVisible();
+  });
+
+  test("the Time page and its CSV show each entry's times", async ({ page }) => {
+    await page.goto("/time");
+    await expect(page.getByText("09:00–10:30")).toBeVisible();
+    await expect(page.getByText("13:15–15:45")).toBeVisible();
+
+    const csv = await (await page.request.get("/api/time-entries/export")).text();
+    expect(csv.split("\r\n")[0]).toMatch(/^Date,Start,End,Client,/);
+    expect(csv).toContain(`,09:00,10:30,${A.clockClient.name},`);
+  });
+});

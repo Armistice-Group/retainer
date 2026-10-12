@@ -37,6 +37,7 @@ export default async function OrgSettingsPage() {
                 overheadPercent: org.overheadPercent.toString(),
                 expenseApprovalThreshold: org.expenseApprovalThreshold.toString(),
                 timesheetApproval: org.timesheetApproval,
+                clockRoundingMinutes: String(org.clockRoundingMinutes),
                 externalBillingLabel: org.externalBillingLabel,
                 externalBillingUrl: org.externalBillingUrl,
                 slackWebhookUrl: org.slackWebhookUrl,

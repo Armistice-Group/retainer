@@ -7,6 +7,7 @@ import { fetchPublicText, normalizePublicUrl, SafeFetchError } from "@/lib/safe-
 import { isPublicEmailDomain } from "@/lib/free-email-domains";
 import { projectVisibilityWhere } from "@/lib/project-access";
 import { createTimeEntry, TimeEntryError, type TimeEntryContext } from "@/lib/services/time-entries";
+import { MINUTES_PER_DAY, wallClockIn } from "@/lib/clock-time";
 import { bookingForMeeting } from "@/lib/services/scheduling";
 import { SCHEDULING_PROVIDER_LABELS, type SchedulingProviderId } from "@/lib/integrations/scheduling/parse";
 
@@ -489,19 +490,28 @@ export async function logMeeting(
     date: string;
     description?: string | null;
     remember?: boolean;
+    /** IANA zone the entry's start/end times are recorded in; UTC if unknown. */
+    timeZone?: string | null;
   }
 ) {
   const event = await ownPending(ctx, eventId);
+  // Recorded with its start and end times (unless it ran a day or more), and
+  // hours to match them.
+  const minutes = Math.round((event.end.getTime() - event.start.getTime()) / 60_000);
+  const timed = minutes > 0 && minutes <= MINUTES_PER_DAY;
+  const start = wallClockIn(event.start, input.timeZone);
   let entry;
   try {
-    entry = await createTimeEntry(ctx, {
+    ({ entry } = await createTimeEntry(ctx, {
       projectId: input.projectId,
       taskId: input.taskId ?? null,
       date: input.date,
-      hours: meetingHours(event),
+      hours: timed ? Math.round((minutes / 60) * 100) / 100 : meetingHours(event),
+      startMinute: timed ? start.minute : null,
+      endMinute: timed ? (start.minute + minutes) % MINUTES_PER_DAY : null,
       description: input.description?.trim() || event.title,
       billable: input.billable,
-    });
+    }));
   } catch (err) {
     if (err instanceof TimeEntryError) throw new CalendarError(err.message);
     throw err;
@@ -528,6 +538,7 @@ export async function logMeeting(
           projectId: input.projectId,
           taskId: input.taskId,
           billable: input.billable,
+          timeZone: input.timeZone,
           date: new Date(Date.parse(other.start.toISOString().slice(0, 10)) + dayShift * DAY_MS)
             .toISOString()
             .slice(0, 10),

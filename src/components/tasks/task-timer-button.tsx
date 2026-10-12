@@ -5,7 +5,7 @@ import { Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { startTimerAction, stopTimerAction } from "@/actions/timer";
-import { toISODate } from "@/lib/date";
+import { browserTimeZone } from "@/lib/clock-time";
 import { cn } from "@/lib/utils";
 
 /** One-click timer for a task: starts one (stopping and logging whatever
@@ -25,14 +25,15 @@ export function TaskTimerButton({
 
   function toggle() {
     startTransition(async () => {
-      const today = toISODate(new Date());
+      const timeZone = browserTimeZone();
       if (running) {
-        const result = await stopTimerAction(today);
+        const result = await stopTimerAction(timeZone);
         if (result?.error) toast.error(result.error);
         else toast.success("Timer stopped.");
+        result?.warnings?.forEach((w) => toast.warning(w));
         return;
       }
-      const result = await startTimerAction(projectId, taskId, null, true, today);
+      const result = await startTimerAction(projectId, taskId, null, true, timeZone);
       if (result?.error) toast.error(result.error);
     });
   }

@@ -70,7 +70,13 @@ import {
 } from "@/lib/services/timesheets";
 import { startTimer, stopActiveTimer, TimerError } from "@/lib/services/timer";
 import { alertExpenseSubmitted, notifyExpenseReviewed } from "@/lib/services/expense-alerts";
-import { toISODate } from "@/lib/date";
+import {
+  CLOCK_TIME_PATTERN,
+  isValidTimeZone,
+  parseClockTime,
+  wallClockIn,
+  withClockTimes,
+} from "@/lib/clock-time";
 import {
   addTaskComment,
   deleteTaskComment,
@@ -99,6 +105,10 @@ const defaultTermsArg = z
   .describe(
     "Default payment terms for new invoices. null falls back (project → client → organization); omit to leave unchanged."
   );
+const requireClockTimesArg = z
+  .boolean()
+  .optional()
+  .describe("Time on this client's projects must have start and end times. Omit to leave unchanged.");
 const expenseCategoryDescription =
   "Free-text category, e.g. Travel, Software, Materials.";
 
@@ -134,6 +144,32 @@ function ctxFrom(extra: RequestHandlerExtra<never, never>): ApiAuthContext {
 function visibleInvoiceWhere(ctx: ApiAuthContext, invoiceId: string) {
   return { id: invoiceId, orgId: ctx.orgId, ...invoiceVisibilityWhere(ctx.actorId, ctx.role) };
 }
+
+const clockTimeParams = {
+  startTime: z
+    .string()
+    .regex(CLOCK_TIME_PATTERN, "Use a 24-hour time, e.g. 09:30.")
+    .optional()
+    .describe("Local start time, HH:MM (24-hour). Give with endTime."),
+  endTime: z
+    .string()
+    .regex(CLOCK_TIME_PATTERN, "Use a 24-hour time, e.g. 17:15.")
+    .optional()
+    .describe("Local end time, HH:MM (24-hour); earlier than startTime means the next day"),
+};
+
+function mcpClockFields(startTime?: string, endTime?: string) {
+  return {
+    startMinute: startTime ? parseClockTime(startTime) : null,
+    endMinute: endTime ? parseClockTime(endTime) : null,
+  };
+}
+
+const timeZoneParam = z
+  .string()
+  .refine(isValidTimeZone, "Use an IANA time zone, e.g. Europe/London.")
+  .optional()
+  .describe("IANA time zone for the entry's start and end times, e.g. America/New_York; defaults to UTC");
 
 function timeEntryContext(ctx: ApiAuthContext) {
   return {
@@ -231,6 +267,7 @@ const handler = createMcpHandler(
         billingEmail: z.string().email().optional(),
         billingAddress: z.string().max(500).optional(),
         paymentTerms: defaultTermsArg,
+        requireClockTimes: requireClockTimesArg,
         status: z.enum(clientStatusValues).default("ACTIVE"),
       },
       async (args, extra) => {
@@ -256,6 +293,7 @@ const handler = createMcpHandler(
         billingEmail: z.string().email().optional(),
         billingAddress: z.string().max(500).optional(),
         paymentTerms: defaultTermsArg,
+        requireClockTimes: requireClockTimesArg,
         status: z
           .enum(clientStatusValues)
           .optional()
@@ -615,20 +653,24 @@ const handler = createMcpHandler(
 
     server.tool(
       "log_time",
-      "Log time against a project for the authenticated user.",
+      "Log time against a project for the authenticated user. Give hours, or a startTime and endTime (hours are then worked out, rounded per the organization's setting), or all three. Some clients require start and end times. Returns the entry and any warnings (e.g. overlapping another timed entry).",
       {
         projectId: z.string(),
         date: isoDate().describe("ISO date, e.g. 2026-07-23"),
-        hours: z.number().positive().max(24),
+        hours: z.number().positive().max(24).optional().describe("Required unless startTime and endTime are given"),
+        ...clockTimeParams,
         description: z.string().optional(),
         billable: z.boolean().default(true),
         taskId: z.string().optional(),
       },
-      async (args, extra) => {
+      async ({ startTime, endTime, ...args }, extra) => {
         const ctx = ctxFrom(extra);
         try {
-          const entry = await createTimeEntry(timeEntryContext(ctx), args);
-          return text(entry);
+          const { entry, warnings } = await createTimeEntry(timeEntryContext(ctx), {
+            ...args,
+            ...mcpClockFields(startTime, endTime),
+          });
+          return text({ ...withClockTimes(entry), warnings });
         } catch (err) {
           if (err instanceof TimeEntryError) return errorResult(err.message);
           throw err;
@@ -666,7 +708,8 @@ const handler = createMcpHandler(
         billable: z.boolean().default(true),
         date: isoDate()
           .optional()
-          .describe("ISO date to log a stopped timer under; defaults to today (server time)"),
+          .describe("ISO date to log a stopped timer under; defaults to the day it started"),
+        timeZone: timeZoneParam,
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
@@ -684,7 +727,7 @@ const handler = createMcpHandler(
           const timer = await startTimer(
             timeEntryContext(ctx),
             { projectId, taskId: args.taskId, description: args.description, billable: args.billable },
-            args.date ?? toISODate(new Date())
+            { date: args.date, timeZone: args.timeZone }
           );
           return text(timer);
         } catch (err) {
@@ -698,20 +741,21 @@ const handler = createMcpHandler(
 
     server.tool(
       "stop_timer",
-      "Stop the authenticated user's running timer and log it as a time entry. Returns the entry, or null when nothing was running (or under 36 seconds had passed).",
+      "Stop the authenticated user's running timer and log it as a time entry with its start and end times. Returns the entry and any warnings, or null when nothing was running (or under 36 seconds had passed).",
       {
         date: isoDate()
           .optional()
-          .describe("ISO date to log the entry under; defaults to today (server time)"),
+          .describe("ISO date to log the entry under; defaults to the day the timer started"),
+        timeZone: timeZoneParam,
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
         try {
-          const entry = await stopActiveTimer(
-            timeEntryContext(ctx),
-            args.date ?? toISODate(new Date())
-          );
-          return text(entry);
+          const result = await stopActiveTimer(timeEntryContext(ctx), {
+            date: args.date,
+            timeZone: args.timeZone,
+          });
+          return text(result && { ...withClockTimes(result.entry), warnings: result.warnings });
         } catch (err) {
           if (err instanceof TimeEntryError) return errorResult(err.message);
           throw err;
@@ -838,8 +882,9 @@ const handler = createMcpHandler(
         projectId: z.string(),
         taskId: z.string().optional(),
         billable: z.boolean().default(true),
-        date: isoDate().optional().describe("ISO date to log under; defaults to the meeting's UTC date"),
+        date: isoDate().optional().describe("ISO date to log under; defaults to the meeting's date in timeZone"),
         remember: z.boolean().default(false),
+        timeZone: timeZoneParam,
       },
       async (args, extra) => {
         const ctx = ctxFrom(extra);
@@ -848,7 +893,7 @@ const handler = createMcpHandler(
         try {
           const r = await logMeeting(timeEntryContext(ctx), args.meetingId, {
             ...args,
-            date: args.date ?? meeting.start.toISOString().slice(0, 10),
+            date: args.date ?? wallClockIn(meeting.start, args.timeZone).date,
           });
           return text({ timeEntry: r.entry, alsoLogged: r.alsoLogged });
         } catch (err) {
@@ -901,27 +946,31 @@ const handler = createMcpHandler(
           include: { project: { select: { id: true, name: true } } },
           orderBy: { date: "desc" },
         });
-        return text(entries);
+        return text(entries.map(withClockTimes));
       }
     );
 
     server.tool(
       "update_time_entry",
-      "Update one of the authenticated user's time entries (must not be invoiced yet).",
+      "Update one of the authenticated user's time entries (must not be invoiced yet). Replaces the entry's fields, so leaving out startTime and endTime clears them. Returns the entry and any warnings.",
       {
         timeEntryId: z.string(),
         projectId: z.string(),
         date: isoDate(),
-        hours: z.number().positive().max(24),
+        hours: z.number().positive().max(24).optional().describe("Required unless startTime and endTime are given"),
+        ...clockTimeParams,
         description: z.string().optional(),
         billable: z.boolean().default(true),
         taskId: z.string().optional(),
       },
-      async ({ timeEntryId, ...rest }, extra) => {
+      async ({ timeEntryId, startTime, endTime, ...rest }, extra) => {
         const ctx = ctxFrom(extra);
         try {
-          const entry = await updateTimeEntry(timeEntryContext(ctx), timeEntryId, rest);
-          return text(entry);
+          const { entry, warnings } = await updateTimeEntry(timeEntryContext(ctx), timeEntryId, {
+            ...rest,
+            ...mcpClockFields(startTime, endTime),
+          });
+          return text({ ...withClockTimes(entry), warnings });
         } catch (err) {
           if (err instanceof TimeEntryError) return errorResult(err.message);
           throw err;

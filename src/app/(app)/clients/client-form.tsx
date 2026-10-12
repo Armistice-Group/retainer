@@ -29,6 +29,7 @@ type ClientFormValues = {
   billingAddress: string | null;
   paymentTerms: string | null;
   invoiceReminders: boolean;
+  requireClockTimes: boolean;
   status: "ACTIVE" | "INACTIVE" | "LEAD";
 };
 
@@ -152,6 +153,25 @@ export function ClientForm({
           <Label htmlFor="invoiceReminders" className="text-sm font-normal">
             Email overdue reminders (on the schedule in Settings → Payments)
           </Label>
+        </div>
+      </FormSection>
+
+      <FormSection title="Time" description="How time on this client's projects is logged.">
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="requireClockTimes"
+            name="requireClockTimes"
+            className="mt-0.5"
+            defaultChecked={initialValues?.requireClockTimes ?? false}
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="requireClockTimes" className="text-sm font-normal">
+              Require start and end times
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Every entry needs the times it was worked, not just hours. Timers always record them.
+            </p>
+          </div>
         </div>
       </FormSection>
 

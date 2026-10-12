@@ -24,6 +24,7 @@ export async function createClientAction(
     billingAddress: formData.get("billingAddress"),
     paymentTerms: formData.get("paymentTerms") ?? undefined,
     invoiceReminders: formData.get("invoiceReminders") === "on",
+    requireClockTimes: formData.get("requireClockTimes") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -47,6 +48,7 @@ export async function createClientAction(
       billingAddress: parsed.data.billingAddress || null,
       paymentTerms: parsed.data.paymentTerms,
       invoiceReminders: parsed.data.invoiceReminders,
+      requireClockTimes: parsed.data.requireClockTimes,
       status: parsed.data.status,
     },
   });
@@ -73,6 +75,7 @@ export async function updateClientAction(
     billingAddress: formData.get("billingAddress"),
     paymentTerms: formData.get("paymentTerms") ?? undefined,
     invoiceReminders: formData.get("invoiceReminders") === "on",
+    requireClockTimes: formData.get("requireClockTimes") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -102,6 +105,7 @@ export async function updateClientAction(
       billingAddress: parsed.data.billingAddress || null,
       paymentTerms: parsed.data.paymentTerms,
       invoiceReminders: parsed.data.invoiceReminders,
+      requireClockTimes: parsed.data.requireClockTimes,
       status: parsed.data.status,
       ...(current.status === "LEAD" && parsed.data.status !== "LEAD" ? { leadDiscardedAt: null } : {}),
     },

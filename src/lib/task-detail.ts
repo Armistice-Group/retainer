@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { canViewProject } from "@/lib/project-access";
 import { canPushCommentsToLinear } from "@/lib/services/linear-sync";
 import { mentionableUsers } from "@/lib/services/task-followers";
+import { formatClockRange } from "@/lib/clock-time";
 import type { Role } from "@/generated/prisma/client";
 
 export type TaskDetail = {
@@ -16,7 +17,9 @@ export type TaskDetail = {
   /** YYYY-MM-DD */
   dueDate: string | null;
   actualHours: number;
-  project: { id: string; name: string; clientName: string };
+  project: { id: string; name: string; clientName: string; requireClockTimes: boolean };
+  /** The org's "Round clock times to", in minutes. */
+  clockRounding: number;
   members: { id: string; name: string }[];
   linearKey: string | null;
   linearUrl: string | null;
@@ -35,6 +38,8 @@ export type TaskDetail = {
     userName: string;
     date: string;
     hours: number;
+    /** "09:10–11:45", when it has start and end times. */
+    clock: string | null;
     description: string | null;
     billable: boolean;
   }[];
@@ -63,7 +68,8 @@ export async function getTaskDetail(
     include: {
       project: {
         include: {
-          client: { select: { name: true } },
+          client: { select: { name: true, requireClockTimes: true } },
+          org: { select: { clockRoundingMinutes: true } },
           members: { include: { user: { select: { id: true, name: true } } } },
         },
       },
@@ -92,7 +98,13 @@ export async function getTaskDetail(
     estimatedHours: task.estimatedHours ? Number(task.estimatedHours) : null,
     dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
     actualHours: task.timeEntries.reduce((sum, e) => sum + Number(e.hours), 0),
-    project: { id: task.project.id, name: task.project.name, clientName: task.project.client.name },
+    project: {
+      id: task.project.id,
+      name: task.project.name,
+      clientName: task.project.client.name,
+      requireClockTimes: task.project.client.requireClockTimes,
+    },
+    clockRounding: task.project.org.clockRoundingMinutes,
     members: task.project.members.map((m) => ({ id: m.user.id, name: m.user.name })),
     linearKey: task.externalLink?.source === "linear" ? task.externalLink.externalKey : null,
     linearUrl: task.externalLink?.source === "linear" ? task.externalLink.externalUrl : null,
@@ -112,6 +124,7 @@ export async function getTaskDetail(
       userName: e.user.name,
       date: e.date.toISOString(),
       hours: Number(e.hours),
+      clock: formatClockRange(e.startMinute, e.endMinute),
       description: e.description,
       billable: e.billable,
     })),

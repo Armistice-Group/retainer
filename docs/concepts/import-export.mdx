@@ -132,7 +132,12 @@ Open **Time → Team** for those weeks to see the entries.
   team (if they aren't already), at the rate they used most in the file, or
   their usual bill rate if the file has none.
 - **Time entries** get the row's date, hours (rounded to 0.01), notes,
-  billable flag and rate:
+  billable flag and rate, plus its start and end time when the file has them
+  (Toggl and Clockify **Start time**/**End time**, Harvest **Started At**/
+  **Ended At**). The file's hours are kept even when they differ from the
+  times. A client set to
+  [require start and end times](/concepts/time-tracking#requiring-start-and-end-times)
+  skips rows without them, listed as rows with problems.
   - The **task** goes in front of the notes: *Design: Homepage wireframes*.
   - **Billable** reads yes/no, true/false or 1/0; with no billable column,
     every entry is billable.
@@ -254,7 +259,10 @@ or résumé.
 Records point at each other by id (`clientId`, `projectId`, `userId`, …).
 Time entries also carry `project.name` and `user.name`, and members their
 `user.name` and `user.email`. Money and hours are exact decimals, calendar
-dates are `YYYY-MM-DD`, and times are UTC. The JSON files hold exact values;
+dates are `YYYY-MM-DD`, and times are UTC. A time entry's `startMinute` and
+`endMinute` are its local start and end as minutes after midnight on its
+date (`570` is 09:30; an end before the start ran past midnight), blank when
+only hours were logged. The JSON files hold exact values;
 in the CSV files, text that starts with `=`, `+`, `-` or `@` gets a leading
 `'` so a spreadsheet doesn't run it as a formula.
 

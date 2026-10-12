@@ -48,6 +48,7 @@ export async function POST(req: Request) {
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
+      requireClockTimes: parsed.data.requireClockTimes,
       status: parsed.data.status,
     },
   });

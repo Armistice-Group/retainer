@@ -4,7 +4,8 @@ description: Log hours with a timer or by hand, and submit weekly timesheets for
 ---
 
 Time entries are what hourly work is invoiced from. Each entry is hours on a
-project (and optionally a task) on a given day. You can log time with a timer
+project (and optionally a task) on a given day, optionally with the start and
+end time it was worked. You can log time with a timer
 or by hand, from the **Time** page, a task, or an AI agent over MCP.
 
 ## How to log time by hand
@@ -13,7 +14,9 @@ or by hand, from the **Time** page, a task, or an AI agent over MCP.
    sheet, which fills in the project and task).
 2. Pick the **Project** and, optionally, the **Task**.
 3. Set the **Date** and **Hours** (decimal hours, up to 24 in one entry; for
-   example `1.5` for an hour and a half).
+   example `1.5` for an hour and a half). Or fill in **Start** and **End**
+   and the hours are worked out for you; see
+   [Start and end times](#start-and-end-times).
 4. Optional: add a **Description**. It appears in exports and timesheet
    reviews.
 5. Leave **Billable** ticked for client work. Untick it for internal or
@@ -38,19 +41,66 @@ sent when the only owner or admin logs their own time.
    a **Task**, **Description** and **Billable**), and click **Start timer**.
    Or click the play button on any task to start a timer on that task.
 2. The running time shows in the top bar.
-3. Click **Stop**. The elapsed time is logged as an entry dated today,
-   rounded to the nearest 0.01 hour (36 seconds).
+3. Click **Stop**. The elapsed time is logged as an entry dated the day the
+   timer started, with its start and end time (in your browser's time zone)
+   and the hours between them to the minute. A timer left running more than
+   24 hours is logged with hours only.
 
 - **Only one timer runs at a time.** Starting a new one stops the running one
   and logs its time first.
 - **Discard:** the **X** next to the running timer throws it away without
   logging anything.
-- A timer stopped after less than about 18 seconds logs nothing.
+- A timer stopped after less than 36 seconds logs nothing.
 - If the time can't be logged (for example the week is
   [locked](#timesheet-approval)), you see the error and the timer keeps
   running, so nothing is lost.
 
-Over MCP: `start_timer`, `stop_timer`, `get_active_timer`.
+Over MCP: `start_timer`, `stop_timer`, `get_active_timer`. `stop_timer` (and
+`start_timer`, when it stops a running timer) takes an optional `timeZone`
+such as `Europe/London` for the entry's times; without one they're UTC.
+
+## Start and end times
+
+Any entry can say when it was worked, not just for how long: **Start** and
+**End** sit next to **Hours** in the log time dialog.
+
+- **Fill in both** and **Hours** is worked out from them, rounded to the
+  organization's setting (below). You can still change **Hours**, for example
+  to take off a lunch break, but not to more than the time between start and
+  end.
+- **End earlier than start** means it ran past midnight: the dialog says
+  *Ends the next day*, and the entry stays on the start's date.
+- **Leave both empty** to log hours only, as before. Start without end (or
+  the other way round) isn't allowed.
+- Times are wall-clock times as entered; there's no time zone conversion.
+  Entries with times show them next to the hours, e.g. *09:10–11:45*, on the
+  **Time** page, projects, tasks, the dashboard and **Export CSV**.
+- **Hours** is always what's billed. Times are a record of when.
+
+### Rounding
+
+Under **Settings → General → Round clock times to**, an owner or admin
+chooses how hours from start and end are rounded: **Exact minute**, **6
+minutes** (0.1 hour) or **15 minutes** (0.25 hour, the default). Only the
+worked-out hours are rounded; the times are kept as entered. A span shorter
+than one step counts as one step.
+
+### Overlapping time
+
+If a new or changed entry's times overlap another of your timed entries (the
+same day, or the next or previous day for time past midnight), it's saved
+anyway and you see a warning such as *Overlaps 09:00–10:30 on Acme ·
+Website*. The API and MCP return the same text in `warnings`.
+
+### Requiring start and end times
+
+To make everyone record when they worked for a client, edit the client and
+tick **Require start and end times** (under **Time**). From then on, time on
+that client's projects can't be logged or changed without a start and end,
+from the app, the API, MCP or an import (*This client needs a start and end
+time on every entry.*). The log time dialog says so when you pick one of its
+projects. Timers always record times, so they're unaffected. Existing entries
+without times are left as they are until someone edits them.
 
 ## How to see your week, or the team's
 
@@ -87,7 +137,8 @@ time in a week that's submitted or approved.
 ## How to export time
 
 Click **Export CSV** on the **Time** page. It exports the week you're looking
-at, and on the **Team** tab respects the person filter. The file opens in
+at, and on the **Team** tab respects the person filter. **Start** and **End**
+columns hold each entry's times (24-hour), or are blank. The file opens in
 Excel, Numbers or Google Sheets.
 
 ## Overhead
@@ -157,6 +208,6 @@ Over MCP: `submit_timesheet`, `list_pending_timesheets`, `review_timesheet`.
 
 Connect your calendar's private iCal (.ics) link on your **Profile** and
 your meetings appear under **Time → Meetings**, each with a suggested project.
-Logging one adds its length as time on that project, dated the meeting's day;
-you can also ignore it. Setup and details are in
+Logging one adds its length as time on that project, dated the meeting's day
+and with its start and end time; you can also ignore it. Setup and details are in
 [Calendars](/integrations/calendars).

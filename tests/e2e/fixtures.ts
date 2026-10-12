@@ -63,6 +63,14 @@ export const A = {
     memberPmId: "e2e_pm_a_open_member",
   },
   disposableProject: { id: "e2e_project_a_disposable", name: "Alpha Disposable Project" },
+  /** Requires start and end times on every entry (Client.requireClockTimes). */
+  clockClient: { id: "e2e_client_a_clocked", name: "Alpha Clocked Client" },
+  clockProject: { id: "e2e_project_a_clocked", name: "Alpha Clocked Project" },
+  /** The owner's timed entries on the clocked project, dated today (UTC). */
+  clockEntries: [
+    { id: "e2e_te_a_clock_1", start: "09:00", end: "10:30", hours: 1.5 },
+    { id: "e2e_te_a_clock_2", start: "13:15", end: "15:45", hours: 2.5 },
+  ],
   secretProject: {
     id: "e2e_project_a_secret",
     name: "Alpha Confidential Project",

@@ -25,6 +25,8 @@ type EligibleEntry = {
   projectId: string;
   date: string;
   hours: number;
+  /** "09:10–11:45", when it has start and end times. */
+  clock: string | null;
   description: string | null;
   projectName: string;
   userName: string;
@@ -205,6 +207,7 @@ export function InvoiceEntrySelector({
                   <p className="truncate font-medium">{entry.projectName}</p>
                   <p className="truncate text-muted-foreground">
                     {entry.userName} · {formatDate(entry.date)}
+                    {entry.clock ? ` · ${entry.clock}` : ""}
                     {entry.description ? ` · ${entry.description}` : ""}
                   </p>
                 </div>

@@ -33,8 +33,9 @@ const ALIASES: Record<ImportField, string[]> = {
   date: ["date", "startdate", "spentdate", "day", "workdate", "entrydate"],
   hours: ["hours", "durationdecimal", "decimalduration", "hoursdecimal", "timehours"],
   duration: ["duration", "durationh", "durationhhmmss", "timehms", "timespent", "timelogged", "timetracked", "trackedtime", "loggedtime"],
-  startTime: ["starttime"],
-  endTime: ["endtime"],
+  // Toggl and Clockify: "Start time"/"End time"; Harvest: "Started At"/"Ended At".
+  startTime: ["starttime", "startedat", "start"],
+  endTime: ["endtime", "endedat", "end"],
   client: ["client", "clientname", "customer", "customername", "company"],
   project: ["project", "projectname"],
   task: ["task", "taskname", "activity", "service"],
@@ -269,6 +270,9 @@ export type TimeRow = {
   row: number;
   date: string;
   hours: number;
+  /** Start/end as minutes after midnight, when the file has both. */
+  startMinute: number | null;
+  endMinute: number | null;
   client: string;
   project: string;
   notes: string | null;
@@ -332,13 +336,12 @@ export function normalizeTimeRows(
     let hours: number | null = null;
     const hoursRaw = get(raw, "hours");
     const durationRaw = get(raw, "duration");
+    const start = get(raw, "startTime") ? parseClock(get(raw, "startTime")) : null;
+    const end = get(raw, "endTime") ? parseClock(get(raw, "endTime")) : null;
+    const timed = start !== null && end !== null;
     if (hoursRaw) hours = parseHours(hoursRaw);
     else if (durationRaw) hours = parseHours(durationRaw);
-    else if (get(raw, "startTime") && get(raw, "endTime")) {
-      const start = parseClock(get(raw, "startTime"));
-      const end = parseClock(get(raw, "endTime"));
-      if (start !== null && end !== null) hours = ((end - start + 1440) % 1440) / 60;
-    }
+    else if (timed) hours = ((end - start + 1440) % 1440) / 60;
     const shown = hoursRaw || durationRaw;
     if (hours === null) return fail(shown ? `"${shown}" isn't a number of hours.` : "No hours or duration.");
     hours = Math.round(hours * 100) / 100;
@@ -390,6 +393,9 @@ export function normalizeTimeRows(
       row,
       date,
       hours,
+      // Kept to the minute; the file's hours stay what's billed.
+      startMinute: timed ? Math.floor(start) : null,
+      endMinute: timed ? Math.floor(end) : null,
       client,
       project,
       notes,

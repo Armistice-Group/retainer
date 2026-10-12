@@ -47,6 +47,8 @@ A `from` or `to` that isn't a date returns `422` with
       "userId": "cm9...",
       "projectId": "cm9...",
       "taskId": null,
+      "startTime": "09:00",
+      "endTime": "12:30",
       "project": { "id": "cm9...", "name": "API migration", "client": { "id": "cm9...", "name": "Fintra Labs", "...": "..." }, "...": "..." },
       "task": null
     }
@@ -54,7 +56,10 @@ A `from` or `to` that isn't a date returns `422` with
 }
 ```
 
-`invoiceLineItemId` is set once the entry is on an invoice.
+`invoiceLineItemId` is set once the entry is on an invoice. `startTime` and
+`endTime` are the local times the entry was worked (`HH:MM`, 24-hour), or
+`null` when only hours were logged; an `endTime` earlier than `startTime`
+ran past midnight.
 
 ## Log time
 
@@ -62,8 +67,12 @@ A `from` or `to` that isn't a date returns `422` with
 POST /api/v1/time-entries
 ```
 
-Any role. Returns `201` with `{ "timeEntry": { ... } }`. Logging time can
-trigger [budget alerts](/concepts/alerts-and-audit#the-alerts).
+Any role. Returns `201` with `{ "timeEntry": { ... }, "warnings": [] }`.
+Logging time can trigger [budget alerts](/concepts/alerts-and-audit#the-alerts).
+
+`warnings` lists anything worth a look that didn't stop the entry being
+saved: today, other timed entries of the same person that overlap this one,
+e.g. `"Overlaps 09:00–10:30 on Acme · Website"`.
 
 <ParamField body="projectId" type="string" required>
   A project the key's owner can see.
@@ -72,8 +81,19 @@ trigger [budget alerts](/concepts/alerts-and-audit#the-alerts).
 <ParamField body="date" type="string" required>
   `YYYY-MM-DD`.
 </ParamField>
-<ParamField body="hours" type="number" required>
-  Greater than 0, up to 24.
+<ParamField body="hours" type="number">
+  Greater than 0, up to 24. Required unless `startTime` and `endTime` are
+  given; then it's worked out from them, rounded to the organization's
+  **Round clock times to** setting. If you send all three, `hours` can't be
+  more than the time between start and end.
+</ParamField>
+<ParamField body="startTime" type="string">
+  Local start time, `HH:MM` (24-hour). Send with `endTime`, or leave both
+  out.
+</ParamField>
+<ParamField body="endTime" type="string">
+  Local end time, `HH:MM`. Earlier than `startTime` means the next day (the
+  entry keeps the start's `date`).
 </ParamField>
 <ParamField body="description" type="string">Up to 2,000 characters.</ParamField>
 <ParamField body="billable" type="boolean" default="true" />
@@ -93,6 +113,15 @@ curl -X POST https://<your-instance>/api/v1/time-entries \
   -d '{"projectId": "cm9...", "date": "2026-08-05", "hours": 3.5, "description": "API migration"}'
 ```
 
+With times instead of hours:
+
+```bash
+curl -X POST https://<your-instance>/api/v1/time-entries \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"projectId": "cm9...", "date": "2026-08-05", "startTime": "09:00", "endTime": "12:30"}'
+```
+
 ## Update a time entry
 
 ```
@@ -100,8 +129,9 @@ PATCH /api/v1/time-entries/{id}
 ```
 
 Takes the same body as logging time, and replaces the entry with it: send
-every field, not just the ones you're changing (`projectId`, `date` and
-`hours` are required). Returns `{ "timeEntry": { ... } }`.
+every field, not just the ones you're changing (`projectId`, `date`, and
+`hours` or `startTime` and `endTime`, are required; leaving out the times
+clears them). Returns `{ "timeEntry": { ... }, "warnings": [] }`.
 
 - Members can update only their own entries; owners and admins can update
   anyone's, and can move an entry to another member with `userId`.
@@ -135,6 +165,8 @@ validation errors, which return field errors such as
 | `Project not found.` | Check `projectId`. Confidential projects need the key's owner on the project (this applies when moving an entry too). |
 | `That person isn't a member of this organization.` | `userId` must be a member of the key's organization. |
 | `Task not found.` | The task doesn't exist or is on a different project. |
+| `This client needs a start and end time on every entry.` (as `{ "startTime": [...] }`) | The project's client requires times: send `startTime` and `endTime`. |
+| `Hours can't be more than the time between start and end (2.5h).` (as `{ "hours": [...] }`) | Lower `hours`, or leave it out to have it worked out. |
 | `Entry not found.` | Check the entry ID. |
 | `You can only edit your own time entries.` / `You can only delete your own time entries.` | Use the entry owner's key, or an owner or admin key. |
 | `This entry has already been invoiced and can't be edited.` (or `deleted`) | If the invoice is still a draft, remove the entry's line item from it in the app first. |

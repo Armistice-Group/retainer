@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireOrgContext } from "@/lib/org-context";
-import { timeEntrySchema } from "@/lib/validations/time-entry";
+import { clockFields, timeEntrySchema } from "@/lib/validations/time-entry";
 import {
   createTimeEntry,
   updateTimeEntry,
@@ -23,12 +23,19 @@ async function buildContext(): Promise<TimeEntryContext> {
   };
 }
 
+/** A refusal tied to one field shows under that field. */
+function entryError(err: TimeEntryError): ActionState {
+  return err.field ? { fieldErrors: { [err.field]: [err.message] } } : { error: err.message };
+}
+
 function parseTimeEntryForm(formData: FormData) {
   return timeEntrySchema.safeParse({
     projectId: formData.get("projectId"),
     taskId: formData.get("taskId") || "",
     date: formData.get("date"),
     hours: formData.get("hours"),
+    startTime: formData.get("startTime") || "",
+    endTime: formData.get("endTime") || "",
     description: formData.get("description"),
     billable: formData.get("billable") === "on",
     userId: formData.get("userId") || "",
@@ -46,19 +53,20 @@ export async function createTimeEntryAction(
   }
 
   const ctx = await buildContext();
+  let warnings: string[];
   try {
-    await createTimeEntry(ctx, {
+    ({ warnings } = await createTimeEntry(ctx, {
       projectId: parsed.data.projectId,
       taskId: parsed.data.taskId || null,
       date: parsed.data.date,
-      hours: parsed.data.hours,
+      ...clockFields(parsed.data),
       description: parsed.data.description || null,
       billable: parsed.data.billable,
       userId: parsed.data.userId || null,
       rateOverride: parsed.data.rateOverride === "" ? null : parsed.data.rateOverride,
-    });
+    }));
   } catch (err) {
-    if (err instanceof TimeEntryError) return { error: err.message };
+    if (err instanceof TimeEntryError) return entryError(err);
     throw err;
   }
 
@@ -66,7 +74,7 @@ export async function createTimeEntryAction(
   revalidatePath("/tasks");
   revalidatePath(`/projects/${parsed.data.projectId}`);
   revalidatePath("/dashboard");
-  return null;
+  return warnings.length ? { warnings } : null;
 }
 
 export async function updateTimeEntryAction(
@@ -80,26 +88,27 @@ export async function updateTimeEntryAction(
   }
 
   const ctx = await buildContext();
+  let warnings: string[];
   try {
-    await updateTimeEntry(ctx, timeEntryId, {
+    ({ warnings } = await updateTimeEntry(ctx, timeEntryId, {
       projectId: parsed.data.projectId,
       taskId: parsed.data.taskId || null,
       date: parsed.data.date,
-      hours: parsed.data.hours,
+      ...clockFields(parsed.data),
       description: parsed.data.description || null,
       billable: parsed.data.billable,
       userId: parsed.data.userId || null,
       rateOverride: parsed.data.rateOverride === "" ? null : parsed.data.rateOverride,
-    });
+    }));
   } catch (err) {
-    if (err instanceof TimeEntryError) return { error: err.message };
+    if (err instanceof TimeEntryError) return entryError(err);
     throw err;
   }
 
   revalidatePath("/time");
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
-  return null;
+  return warnings.length ? { warnings } : null;
 }
 
 export async function deleteTimeEntryAction(timeEntryId: string) {

@@ -276,3 +276,82 @@ test.describe("share tokens", () => {
     });
   }
 });
+
+test.describe("start and end times", () => {
+  test("log_time works out hours from times, and a client that requires them refuses none", async ({ request }) => {
+    const refused = await mcp(request, member, "log_time", {
+      projectId: A.clockProject.id,
+      date: "2025-05-05",
+      hours: 1,
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.text).toBe("This client needs a start and end time on every entry.");
+
+    const entry = await mcpOk(request, member, "log_time", {
+      projectId: A.clockProject.id,
+      date: "2025-05-05",
+      startTime: "08:00",
+      endTime: "09:20",
+    });
+    expect(entry).toMatchObject({ startTime: "08:00", endTime: "09:20", warnings: [] });
+    expect(Number(entry.hours)).toBe(1.25);
+
+    const listed = await mcpOk(request, member, "list_time_entries", {
+      from: "2025-05-05",
+      to: "2025-05-05",
+      projectId: A.clockProject.id,
+    });
+    expect(listed.find((e: { id: string }) => e.id === entry.id)).toMatchObject({ startTime: "08:00" });
+
+    const tooLong = await mcp(request, member, "update_time_entry", {
+      timeEntryId: entry.id,
+      projectId: A.clockProject.id,
+      date: "2025-05-05",
+      startTime: "08:00",
+      endTime: "09:20",
+      hours: 2,
+    });
+    expect(tooLong.isError).toBe(true);
+    expect(tooLong.text).toContain("more than the time between start and end");
+  });
+
+  test("stop_timer records the start and end in the given time zone", async ({ request }) => {
+    await mcpOk(request, member, "start_timer", { projectId: A.clockProject.id });
+    await sql(
+      `UPDATE "ActiveTimer" SET "startedAt" = now() - interval '90 minutes' WHERE "userId" = $1`,
+      [USERS.A.MEMBER.id]
+    );
+    // The column is a UTC timestamp without a zone; read it as epoch ms so
+    // the test machine's own zone doesn't shift it.
+    const [{ ms }] = await sql<{ ms: string }>(
+      `SELECT EXTRACT(EPOCH FROM "startedAt") * 1000 AS ms FROM "ActiveTimer" WHERE "userId" = $1`,
+      [USERS.A.MEMBER.id]
+    );
+    const startedAt = new Date(Number(ms));
+    const entry = await mcpOk(request, member, "stop_timer", { timeZone: "Asia/Kolkata" });
+    expect(Number(entry.hours)).toBe(1.5);
+
+    const local = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(startedAt);
+    const part = (t: string) => local.find((p) => p.type === t)!.value;
+    expect(entry.startTime).toBe(`${part("hour")}:${part("minute")}`);
+    expect(entry.date.slice(0, 10)).toBe(`${part("year")}-${part("month")}-${part("day")}`);
+    const end = Number(part("hour")) * 60 + Number(part("minute")) + 90;
+    expect(entry.endTime).toBe(
+      `${String(Math.floor(end / 60) % 24).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`
+    );
+  });
+
+  test("a bad time zone is refused", async ({ request }) => {
+    const r = await mcp(request, member, "stop_timer", { timeZone: "Mars/Olympus" });
+    expect(r.isError).toBe(true);
+    expect(r.text).not.toMatch(UNHANDLED);
+  });
+});

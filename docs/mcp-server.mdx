@@ -203,7 +203,7 @@ what that person can see.
 | --- | --- |
 | `list_clients` | List all clients in the organization, or those with one `status` (`ACTIVE`, `INACTIVE`, `LEAD`). Each has `draft: true` when it's a [draft client](/concepts/clients-and-projects#draft-clients) from a Cal.com or Calendly booking. A member's key doesn't get the clients' `shareToken`; the same goes for every client and project tool below. |
 | `create_client` | Create a client. |
-| `update_client` | Update a client's details. Leave out `status` to keep it; `ACTIVE` on a draft client makes it a client (owners and admins). |
+| `update_client` | Update a client's details; `requireClockTimes` makes time on its projects need start and end times. Leave out `status` to keep it; `ACTIVE` on a draft client makes it a client (owners and admins). |
 | `list_bookings` | Meetings booked through [Cal.com or Calendly](/integrations/scheduling) (`from`, `to`, `clientId`, `status`): time, invitee, client (with `draft`), join link and the booking form's answers. Owners and admins get all; others the ones they host. |
 | `list_projects` | List projects you can see, optionally for one client. |
 | `create_project` | Create a project for a client. A member who makes it confidential is added to it so they keep access. |
@@ -229,12 +229,12 @@ what that person can see.
 
 | Tool | What it does |
 | --- | --- |
-| `log_time` | Log time on a project for yourself. |
+| `log_time` | Log time on a project for yourself: `hours`, or `startTime` and `endTime` (`HH:MM`; hours are worked out), or all three. Returns the entry and any `warnings`, such as overlapping time. |
 | `list_time_entries` | Your time entries, optionally by date range or project. |
-| `update_time_entry` | Change one of your entries (not once it's invoiced). |
+| `update_time_entry` | Change one of your entries (not once it's invoiced). Takes the same `hours`, `startTime` and `endTime` as `log_time`; leaving the times out clears them. |
 | `delete_time_entry` | Delete one of your entries (not once it's invoiced). |
 | `start_timer` | Start a timer on a task or project. A running timer is stopped and logged first. |
-| `stop_timer` | Stop your timer and log it as a time entry. |
+| `stop_timer` | Stop your timer and log it as a time entry with its start and end time. Optional `timeZone` (IANA, e.g. `America/New_York`) for those times; UTC by default. |
 | `get_active_timer` | Your running timer and how long it's been going, if any. |
 | `submit_timesheet` | Submit a week of your time for approval. |
 | `list_pending_timesheets` | Owner/admin: submitted timesheets waiting for review. |

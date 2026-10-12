@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { timeEntryWhere } from "@/lib/services/time-entries";
+import { formatClockTime } from "@/lib/clock-time";
 import { addDays, parseLocalDate, startOfWeek, toISODate } from "@/lib/date";
 
 function csvEscape(value: string) {
@@ -30,11 +31,13 @@ export async function GET(req: Request) {
       filterUserId,
     }),
     include: { project: { include: { client: true } }, user: true },
-    orderBy: [{ date: "asc" }, { project: { name: "asc" } }],
+    orderBy: [{ date: "asc" }, { startMinute: { sort: "asc", nulls: "last" } }, { project: { name: "asc" } }],
   });
 
   const header = [
     "Date",
+    "Start",
+    "End",
     "Client",
     "Project",
     "User",
@@ -46,6 +49,8 @@ export async function GET(req: Request) {
   ];
   const rows = entries.map((e) => [
     toISODate(new Date(e.date)),
+    e.startMinute != null ? formatClockTime(e.startMinute) : "",
+    e.endMinute != null ? formatClockTime(e.endMinute) : "",
     e.project.client.name,
     e.project.name,
     e.user.name,

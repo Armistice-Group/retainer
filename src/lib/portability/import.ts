@@ -142,7 +142,7 @@ async function analyze(
       select: { userId: true, user: { select: { name: true, email: true } } },
       orderBy: { user: { name: "asc" } },
     }),
-    prisma.client.findMany({ where: { orgId }, select: { id: true, name: true } }),
+    prisma.client.findMany({ where: { orgId }, select: { id: true, name: true, requireClockTimes: true } }),
     prisma.project.findMany({
       where: { orgId },
       select: { id: true, name: true, client: { select: { name: true } } },
@@ -264,7 +264,16 @@ async function analyze(
   preview.dateFormatAmbiguous =
     detectedFormat.ambiguous && (!options.dateFormat || options.dateFormat === "auto");
 
-  const { rows, errors } = normalizeTimeRows(parsed, mapping, dateFormat);
+  const normalized = normalizeTimeRows(parsed, mapping, dateFormat);
+  // A client that requires start and end times only takes rows that have them.
+  const needTimes = new Set(clients.filter((c) => c.requireClockTimes).map((c) => key(c.name)));
+  const errors = [...normalized.errors];
+  const rows = normalized.rows.filter((r) => {
+    if (r.startMinute !== null || !needTimes.has(key(r.client))) return true;
+    errors.push({ row: r.row, message: `${r.client} needs a start and end time on every entry.` });
+    return false;
+  });
+  errors.sort((x, y) => x.row - y.row);
   setErrors(errors);
   analysis.timeRows = rows;
 
@@ -587,6 +596,8 @@ export async function runImport(
         userId,
         date: row.date,
         hours: row.hours.toFixed(2),
+        startMinute: row.startMinute,
+        endMinute: row.endMinute,
         description: row.notes,
         billable: row.invoiced && invoicedRows === "nonbillable" ? false : row.billable,
         rate: row.rate === null ? null : row.rate.toFixed(2),
@@ -594,18 +605,19 @@ export async function runImport(
       }));
       await prisma.$transaction([
         prisma.$executeRaw`
-          INSERT INTO "TimeEntry" ("id", "orgId", "projectId", "userId", "date", "hours", "description",
-            "billable", "rateOverride", "approvedAt", "createdAt", "updatedAt")
-          SELECT t.id, ${ctx.orgId}, t.project_id, t.user_id, t.day::date, t.hours::decimal(5,2), t.description,
-            t.billable, t.rate::decimal(10,2),
+          INSERT INTO "TimeEntry" ("id", "orgId", "projectId", "userId", "date", "hours", "startMinute",
+            "endMinute", "description", "billable", "rateOverride", "approvedAt", "createdAt", "updatedAt")
+          SELECT t.id, ${ctx.orgId}, t.project_id, t.user_id, t.day::date, t.hours::decimal(5,2), t.start_minute,
+            t.end_minute, t.description, t.billable, t.rate::decimal(10,2),
             (${approvedAt?.toISOString() ?? null}::timestamptz AT TIME ZONE 'UTC'),
             (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC'), (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
           FROM unnest(
             ${entries.map((e) => e.id)}::text[], ${entries.map((e) => e.projectId)}::text[],
             ${entries.map((e) => e.userId)}::text[], ${entries.map((e) => e.date)}::text[],
-            ${entries.map((e) => e.hours)}::text[], ${entries.map((e) => e.description)}::text[],
+            ${entries.map((e) => e.hours)}::text[], ${entries.map((e) => e.startMinute)}::int[],
+            ${entries.map((e) => e.endMinute)}::int[], ${entries.map((e) => e.description)}::text[],
             ${entries.map((e) => e.billable)}::boolean[], ${entries.map((e) => e.rate)}::text[]
-          ) AS t(id, project_id, user_id, day, hours, description, billable, rate)`,
+          ) AS t(id, project_id, user_id, day, hours, start_minute, end_minute, description, billable, rate)`,
         prisma.$executeRaw`
           INSERT INTO "ImportRecord" ("id", "orgId", "rowHash", "batchId", "timeEntryId")
           SELECT t.id || 'r', ${ctx.orgId}, t.hash, ${batch.id}, t.id

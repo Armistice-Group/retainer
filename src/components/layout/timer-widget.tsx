@@ -23,7 +23,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { startTimerAction, stopTimerAction, discardTimerAction } from "@/actions/timer";
-import { toISODate } from "@/lib/date";
+import { browserTimeZone } from "@/lib/clock-time";
 
 type ProjectOption = { id: string; name: string; clientName: string };
 type TaskOption = { id: string; title: string; projectId: string };
@@ -83,8 +83,9 @@ function RunningTimer({ timer }: { timer: ActiveTimerData }) {
         disabled={isPending}
         onClick={() =>
           startTransition(async () => {
-            const result = await stopTimerAction(toISODate(new Date()));
+            const result = await stopTimerAction(browserTimeZone());
             if (result?.error) toast.error(result.error);
+            result?.warnings?.forEach((w) => toast.warning(w));
           })
         }
       >
@@ -126,7 +127,7 @@ function StartTimerDialog({
         taskId || null,
         description || null,
         billable,
-        toISODate(new Date())
+        browserTimeZone()
       );
       if (result?.error) {
         setError(result.error);

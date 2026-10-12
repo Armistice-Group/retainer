@@ -156,6 +156,9 @@ async function seedOrgA() {
     data: { id: A.client.id, orgId, name: A.client.name, shareToken: A.client.shareToken, email: "ap@alpha.test" },
   });
   await prisma.client.create({ data: { id: A.disposableClient.id, orgId, name: A.disposableClient.name } });
+  await prisma.client.create({
+    data: { id: A.clockClient.id, orgId, name: A.clockClient.name, requireClockTimes: true },
+  });
   await prisma.contact.create({
     data: { id: A.contact.id, clientId: A.client.id, name: A.contact.name, isPrimary: true },
   });
@@ -172,6 +175,9 @@ async function seedOrgA() {
   });
   await prisma.project.create({
     data: { id: A.disposableProject.id, orgId, clientId: A.disposableClient.id, name: A.disposableProject.name },
+  });
+  await prisma.project.create({
+    data: { id: A.clockProject.id, orgId, clientId: A.clockClient.id, name: A.clockProject.name },
   });
   await prisma.project.create({
     data: {
@@ -191,6 +197,8 @@ async function seedOrgA() {
       { projectId: A.openProject.id, userId: ADMIN.id, billRate: 150 },
       { id: A.openProject.memberPmId, projectId: A.openProject.id, userId: MEMBER.id, billRate: 150 },
       { projectId: A.secretProject.id, userId: OWNER.id, billRate: 200 },
+      { projectId: A.clockProject.id, userId: OWNER.id, billRate: 150 },
+      { projectId: A.clockProject.id, userId: MEMBER.id, billRate: 150 },
     ],
   });
 
@@ -221,6 +229,12 @@ async function seedOrgA() {
       ...A.unbilledEntries.map((id, i) => entry(id, A.openProject.id, OWNER.id, 2 + i, "Unbilled owner work")),
       ...A.uiVoidEntries.map((id, i) => entry(id, A.openProject.id, OWNER.id, 10 + i, "Billed on the UI void invoice")),
       ...A.mcpVoidEntries.map((id, i) => entry(id, A.openProject.id, OWNER.id, 20 + i, "Billed on the MCP void draft")),
+      ...A.clockEntries.map((e) => ({
+        ...entry(e.id, A.clockProject.id, OWNER.id, 0, "Workshop"),
+        hours: e.hours,
+        startMinute: Number(e.start.slice(0, 2)) * 60 + Number(e.start.slice(3)),
+        endMinute: Number(e.end.slice(0, 2)) * 60 + Number(e.end.slice(3)),
+      })),
     ],
   });
 

@@ -26,6 +26,7 @@ import { pendingExpenses } from "@/lib/services/expense-alerts";
 import { cookies } from "next/headers";
 import { isValidTimeZone, upcomingItems } from "@/lib/services/calendar-items";
 import { CALENDAR_STYLE } from "@/components/calendar/item-style";
+import { formatClockRange } from "@/lib/clock-time";
 import { cn } from "@/lib/utils";
 
 function startOfWeek(date: Date) {
@@ -369,6 +370,9 @@ export default async function DashboardPage() {
                       <p className="font-medium">{entry.project.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {entry.project.client.name} · {formatDate(entry.date)}
+                        {entry.startMinute != null
+                          ? ` · ${formatClockRange(entry.startMinute, entry.endMinute)}`
+                          : ""}
                       </p>
                     </div>
                     <span className="tabular-figures text-sm">{Number(entry.hours).toFixed(2)}h</span>

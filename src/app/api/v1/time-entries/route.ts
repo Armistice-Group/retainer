@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
-import { timeEntrySchema } from "@/lib/validations/time-entry";
+import { clockFields, timeEntrySchema } from "@/lib/validations/time-entry";
+import { withClockTimes } from "@/lib/clock-time";
 import { createTimeEntry, TimeEntryError } from "@/lib/services/time-entries";
 
 export async function GET(req: Request) {
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
     orderBy: { date: "desc" },
   });
 
-  return Response.json({ timeEntries: entries });
+  return Response.json({ timeEntries: entries.map(withClockTimes) });
 }
 
 export async function POST(req: Request) {
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const entry = await createTimeEntry(
+    const { entry, warnings } = await createTimeEntry(
       {
         orgId: ctx.orgId,
         slackWebhookUrl: ctx.slackWebhookUrl,
@@ -73,17 +74,20 @@ export async function POST(req: Request) {
         projectId: parsed.data.projectId,
         taskId: parsed.data.taskId || null,
         date: parsed.data.date,
-        hours: parsed.data.hours,
+        ...clockFields(parsed.data),
         description: parsed.data.description || null,
         billable: parsed.data.billable,
         userId: parsed.data.userId || null,
         rateOverride: parsed.data.rateOverride === "" ? null : (parsed.data.rateOverride ?? null),
       }
     );
-    return Response.json({ timeEntry: entry }, { status: 201 });
+    return Response.json({ timeEntry: withClockTimes(entry), warnings }, { status: 201 });
   } catch (err) {
     if (err instanceof TimeEntryError) {
-      return Response.json({ error: err.message }, { status: 422 });
+      return Response.json(
+        { error: err.field ? { [err.field]: [err.message] } : err.message },
+        { status: 422 }
+      );
     }
     throw err;
   }

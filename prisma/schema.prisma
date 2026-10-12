@@ -137,6 +137,9 @@ model Organization {
   defaultBillRate            Decimal?              @db.Decimal(10, 2)
   // Whose weekly time needs an admin's approval before it can be invoiced.
   timesheetApproval          TimesheetApprovalMode @default(OFF)
+  // Hours worked out from a time entry's start and end are rounded to this
+  // many minutes (1 = exact). The stored start/end times aren't rounded.
+  clockRoundingMinutes       Int                   @default(15)
   // Starting payment terms for new invoices, unless the client or project
   // sets its own.
   defaultPaymentTerms        PaymentTerms          @default(NET30)
@@ -392,6 +395,9 @@ model Client {
   excludedOrgPaymentMethodIds String[]              @default([])
   // Whether this client gets the org's overdue reminder emails.
   invoiceReminders            Boolean               @default(true)
+  // Time on this client's projects must say when it was worked (start and
+  // end on every TimeEntry).
+  requireClockTimes           Boolean               @default(false)
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
   paymentTerms                PaymentTerms?
@@ -931,6 +937,11 @@ model TimeEntry {
   id           String    @id @default(cuid())
   date         DateTime  @db.Date
   hours        Decimal   @db.Decimal(5, 2)
+  // Optional wall-clock start/end, in minutes after midnight (0–1439) local
+  // to whoever logged it, relative to date. Both set or both null; an end
+  // before the start ran past midnight. hours stays what's billed.
+  startMinute  Int?
+  endMinute    Int?
   description  String?
   billable     Boolean   @default(true)
   // Set when the week's timesheet is approved; cleared if it's sent back.

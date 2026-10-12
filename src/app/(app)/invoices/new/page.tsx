@@ -9,6 +9,7 @@ import { ClientPicker } from "./client-picker";
 import { InvoiceEntrySelector } from "./invoice-entry-selector";
 import { toISODate } from "@/lib/date";
 import { invoiceableTimeWhere } from "@/lib/services/timesheets";
+import { formatClockRange } from "@/lib/clock-time";
 import type { PaymentTerms } from "@/generated/prisma/client";
 
 export default async function NewInvoicePage({
@@ -63,6 +64,7 @@ export default async function NewInvoicePage({
           projectId: entry.projectId,
           date: toISODate(new Date(entry.date)),
           hours,
+          clock: formatClockRange(entry.startMinute, entry.endMinute),
           description: entry.description,
           projectName: entry.project.name,
           userName: entry.user.name,

@@ -2,45 +2,57 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { canViewProject } from "@/lib/project-access";
 import { createTimeEntry, type TimeEntryContext } from "@/lib/services/time-entries";
+import { MINUTES_PER_DAY, wallClockIn } from "@/lib/clock-time";
 
 export class TimerError extends Error {}
 
 export type TimerContext = TimeEntryContext;
 
-// Rounds to the nearest 0.01h (36 seconds) — matches the Decimal(5,2)
-// precision TimeEntry.hours is stored at, so what gets logged is exactly
-// what a human reviewing the entry later would see and expect.
-function hoursBetween(start: Date, end: Date) {
-  const ms = Math.max(0, end.getTime() - start.getTime());
-  return Math.round((ms / 3_600_000) * 100) / 100;
-}
+export type StopTimerOptions = {
+  /** ISO date to log the entry under; defaults to the day it started. */
+  date?: string | null;
+  /** IANA zone the start/end times are recorded in (the person's browser); UTC if unknown. */
+  timeZone?: string | null;
+};
 
 // Stops whatever timer is currently running for this user (if any) and logs
 // it as a real TimeEntry. Called both from the explicit "stop" action and
 // from "start" when a second timer is started — a person is only ever doing
 // one thing at a time, so starting a new one finishes the old one instead of
 // blocking or silently overwriting it.
-export async function stopActiveTimer(ctx: TimerContext, today: string) {
+//
+// The entry records when it was worked: the start as a wall-clock time in
+// the given zone, and the end as the start plus the elapsed minutes. Hours
+// are those minutes exactly (to the cent, never rounded to the org's
+// increment), so they always match the times shown next to them. A timer
+// left running past 24 hours can't be expressed as times of day, so that
+// one is logged with hours only.
+export async function stopActiveTimer(ctx: TimerContext, options: StopTimerOptions = {}) {
   const existing = await prisma.activeTimer.findUnique({ where: { userId: ctx.actorId } });
   if (!existing || existing.orgId !== ctx.orgId) return null;
 
-  const hours = hoursBetween(existing.startedAt, new Date());
+  const elapsedMinutes = Math.max(0, Date.now() - existing.startedAt.getTime()) / 60_000;
+  const start = wallClockIn(existing.startedAt, options.timeZone);
+  const minutes = Math.max(1, Math.round(elapsedMinutes));
+  const timed = minutes <= MINUTES_PER_DAY;
 
   // Log first, so a refusal (say, the week's timesheet is locked) leaves the
-  // timer running instead of losing the time.
-  const entry =
-    hours < 0.01
+  // timer running instead of losing the time. Under 36 seconds isn't logged.
+  const result =
+    elapsedMinutes < 0.6
       ? null
       : await createTimeEntry(ctx, {
           projectId: existing.projectId,
           taskId: existing.taskId,
-          date: today,
-          hours,
+          date: options.date || start.date,
+          hours: Math.round(((timed ? minutes : elapsedMinutes) / 60) * 100) / 100,
+          startMinute: timed ? start.minute : null,
+          endMinute: timed ? (start.minute + minutes) % MINUTES_PER_DAY : null,
           description: existing.description,
           billable: existing.billable,
         });
   await prisma.activeTimer.delete({ where: { id: existing.id } });
-  return entry;
+  return result;
 }
 
 export async function discardActiveTimer(ctx: TimerContext) {
@@ -55,7 +67,7 @@ export async function startTimer(
     description?: string | null;
     billable: boolean;
   },
-  today: string
+  stopOptions: StopTimerOptions = {}
 ) {
   const project = await prisma.project.findUnique({ where: { id: input.projectId } });
   if (!project || project.orgId !== ctx.orgId) throw new TimerError("Project not found.");
@@ -72,7 +84,7 @@ export async function startTimer(
   // starts — including one started under a different active org.
   const existing = await prisma.activeTimer.findUnique({ where: { userId: ctx.actorId } });
   if (existing) {
-    await stopActiveTimer({ ...ctx, orgId: existing.orgId }, today);
+    await stopActiveTimer({ ...ctx, orgId: existing.orgId }, stopOptions);
   }
 
   return prisma.activeTimer.create({

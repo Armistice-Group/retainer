@@ -36,6 +36,7 @@ import { ProjectEstimates } from "@/components/estimates/project-estimates";
 import { getOrigin } from "@/lib/url";
 import { CopyButton } from "@/components/copy-button";
 import { getTaskDetail } from "@/lib/task-detail";
+import { formatClockRange } from "@/lib/clock-time";
 import { resolveBillRate } from "@/lib/bill-rates";
 
 export default async function ProjectDetailPage({
@@ -521,6 +522,9 @@ export default async function ProjectDetailPage({
                         <p>{entry.user.name}</p>
                         <p className="text-muted-foreground">
                           {formatDate(entry.date)}
+                          {entry.startMinute != null
+                            ? ` · ${formatClockRange(entry.startMinute, entry.endMinute)}`
+                            : ""}
                           {entry.description ? ` · ${entry.description}` : ""}
                         </p>
                       </div>
