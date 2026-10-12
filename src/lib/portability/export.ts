@@ -53,7 +53,7 @@ export const EXPORT_MODELS: ExportModel[] = [
     file: "clients",
     fields: [
       "id", "name", "website", "description", "email", "phone", "address", "billingEmail",
-      "billingAddress", "status", "paymentTerms", "invoiceReminders", "requireClockTimes", "useOrgPaymentMethods",
+      "billingAddress", "status", "paymentTerms", "invoiceReminders", "requireClockTimes", "invoiceTimeDetail", "useOrgPaymentMethods",
       "shareExpiresAt", "shareVerification", "leadSource", "leadBookedAt", "leadDiscardedAt", "bookingUrl",
       "createdAt", "updatedAt",
     ],
@@ -167,6 +167,24 @@ export const EXPORT_MODELS: ExportModel[] = [
     dates: ["date"],
     related: { project: ["name"], user: ["name"] },
     where: (s) => (s.clientId ? { orgId: s.orgId, project: { clientId: s.clientId } } : org(s)),
+  },
+  {
+    model: "TimeEntryAttachment",
+    file: "time-entry-attachments",
+    fields: ["id", "timeEntryId", "fileName", "contentType", "sizeBytes", "clientVisible", "uploadedById", "createdAt"],
+    // A handover to the client carries only what they were shown.
+    where: (s) =>
+      s.clientId
+        ? { clientVisible: true, timeEntry: { orgId: s.orgId, project: { clientId: s.clientId } } }
+        : { timeEntry: { orgId: s.orgId } },
+    upload: {
+      dir: "time-evidence",
+      data: "fileData",
+      key: "storageKey",
+      name: "fileName",
+      type: "contentType",
+      present: { OR: [{ fileData: { not: null } }, { storageKey: { not: null } }] },
+    },
   },
   {
     model: "Timesheet",
@@ -670,7 +688,7 @@ function readme(
     "            A time entry's startMinute/endMinute are its local start and end",
     "            as minutes after midnight on its date (an end before the start ran",
     "            past midnight); blank when only hours were logged.",
-    "files/      Uploaded files: documents, expense receipts, milestone evidence",
+    "files/      Uploaded files: documents, expense receipts, milestone and time entry evidence",
     "            and more. The exportedFile column of each CSV points here.",
     "invoices/   Every invoice as a PDF, as it renders today.",
     "manifest.json  Row counts, and anything that couldn't be exported.",

@@ -10,6 +10,13 @@ import {
   TimeEntryError,
   type TimeEntryContext,
 } from "@/lib/services/time-entries";
+import {
+  AttachmentError,
+  prepareAttachments,
+  saveAttachments,
+  type PreparedFile,
+} from "@/lib/services/time-entry-attachments";
+import { prisma } from "@/lib/prisma";
 import type { ActionState } from "@/actions/auth";
 
 async function buildContext(): Promise<TimeEntryContext> {
@@ -26,6 +33,23 @@ async function buildContext(): Promise<TimeEntryContext> {
 /** A refusal tied to one field shows under that field. */
 function entryError(err: TimeEntryError): ActionState {
   return err.field ? { fieldErrors: { [err.field]: [err.message] } } : { error: err.message };
+}
+
+/** Evidence picked or pasted in the dialog, checked before the entry saves. */
+async function formAttachments(
+  formData: FormData,
+  existingCount = 0
+): Promise<{ files: PreparedFile[]; clientVisible: boolean } | { error: ActionState }> {
+  const files = formData.getAll("attachments").filter((f): f is File => f instanceof File);
+  try {
+    return {
+      files: await prepareAttachments(files, existingCount),
+      clientVisible: formData.get("attachmentsClientVisible") === "on",
+    };
+  } catch (err) {
+    if (err instanceof AttachmentError) return { error: { fieldErrors: { attachments: [err.message] } } };
+    throw err;
+  }
 }
 
 function parseTimeEntryForm(formData: FormData) {
@@ -52,10 +76,14 @@ export async function createTimeEntryAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
+  const attachments = await formAttachments(formData);
+  if ("error" in attachments) return attachments.error;
+
   const ctx = await buildContext();
   let warnings: string[];
   try {
-    ({ warnings } = await createTimeEntry(ctx, {
+    let entry;
+    ({ entry, warnings } = await createTimeEntry(ctx, {
       projectId: parsed.data.projectId,
       taskId: parsed.data.taskId || null,
       date: parsed.data.date,
@@ -65,6 +93,7 @@ export async function createTimeEntryAction(
       userId: parsed.data.userId || null,
       rateOverride: parsed.data.rateOverride === "" ? null : parsed.data.rateOverride,
     }));
+    await saveAttachments(ctx, entry.id, attachments.files, { clientVisible: attachments.clientVisible });
   } catch (err) {
     if (err instanceof TimeEntryError) return entryError(err);
     throw err;
@@ -88,9 +117,16 @@ export async function updateTimeEntryAction(
   }
 
   const ctx = await buildContext();
+  const existingCount = await prisma.timeEntryAttachment.count({
+    where: { timeEntryId, timeEntry: { orgId: ctx.orgId } },
+  });
+  const attachments = await formAttachments(formData, existingCount);
+  if ("error" in attachments) return attachments.error;
+
   let warnings: string[];
   try {
-    ({ warnings } = await updateTimeEntry(ctx, timeEntryId, {
+    let entry;
+    ({ entry, warnings } = await updateTimeEntry(ctx, timeEntryId, {
       projectId: parsed.data.projectId,
       taskId: parsed.data.taskId || null,
       date: parsed.data.date,
@@ -100,6 +136,7 @@ export async function updateTimeEntryAction(
       userId: parsed.data.userId || null,
       rateOverride: parsed.data.rateOverride === "" ? null : parsed.data.rateOverride,
     }));
+    await saveAttachments(ctx, entry.id, attachments.files, { clientVisible: attachments.clientVisible });
   } catch (err) {
     if (err instanceof TimeEntryError) return entryError(err);
     throw err;

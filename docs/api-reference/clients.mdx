@@ -66,15 +66,26 @@ Any role. Returns `201` with `{ "client": { ... } }`.
 <ParamField body="phone" type="string">Up to 50 characters.</ParamField>
 <ParamField body="address" type="string">Up to 500 characters.</ParamField>
 <ParamField body="description" type="string">Up to 2,000 characters.</ParamField>
+<ParamField body="website" type="string">
+  Up to 300 characters. Its icon becomes the client's
+  [logo](/concepts/clients-and-projects#client-logos) shortly after.
+</ParamField>
+<ParamField body="requireClockTimes" type="boolean" default="false">
+  Time on this client's projects must have a start and end time.
+</ParamField>
+<ParamField body="invoiceTimeDetail" type="boolean" default="false">
+  The client's invoices get a
+  [time detail](/concepts/invoicing#time-detail-on-invoices) page.
+</ParamField>
 <ParamField body="status" type="string" default="ACTIVE">
   `ACTIVE` or `INACTIVE`. `LEAD` answers `422`: draft clients only come from
   bookings.
 </ParamField>
 
 Only these fields are saved; anything else in the body is ignored. Set the
-website, billing email and address, and payment terms in the app or with the
-MCP `update_client` tool, and payment methods and invoice reminders in the
-app.
+billing email and address, and payment terms in the app or with the MCP
+`update_client` tool, and payment methods, invoice reminders and an uploaded
+logo in the app.
 
 ```bash
 curl -X POST https://<your-instance>/api/v1/clients \

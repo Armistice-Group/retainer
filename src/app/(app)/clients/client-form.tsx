@@ -30,6 +30,7 @@ type ClientFormValues = {
   paymentTerms: string | null;
   invoiceReminders: boolean;
   requireClockTimes: boolean;
+  invoiceTimeDetail: boolean;
   status: "ACTIVE" | "INACTIVE" | "LEAD";
 };
 
@@ -170,6 +171,23 @@ export function ClientForm({
             </Label>
             <p className="text-xs text-muted-foreground">
               Every entry needs the times it was worked, not just hours. Timers always record them.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="invoiceTimeDetail"
+            name="invoiceTimeDetail"
+            className="mt-0.5"
+            defaultChecked={initialValues?.invoiceTimeDetail ?? false}
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="invoiceTimeDetail" className="text-sm font-normal">
+              Show time detail on invoices
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Adds a page listing each entry&apos;s date, start and end times, hours and description.
+              Screenshots marked for the client can be opened from the invoice link.
             </p>
           </div>
         </div>

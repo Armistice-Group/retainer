@@ -102,6 +102,34 @@ time on every entry.*). The log time dialog says so when you pick one of its
 projects. Timers always record times, so they're unaffected. Existing entries
 without times are left as they are until someone edits them.
 
+## Evidence (screenshots)
+
+Attach screenshots or PDFs to a time entry as proof of the work, for example
+when a client wants to see what was done in the hours billed.
+
+- **While logging or editing time**: paste a screenshot (Cmd+V / Ctrl+V)
+  anywhere in the dialog, drop files on **Evidence**, or click **browse**.
+  Tick **Let the client see them on the invoice** to share them.
+- **Afterwards**: click the paperclip on the entry (on **Time** or the
+  project's **Recent time entries**). It shows how many files there are.
+  There you can paste or drop more, open each one, tick **Client can see it**,
+  or delete it.
+
+PNG, JPEG, GIF, WebP and PDF files are accepted, up to 5MB each (25MB with
+[S3 storage](/self-hosting#file-storage)) and 20 per entry. Files are checked
+by their contents, not their name. Pasted screenshots are named
+*Screenshot <date and time>*.
+
+Anyone who can see the project can open an entry's evidence. You can add or
+remove evidence on your own entries; owners and admins can on anyone's. This
+works even after the entry is invoiced or its week approved, since evidence
+doesn't change what's billed.
+
+Evidence is internal unless you tick **Client can see it**. The client sees
+those files only through the [time detail](/concepts/invoicing#time-detail-on-invoices)
+on their invoice, and only if the client has **Show time detail on invoices**
+on.
+
 ## How to see your week, or the team's
 
 **Time** shows one week at a time, Monday to Sunday, with the total logged.

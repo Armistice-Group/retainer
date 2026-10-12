@@ -16,6 +16,8 @@ import { SharedDocuments } from "@/components/documents/shared-documents";
 import { clientVisibleDocuments } from "@/lib/services/documents";
 import { accessGranted, getShareAccess, resolveShare } from "@/lib/share-gate";
 import { ShareBlocked } from "@/components/share/share-blocked";
+import { ClientAvatar } from "@/components/client-avatar";
+import { clientLogoDataUri } from "@/lib/services/client-logos";
 
 export const metadata: Metadata = {
   title: "Client report",
@@ -77,11 +79,16 @@ export default async function SharedClientPage({
         ) : null}
 
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {projects.length} active project{projects.length === 1 ? "" : "s"}
-            </p>
+          <div className="flex items-center gap-3">
+            {client.logoUpdatedAt ? (
+              <ClientAvatar name={client.name} src={await clientLogoDataUri(client.id)} className="size-12" />
+            ) : null}
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">{client.name}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {projects.length} active project{projects.length === 1 ? "" : "s"}
+              </p>
+            </div>
           </div>
           {bookingUrl ? (
             <Button variant="outline" asChild>

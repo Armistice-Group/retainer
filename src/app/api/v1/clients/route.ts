@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { authenticateApiRequest, hideShareToken, unauthorized } from "@/lib/api-auth";
+import { after } from "next/server";
 import { clientSchema } from "@/lib/validations/client";
+import { refreshWebsiteIcon } from "@/lib/services/client-logos";
 
 const STATUSES = ["ACTIVE", "INACTIVE", "LEAD"] as const;
 
@@ -44,14 +46,18 @@ export async function POST(req: Request) {
     data: {
       orgId: ctx.orgId,
       name: parsed.data.name,
+      website: parsed.data.website || null,
       description: parsed.data.description || null,
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
       requireClockTimes: parsed.data.requireClockTimes,
+      invoiceTimeDetail: parsed.data.invoiceTimeDetail,
       status: parsed.data.status,
     },
   });
+  // Its website's icon becomes the logo, fetched after the response.
+  if (client.website) after(() => refreshWebsiteIcon(client.id));
 
   return Response.json({ client: hideShareToken(client, ctx.role) }, { status: 201 });
 }

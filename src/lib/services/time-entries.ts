@@ -5,6 +5,7 @@ import { sendAlert } from "@/lib/alerts";
 import { checkBudgets } from "@/lib/services/budget-alerts";
 import { assertWeekEditable, TimesheetError } from "@/lib/services/timesheets";
 import { canViewProject } from "@/lib/project-access";
+import { deleteEntryAttachmentFiles } from "@/lib/services/time-entry-attachments";
 import {
   clockHours,
   clockSpanMinutes,
@@ -328,6 +329,7 @@ export async function deleteTimeEntry(ctx: TimeEntryContext, timeEntryId: string
   }
 
   await assertWeekOpen(ctx, existing.userId, existing.date);
+  await deleteEntryAttachmentFiles({ timeEntryId });
   await prisma.timeEntry.delete({ where: { id: timeEntryId } });
   await checkBudgets(existing.projectId, [existing.taskId]);
 }

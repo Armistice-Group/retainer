@@ -27,8 +27,48 @@ things are for owners and admins only, and are marked below.
    - **Require start and end times** — off by default. Tick it to make
      every time entry on this client's projects say when it was worked. See
      [Requiring start and end times](/concepts/time-tracking#requiring-start-and-end-times).
+   - **Show time detail on invoices** — off by default. Tick it to add a page
+     to this client's invoices listing each entry's date, start and end
+     times, hours and description. See
+     [Time detail on invoices](/concepts/invoicing#time-detail-on-invoices).
 3. Click **Create client**. You land on the client page, with a prompt to add
    the people you work with there.
+
+If you gave a **Website**, its icon becomes the client's logo a moment later.
+
+### Client logos
+
+A client's logo shows on the client list, the client page, the client's
+[share link](#client-links) and the **Bill To** block of their invoice PDFs.
+Without one, their initials are shown.
+
+- **From their website**: when a client is saved with a new website,
+  Consultainer fetches the icon the site advertises (its `apple-touch-icon`,
+  `<link rel="icon">`, or `/favicon.ico`), preferring the largest. To fetch it
+  again, open **Edit** and click **Fetch again** (or **Use website icon**) in
+  the **Logo** card.
+- **Uploaded**: in the **Logo** card, choose a PNG, JPEG, WebP, GIF, SVG or
+  ICO image up to 1MB and click **Upload**. An uploaded logo is never
+  replaced by the website's icon, even if the website changes.
+- **Remove** goes back to initials.
+
+Logos are only visible to people in your organization and on the client's
+own links. Websites on private network addresses (`localhost`, `10.x`,
+`192.168.x`, …) aren't fetched unless the server sets
+[`ALLOW_PRIVATE_FETCH=true`](/self-hosting#optional). Only PDFs show PNG or
+JPEG logos; other formats are left out of the PDF.
+
+### Who gets invoice emails
+
+The **Billing** card on the client page lists who **Invoices are emailed to**:
+
+1. the contacts marked **Receives invoices** (with an email address), or, if
+   there are none,
+2. the client's **Billing email**, or, if that's blank,
+3. the client's main **Email** (shown with *(client email)*).
+
+A contact marked **Receives invoices** but with no email address is called
+out on the card, since they won't get anything.
 
 To change any of this later, click **Edit** on the client page. Set **Status**
 to **Inactive** for a client you no longer work with.

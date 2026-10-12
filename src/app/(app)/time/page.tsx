@@ -33,6 +33,9 @@ import {
 } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { formatClockRange, formatClockTime } from "@/lib/clock-time";
+import { formatDate } from "@/lib/format";
+import { EvidenceDialog } from "@/components/time-evidence";
+import { attachmentSelect } from "@/lib/services/time-entry-attachments";
 
 export default async function TimePage({
   searchParams,
@@ -75,7 +78,11 @@ export default async function TimePage({
     }),
     prisma.timeEntry.findMany({
       where: entryWhere,
-      include: { project: { include: { client: true } }, user: true },
+      include: {
+        project: { include: { client: true } },
+        user: true,
+        attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } },
+      },
       orderBy: [{ date: "asc" }, { startMinute: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
     }),
     canManageTeam
@@ -341,6 +348,13 @@ export default async function TimePage({
                             <span className="tabular-figures text-sm">
                               {Number(entry.hours).toFixed(2)}h
                             </span>
+                            <EvidenceDialog
+                              entryId={entry.id}
+                              title={`${entry.project.client.name} — ${entry.project.name}, ${formatDate(entry.date)}`}
+                              items={entry.attachments}
+                              canEdit={entry.userId === user.id || canManageTeam}
+                              clientSeesDetail={entry.project.client.invoiceTimeDetail}
+                            />
                             {!entry.invoiceLineItemId && canEditThis ? (
                               <div className="flex items-center gap-1">
                                 <TimeEntryDialog

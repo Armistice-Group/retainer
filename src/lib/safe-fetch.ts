@@ -129,6 +129,32 @@ export async function fetchPublicText(
   throw new SafeFetchError("Too many redirects.");
 }
 
+/** GET a public URL as bytes, following (checked) redirects, with no
+ * credentials. Returns where it ended up, for resolving relative links. */
+export async function fetchPublicResource(
+  raw: string,
+  opts: { accept?: string; maxBytes?: number; timeoutMs?: number; maxRedirects?: number; what?: string } = {}
+): Promise<{ bytes: Buffer; contentType: string | null; url: URL }> {
+  let url = normalizePublicUrl(raw);
+  const what = opts.what ?? "the website";
+  for (let hop = 0; hop <= (opts.maxRedirects ?? 4); hop++) {
+    const result = await requestOnce(url, {
+      method: "GET",
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Consultainer)", Accept: opts.accept ?? "*/*" },
+      maxBytes: opts.maxBytes ?? 2 * 1024 * 1024,
+      timeoutMs: opts.timeoutMs ?? 8_000,
+      what,
+      tooLarge: "The response is too large.",
+    });
+    if (result.redirect) {
+      url = normalizePublicUrl(new URL(result.redirect, url).toString());
+      continue;
+    }
+    return { bytes: result.bytes ?? Buffer.alloc(0), contentType: result.contentType ?? null, url };
+  }
+  throw new SafeFetchError("Too many redirects.");
+}
+
 /** POST a JSON body to a public URL (e.g. a Slack webhook). Redirects aren't
  * followed; resolves once the server answers 2xx, else throws SafeFetchError. */
 export async function postPublicJson(

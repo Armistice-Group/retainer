@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { deleteEntryAttachmentFiles } from "@/lib/services/time-entry-attachments";
 import { recordAuditEvent } from "@/lib/audit";
 import { resolveBillRate } from "@/lib/bill-rates";
 import {
@@ -697,6 +698,10 @@ export async function undoImport(ctx: { orgId: string; actorId: string }, batchI
       take: CHUNK,
     });
     if (ids.length === 0) break;
+    await deleteEntryAttachmentFiles({
+      timeEntryId: { in: ids.map((e) => e.id) },
+      timeEntry: { invoiceLineItemId: null },
+    });
     const { count } = await prisma.timeEntry.deleteMany({
       where: { orgId: ctx.orgId, id: { in: ids.map((e) => e.id) }, invoiceLineItemId: null },
     });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { after } from "next/server";
 import { listBookings } from "@/lib/services/scheduling";
 import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
@@ -6,6 +7,8 @@ import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/proto
 import { authenticateApiRequest, hideShareToken, type ApiAuthContext } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { deleteStoredFile } from "@/lib/file-storage";
+import { refreshWebsiteIcon } from "@/lib/services/client-logos";
+import { attachmentSelect } from "@/lib/services/time-entry-attachments";
 import {
   projectVisibilityWhere,
   canViewProject,
@@ -109,6 +112,12 @@ const requireClockTimesArg = z
   .boolean()
   .optional()
   .describe("Time on this client's projects must have start and end times. Omit to leave unchanged.");
+const invoiceTimeDetailArg = z
+  .boolean()
+  .optional()
+  .describe(
+    "This client's invoices get a time detail page (each entry's date, start/end, hours) with attachments marked for the client. Omit to leave unchanged."
+  );
 const expenseCategoryDescription =
   "Free-text category, e.g. Travel, Software, Materials.";
 
@@ -268,6 +277,7 @@ const handler = createMcpHandler(
         billingAddress: z.string().max(500).optional(),
         paymentTerms: defaultTermsArg,
         requireClockTimes: requireClockTimesArg,
+        invoiceTimeDetail: invoiceTimeDetailArg,
         status: z.enum(clientStatusValues).default("ACTIVE"),
       },
       async (args, extra) => {
@@ -275,6 +285,7 @@ const handler = createMcpHandler(
         const client = await prisma.client.create({
           data: { orgId: ctx.orgId, ...args },
         });
+        if (client.website) after(() => refreshWebsiteIcon(client.id));
         return text(hideShareToken(client, ctx.role));
       }
     );
@@ -294,6 +305,7 @@ const handler = createMcpHandler(
         billingAddress: z.string().max(500).optional(),
         paymentTerms: defaultTermsArg,
         requireClockTimes: requireClockTimesArg,
+        invoiceTimeDetail: invoiceTimeDetailArg,
         status: z
           .enum(clientStatusValues)
           .optional()
@@ -310,6 +322,7 @@ const handler = createMcpHandler(
           where: { id: clientId },
           data: rest,
         });
+        if (client.website && client.website !== existing.website) after(() => refreshWebsiteIcon(client.id));
         return text(hideShareToken(client, ctx.role));
       }
     );
@@ -921,7 +934,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_time_entries",
-      "List the authenticated user's logged time entries, optionally filtered.",
+      "List the authenticated user's logged time entries, optionally filtered. Each lists its attachments (evidence screenshots/PDFs; clientVisible ones appear on the invoice's time detail).",
       {
         from: isoDate().optional().describe("ISO date, inclusive lower bound"),
         to: isoDate().optional().describe("ISO date, inclusive upper bound"),
@@ -943,7 +956,10 @@ const handler = createMcpHandler(
                 }
               : {}),
           },
-          include: { project: { select: { id: true, name: true } } },
+          include: {
+            project: { select: { id: true, name: true } },
+            attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } },
+          },
           orderBy: { date: "desc" },
         });
         return text(entries.map(withClockTimes));

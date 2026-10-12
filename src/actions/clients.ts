@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext, requireRole } from "@/lib/org-context";
 import { clientSchema, contactSchema, linkSchema } from "@/lib/validations/client";
+import { refreshWebsiteIcon } from "@/lib/services/client-logos";
 import type { ActionState } from "@/actions/auth";
 
 export async function createClientAction(
@@ -25,6 +27,7 @@ export async function createClientAction(
     paymentTerms: formData.get("paymentTerms") ?? undefined,
     invoiceReminders: formData.get("invoiceReminders") === "on",
     requireClockTimes: formData.get("requireClockTimes") === "on",
+    invoiceTimeDetail: formData.get("invoiceTimeDetail") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -49,10 +52,13 @@ export async function createClientAction(
       paymentTerms: parsed.data.paymentTerms,
       invoiceReminders: parsed.data.invoiceReminders,
       requireClockTimes: parsed.data.requireClockTimes,
+      invoiceTimeDetail: parsed.data.invoiceTimeDetail,
       status: parsed.data.status,
     },
   });
 
+  // Its website's icon becomes the logo, fetched after the page responds.
+  if (client.website) after(() => refreshWebsiteIcon(client.id));
   revalidatePath("/clients");
   redirect(`/clients/${client.id}?new=1`);
 }
@@ -76,6 +82,7 @@ export async function updateClientAction(
     paymentTerms: formData.get("paymentTerms") ?? undefined,
     invoiceReminders: formData.get("invoiceReminders") === "on",
     requireClockTimes: formData.get("requireClockTimes") === "on",
+    invoiceTimeDetail: formData.get("invoiceTimeDetail") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -83,7 +90,7 @@ export async function updateClientAction(
     return { fieldErrors: parsed.error.flatten().fieldErrors };
   }
 
-  const current = await prisma.client.findFirst({ where: { id: clientId, orgId: org.id }, select: { status: true } });
+  const current = await prisma.client.findFirst({ where: { id: clientId, orgId: org.id }, select: { status: true, website: true } });
   if (!current) return { error: "Client not found." };
   if (parsed.data.status === "LEAD" && current.status !== "LEAD") {
     return { error: "A client can't be turned back into a draft." };
@@ -106,11 +113,14 @@ export async function updateClientAction(
       paymentTerms: parsed.data.paymentTerms,
       invoiceReminders: parsed.data.invoiceReminders,
       requireClockTimes: parsed.data.requireClockTimes,
+      invoiceTimeDetail: parsed.data.invoiceTimeDetail,
       status: parsed.data.status,
       ...(current.status === "LEAD" && parsed.data.status !== "LEAD" ? { leadDiscardedAt: null } : {}),
     },
   });
 
+  const website = parsed.data.website || null;
+  if (website && website !== current.website) after(() => refreshWebsiteIcon(clientId));
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   return null;

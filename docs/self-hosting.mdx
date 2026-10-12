@@ -173,7 +173,7 @@ Every variable is described in `.env.example`. After changing `.env`, run
 | Variable | What it's for |
 | --- | --- |
 | `AUTH_URL` | Forces one public URL for everything, including sign-in redirects. Usually leave it unset; see [URLs](#urls). |
-| `ALLOW_PRIVATE_FETCH` | `true` lets [calendar links](/integrations/calendars) and the [Slack webhook URL](/concepts/alerts-and-audit#how-to-connect-slack) point at private-network addresses (for example Nextcloud on your LAN). Off by default so a user-entered URL can't be used to probe the server's own network. |
+| `ALLOW_PRIVATE_FETCH` | `true` lets [calendar links](/integrations/calendars), the [Slack webhook URL](/concepts/alerts-and-audit#how-to-connect-slack) and client websites (for [logos](/concepts/clients-and-projects#client-logos)) point at private-network addresses (for example Nextcloud on your LAN). Off by default so a user-entered URL can't be used to probe the server's own network. |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Shows **Continue with Google** on the login page. Create an OAuth client of type **Web application** in Google Cloud and add the redirect URI `<your URL>/api/auth/callback/google`. Only works through `.env`. Google sign-in never creates accounts on its own: a new Google user gets in only with an invite or through an organization's [auto-join domain](/concepts/team-and-security#auto-join-by-email-domain). |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Email through [Resend](https://resend.com). See [Email](#email). |
 | `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENVIRONMENT` | [QuickBooks](/integrations/quickbooks) app credentials. |
@@ -345,7 +345,7 @@ to the same endpoints on the same schedule with the same header.
 ## File storage
 
 Uploaded files (client and project documents, expense receipts, milestone
-evidence) are stored in the database by default, up to 5 MB each. To keep
+and time entry evidence) are stored in the database by default, up to 5 MB each. To keep
 them in S3-compatible object storage instead (AWS S3, Cloudflare R2, MinIO,
 Backblaze B2, Wasabi and others), with a 25 MB limit per file:
 

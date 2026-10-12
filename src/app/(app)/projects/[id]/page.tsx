@@ -38,6 +38,8 @@ import { CopyButton } from "@/components/copy-button";
 import { getTaskDetail } from "@/lib/task-detail";
 import { formatClockRange } from "@/lib/clock-time";
 import { resolveBillRate } from "@/lib/bill-rates";
+import { EvidenceDialog } from "@/components/time-evidence";
+import { attachmentSelect } from "@/lib/services/time-entry-attachments";
 
 export default async function ProjectDetailPage({
   params,
@@ -63,7 +65,7 @@ export default async function ProjectDetailPage({
         orderBy: { createdAt: "desc" },
       },
       timeEntries: {
-        include: { user: true },
+        include: { user: true, attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } } },
         orderBy: { date: "desc" },
         take: 8,
       },
@@ -528,7 +530,16 @@ export default async function ProjectDetailPage({
                           {entry.description ? ` · ${entry.description}` : ""}
                         </p>
                       </div>
-                      <span className="tabular-figures">{Number(entry.hours).toFixed(2)}h</span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <EvidenceDialog
+                          entryId={entry.id}
+                          title={`${entry.user.name}, ${formatDate(entry.date)}`}
+                          items={entry.attachments}
+                          canEdit={entry.userId === user.id || role === "OWNER" || role === "ADMIN"}
+                          clientSeesDetail={project.client.invoiceTimeDetail}
+                        />
+                        <span className="tabular-figures">{Number(entry.hours).toFixed(2)}h</span>
+                      </div>
                     </li>
                   ))}
                 </ul>

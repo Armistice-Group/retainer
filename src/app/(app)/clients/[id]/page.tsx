@@ -18,9 +18,10 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/status-badge";
+import { ClientAvatar } from "@/components/client-avatar";
+import { clientLogoUrl } from "@/lib/services/client-logos";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkList } from "@/components/link-list";
 import { AddLinkDialog } from "@/components/forms/add-link-dialog";
@@ -77,6 +78,11 @@ export default async function ClientDetailPage({
   if (!client || client.orgId !== org.id) notFound();
 
   const canManage = role === "OWNER" || role === "ADMIN";
+  // Mirrors defaultInvoiceRecipients: contacts marked "receives invoices"
+  // (with an email) first, else the billing email, else the main email.
+  const invoiceContacts = client.contacts.filter((c) => c.receivesInvoices && c.email);
+  const contactsMissingEmail = client.contacts.filter((c) => c.receivesInvoices && !c.email);
+  const fallbackInvoiceEmail = client.billingEmail || client.email;
   // A draft client (from a Cal.com/Calendly booking) has no billing, share
   // link or projects until it's made a client.
   const isDraft = client.status === "LEAD";
@@ -204,6 +210,7 @@ export default async function ClientDetailPage({
       />
 
       <div className="mb-4 flex items-center gap-3">
+        <ClientAvatar name={client.name} src={clientLogoUrl(client)} className="size-12 text-sm" />
         <StatusBadge status={client.status} />
       </div>
 
@@ -300,26 +307,52 @@ export default async function ClientDetailPage({
               <CardTitle className="text-base">Billing</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
-              <div className="flex items-center gap-2">
-                <Mail className="size-4 shrink-0 text-muted-foreground" />
-                <a
-                  href={`mailto:${client.billingEmail || client.email || ""}`}
-                  className="hover:underline"
-                >
-                  {client.billingEmail || client.email || "No billing email on file"}
-                </a>
-                {!client.billingEmail && client.email ? (
-                  <span className="text-xs text-muted-foreground">(default)</span>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">Invoices are emailed to</p>
+                {invoiceContacts.length ? (
+                  <ul className="flex flex-col gap-1">
+                    {invoiceContacts.map((c) => (
+                      <li key={c.id} className="flex min-w-0 items-center gap-2">
+                        <Mail className="size-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate">
+                          {c.name}{" "}
+                          <a href={`mailto:${c.email}`} className="text-muted-foreground hover:underline">
+                            {c.email}
+                          </a>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : fallbackInvoiceEmail ? (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Mail className="size-4 shrink-0 text-muted-foreground" />
+                    <a href={`mailto:${fallbackInvoiceEmail}`} className="truncate hover:underline">
+                      {fallbackInvoiceEmail}
+                    </a>
+                    {!client.billingEmail ? (
+                      <span className="shrink-0 text-xs text-muted-foreground">(client email)</span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Nobody yet. Add a billing email, or mark a contact to receive invoices.
+                  </p>
+                )}
+                {contactsMissingEmail.length ? (
+                  <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">
+                    {contactsMissingEmail.map((c) => c.name).join(", ")}{" "}
+                    {contactsMissingEmail.length === 1 ? "is" : "are"} marked to receive invoices
+                    but {contactsMissingEmail.length === 1 ? "has" : "have"} no email address.
+                  </p>
                 ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="size-4 shrink-0 text-muted-foreground" />
-                <span>
-                  {client.billingAddress || client.address || "No billing address on file"}
-                </span>
-                {!client.billingAddress && client.address ? (
-                  <span className="text-xs text-muted-foreground">(default)</span>
-                ) : null}
+                {client.billingAddress || client.address ? (
+                  <span className="whitespace-pre-line">{client.billingAddress || client.address}</span>
+                ) : (
+                  <span className="text-muted-foreground">No billing address</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
@@ -328,24 +361,6 @@ export default async function ClientDetailPage({
                   <span className="text-xs text-muted-foreground">(org default)</span>
                 ) : null}
               </div>
-              {client.contacts.some((c) => c.receivesInvoices) ? (
-                <div>
-                  <p className="mb-1.5 text-xs text-muted-foreground">On invoice emails</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {client.contacts
-                      .filter((c) => c.receivesInvoices)
-                      .map((c) => (
-                        <Badge key={c.id} variant="secondary">
-                          {c.name}
-                        </Badge>
-                      ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No contacts marked to receive invoice emails.
-                </p>
-              )}
             </CardContent>
           </Card>
           )}

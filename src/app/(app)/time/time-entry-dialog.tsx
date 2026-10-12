@@ -33,6 +33,7 @@ import {
   maxClockHours,
   parseClockTime,
 } from "@/lib/clock-time";
+import { EvidencePicker } from "@/components/time-evidence";
 import type { ActionState } from "@/actions/auth";
 
 type ProjectOption = {
@@ -124,7 +125,7 @@ export function TimeEntryDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editValues ? "Edit time entry" : "Log time"}</DialogTitle>
         </DialogHeader>
@@ -198,6 +199,7 @@ export function TimeEntryDialog({
               placeholder="What did you work on?"
             />
           </div>
+          <EvidencePicker error={state?.fieldErrors?.attachments?.[0]} />
           <div className="flex items-center gap-2">
             <Checkbox
               id="te-billable"

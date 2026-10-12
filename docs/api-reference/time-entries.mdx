@@ -10,7 +10,8 @@ GET /api/v1/time-entries
 ```
 
 Any role. Returns the key owner's own entries, newest date first, each with
-its `project` (including its `client`) and `task` (or `null`). Owners and
+its `project` (including its `client`), `task` (or `null`) and
+`attachments`. Owners and
 admins can ask for someone else's with `userId`.
 
 <ParamField query="from" type="string">
@@ -50,7 +51,17 @@ A `from` or `to` that isn't a date returns `422` with
       "startTime": "09:00",
       "endTime": "12:30",
       "project": { "id": "cm9...", "name": "API migration", "client": { "id": "cm9...", "name": "Fintra Labs", "...": "..." }, "...": "..." },
-      "task": null
+      "task": null,
+      "attachments": [
+        {
+          "id": "cm9...",
+          "fileName": "Screenshot 2026-08-05 12.31.07.png",
+          "contentType": "image/png",
+          "sizeBytes": 184213,
+          "clientVisible": true,
+          "createdAt": "2026-08-05T16:31:09.000Z"
+        }
+      ]
     }
   ]
 }
@@ -148,6 +159,71 @@ DELETE /api/v1/time-entries/{id}
 
 Returns `{ "ok": true }`. Members can delete only their own entries; owners
 and admins can delete anyone's.
+
+## Evidence (attachments)
+
+Screenshots or PDFs attached to an entry as
+[evidence](/concepts/time-tracking#evidence-screenshots). Anyone who can see
+the entry's project can list and download them; the entry's owner, and owners
+and admins, can add, share and delete them, even after the entry is invoiced.
+
+### List an entry's attachments
+
+```
+GET /api/v1/time-entries/{id}/attachments
+```
+
+Returns `{ "attachments": [ ... ] }`, each as in the list above.
+
+### Add attachments
+
+```
+POST /api/v1/time-entries/{id}/attachments
+```
+
+Send `multipart/form-data` with one or more `file` parts (PNG, JPEG, GIF,
+WebP or PDF; checked by contents, up to 5MB each, or 25MB with S3 storage;
+20 per entry). Add `clientVisible=true` to show them on the invoice's
+[time detail](/concepts/invoicing#time-detail-on-invoices). Returns `201` with
+`{ "attachments": [ ... ] }`.
+
+```bash
+curl -X POST https://<your-instance>/api/v1/time-entries/cm9.../attachments \
+  -H "Authorization: Bearer ch_live_..." \
+  -F "file=@screenshot.png" -F "clientVisible=true"
+```
+
+### Download an attachment
+
+```
+GET /api/v1/time-entries/{id}/attachments/{attachmentId}
+```
+
+Returns the file itself.
+
+### Share or unshare an attachment
+
+```
+PATCH /api/v1/time-entries/{id}/attachments/{attachmentId}
+```
+
+Body: `{ "clientVisible": true }`. Returns `{ "attachment": { ... } }`.
+
+### Delete an attachment
+
+```
+DELETE /api/v1/time-entries/{id}/attachments/{attachmentId}
+```
+
+Returns `{ "ok": true }`.
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `404` | `Entry not found.` / `Attachment not found.` | Check the IDs. Entries on confidential projects need the key's owner on the project. |
+| `403` | `You can only add evidence to your own time entries.` | Use the entry owner's key, or an owner or admin key. |
+| `422` | `notes.png isn't a PNG, JPEG, GIF, WebP or PDF.` | Send a supported file. |
+| `422` | `notes.png is over 5MB.` | Send a smaller file, or set up S3 storage. |
+| `422` | `An entry can have up to 20 attachments.` | Delete some first. |
 
 ## Rules and errors
 

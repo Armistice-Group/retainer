@@ -3,6 +3,7 @@ import { authenticateApiRequest, unauthorized } from "@/lib/api-auth";
 import { clockFields, timeEntrySchema } from "@/lib/validations/time-entry";
 import { withClockTimes } from "@/lib/clock-time";
 import { createTimeEntry, TimeEntryError } from "@/lib/services/time-entries";
+import { attachmentSelect } from "@/lib/services/time-entry-attachments";
 
 export async function GET(req: Request) {
   const ctx = await authenticateApiRequest(req);
@@ -44,6 +45,7 @@ export async function GET(req: Request) {
     include: {
       project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
       task: { select: { id: true, title: true } },
+      attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } },
     },
     orderBy: { date: "desc" },
   });

@@ -288,6 +288,7 @@ model User {
   pendingEmailChanges         PendingEmailChange[]
   completedMilestones         Milestone[]
   uploadedClientDocuments     ClientDocument[]
+  timeEntryAttachments        TimeEntryAttachment[]
   expensesSubmitted           Expense[]              @relation("ExpenseSubmittedBy")
   expensesApproved            Expense[]              @relation("ExpenseApprovedBy")
   taskComments                TaskComment[]
@@ -398,6 +399,12 @@ model Client {
   // Time on this client's projects must say when it was worked (start and
   // end on every TimeEntry).
   requireClockTimes           Boolean               @default(false)
+  // Invoices for this client get a time detail page: each entry's date,
+  // start/end and hours, plus screenshots marked for the client.
+  invoiceTimeDetail           Boolean               @default(false)
+  // When the logo (ClientLogo) last changed; null means no logo. Kept here
+  // so lists know whether there is one without loading the image.
+  logoUpdatedAt               DateTime?
   // Default terms for this client's invoices; null uses the org default.
   // Never CUSTOM (that means "pick a due date by hand").
   paymentTerms                PaymentTerms?
@@ -443,8 +450,22 @@ model Client {
   shareSessions             ShareSession[]
   shareCodes                ShareCode[]
   bookings                  Booking[]
+  logo                      ClientLogo?
 
   @@index([orgId])
+}
+
+// A client's logo: uploaded, or the icon fetched from their website. Small
+// (capped at 1MB) and kept in the database even when S3 storage is on.
+model ClientLogo {
+  clientId    String   @id
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  data        Bytes
+  contentType String
+  // "upload" or "website" (then sourceUrl is the image's address).
+  source      String
+  sourceUrl   String?
+  updatedAt   DateTime @updatedAt
 }
 
 enum DocumentAccess {
@@ -969,12 +990,36 @@ model TimeEntry {
   externalLink  ExternalTimeEntryLink?
   calendarEvent CalendarEvent?
   importRecord  ImportRecord?
+  attachments   TimeEntryAttachment[]
 
   @@index([orgId])
   @@index([projectId])
   @@index([userId])
   @@index([date])
   @@index([taskId])
+}
+
+// Evidence for a time entry: a screenshot or PDF of the work. Internal by
+// default; clientVisible ones are listed (and downloadable) on the invoice's
+// time detail when the client has invoiceTimeDetail on.
+model TimeEntryAttachment {
+  id            String   @id @default(cuid())
+  fileName      String
+  contentType   String
+  sizeBytes     Int
+  // Null when stored in external object storage (storageKey).
+  fileData      Bytes?
+  storageKey    String?
+  clientVisible Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  timeEntryId String
+  timeEntry   TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([timeEntryId])
 }
 
 // The one currently-running timer for a user, app-wide — not per-org, since

@@ -5,12 +5,17 @@ import { ClientForm } from "../../client-form";
 import { updateClientAction } from "@/actions/clients";
 import { PageHeader } from "@/components/layout/page-header";
 import { paymentTermsLabel } from "@/lib/payment-terms";
+import { clientLogoUrl } from "@/lib/services/client-logos";
+import { ClientLogoCard } from "./client-logo-card";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { org } = await requireOrgContext();
 
-  const client = await prisma.client.findUnique({ where: { id } });
+  const client = await prisma.client.findUnique({
+    where: { id },
+    include: { logo: { select: { source: true } } },
+  });
   if (!client || client.orgId !== org.id) notFound();
 
   const boundAction = updateClientAction.bind(null, id);
@@ -18,6 +23,13 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto w-full max-w-5xl">
       <PageHeader title={`Edit ${client.name}`} />
+      <ClientLogoCard
+        clientId={client.id}
+        name={client.name}
+        src={clientLogoUrl(client)}
+        source={client.logo?.source === "upload" || client.logo?.source === "website" ? client.logo.source : null}
+        website={client.website}
+      />
       <ClientForm
         action={boundAction}
         submitLabel="Save changes"
@@ -35,6 +47,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           paymentTerms: client.paymentTerms,
           invoiceReminders: client.invoiceReminders,
           requireClockTimes: client.requireClockTimes,
+          invoiceTimeDetail: client.invoiceTimeDetail,
           status: client.status,
         }}
       />

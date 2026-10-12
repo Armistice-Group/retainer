@@ -234,8 +234,31 @@ login is needed. It shows:
 - **How to pay**: your [payment methods](/integrations/payments) for this
   client.
 
+- **Time detail**, when the client has it on (see below).
+
 Drafts have no client page. The link keeps working after the invoice is paid
 or voided.
+
+## Time detail on invoices
+
+For a client who wants to see exactly when the billed hours were worked, edit
+the client and tick **Show time detail on invoices** (under **Time**). Their
+invoices then get:
+
+- **A second page in the PDF**: every time entry on the invoice, in order,
+  with its date, start and end times (or *—* if it has none), hours and what
+  was done (task and description; the project too when there are several, the
+  person when more than one person's time is on it). Entries with evidence the
+  client can see say how many attachments they have.
+- **A Time detail table on the client invoice page**, with links that open
+  the [evidence](/concepts/time-tracking#evidence-screenshots) marked
+  **Client can see it**. Evidence that isn't marked is never shown.
+
+It applies to every invoice for the client, including ones already sent,
+because the PDF and page are made when they're opened. Turn it off and the
+detail and evidence links disappear from all of them. To make sure every entry
+has times, also tick
+[Require start and end times](/concepts/time-tracking#requiring-start-and-end-times).
 
 ## Tracking opens
 

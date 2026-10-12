@@ -5,6 +5,8 @@ import { requireOrgContext } from "@/lib/org-context";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
+import { ClientAvatar } from "@/components/client-avatar";
+import { clientLogoUrl } from "@/lib/services/client-logos";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -138,7 +140,10 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             <Link key={client.id} href={`/clients/${client.id}`}>
               <Card className="h-full gap-2 p-5 transition-colors hover:border-foreground/20">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium">{client.name}</p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <ClientAvatar name={client.name} src={clientLogoUrl(client)} />
+                    <p className="truncate font-medium">{client.name}</p>
+                  </div>
                   <StatusBadge status={client.status} />
                 </div>
                 {client.status === "LEAD" ? (

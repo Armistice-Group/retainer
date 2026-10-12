@@ -251,8 +251,8 @@ or résumé.
 | Path | What |
 | --- | --- |
 | `README.txt` | What the export is and when it was made. |
-| `data/<name>.csv`, `data/<name>.json` | One pair per kind of record: `organization`, `clients`, `contacts`, `links`, `projects`, `members`, `project-members`, `milestones`, `tasks`, `task-comments`, `time-entries`, `timesheets`, `expenses`, `invoices`, `invoice-line-items`, `invoice-events`, `payments`, `credit-notes`, `credit-applications`, `estimates`, `estimate-line-items`, `agreements`, `scheduling-connections`, `scheduling-event-types`, `bookings`, `vault-links`, `documents`, `recurring-invoices`, `billing-cycles`, `payment-methods`, `imports`, `calendar-subscriptions`, `audit-log`. |
-| `files/documents/`, `files/receipts/`, `files/milestones/`, `files/agreements/`, `files/resumes/` | The uploaded files themselves. Each CSV's `exportedFile` column gives the path. |
+| `data/<name>.csv`, `data/<name>.json` | One pair per kind of record: `organization`, `clients`, `contacts`, `links`, `projects`, `members`, `project-members`, `milestones`, `tasks`, `task-comments`, `time-entries`, `time-entry-attachments`, `timesheets`, `expenses`, `invoices`, `invoice-line-items`, `invoice-events`, `payments`, `credit-notes`, `credit-applications`, `estimates`, `estimate-line-items`, `agreements`, `scheduling-connections`, `scheduling-event-types`, `bookings`, `vault-links`, `documents`, `recurring-invoices`, `billing-cycles`, `payment-methods`, `imports`, `calendar-subscriptions`, `audit-log`. |
+| `files/documents/`, `files/receipts/`, `files/milestones/`, `files/time-evidence/`, `files/agreements/`, `files/resumes/` | The uploaded files themselves. Each CSV's `exportedFile` column gives the path. |
 | `invoices/<number>.pdf` | Every invoice, rendered as it looks today. |
 | `manifest.json` | Row counts, and anything that couldn't be exported (`problems`). |
 
@@ -271,7 +271,8 @@ one and when it was last read), audit log, résumés and
 [credential links](/concepts/credentials) are in the whole-organization
 export only. Credential links hold no secrets (just the label, note,
 provider and link to the vault item), but the links reveal how your vault
-is organized, so a client handover leaves them out.
+is organized, so a client handover leaves them out. A client's export
+includes only the time entry evidence marked **Client can see it**.
 
 **Never included:** passwords, two-factor secrets and recovery codes, API
 keys, share, invoice and estimate links, staffing-review links, integration

@@ -3,6 +3,9 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { DisplayMethod } from "@/lib/payment-methods";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { amountSettled, balanceDue } from "@/lib/invoice-balance";
+import { formatClockRange } from "@/lib/clock-time";
+import { invoiceTimeDetail, type TimeDetailEntry } from "@/lib/services/invoice-time-detail";
+import { clientLogoDataUri } from "@/lib/services/client-logos";
 
 export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
   include: {
@@ -66,6 +69,22 @@ const styles = StyleSheet.create({
   grandTotalLabel: { fontWeight: 700 },
   grandTotalValue: { fontWeight: 700 },
   notes: { marginTop: 32, fontSize: 9, color: "#555" },
+  clientLogo: { maxWidth: 80, maxHeight: 32, marginBottom: 4, objectFit: "contain", objectPositionX: 0 },
+  detailTitle: { fontSize: 14, fontWeight: 700, marginBottom: 4 },
+  detailMeta: { fontSize: 9, color: "#555", marginBottom: 12 },
+  detailRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#ddd",
+    paddingVertical: 4,
+    fontSize: 9,
+  },
+  dColDate: { width: 72 },
+  dColTime: { width: 70 },
+  dColHours: { width: 36, textAlign: "right", paddingRight: 8 },
+  dColPerson: { width: 80 },
+  dColDesc: { flex: 1 },
+  dayTotal: { fontSize: 8, color: "#888" },
 });
 
 function formatCurrency(amount: number | string | { toString(): string }, currency: string) {
@@ -99,9 +118,15 @@ const PAYMENT_TERMS_LABELS: Record<string, string> = {
 export function InvoiceDocument({
   invoice,
   paymentMethods,
+  timeDetail = null,
+  clientLogo = null,
 }: {
   invoice: InvoiceForPdf;
   paymentMethods: DisplayMethod[];
+  /** Entries for the time detail page (the client opted in). */
+  timeDetail?: TimeDetailEntry[] | null;
+  /** PNG/JPEG data: URI of the client's logo. */
+  clientLogo?: string | null;
 }) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
   const billEmail = invoice.client.billingEmail || invoice.client.email;
@@ -141,6 +166,10 @@ export function InvoiceDocument({
         <View style={styles.billToRow}>
           <View>
             <Text style={styles.label}>Bill To</Text>
+            {clientLogo ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop
+              <Image src={clientLogo} style={styles.clientLogo} />
+            ) : null}
             <Text>{invoice.client.name}</Text>
             {billEmail ? <Text>{billEmail}</Text> : null}
             {billAddress ? <Text>{billAddress}</Text> : null}
@@ -250,11 +279,94 @@ export function InvoiceDocument({
           </View>
         ) : null}
       </Page>
+      {timeDetail?.length ? (
+        <TimeDetailPage invoice={invoice} entries={timeDetail} accentColor={accentColor} />
+      ) : null}
     </Document>
   );
 }
 
+/** Every entry billed on the invoice: when it was worked, for how long. */
+function TimeDetailPage({
+  invoice,
+  entries,
+  accentColor,
+}: {
+  invoice: InvoiceForPdf;
+  entries: TimeDetailEntry[];
+  accentColor: string;
+}) {
+  const people = new Set(entries.map((e) => e.person));
+  const projects = new Set(entries.map((e) => e.project));
+  const total = entries.reduce((sum, e) => sum + e.hours, 0);
+  const evidenceCount = entries.reduce((sum, e) => sum + e.evidence.length, 0);
+  return (
+    <Page size="A4" style={styles.page}>
+      <Text style={styles.detailTitle}>Time detail</Text>
+      <Text style={styles.detailMeta}>
+        Invoice {invoice.number} · {entries.length} {entries.length === 1 ? "entry" : "entries"} ·{" "}
+        {Number(total.toFixed(2))} hrs
+      </Text>
+      <View style={[styles.tableHeader, { borderBottomColor: accentColor }]} fixed>
+        <Text style={[styles.dColDate, styles.headerText]}>Date</Text>
+        <Text style={[styles.dColTime, styles.headerText]}>Time</Text>
+        <Text style={[styles.dColHours, styles.headerText]}>Hrs</Text>
+        {people.size > 1 ? <Text style={[styles.dColPerson, styles.headerText]}>Who</Text> : null}
+        <Text style={[styles.dColDesc, styles.headerText]}>Work</Text>
+      </View>
+      {entries.map((e) => {
+        const what = [
+          projects.size > 1 ? e.project : null,
+          e.task,
+          e.description,
+        ].filter(Boolean).join(" · ");
+        return (
+          <View style={styles.detailRow} key={e.id} wrap={false}>
+            <Text style={styles.dColDate}>{formatShortDate(e.date)}</Text>
+            <Text style={styles.dColTime}>
+              {e.startMinute != null && e.endMinute != null ? formatClockRange(e.startMinute, e.endMinute) : "—"}
+            </Text>
+            <Text style={styles.dColHours}>{Number(e.hours.toFixed(2))}</Text>
+            {people.size > 1 ? <Text style={styles.dColPerson}>{e.person}</Text> : null}
+            <Text style={styles.dColDesc}>
+              {what || "—"}
+              {e.evidence.length
+                ? ` (${e.evidence.length} attachment${e.evidence.length === 1 ? "" : "s"})`
+                : ""}
+            </Text>
+          </View>
+        );
+      })}
+      {evidenceCount ? (
+        <Text style={styles.notes}>
+          Attachments can be opened from the online copy of this invoice (the link in its email).
+        </Text>
+      ) : null}
+    </Page>
+  );
+}
+
+function formatShortDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 export async function renderInvoicePdf(invoice: InvoiceForPdf) {
-  const paymentMethods = await effectivePaymentMethods(invoice.orgId, invoice.clientId);
-  return renderToBuffer(<InvoiceDocument invoice={invoice} paymentMethods={paymentMethods} />);
+  const [paymentMethods, timeDetail, clientLogo] = await Promise.all([
+    effectivePaymentMethods(invoice.orgId, invoice.clientId),
+    invoiceTimeDetail(invoice),
+    invoice.client.logoUpdatedAt ? clientLogoDataUri(invoice.clientId, { pdf: true }) : null,
+  ]);
+  return renderToBuffer(
+    <InvoiceDocument
+      invoice={invoice}
+      paymentMethods={paymentMethods}
+      timeDetail={timeDetail}
+      clientLogo={clientLogo}
+    />
+  );
 }

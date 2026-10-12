@@ -18,6 +18,8 @@ const serverEnv = {
     process.env.INTEGRATION_ENCRYPTION_KEY ?? "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
   CRON_SECRET: process.env.CRON_SECRET ?? "e2e-cron-secret",
   AUTH_URL: BASE_URL,
+  // evidence.spec.ts serves a stand-in client website from 127.0.0.1.
+  ALLOW_PRIVATE_FETCH: "true",
   // Integrations (email, Stripe, S3, Google...) stay unconfigured on purpose.
 };
 
@@ -46,7 +48,7 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /(ui|smoke|share-gate|schedule)\.spec\.ts/,
+      testMatch: /(ui|smoke|share-gate|schedule|evidence)\.spec\.ts/,
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"] },
     },

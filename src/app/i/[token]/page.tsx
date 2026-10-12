@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CreditCard, Download } from "lucide-react";
+import { CreditCard, Download, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isPaymentProcessing, PaymentReturnBanner, PROCESSING_NOTE } from "@/components/payment-return-banner";
@@ -12,6 +12,8 @@ import { getInvoiceByViewToken } from "@/lib/services/invoice-delivery";
 import { effectivePaymentMethods } from "@/lib/services/payment-methods";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { daysOverdue, isOverdue } from "@/lib/invoice-aging";
+import { formatClockRange } from "@/lib/clock-time";
+import { invoiceTimeDetail } from "@/lib/services/invoice-time-detail";
 import { SeenBeacon } from "./seen-beacon";
 
 export const metadata: Metadata = {
@@ -43,6 +45,8 @@ export default async function ClientInvoicePage({
     (org.stripeConnectChargesEnabled || !!org.mercuryConnection?.destinationAccountId);
   const overdue = isOverdue(invoice.status, invoice.dueDate);
   const partlyPaid = isPartlyPaid(invoice);
+  const timeDetail = await invoiceTimeDetail(invoice);
+  const severalPeople = new Set(timeDetail?.map((e) => e.person)).size > 1;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -141,6 +145,59 @@ export default async function ClientInvoicePage({
             className="h-[80vh] min-h-[480px] w-full bg-muted"
           />
         </Card>
+
+        {timeDetail ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Time detail</CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th className="px-6 py-2 font-medium">Date</th>
+                    <th className="px-2 py-2 font-medium">Time</th>
+                    <th className="px-2 py-2 text-right font-medium">Hours</th>
+                    {severalPeople ? <th className="px-2 py-2 font-medium">Who</th> : null}
+                    <th className="px-2 py-2 pr-6 font-medium">Work</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {timeDetail.map((e) => (
+                    <tr key={e.id} className="align-top">
+                      <td className="whitespace-nowrap px-6 py-2.5">{formatDate(e.date)}</td>
+                      <td className="tabular-figures whitespace-nowrap px-2 py-2.5 text-muted-foreground">
+                        {formatClockRange(e.startMinute, e.endMinute) ?? "—"}
+                      </td>
+                      <td className="tabular-figures px-2 py-2.5 text-right">{e.hours.toFixed(2)}</td>
+                      {severalPeople ? <td className="whitespace-nowrap px-2 py-2.5">{e.person}</td> : null}
+                      <td className="px-2 py-2.5 pr-6">
+                        <p>{[e.task, e.description].filter(Boolean).join(" · ") || e.project}</p>
+                        {e.evidence.length ? (
+                          <ul className="mt-1.5 flex flex-wrap gap-2">
+                            {e.evidence.map((file) => (
+                              <li key={file.id}>
+                                <a
+                                  href={`/i/${token}/evidence/${file.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  <Paperclip className="size-3" />
+                                  <span className="max-w-48 truncate">{file.fileName}</span>
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        ) : null}
       </main>
     </div>
   );
