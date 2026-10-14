@@ -48,7 +48,7 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /(ui|smoke|share-gate|schedule|evidence|flows)\.spec\.ts/,
+      testMatch: /(ui|smoke|share-gate|schedule|evidence|flows|phone)\.spec\.ts/,
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"] },
     },

@@ -94,6 +94,10 @@ type DialogProps = {
   trigger?: ReactNode;
   /** Open as soon as the page loads (e.g. /time?log=1). */
   defaultOpen?: boolean;
+  /** Evidence already chosen, e.g. screenshots shared to the phone app. */
+  initialEvidence?: File[];
+  /** After a successful save. */
+  onSaved?: () => void;
 };
 
 const dayLabel = (iso: string) =>
@@ -150,6 +154,8 @@ function TimeEntryForm({
   defaultTaskId,
   clockRounding = 15,
   notice,
+  initialEvidence,
+  onSaved,
   onDone,
 }: DialogProps & { onDone: () => void }) {
   const router = useRouter();
@@ -158,7 +164,7 @@ function TimeEntryForm({
   const action = editValues ? updateTimeEntryAction.bind(null, editValues.id) : createTimeEntryAction;
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(action, null);
   const [, startTransition] = useTransition();
-  const [evidence, setEvidence] = useState<File[]>([]);
+  const [evidence, setEvidence] = useState<File[]>(initialEvidence ?? []);
   const submitted = useRef<{ date: string; hours: string } | null>(null);
   const wasPending = useRef(false);
 
@@ -172,10 +178,11 @@ function TimeEntryForm({
       });
       // Saved anyway; overlapping time is worth a look.
       state?.warnings?.forEach((w) => toast.warning(w));
+      onSaved?.();
       onDone();
     }
     wasPending.current = isPending;
-  }, [isPending, state, editValues, onDone, projectId, projects, router]);
+  }, [isPending, state, editValues, onDone, onSaved, projectId, projects, router]);
 
   // Submitting by hand rather than through <form action> keeps everything
   // typed (and the evidence) in place when the server refuses the entry.

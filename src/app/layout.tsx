@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { FormResetGuard } from "@/components/forms/form-reset-guard";
 import { FlashToaster } from "@/components/flash-toaster";
+import { RegisterServiceWorker } from "@/components/pwa/register-service-worker";
 import { Suspense } from "react";
 import { iconVersion } from "@/lib/branding";
 import { getOrigin } from "@/lib/url";
@@ -63,6 +64,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           <FormResetGuard />
+          <RegisterServiceWorker />
           <Suspense>
             <FlashToaster />
           </Suspense>

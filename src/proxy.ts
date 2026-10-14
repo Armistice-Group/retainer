@@ -39,8 +39,10 @@ export const config = {
   // crawler file (icons are served from /api/branding/icon) — fetched by
   // crawlers and chat apps with no session cookie, so they must never hit
   // the auth redirect below. /integrations/ holds the static logos in
-  // public/integrations, which carry nothing private.
+  // public/integrations, which carry nothing private. The browser fetches
+  // the app manifest without cookies, and the service worker script must
+  // load as itself, not as a redirect to /login.
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|robots.txt|integrations/).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|opengraph-image|robots.txt|manifest.webmanifest|sw.js|integrations/).*)",
   ],
 };

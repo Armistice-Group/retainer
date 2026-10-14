@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useMemo, useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Play, Square, Timer as TimerIcon } from "lucide-react";
 import {
   Dialog,
@@ -32,8 +32,10 @@ import {
 } from "@/actions/timer";
 import { browserTimeZone } from "@/lib/clock-time";
 
-type ProjectOption = { id: string; name: string; clientName: string };
-type TaskOption = { id: string; title: string; projectId: string };
+export type TimerProjectOption = { id: string; name: string; clientName: string };
+export type TimerTaskOption = { id: string; title: string; projectId: string };
+type ProjectOption = TimerProjectOption;
+type TaskOption = TimerTaskOption;
 
 export type ActiveTimerData = {
   startedAt: string;
@@ -48,7 +50,7 @@ export type ActiveTimerData = {
 // The start dialog offers the project you last timed (on this device).
 const LAST_PROJECT_KEY = "timer:lastProjectId";
 
-function rememberProject(projectId: string) {
+export function rememberProject(projectId: string) {
   try {
     localStorage.setItem(LAST_PROJECT_KEY, projectId);
   } catch {
@@ -56,7 +58,7 @@ function rememberProject(projectId: string) {
   }
 }
 
-function formatElapsed(ms: number) {
+export function formatElapsed(ms: number) {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -234,7 +236,7 @@ function RunningTimer({
   );
 }
 
-function EditTimerForm({
+export function EditTimerForm({
   timer,
   projects,
   tasks,
@@ -303,7 +305,16 @@ function EditTimerForm({
   );
 }
 
-function StartTimerDialog({ projects, tasks }: { projects: ProjectOption[]; tasks: TaskOption[] }) {
+export function StartTimerDialog({
+  projects,
+  tasks,
+  trigger,
+}: {
+  projects: ProjectOption[];
+  tasks: TaskOption[];
+  /** Replaces the default "Start timer" button. */
+  trigger?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [taskId, setTaskId] = useState("");
@@ -348,9 +359,11 @@ function StartTimerDialog({ projects, tasks }: { projects: ProjectOption[]; task
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Play className="size-3.5" /> Start timer
-        </Button>
+        {trigger ?? (
+          <Button size="sm" variant="outline">
+            <Play className="size-3.5" /> Start timer
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

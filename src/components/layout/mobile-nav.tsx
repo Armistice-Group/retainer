@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import Link from "next/link";
+import { Menu, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
@@ -28,7 +29,16 @@ export function MobileNav({ children }: { children: ReactNode }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="bg-sidebar p-0">
           <SheetTitle className="sr-only">Menu</SheetTitle>
-          {children}
+          <div className="flex h-full flex-col">
+            <div className="min-h-0 flex-1">{children}</div>
+            {/* The phone view: timer, quick logging and evidence. */}
+            <Link
+              href="/m"
+              className="flex items-center gap-2 border-t border-sidebar-border px-4 py-3 text-sm text-brand"
+            >
+              <Smartphone className="size-4" /> Phone view
+            </Link>
+          </div>
         </SheetContent>
       </Sheet>
     </>
