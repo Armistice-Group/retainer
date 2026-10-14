@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
 import { OrgSettingsForm } from "./org-settings-form";
 import { OrgLogoCard } from "./org-logo-card";
 import { InstanceUrlCard } from "./instance-url-card";
 import { getConfiguredPublicUrl, getRequestOrigin } from "@/lib/url";
+
+export const metadata: Metadata = { title: "Settings" };
 
 export default async function OrgSettingsPage() {
   const { org, role } = await requireOrgContext();
@@ -32,16 +35,20 @@ export default async function OrgSettingsPage() {
                 invoicePrefix: org.invoicePrefix,
                 defaultCurrency: org.defaultCurrency,
                 defaultTaxRate: org.defaultTaxRate.toString(),
-                defaultBillRate: org.defaultBillRate?.toString() ?? "",
+                // Members see this page read-only, without rates or secrets.
+                defaultBillRate: readOnly ? "" : (org.defaultBillRate?.toString() ?? ""),
                 defaultPaymentTerms: org.defaultPaymentTerms,
-                overheadPercent: org.overheadPercent.toString(),
-                expenseApprovalThreshold: org.expenseApprovalThreshold.toString(),
+                overheadPercent: readOnly ? "" : org.overheadPercent.toString(),
+                expenseApprovalThreshold: readOnly ? "" : org.expenseApprovalThreshold.toString(),
                 timesheetApproval: org.timesheetApproval,
                 clockRoundingMinutes: String(org.clockRoundingMinutes),
-                externalBillingLabel: org.externalBillingLabel,
-                externalBillingUrl: org.externalBillingUrl,
-                slackWebhookUrl: org.slackWebhookUrl,
+                externalBillingLabel: readOnly ? null : org.externalBillingLabel,
+                externalBillingUrl: readOnly ? null : org.externalBillingUrl,
+                slackWebhookUrl: readOnly ? null : org.slackWebhookUrl,
                 brandColor: org.brandColor,
+                businessAddress: org.businessAddress,
+                taxId: org.taxId,
+                nextInvoiceNumber: String(org.nextInvoiceNumber),
               }}
               readOnly={readOnly}
             />

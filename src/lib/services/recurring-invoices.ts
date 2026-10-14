@@ -7,6 +7,19 @@ import { formatCurrency } from "@/lib/format";
 import { autoSendInvoice } from "@/lib/services/invoice-delivery";
 import type { RecurringInvoiceSchedule } from "@/generated/prisma/client";
 
+/** The period a retainer invoice covers, for its line: "October 2026" for
+ * a calendar month, else "Oct 13 – Nov 12, 2026". */
+export function retainerPeriodLabel(start: Date, end: Date) {
+  const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format(d);
+  const lastOfMonth = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  if (start.getUTCDate() === 1 && end.getTime() === lastOfMonth.getTime()) {
+    return fmt(start, { month: "long", year: "numeric" });
+  }
+  const sameYear = start.getUTCFullYear() === end.getUTCFullYear();
+  return `${fmt(start, sameYear ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" })} – ${fmt(end, { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
 async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Date) {
   const issueDate = now;
   const dueDate = addDays(issueDate, schedule.dueInDays);
@@ -41,7 +54,11 @@ async function generateFromSchedule(schedule: RecurringInvoiceSchedule, now: Dat
     await tx.invoiceLineItem.create({
       data: {
         invoiceId: created.id,
-        description: schedule.description,
+        // "Monthly retainer — October 2026": what period it pays for.
+        description: `${schedule.description} — ${retainerPeriodLabel(
+          schedule.nextRunAt,
+          new Date(nextRunDate(schedule.nextRunAt, schedule.interval).getTime() - 86_400_000)
+        )}`,
         quantity: 1,
         rate: amount,
         amount,

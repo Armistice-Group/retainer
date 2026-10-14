@@ -83,7 +83,7 @@ export function ClientShareLinkCard({
               action={generateClientShareLinkAction.bind(null, clientId)}
               className="flex flex-wrap items-end gap-2"
             >
-              <ShareExpiryField id="client-share-regenerate" />
+              <ShareExpiryField id="client-share-regenerate" current={expiresAt} />
               <ConfirmSubmitButton
                 variant="outline"
                 size="sm"

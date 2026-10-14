@@ -1,14 +1,17 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { Download } from "lucide-react";
+import { AdminOnlyNotice } from "@/components/admin-only-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { ClientExportForm } from "./client-export-form";
 
+export const metadata: Metadata = { title: "Export" };
+
 export default async function ExportSettingsPage() {
   const { org, role } = await requireOrgContext();
-  if (role !== "OWNER" && role !== "ADMIN") notFound();
+  if (role !== "OWNER" && role !== "ADMIN") return <AdminOnlyNotice what="exports" />;
 
   const clients = await prisma.client.findMany({
     where: { orgId: org.id },

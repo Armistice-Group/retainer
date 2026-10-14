@@ -119,6 +119,8 @@ export default async function TasksPage({
       actualHours: hoursByTask.get(t.id) ?? 0,
       commentCount: t._count.comments,
       linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
+      projectId: t.project.id,
+      projectLabel: `${t.project.client.name} — ${t.project.name}`,
     });
   }
   const groups = [...groupMap.values()].sort(
@@ -135,10 +137,20 @@ export default async function TasksPage({
         : STATUS_RANK[a.status] - STATUS_RANK[b.status]
     );
   }
-  if (filters.sort === "due") {
-    // Projects with the soonest deadline first.
-    groups.sort((a, b) => byDue(a.tasks[0], b.tasks[0]));
-  }
+  // By due date: one list across projects, soonest first.
+  const shownGroups: TaskGroup[] =
+    filters.sort === "due" && groups.length
+      ? [
+          {
+            projectId: "by-due-date",
+            projectName: "",
+            clientName: "",
+            tasks: groups
+              .flatMap((g) => g.tasks)
+              .sort((a, b) => byDue(a, b) || STATUS_RANK[a.status] - STATUS_RANK[b.status]),
+          },
+        ]
+      : groups;
 
   // Tasks can only be assigned to project members, so projects without any
   // can't take one yet.
@@ -227,7 +239,8 @@ export default async function TasksPage({
       ) : null}
 
       <TasksBoard
-        groups={groups}
+        groups={shownGroups}
+        flat={filters.sort === "due"}
         openTaskDetail={openTaskDetail}
         runningTaskId={activeTimer?.taskId ?? null}
       />

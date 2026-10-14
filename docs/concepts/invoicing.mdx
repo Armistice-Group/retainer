@@ -127,7 +127,7 @@ This needs email set up on your instance (**Settings → Integrations**).
    that's already sent).
 2. Under **To**, untick anyone who shouldn't get it, and add anyone else
    (comma-separated, up to 20 in total). The defaults are the client's
-   contacts with **Include on invoice emails** ticked, else its billing email,
+   contacts with **Send invoices to this person** ticked, else its billing email,
    else its main email.
 3. Optional: add a **Message**.
 4. Click **Send invoice**.
@@ -207,7 +207,7 @@ retried on its own; fix the cause, then **Reschedule** it or send it now.
 | Reason shown | What to do |
 | --- | --- |
 | *Email isn't set up on this instance (Settings → Integrations).* | Set up [email](/integrations/email), then reschedule. |
-| *… has no invoice contact, billing email or email address.* | Add an email on the client (or tick **Include on invoice emails** on a contact), then reschedule. |
+| *… has no invoice contact, billing email or email address.* | Add an email on the client (or tick **Send invoices to this person** on a contact), then reschedule. |
 | *The email couldn't be delivered.* | Check your email settings, then reschedule or click **Email to client**. |
 
 When scheduling, *Pick a time in the future.* means the time you picked has
@@ -500,7 +500,7 @@ Billing cycles and retainers with **Send automatically** ticked email each
 invoice to the client as soon as it's generated, the same way
 **Email to client** does:
 
-- It goes to the client's contacts with **Include on invoice emails** ticked,
+- It goes to the client's contacts with **Send invoices to this person** ticked,
   else its billing email, else its main email (the same people the
   **Email to client** dialog starts with), with no message.
 - Replies go to the organization's owner.

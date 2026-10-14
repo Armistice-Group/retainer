@@ -13,6 +13,9 @@ export const projectSchema = z.object({
   billingType: z.enum(["HOURLY", "FLAT_FEE", "MILESTONE"]).default("HOURLY"),
   flatFeeAmount: z.coerce.number().positive("Flat fee must be greater than zero").optional(),
   paymentTerms: defaultPaymentTermsSchema,
+}).refine((p) => !p.startDate || !p.endDate || p.endDate >= p.startDate, {
+  message: "End date can't be before the start date",
+  path: ["endDate"],
 });
 
 export const projectMemberSchema = z.object({

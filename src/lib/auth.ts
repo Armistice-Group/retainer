@@ -22,6 +22,14 @@ function signInMethodFor(provider: string) {
   return provider === "google-two-factor" ? "google" : provider;
 }
 
+
+/** The 2FA code from a sign-in, or undefined when none was typed (signIn
+ * sends a missing value as the string "undefined"). */
+function submittedCode(value: unknown) {
+  const code = typeof value === "string" ? value.trim() : "";
+  return code && code !== "undefined" && code !== "null" ? code : undefined;
+}
+
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
@@ -34,7 +42,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       authorize: async (credentials) => {
         const email = credentials?.email as string | undefined;
         const password = credentials?.password as string | undefined;
-        const code = credentials?.code as string | undefined;
+        const code = submittedCode(credentials?.code);
         if (!email || !password) return null;
 
         const user = await prisma.user.findUnique({
@@ -76,7 +84,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         // An emailed link proves only the inbox, so it can't stand in for
         // the authenticator: ask for the code before using up the link.
         if (user.twoFactorEnabled && user.twoFactorSecret) {
-          const code = credentials?.code as string | undefined;
+          const code = submittedCode(credentials?.code);
           if (!code) throw new TwoFactorRequiredError();
           const ok = await verifyLoginTwoFactor(user.id, user.twoFactorSecret, code);
           if (!ok) throw new InvalidTwoFactorCodeError();
@@ -177,7 +185,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
       const dbUser = await prisma.user.findUnique({
         where: { id: token.id },
-        select: { sessionVersion: true, twoFactorEnabled: true },
+        select: { sessionVersion: true, twoFactorEnabled: true, name: true, email: true },
       });
       if (!dbUser) return null;
       if (user?.id) {
@@ -197,6 +205,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         if ((token.sessionVersion ?? 0) !== dbUser.sessionVersion) return null;
       }
       token.twoFactorEnabled = dbUser.twoFactorEnabled;
+      // A renamed profile (or confirmed new email) shows straight away.
+      token.name = dbUser.name;
+      token.email = dbUser.email;
       return token;
     },
     session(params) {
@@ -204,6 +215,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       const { token } = params;
       if (session.user) {
         session.user.twoFactorEnabled = token.twoFactorEnabled === true;
+        if (typeof token.name === "string") session.user.name = token.name;
+        if (typeof token.email === "string") session.user.email = token.email;
         session.user.signInMethod =
           typeof token.signInMethod === "string" ? token.signInMethod : null;
       }

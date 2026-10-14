@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BackLink } from "@/components/layout/back-link";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
@@ -27,6 +28,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
 
   return (
     <div className="mx-auto w-full max-w-5xl">
+      <BackLink href={`/projects/${project.id}`}>{project.name}</BackLink>
       <PageHeader title={`Edit ${project.name}`} />
       <ProjectForm
         action={boundAction}

@@ -58,6 +58,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
               name="password"
               type="password"
               autoComplete="new-password"
+              minLength={10}
               autoFocus
               required
             />

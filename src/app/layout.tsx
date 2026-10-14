@@ -3,6 +3,9 @@ import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { FormResetGuard } from "@/components/forms/form-reset-guard";
+import { FlashToaster } from "@/components/flash-toaster";
+import { Suspense } from "react";
 import { iconVersion } from "@/lib/branding";
 import { getOrigin } from "@/lib/url";
 
@@ -59,6 +62,10 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <FormResetGuard />
+          <Suspense>
+            <FlashToaster />
+          </Suspense>
         </ThemeProvider>
       </body>
     </html>

@@ -160,19 +160,26 @@ export async function completeMilestoneAction(
     fileContentType = file.type;
   }
 
+  // Evidence kept from before a reopen stays unless it's replaced.
+  const replacingFile = fileName != null;
   await prisma.milestone.update({
     where: { id: milestone.id },
     data: {
       completedAt: new Date(),
       completedById: user.id,
-      completionNote: parsed.data.completionNote,
-      completionUrl: parsed.data.completionUrl || null,
-      completionFileName: fileName,
-      completionFileData: stored.fileData,
-      completionStorageKey: stored.storageKey,
-      completionFileContentType: fileContentType,
+      completionNote: parsed.data.completionNote || milestone.completionNote,
+      completionUrl: parsed.data.completionUrl || milestone.completionUrl,
+      ...(replacingFile
+        ? {
+            completionFileName: fileName,
+            completionFileData: stored.fileData,
+            completionStorageKey: stored.storageKey,
+            completionFileContentType: fileContentType,
+          }
+        : {}),
     },
   });
+  if (replacingFile) await deleteStoredFile({ storageKey: milestone.completionStorageKey });
 
   revalidatePath(`/projects/${projectId}`);
   return null;
@@ -186,20 +193,12 @@ export async function reopenMilestoneAction(milestoneId: string, projectId: stri
   if (!milestone || milestone.projectId !== projectId) throw new Error("Milestone not found.");
   if (milestone.invoicedAt) throw new Error("This milestone has already been invoiced.");
 
+  // Back to pending; the note, link and file are kept for when it's
+  // completed again.
   await prisma.milestone.update({
     where: { id: milestoneId },
-    data: {
-      completedAt: null,
-      completedById: null,
-      completionNote: null,
-      completionUrl: null,
-      completionFileName: null,
-      completionFileData: null,
-      completionStorageKey: null,
-      completionFileContentType: null,
-    },
+    data: { completedAt: null, completedById: null },
   });
-  await deleteStoredFile({ storageKey: milestone.completionStorageKey });
 
   revalidatePath(`/projects/${projectId}`);
 }

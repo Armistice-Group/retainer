@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { requireOrgContext } from "@/lib/org-context";
+import { AdminOnlyNotice } from "@/components/admin-only-notice";
 import { prisma } from "@/lib/prisma";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { decrypt } from "@/lib/crypto";
@@ -15,13 +17,17 @@ import { RemindersCard } from "./reminders-card";
 import { DocsLink } from "@/components/docs-link";
 import { IntegrationCardHeader } from "@/components/integration-card-header";
 
+export const metadata: Metadata = { title: "Payments" };
+
 export default async function PaymentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ connect?: string }>;
 }) {
   const { org, role } = await requireOrgContext();
-  const readOnly = role === "MEMBER";
+  // Bank details and payment setup are for owners and admins.
+  if (role === "MEMBER") return <AdminOnlyNotice what="payment settings" />;
+  const readOnly = false;
   const { connect } = await searchParams;
 
   // Express accounts don't push us a webhook we're set up to receive for

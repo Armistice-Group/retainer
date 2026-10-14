@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import {
@@ -39,13 +40,21 @@ export function EditRateDialog({
   useEffect(() => {
     if (wasPending.current && !isPending && !state?.error && !state?.fieldErrors) {
       setOpen(false);
+      toast.success("Rate saved");
     }
     wasPending.current = isPending;
   }, [isPending, state]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button variant="ghost" size="icon" className="size-7" onClick={() => setOpen(true)}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        aria-label="Edit rate"
+        title="Edit rate"
+        onClick={() => setOpen(true)}
+      >
         <Pencil className="size-3.5" />
       </Button>
       <DialogContent>

@@ -41,7 +41,9 @@ export function DocumentAccessFields({
         <SelectContent>
           <SelectItem value="EVERYONE">Everyone in the organization</SelectItem>
           <SelectItem value="ADMINS">Owners & admins</SelectItem>
-          <SelectItem value="SELECTED">Specific people</SelectItem>
+          <SelectItem value="SELECTED" disabled={pickable.length === 0 && access !== "SELECTED"}>
+            Specific people{pickable.length === 0 ? " (no one else to pick yet)" : ""}
+          </SelectItem>
         </SelectContent>
       </Select>
       {access === "SELECTED" ? (

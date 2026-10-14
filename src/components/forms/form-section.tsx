@@ -36,7 +36,7 @@ export function Field({
 }: {
   id: string;
   label: string;
-  hint?: string;
+  hint?: React.ReactNode;
   error?: string[];
   /** Span both columns of the section's field grid. */
   wide?: boolean;

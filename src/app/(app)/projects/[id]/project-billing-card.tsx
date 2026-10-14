@@ -28,6 +28,7 @@ export function ProjectBillingCard({
   flatFeeAmount,
   invoicedTotal,
   invoices,
+  milestones = null,
 }: {
   clientId: string;
   currency: string;
@@ -36,6 +37,8 @@ export function ProjectBillingCard({
   flatFeeAmount: number | null;
   invoicedTotal: number;
   invoices: ProjectInvoiceItem[];
+  /** Milestone projects: the billable milestones' total, and what's done but not invoiced. */
+  milestones?: { total: number; readyToInvoice: number } | null;
 }) {
   const budgetPercent = budgetHours ? Math.min(100, (loggedHours / budgetHours) * 100) : 0;
   const over = budgetHours != null && loggedHours > budgetHours;
@@ -60,6 +63,22 @@ export function ProjectBillingCard({
                 {formatCurrency(flatFeeAmount, currency)}
               </p>
             </div>
+          ) : null}
+          {milestones ? (
+            <>
+              <div>
+                <p className="text-xs text-muted-foreground">Milestones total</p>
+                <p className="tabular-figures text-lg font-semibold">
+                  {formatCurrency(milestones.total, currency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Done, not invoiced</p>
+                <p className="tabular-figures text-lg font-semibold">
+                  {formatCurrency(milestones.readyToInvoice, currency)}
+                </p>
+              </div>
+            </>
           ) : null}
           <div>
             <p className="text-xs text-muted-foreground">Invoiced to date</p>
@@ -113,7 +132,7 @@ export function ProjectBillingCard({
                   <div className="flex items-center gap-2">
                     <FileText className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="font-medium">{invoice.number}</span>
-                    <InvoiceStatusBadge invoice={invoice} />
+                    <InvoiceStatusBadge invoice={{ ...invoice, dueDate: new Date(invoice.dueDate) }} />
                   </div>
                   <div className="flex items-center gap-3">
                     <span

@@ -47,6 +47,7 @@ export default async function ClientInvoicePage({
   const partlyPaid = isPartlyPaid(invoice);
   const timeDetail = await invoiceTimeDetail(invoice);
   const severalPeople = new Set(timeDetail?.map((e) => e.person)).size > 1;
+  const severalProjects = new Set(timeDetail?.map((e) => e.project)).size > 1;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -127,7 +128,7 @@ export default async function ClientInvoicePage({
           />
         )}
 
-        {invoice.status !== "VOID" && methods.length ? (
+        {invoice.status === "SENT" && methods.length ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">How to pay</CardTitle>
@@ -172,7 +173,10 @@ export default async function ClientInvoicePage({
                       <td className="tabular-figures px-2 py-2.5 text-right">{e.hours.toFixed(2)}</td>
                       {severalPeople ? <td className="whitespace-nowrap px-2 py-2.5">{e.person}</td> : null}
                       <td className="px-2 py-2.5 pr-6">
-                        <p>{[e.task, e.description].filter(Boolean).join(" · ") || e.project}</p>
+                        <p>
+                          {[severalProjects ? e.project : null, e.task, e.description].filter(Boolean).join(" · ") ||
+                            e.project}
+                        </p>
                         {e.evidence.length ? (
                           <ul className="mt-1.5 flex flex-wrap gap-2">
                             {e.evidence.map((file) => (

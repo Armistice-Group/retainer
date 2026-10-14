@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -35,7 +35,7 @@ export default async function ReportsPage({
   const lastDay = new Date(range.to.getTime() - 86_400_000);
   const query = `from=${iso(range.from)}&to=${iso(lastDay)}`;
 
-  const totals = report.projects.reduce(
+  const projectTotals = report.projects.reduce(
     (t, p) => ({
       invoiced: t.invoiced + p.invoiced,
       labor: t.labor + p.laborCost,
@@ -45,6 +45,13 @@ export default async function ReportsPage({
     }),
     { invoiced: 0, labor: 0, expenses: 0, profit: 0, value: 0 }
   );
+  // Invoiced lines on no project (retainers, discounts, manual lines)
+  // count toward invoiced and profit too.
+  const totals = {
+    ...projectTotals,
+    invoiced: projectTotals.invoiced + report.otherInvoiced,
+    profit: projectTotals.profit + report.otherInvoiced,
+  };
   const hours = report.people.reduce((s, p) => s + p.hours, 0);
   const billable = report.people.reduce((s, p) => s + p.billableHours, 0);
   const missingCost = report.projects.some((p) => p.missingCost);
@@ -56,7 +63,7 @@ export default async function ReportsPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Reports"
-        description={`${iso(range.from)} to ${iso(lastDay)} · Utilization, profit, unbilled work and receivables.`}
+        description={`${formatDate(range.from)} to ${formatDate(lastDay)} · Utilization, profit, unbilled work and receivables.`}
       />
 
       <div className="flex flex-wrap items-end gap-3">
@@ -151,7 +158,8 @@ export default async function ReportsPage({
       >
         <Table
           head={["Project", "Hours", "Invoiced", "Labor", "Expenses", "Profit", "Margin"]}
-          rows={report.projects.map((p) => [
+          rows={[
+            ...report.projects.map((p) => [
             <Link key={p.projectId} href={`/projects/${p.projectId}`} className="hover:underline">
               <span className="text-muted-foreground">{p.client} — </span>
               {p.project}
@@ -164,7 +172,23 @@ export default async function ReportsPage({
               {money(p.profit)}
             </span>,
             pct(p.margin),
-          ])}
+          ]),
+            ...(report.otherInvoiced
+              ? [
+                  [
+                    <span key="other" className="text-muted-foreground">
+                      Not on a project (retainers, discounts, other lines)
+                    </span>,
+                    "—",
+                    money(report.otherInvoiced),
+                    "—",
+                    "—",
+                    money(report.otherInvoiced),
+                    "—",
+                  ],
+                ]
+              : []),
+          ]}
           empty="No project activity in this range."
         />
       </Section>
@@ -172,7 +196,7 @@ export default async function ReportsPage({
       <div className="flex flex-col gap-6">
         <Section
           title="Unbilled work"
-          hint="Billable time, completed milestones and approved expenses not on an invoice yet (all time)."
+          hint="Billable time, completed milestones and approved expenses not on an invoice yet (all time). * Some hours have no bill rate set, so they count as $0; set rates on the project's team."
           exportHref={`/reports/export?section=unbilled&${query}`}
         >
           <Table
@@ -182,9 +206,13 @@ export default async function ReportsPage({
                 {u.client}
               </Link>,
               u.hours.toFixed(2),
-              money(u.total),
+              u.noRateHours > 0 && u.total === 0 ? (
+                <span key="norate" className="text-muted-foreground">No rate set</span>
+              ) : (
+                `${money(u.total)}${u.noRateHours > 0 ? "*" : ""}`
+              ),
             ])}
-            empty="Everything is invoiced."
+            empty={hours > 0 ? "All billable work is invoiced." : "Nothing logged yet."}
           />
         </Section>
         <Section

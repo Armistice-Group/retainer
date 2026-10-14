@@ -141,8 +141,13 @@ test.describe("time detail on invoices", () => {
 
 test.describe("on the Time page", () => {
   test.use({ storageState: STORAGE.ownerA });
+  test.afterEach(async () => {
+    await sql(`UPDATE "Client" SET "invoiceTimeDetail" = false WHERE id = $1`, [A.client.id]);
+  });
 
   test("evidence picked while logging time is saved and can be shared", async ({ page }) => {
+    // Sharing is offered only when the client shows time detail.
+    await sql(`UPDATE "Client" SET "invoiceTimeDetail" = true WHERE id = $1`, [A.client.id]);
     await page.goto("/time?week=2025-06-02");
     await page.getByRole("button", { name: "Log time" }).first().click();
     const dialog = page.getByRole("dialog");

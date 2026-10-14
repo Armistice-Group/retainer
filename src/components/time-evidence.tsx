@@ -118,33 +118,45 @@ function DropZone({
   );
 }
 
+/** Pasted screenshots arrive as "image.png"; name them by the local time. */
+function namePasted(files: File[]) {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+  return files.map((file, i) => {
+    if (!/^image\.(png|jpe?g|gif|webp)$/i.test(file.name)) return file;
+    const ext = file.name.split(".").pop();
+    const suffix = files.length > 1 ? ` (${i + 1})` : "";
+    return new File([file], `Screenshot ${stamp}${suffix}.${ext}`, { type: file.type });
+  });
+}
+
 /**
- * Evidence chosen while logging or editing time; sent with the form as
- * "attachments" (and "attachmentsClientVisible").
+ * Evidence chosen while logging or editing time. The form adds `files` to
+ * what it submits as "attachments" (with "attachmentsClientVisible").
  */
-export function EvidencePicker({ error }: { error?: string }) {
-  const [files, setFiles] = useState<File[]>([]);
-  const fieldRef = useRef<HTMLInputElement>(null);
-
-  // The form submits whatever the hidden input holds.
-  useEffect(() => {
-    if (!fieldRef.current) return;
-    const transfer = new DataTransfer();
-    files.forEach((f) => transfer.items.add(f));
-    fieldRef.current.files = transfer.files;
-  }, [files]);
-
-  const add = (more: File[]) => setFiles((current) => [...current, ...more]);
+export function EvidencePicker({
+  files,
+  onChange,
+  canShare,
+  error,
+}: {
+  files: File[];
+  onChange: (files: File[]) => void;
+  /** The project's client has "Show time detail on invoices" on. */
+  canShare: boolean;
+  error?: string;
+}) {
+  const add = (more: File[]) => onChange([...files, ...namePasted(more)]);
   usePastedFiles(add);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <Label>Evidence (optional)</Label>
-      <input ref={fieldRef} type="file" name="attachments" multiple hidden tabIndex={-1} aria-hidden />
       {files.length ? (
         <ul className="flex flex-col gap-1">
           {files.map((file, i) => (
-            <li key={`${file.name}-${i}`} className="flex items-center gap-2 text-sm">
+            <li key={`${file.name}-${i}`} className="flex min-w-0 items-center gap-2 text-sm">
               {file.type === "application/pdf" ? (
                 <FileText className="size-4 shrink-0 text-muted-foreground" />
               ) : (
@@ -158,7 +170,7 @@ export function EvidencePicker({ error }: { error?: string }) {
                 size="icon"
                 className="size-6"
                 aria-label={`Remove ${file.name}`}
-                onClick={() => setFiles((current) => current.filter((_, j) => j !== i))}
+                onClick={() => onChange(files.filter((_, j) => j !== i))}
               >
                 <X className="size-3.5" />
               </Button>
@@ -167,7 +179,7 @@ export function EvidencePicker({ error }: { error?: string }) {
         </ul>
       ) : null}
       <DropZone onFiles={add} compact />
-      {files.length ? (
+      {files.length && canShare ? (
         <div className="flex items-center gap-2">
           <Checkbox id="te-evidence-visible" name="attachmentsClientVisible" />
           <Label htmlFor="te-evidence-visible" className="text-sm font-normal">
@@ -187,6 +199,7 @@ export function EvidenceDialog({
   items,
   canEdit,
   clientSeesDetail,
+  clientId,
 }: {
   entryId: string;
   /** What the entry is, for the dialog's heading. */
@@ -195,6 +208,8 @@ export function EvidenceDialog({
   canEdit: boolean;
   /** The client has "Show time detail on invoices" on. */
   clientSeesDetail: boolean;
+  /** For the link to turn time detail on. */
+  clientId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -210,8 +225,13 @@ export function EvidenceDialog({
 
   function upload(files: File[]) {
     const form = new FormData();
-    files.forEach((f) => form.append("attachments", f));
-    run(() => addTimeEntryAttachmentsAction(entryId, form));
+    const named = namePasted(files);
+    named.forEach((f) => form.append("attachments", f));
+    startTransition(async () => {
+      const result = await addTimeEntryAttachmentsAction(entryId, form);
+      if (result?.error) toast.error(result.error);
+      else toast.success(named.length === 1 ? `Added ${named[0].name}` : `Added ${named.length} files`);
+    });
   }
 
   if (!canEdit && items.length === 0) return null;
@@ -284,7 +304,7 @@ export function EvidenceDialog({
                       <Checkbox
                         id={`ev-visible-${item.id}`}
                         checked={visibleOverride[item.id] ?? item.clientVisible}
-                        disabled={!canEdit}
+                        disabled={!canEdit || !clientSeesDetail}
                         onCheckedChange={(checked) => {
                           const visible = checked === true;
                           setVisibleOverride((current) => ({ ...current, [item.id]: visible }));
@@ -311,9 +331,21 @@ export function EvidenceDialog({
         )}
         {canEdit ? <DropZone onFiles={upload} busy={pending} /> : null}
         <p className="text-xs text-muted-foreground">
-          {clientSeesDetail
-            ? "Files the client can see are linked from the time detail on their invoice once this entry is invoiced."
-            : "Only your team sees these. To show them to the client, turn on “Show time detail on invoices” on the client."}
+          {clientSeesDetail ? (
+            "Files the client can see are linked from the time detail on their invoice once this entry is invoiced."
+          ) : (
+            <>
+              Only your team sees these. To share them with the client, turn on{" "}
+              {clientId ? (
+                <a href={`/clients/${clientId}/edit`} className="font-medium text-foreground underline underline-offset-2">
+                  Show time detail on invoices
+                </a>
+              ) : (
+                "Show time detail on invoices"
+              )}{" "}
+              for the client.
+            </>
+          )}
         </p>
       </DialogContent>
     </Dialog>

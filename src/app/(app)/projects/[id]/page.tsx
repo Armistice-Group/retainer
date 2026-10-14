@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { notFound } from "next/navigation";
-import { Pencil, Trash2, Users, ListTodo, Lock } from "lucide-react";
+import { Clock, Pencil, Trash2, Users, ListTodo, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { canViewProject } from "@/lib/project-access";
@@ -185,7 +186,13 @@ export default async function ProjectDetailPage({
     actualHours: actualHoursByTask.get(t.id) ?? 0,
     linearKey: t.externalLink?.source === "linear" ? t.externalLink.externalKey : null,
     linearUrl: t.externalLink?.source === "linear" ? t.externalLink.externalUrl : null,
-  }));
+  }))
+    // Open work first, soonest due first (undated after), then newest.
+    .sort(
+      (a, b) =>
+        Number(a.status === "DONE") - Number(b.status === "DONE") ||
+        (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")
+    );
 
   const milestoneItems: MilestoneItem[] = project.milestones.map((m) => ({
     id: m.id,
@@ -217,6 +224,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div>
+      <BackLink href="/projects">Projects</BackLink>
       <PageHeader
         title={project.name}
         description={
@@ -228,6 +236,13 @@ export default async function ProjectDetailPage({
         }
         actions={
           <>
+            {project.status === "ACTIVE" ? (
+              <Button size="sm" asChild>
+                <Link href={`/time?log=1&project=${project.id}`}>
+                  <Clock className="size-3.5" /> Log time
+                </Link>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" asChild>
               <Link href={`/projects/${project.id}/edit`}>
                 <Pencil className="size-3.5" /> Edit
@@ -263,8 +278,38 @@ export default async function ProjectDetailPage({
 
       <ProjectEstimates projectId={project.id} orgId={org.id} userId={user.id} role={role} />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="flex flex-col gap-4 lg:col-span-1">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-1">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Tasks</CardTitle>
+              {project.members.length > 0 ? (
+                <AddTaskDialog
+                  projects={[
+                    { id: project.id, label: project.name, members: projectMemberOptions },
+                  ]}
+                />
+              ) : null}
+            </CardHeader>
+            <CardContent>
+              {project.members.length === 0 ? (
+                <EmptyState
+                  icon={ListTodo}
+                  title="Add a team member first"
+                  description="Tasks can be assigned once someone is on the project."
+                />
+              ) : (
+                <TaskList
+                  projectId={project.id}
+                  tasks={taskItems}
+                  members={projectMemberOptions}
+                  openTaskDetail={openTaskDetail}
+                  runningTaskId={activeTimer?.taskId ?? null}
+                />
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Links</CardTitle>
@@ -381,16 +426,16 @@ export default async function ProjectDetailPage({
                             <form
                               action={removeProjectMemberAction.bind(null, member.id, project.id)}
                             >
-                              <Button
+                              <ConfirmSubmitButton
                                 variant="ghost"
                                 size="icon"
                                 className="size-7"
-                                type="submit"
                                 aria-label={`Remove ${member.user.name ?? member.user.email ?? "team member"} from project`}
                                 title="Remove from project"
+                                confirmMessage={`Remove ${member.user.name ?? member.user.email ?? "this person"} from ${project.name}? Their logged time stays.`}
                               >
                                 <Trash2 className="size-3.5" />
-                              </Button>
+                              </ConfirmSubmitButton>
                             </form>
                           </>
                         ) : null}
@@ -424,35 +469,6 @@ export default async function ProjectDetailPage({
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Tasks</CardTitle>
-              {project.members.length > 0 ? (
-                <AddTaskDialog
-                  projects={[
-                    { id: project.id, label: project.name, members: projectMemberOptions },
-                  ]}
-                />
-              ) : null}
-            </CardHeader>
-            <CardContent>
-              {project.members.length === 0 ? (
-                <EmptyState
-                  icon={ListTodo}
-                  title="Add a team member first"
-                  description="Tasks can be assigned once someone is on the project."
-                />
-              ) : (
-                <TaskList
-                  projectId={project.id}
-                  tasks={taskItems}
-                  members={projectMemberOptions}
-                  openTaskDetail={openTaskDetail}
-                  runningTaskId={activeTimer?.taskId ?? null}
-                />
-              )}
-            </CardContent>
-          </Card>
 
           {linearConnection ? (
             <LinearSyncCard
@@ -477,7 +493,7 @@ export default async function ProjectDetailPage({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-4 lg:col-span-2">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
           <ProjectBillingCard
             clientId={project.client.id}
             currency={org.defaultCurrency}
@@ -490,6 +506,16 @@ export default async function ProjectDetailPage({
             }
             invoicedTotal={invoicedTotal}
             invoices={projectInvoices}
+            milestones={
+              project.billingType === "MILESTONE"
+                ? {
+                    total: milestoneItems.filter((m) => m.billable).reduce((sum, m) => sum + m.amount, 0),
+                    readyToInvoice: milestoneItems
+                      .filter((m) => m.billable && m.completedAt && !m.invoicedAt)
+                      .reduce((sum, m) => sum + m.amount, 0),
+                  }
+                : null
+            }
           />
 
           {project.billingType === "MILESTONE" || milestoneItems.length > 0 || canManage ? (

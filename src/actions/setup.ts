@@ -5,6 +5,7 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordAuditEvent, withoutRowAudit } from "@/lib/audit";
 import { uniqueOrgSlug } from "@/lib/org";
 import { setupSchema } from "@/lib/validations/auth";
 import { checkSetupToken, isSetupComplete, markSetupComplete } from "@/lib/setup";
@@ -47,22 +48,44 @@ export async function completeSetupAction(
   const passwordHash = await bcrypt.hash(password, 12);
   const slug = await uniqueOrgSlug(orgName);
 
+  let created: { orgId: string; userId: string; membershipId: string };
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SETUP_LOCK_KEY})`;
-      if (await tx.user.findFirst({ select: { id: true } })) {
-        throw new SetupAlreadyCompleteError();
-      }
-      const org = await tx.organization.create({ data: { name: orgName, slug } });
-      const user = await tx.user.create({ data: { name, email, passwordHash } });
-      await tx.membership.create({ data: { userId: user.id, orgId: org.id, role: "OWNER" } });
-    });
+    // The audit log can't point at the organization until it's committed,
+    // so the rows go in unaudited and are logged just after.
+    created = await withoutRowAudit(() =>
+      prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SETUP_LOCK_KEY})`;
+        if (await tx.user.findFirst({ select: { id: true } })) {
+          throw new SetupAlreadyCompleteError();
+        }
+        const org = await tx.organization.create({ data: { name: orgName, slug } });
+        const user = await tx.user.create({ data: { name, email, passwordHash } });
+        const membership = await tx.membership.create({
+          data: { userId: user.id, orgId: org.id, role: "OWNER" },
+        });
+        return { orgId: org.id, userId: user.id, membershipId: membership.id };
+      })
+    );
   } catch (err) {
     if (err instanceof SetupAlreadyCompleteError) {
       markSetupComplete();
       redirect("/login");
     }
     throw err;
+  }
+
+  for (const [entityType, entityId, entityLabel] of [
+    ["Organization", created.orgId, orgName],
+    ["Membership", created.membershipId, `${name} (owner)`],
+  ] as const) {
+    await recordAuditEvent(prisma, {
+      orgIds: [created.orgId],
+      actorId: created.userId,
+      action: "create",
+      entityType,
+      entityId,
+      entityLabel,
+    });
   }
 
   markSetupComplete();

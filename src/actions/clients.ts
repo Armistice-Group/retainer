@@ -1,5 +1,6 @@
 "use server";
 
+import { flash } from "@/lib/flash";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
@@ -123,7 +124,8 @@ export async function updateClientAction(
   if (website && website !== current.website) after(() => refreshWebsiteIcon(clientId));
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
-  return null;
+  await flash(`Saved ${parsed.data.name}`);
+  redirect(`/clients/${clientId}`);
 }
 
 export async function deleteClientAction(clientId: string) {
@@ -131,6 +133,7 @@ export async function deleteClientAction(clientId: string) {
   requireRole(role, ["OWNER", "ADMIN"]);
   await prisma.client.delete({ where: { id: clientId, orgId: org.id } });
   revalidatePath("/clients");
+  await flash("Client deleted");
   redirect("/clients");
 }
 

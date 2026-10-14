@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { projectVisibilityWhere } from "@/lib/project-access";
@@ -51,6 +52,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         projectName: activeTimerRow.project.name,
         taskId: activeTimerRow.taskId,
         taskTitle: activeTimerRow.task?.title ?? null,
+        billable: activeTimerRow.billable,
       }
     : null;
 
@@ -60,31 +62,40 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     clientName: p.client.name,
   }));
 
+  const sidebar = (
+    <>
+      <div className="flex h-14 items-center border-b border-sidebar-border px-4">
+        <Link href="/dashboard" className="min-w-0 text-base">
+          {org.appBranding ? <OrgBrand name={org.name} logoUrl={orgLogoUrl(org)} /> : <Wordmark />}
+        </Link>
+      </div>
+      <div className="border-b border-sidebar-border py-2">
+        <OrgSwitcher memberships={orgOptions} activeOrgId={org.id} />
+      </div>
+      <div className="flex-1 overflow-y-auto py-3">
+        <SidebarNav isAdmin={role === "OWNER" || role === "ADMIN"} />
+      </div>
+      <p
+        className="px-4 py-3 text-xs text-muted-foreground tabular-figures"
+        title={APP_VERSION_TITLE}
+      >
+        {APP_VERSION_LABEL}
+      </p>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen w-full">
       {org.appAccentFromBrand ? <BrandAccentStyle color={org.brandColor} /> : null}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <div className="flex h-14 items-center border-b border-sidebar-border px-4">
-          <Link href="/dashboard" className="min-w-0 text-base">
-            {org.appBranding ? <OrgBrand name={org.name} logoUrl={orgLogoUrl(org)} /> : <Wordmark />}
-          </Link>
-        </div>
-        <div className="border-b border-sidebar-border py-2">
-          <OrgSwitcher memberships={orgOptions} activeOrgId={org.id} />
-        </div>
-        <div className="flex-1 overflow-y-auto py-3">
-          <SidebarNav isAdmin={role === "OWNER" || role === "ADMIN"} />
-        </div>
-        <p
-          className="px-4 py-3 text-xs text-muted-foreground tabular-figures"
-          title={APP_VERSION_TITLE}
-        >
-          {APP_VERSION_LABEL}
-        </p>
+        {sidebar}
       </aside>
 
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center gap-2 border-b border-border px-4 md:px-6">
+          <MobileNav>
+            <div className="flex h-full flex-col">{sidebar}</div>
+          </MobileNav>
           <TimerWidget activeTimer={activeTimer} projects={projectOptions} tasks={tasks} />
           <div className="ml-auto flex items-center gap-2">
             <NotificationBell notifications={notifications} />

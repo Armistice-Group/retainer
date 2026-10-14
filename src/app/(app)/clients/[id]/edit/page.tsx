@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BackLink } from "@/components/layout/back-link";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { ClientForm } from "../../client-form";
@@ -22,6 +23,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto w-full max-w-5xl">
+      <BackLink href={`/clients/${client.id}`}>{client.name}</BackLink>
       <PageHeader title={`Edit ${client.name}`} />
       <ClientLogoCard
         clientId={client.id}

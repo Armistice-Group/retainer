@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PaymentTermsSelect } from "@/components/forms/payment-terms-select";
 import { updateOrgGeneralAction } from "@/actions/org";
 import { CLOCK_ROUNDING_OPTIONS, clockRoundingLabel } from "@/lib/clock-time";
+import { COMMON_CURRENCIES, currencyLabel, supportedCurrencies } from "@/lib/currencies";
 import type { ActionState } from "@/actions/auth";
 
 type Org = {
@@ -33,13 +36,34 @@ type Org = {
   externalBillingUrl: string | null;
   slackWebhookUrl: string | null;
   brandColor: string | null;
+  businessAddress: string | null;
+  taxId: string | null;
+  nextInvoiceNumber: string;
 };
 
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+function FieldError({ errors }: { errors?: string[] }) {
+  return errors?.[0] ? <p className="text-sm text-destructive">{errors[0]}</p> : null;
+}
+
 export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateOrgGeneralAction,
     null
   );
+  useActionFeedback(state, isPending, "Settings saved");
+  const errors = state?.fieldErrors ?? {};
+  const [brandColor, setBrandColor] = useState(org.brandColor ?? "");
+  const [prefix, setPrefix] = useState(org.invoicePrefix);
+  const [nextNumber, setNextNumber] = useState(org.nextInvoiceNumber);
+  const currencies = useMemo(() => {
+    const all = supportedCurrencies();
+    const rest = all.filter((c) => !COMMON_CURRENCIES.includes(c));
+    // Keep a stored code that isn't valid visible, so it can be fixed.
+    const current = all.includes(org.defaultCurrency) ? [] : [org.defaultCurrency];
+    return [...current, ...COMMON_CURRENCIES, ...rest];
+  }, [org.defaultCurrency]);
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -62,20 +86,53 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
           <Input
             id="invoicePrefix"
             name="invoicePrefix"
-            defaultValue={org.invoicePrefix}
+            value={prefix}
+            onChange={(e) => setPrefix(e.target.value)}
             disabled={readOnly}
             required
           />
+          <FieldError errors={errors.invoicePrefix} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="nextInvoiceNumber">Next invoice number</Label>
+          <Input
+            id="nextInvoiceNumber"
+            name="nextInvoiceNumber"
+            type="number"
+            min="1"
+            step="1"
+            value={nextNumber}
+            onChange={(e) => setNextNumber(e.target.value)}
+            disabled={readOnly}
+            required
+          />
+          {errors.nextInvoiceNumber ? (
+            <FieldError errors={errors.nextInvoiceNumber} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              The next invoice will be{" "}
+              <span className="font-medium text-foreground">
+                {prefix || "INV"}-{String(Number(nextNumber) || 1).padStart(4, "0")}
+              </span>
+              . Raise it to carry on from another tool.
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="defaultCurrency">Default currency</Label>
-          <Input
-            id="defaultCurrency"
-            name="defaultCurrency"
-            defaultValue={org.defaultCurrency}
-            disabled={readOnly}
-            required
-          />
+          <Select name="defaultCurrency" defaultValue={org.defaultCurrency} disabled={readOnly}>
+            <SelectTrigger id="defaultCurrency" className="w-full" aria-invalid={!!errors.defaultCurrency || undefined}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {currencies.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {currencyLabel(code)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldError errors={errors.defaultCurrency} />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="defaultTaxRate">Default tax rate (%)</Label>
@@ -90,6 +147,7 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             required
           />
         </div>
+        {readOnly ? null : (
         <div className="flex flex-col gap-2">
           <Label htmlFor="defaultBillRate">Default bill rate ({org.defaultCurrency}/hr)</Label>
           <Input
@@ -115,6 +173,7 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             </p>
           )}
         </div>
+        )}
         <div className="flex flex-col gap-2">
           <Label htmlFor="defaultPaymentTerms">Default payment terms</Label>
           <PaymentTermsSelect
@@ -127,6 +186,8 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             Clients and projects can set their own.
           </p>
         </div>
+        {readOnly ? null : (
+        <>
         <div className="flex flex-col gap-2">
           <Label htmlFor="overheadPercent">Overhead (%)</Label>
           <Input
@@ -161,6 +222,8 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             can be invoiced. Admins&apos; own expenses are always auto-approved.
           </p>
         </div>
+        </>
+        )}
         <div className="flex flex-col gap-2">
           <Label htmlFor="timesheetApproval">Timesheet approval</Label>
           <Select
@@ -178,8 +241,9 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            People covered submit each week from Time; an admin approves it before that time
-            can be invoiced.
+            People covered submit each week from Time; an owner or admin approves it before
+            that time can be invoiced. Owners and admins approve rather than submit, so this
+            changes nothing for a one-person organization.
           </p>
         </div>
         <div className="flex flex-col gap-2">
@@ -208,24 +272,44 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
         <div className="flex flex-col gap-2">
           <Label htmlFor="brandColor">Brand color</Label>
           <div className="flex items-center gap-2">
-            <input
-              type="color"
-              aria-label="Brand color picker"
-              className="size-9 shrink-0 cursor-pointer rounded-md border"
-              value={/^#[0-9a-fA-F]{6}$/.test(org.brandColor ?? "") ? (org.brandColor as string) : "#4f6df5"}
-              onChange={(e) => {
-                const input = document.getElementById("brandColor") as HTMLInputElement | null;
-                if (input) input.value = e.target.value;
-              }}
-              disabled={readOnly}
-            />
+            <label
+              className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-md border border-border"
+              title={HEX.test(brandColor) ? brandColor : "No brand color — pick one"}
+              style={
+                HEX.test(brandColor)
+                  ? { backgroundColor: brandColor }
+                  : {
+                      backgroundImage:
+                        "linear-gradient(to top right, transparent calc(50% - 1px), var(--color-muted-foreground) calc(50% - 1px), var(--color-muted-foreground) calc(50% + 1px), transparent calc(50% + 1px))",
+                    }
+              }
+            >
+              <input
+                type="color"
+                aria-label="Brand color picker"
+                className="absolute inset-0 size-full cursor-pointer opacity-0"
+                value={HEX.test(brandColor) ? brandColor : "#4f6df5"}
+                onChange={(e) => setBrandColor(e.target.value)}
+                disabled={readOnly}
+              />
+            </label>
             <Input
               id="brandColor"
               name="brandColor"
-              placeholder="#4f6df5"
-              defaultValue={org.brandColor ?? ""}
+              placeholder="None"
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
               disabled={readOnly}
             />
+            {brandColor && !readOnly ? (
+              <button
+                type="button"
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setBrandColor("")}
+              >
+                Clear
+              </button>
+            ) : null}
           </div>
           {state?.fieldErrors?.brandColor ? (
             <p className="text-sm text-destructive">{state.fieldErrors.brandColor[0]}</p>
@@ -235,6 +319,35 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             </p>
           )}
         </div>
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="businessAddress">Business address</Label>
+          <Textarea
+            id="businessAddress"
+            name="businessAddress"
+            rows={3}
+            placeholder={"123 Main St\nSpringfield, IL 62701"}
+            defaultValue={org.businessAddress ?? ""}
+            disabled={readOnly}
+          />
+          <FieldError errors={errors.businessAddress} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="taxId">Tax ID</Label>
+          <Input
+            id="taxId"
+            name="taxId"
+            placeholder="EIN, VAT or ABN number"
+            defaultValue={org.taxId ?? ""}
+            disabled={readOnly}
+          />
+          <FieldError errors={errors.taxId} />
+          <p className="text-xs text-muted-foreground">
+            The address and tax ID appear under your name on invoices. Leave blank to leave them off.
+          </p>
+        </div>
+        <div className="hidden sm:block" />
+        {readOnly ? null : (
+        <>
         <div className="flex flex-col gap-2">
           <Label htmlFor="externalBillingLabel">External billing tool name</Label>
           <Input
@@ -289,6 +402,8 @@ export function OrgSettingsForm({ org, readOnly }: { org: Org; readOnly: boolean
             .
           </p>
         </div>
+        </>
+        )}
       </div>
 
       {!readOnly ? (

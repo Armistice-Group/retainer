@@ -78,7 +78,7 @@ export function TwoFactorCard({
           <Badge variant="secondary">Enabled</Badge>
         </CardHeader>
         <CardContent>
-          <form action={disableAction} className="flex flex-col gap-3">
+          <form action={disableAction} data-allow-reset className="flex flex-col gap-3">
             {disableState?.error ? (
               <Alert variant="destructive">
                 <AlertDescription>{disableState.error}</AlertDescription>
@@ -143,7 +143,7 @@ export function TwoFactorCard({
               Open in authenticator app
             </a>
           </div>
-          <form action={confirmAction} className="flex flex-col gap-3">
+          <form action={confirmAction} data-allow-reset className="flex flex-col gap-3">
             {doneHref ? <input type="hidden" name="from" value="required-setup" /> : null}
             {confirmState?.error ? (
               <Alert variant="destructive">

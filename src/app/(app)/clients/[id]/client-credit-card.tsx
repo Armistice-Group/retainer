@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { clientCredit } from "@/lib/services/payments";
+import { balanceDue } from "@/lib/invoice-balance";
 import { voidCreditNoteAction } from "@/actions/payments";
 import { LedgerActionButton } from "@/app/(app)/invoices/[id]/payment-dialogs";
 import { DepositInvoiceDialog, IssueCreditNoteDialog } from "./credit-dialogs";
@@ -20,7 +21,7 @@ export async function ClientCreditCard({
   projects: { id: string; name: string; flatFeeAmount: number | null }[];
   openInvoices: { id: string; number: string; status: string; kind: string }[];
 }) {
-  const [credit, creditNotes, deposits] = await Promise.all([
+  const [credit, creditNotes, deposits, balances] = await Promise.all([
     clientCredit(clientId),
     prisma.creditNote.findMany({
       where: { clientId },
@@ -34,7 +35,12 @@ export async function ClientCreditCard({
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    prisma.invoice.findMany({
+      where: { id: { in: openInvoices.map((i) => i.id) } },
+      select: { id: true, total: true, amountPaid: true, creditApplied: true, currency: true },
+    }),
   ]);
+  const due = new Map(balances.map((b) => [b.id, { balance: balanceDue(b), currency: b.currency }]));
 
   return (
     <Card>
@@ -51,7 +57,9 @@ export async function ClientCreditCard({
           <IssueCreditNoteDialog
             clientId={clientId}
             currency={defaultCurrency}
-            invoices={openInvoices.filter((i) => i.kind === "STANDARD")}
+            invoices={openInvoices
+              .filter((i) => i.kind === "STANDARD")
+              .map((i) => ({ ...i, balance: due.get(i.id)?.balance ?? 0, currency: due.get(i.id)?.currency ?? defaultCurrency }))}
           />
         </div>
       </CardHeader>

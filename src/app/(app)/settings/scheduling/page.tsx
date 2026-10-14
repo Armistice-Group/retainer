@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
@@ -9,6 +10,8 @@ import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { disconnectSchedulingAction } from "@/actions/scheduling";
 import { schedulingSettings } from "@/lib/services/scheduling";
 import { ActionButton, CalcomForm, CalendlyForm, CompanyQuestionForm, EventTypeRow, OrgBookingUrlForm } from "./forms";
+
+export const metadata: Metadata = { title: "Scheduling" };
 
 const when = (d: Date) => d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 

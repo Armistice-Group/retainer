@@ -144,7 +144,19 @@ function CycleSummary({ cycle }: { cycle: BillingCycleItem }) {
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
         <dt className="text-muted-foreground">Next invoice</dt>
-        <dd>{cycle.active ? formatDate(cycle.nextRunAt) : "—"}</dd>
+        <dd>
+          {cycle.active ? (
+            <>
+              {formatDate(cycle.nextRunAt)}
+              <span className="text-xs text-muted-foreground">
+                {" "}
+                · made by the daily scheduler that day, for time logged before it
+              </span>
+            </>
+          ) : (
+            "—"
+          )}
+        </dd>
         <dt className="text-muted-foreground">Terms</dt>
         <dd>{terms}</dd>
         <dt className="text-muted-foreground">On generate</dt>

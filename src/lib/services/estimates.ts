@@ -652,7 +652,7 @@ export function projectPlanFor(estimate: {
 
 /** Creates the project an accepted estimate describes: named after its
  * title, for its client, with the proposed (or derived) billing type and
- * budget, and a milestone per line flagged as one. Links the estimate to
+ * budget, and (on a milestone project) a milestone per line. Links the estimate to
  * it. Once per estimate. */
 export async function createProjectFromEstimate(ctx: EstimateContext, estimateId: string) {
   requireManager(ctx);
@@ -709,8 +709,11 @@ export async function createProjectFromEstimate(ctx: EstimateContext, estimateId
     if (!linked) throw new EstimateError("This estimate is already linked to a project.");
 
     if (plan.createsMilestones) {
+      // Every line becomes a milestone, flagged or not: on a milestone
+      // project only milestones are billed, so an unflagged line left out
+      // would be work the client agreed to that never gets invoiced.
       let sortOrder = 0;
-      for (const line of estimate.lineItems.filter((l) => l.isMilestone)) {
+      for (const line of estimate.lineItems) {
         const dueDate =
           line.milestoneDueDate ??
           (line.milestoneDueDays != null

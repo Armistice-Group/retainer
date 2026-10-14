@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,8 @@ import { updateProfileAction, changePasswordAction, changeEmailAction } from "@/
 import type { ActionState } from "@/actions/auth";
 
 export function ProfileNameForm({ name }: { name: string }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(updateProfileAction, null);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(updateProfileAction, null);
+  useActionFeedback(state, isPending, "Name saved");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -96,8 +98,9 @@ export function ChangeEmailForm({
 export function ChangePasswordForm() {
   const [state, formAction] = useActionState<ActionState, FormData>(changePasswordAction, null);
 
+  // Passwords clear after each try (data-allow-reset).
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} data-allow-reset className="flex flex-col gap-4">
       {state?.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>

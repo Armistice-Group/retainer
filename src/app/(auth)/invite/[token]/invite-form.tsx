@@ -55,6 +55,7 @@ export function InviteForm({
                   name="password"
                   type="password"
                   autoComplete="new-password"
+                  minLength={10}
                   required
                 />
                 {state?.fieldErrors?.password ? (

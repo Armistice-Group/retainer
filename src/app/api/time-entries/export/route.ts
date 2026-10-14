@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       weekEnd,
       filterUserId,
     }),
-    include: { project: { include: { client: true } }, user: true },
+    include: { project: { include: { client: true } }, user: true, task: { select: { title: true } } },
     orderBy: [{ date: "asc" }, { startMinute: { sort: "asc", nulls: "last" } }, { project: { name: "asc" } }],
   });
 
@@ -40,6 +40,7 @@ export async function GET(req: Request) {
     "End",
     "Client",
     "Project",
+    "Task",
     "User",
     "Hours",
     "Billable",
@@ -53,6 +54,7 @@ export async function GET(req: Request) {
     e.endMinute != null ? formatClockTime(e.endMinute) : "",
     e.project.client.name,
     e.project.name,
+    e.task?.title ?? "",
     e.user.name,
     Number(e.hours).toFixed(2),
     e.billable ? "Yes" : "No",
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="time-entries-${toISODate(weekStart)}.csv"`,
+      "Content-Disposition": `attachment; filename="${teamView ? "team-" : ""}time-week-of-${toISODate(weekStart)}.csv"`,
     },
   });
 }

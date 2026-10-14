@@ -1,5 +1,6 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { AdminOnlyNotice } from "@/components/admin-only-notice";
 import { Download, ScrollText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
@@ -20,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/empty-state";
 
+export const metadata: Metadata = { title: "Audit log" };
+
 const selectClass = "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm";
 
 export default async function AuditLogPage({
@@ -28,7 +31,7 @@ export default async function AuditLogPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { org, role } = await requireOrgContext();
-  if (role !== "OWNER" && role !== "ADMIN") notFound();
+  if (role !== "OWNER" && role !== "ADMIN") return <AdminOnlyNotice what="the audit log" />;
 
   const params = await searchParams;
   const filters = parseAuditFilters(params);

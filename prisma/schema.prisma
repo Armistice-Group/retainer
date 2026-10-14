@@ -126,6 +126,10 @@ model Organization {
   autoJoinDomain             Boolean               @default(true)
   invoicePrefix              String                @default("INV")
   nextInvoiceNumber          Int                   @default(1)
+  // Printed in the "From" block on invoices: the business's postal address
+  // (free text, line breaks kept) and tax/VAT/registration number.
+  businessAddress            String?               @db.Text
+  taxId                      String?
   // Estimates are numbered EST-0001, EST-0002, … per organization.
   nextEstimateNumber         Int                   @default(1)
   // Credit notes are numbered CN-0001, CN-0002, … per organization.

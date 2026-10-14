@@ -15,6 +15,35 @@ export function parseClockTime(value: string): number | null {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
+/**
+ * What people type into a time field: "9", "930", "0930", "9:30", "9.30",
+ * "9am", "1:30 pm", "13:00". Returns minutes after midnight, or null.
+ */
+export function parseLooseClockTime(value: string): number | null {
+  const text = value.trim().toLowerCase().replace(/\s+/g, "");
+  if (!text) return null;
+  const match = /^(\d{1,2})(?:[:.h]?(\d{2}))?(am|pm|a|p)?$/.exec(text);
+  if (!match) return parseClockTime(value);
+  let hour = Number(match[1]);
+  const minute = match[2] ? Number(match[2]) : 0;
+  const meridiem = match[3]?.[0];
+  if (minute > 59) return null;
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null;
+    if (meridiem === "a" && hour === 12) hour = 0;
+    if (meridiem === "p" && hour !== 12) hour += 12;
+  }
+  if (hour > 23) return null;
+  return hour * 60 + minute;
+}
+
+/** "1h 05m" for a span of minutes. */
+export function formatSpan(minutes: number) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h ? `${h}h ${String(m).padStart(2, "0")}m` : `${m} min`;
+}
+
 /** 570 → "09:30". */
 export function formatClockTime(minute: number) {
   const h = Math.floor(minute / 60);

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +17,8 @@ import { CalendarSubscriptionCard } from "./calendar-subscription-card";
 import { FileConnectionsCard } from "./file-connections-card";
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { FILE_PROVIDERS } from "@/lib/integrations/storage/types";
+
+export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage({
   searchParams,

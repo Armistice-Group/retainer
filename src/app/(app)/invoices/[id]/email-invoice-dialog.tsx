@@ -26,6 +26,7 @@ export function EmailInvoiceDialog({
   invoiceNumber,
   recipients,
   isDraft,
+  emailed,
   emailConfigured,
 }: {
   invoiceId: string;
@@ -33,6 +34,8 @@ export function EmailInvoiceDialog({
   /** Default recipients: invoice contacts, else the billing email. */
   recipients: string[];
   isDraft: boolean;
+  /** It's been emailed before (so the button says "Email again"). */
+  emailed: boolean;
   emailConfigured: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -48,8 +51,8 @@ export function EmailInvoiceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant={isDraft ? "default" : "outline"}>
-          <Mail /> {isDraft ? "Email to client" : "Email again"}
+        <Button size="sm" variant={isDraft && emailConfigured ? "default" : "outline"}>
+          <Mail /> {emailed ? "Email again" : "Email to client"}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -61,12 +64,15 @@ export function EmailInvoiceDialog({
           </DialogDescription>
         </DialogHeader>
         {!emailConfigured ? (
-          <Alert>
-            <AlertDescription>
-              Email isn&apos;t set up on this instance (Settings → Integrations). Use{" "}
-              <strong>Copy client link</strong> to send it yourself — opens are still tracked.
-            </AlertDescription>
-          </Alert>
+          <div className="flex flex-col gap-4">
+            <Alert>
+              <AlertDescription>
+                Email isn&apos;t set up on this instance (Settings → Integrations), so send the
+                client its link yourself. Opens are still tracked.
+              </AlertDescription>
+            </Alert>
+            <CopyClientLinkButton invoiceId={invoiceId} isDraft={isDraft} primary onDone={() => setOpen(false)} />
+          </div>
         ) : (
           <form action={formAction} className="flex flex-col gap-4">
             {state?.error ? (
@@ -111,13 +117,28 @@ export function EmailInvoiceDialog({
   );
 }
 
-export function CopyClientLinkButton({ invoiceId }: { invoiceId: string }) {
+/**
+ * Copies the invoice's client link. On a draft it marks the invoice as sent
+ * first ("Send & copy link"), for sending it yourself.
+ */
+export function CopyClientLinkButton({
+  invoiceId,
+  isDraft = false,
+  primary = false,
+  onDone,
+}: {
+  invoiceId: string;
+  isDraft?: boolean;
+  primary?: boolean;
+  onDone?: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   return (
     <Button
       size="sm"
-      variant="outline"
+      variant={primary ? "default" : "outline"}
       disabled={pending}
+      title={isDraft ? "Marks the invoice as sent and copies the link to send the client" : undefined}
       onClick={() =>
         startTransition(async () => {
           const result = await invoiceClientLinkAction(invoiceId);
@@ -125,16 +146,19 @@ export function CopyClientLinkButton({ invoiceId }: { invoiceId: string }) {
             toast.error(result.error ?? "Couldn't get the link.");
             return;
           }
+          const what = result.sent ? "Marked as sent. Client link copied" : "Client link copied";
           try {
             await navigator.clipboard.writeText(result.url);
-            toast.success("Client link copied — opens are tracked.");
+            toast.success(`${what}. Opens are tracked.`);
           } catch {
+            if (result.sent) toast.success("Marked as sent.");
             window.prompt("Copy the client link:", result.url);
           }
+          onDone?.();
         })
       }
     >
-      <Link2 /> Copy client link
+      <Link2 /> {isDraft ? "Send & copy link" : "Copy client link"}
     </Button>
   );
 }

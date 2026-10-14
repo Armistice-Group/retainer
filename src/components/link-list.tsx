@@ -7,10 +7,10 @@ import {
   FileText,
   GitBranch,
   Link2,
-  X,
+  Trash2,
 } from "lucide-react";
 import { deleteLinkAction } from "@/actions/clients";
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 
 const ICONS: Record<string, typeof Link2> = {
   LOGIN: KeyRound,
@@ -55,9 +55,16 @@ export function LinkList({
                 await deleteLinkAction(link.id, redirectPath);
               }}
             >
-              <Button variant="ghost" size="icon" className="size-7" type="submit">
-                <X className="size-3.5" />
-              </Button>
+              <ConfirmSubmitButton
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                aria-label={`Remove link ${link.label}`}
+                title="Remove link"
+                confirmMessage={`Remove the link "${link.label}"?`}
+              >
+                <Trash2 className="size-3.5" />
+              </ConfirmSubmitButton>
             </form>
           </li>
         );

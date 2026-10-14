@@ -29,7 +29,7 @@ async function managerContext(invoiceId?: string) {
   if (invoiceId) {
     const invoice = await prisma.invoice.findFirst({
       where: { id: invoiceId, orgId: org.id, ...invoiceVisibilityWhere(user.id, role) },
-      select: { id: true, clientId: true },
+      select: { id: true, clientId: true, status: true },
     });
     if (!invoice) return { error: "Invoice not found." } as const;
     return { org, user, role, invoice } as const;
@@ -66,6 +66,9 @@ export async function recordPaymentAction(
         method: str(formData, "method"),
         reference: str(formData, "reference"),
         note: str(formData, "note"),
+        // Only when the dialog showed that the extra becomes credit, and
+        // only on an open invoice (not one already paid).
+        allowOverpayment: str(formData, "overpayment") === "credit" && ctx.invoice!.status === "SENT",
       }
     );
   } catch (err) {

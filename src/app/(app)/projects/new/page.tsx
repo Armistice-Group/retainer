@@ -4,13 +4,14 @@ import { ProjectForm } from "../project-form";
 import { createProjectAction } from "@/actions/projects";
 import { PageHeader } from "@/components/layout/page-header";
 import { paymentTermsLabel } from "@/lib/payment-terms";
+import { defaultBillRateFor } from "@/lib/bill-rates";
 
 export default async function NewProjectPage({
   searchParams,
 }: {
   searchParams: Promise<{ clientId?: string }>;
 }) {
-  const { org } = await requireOrgContext();
+  const { org, user } = await requireOrgContext();
   const { clientId } = await searchParams;
 
   const clients = await prisma.client.findMany({
@@ -34,6 +35,7 @@ export default async function NewProjectPage({
           paymentTermsLabel: paymentTermsLabel(c.paymentTerms ?? org.defaultPaymentTerms),
         }))}
         defaultClientId={clientId}
+        creatorRate={{ value: await defaultBillRateFor(org.id, user.id), currency: org.defaultCurrency }}
         submitLabel="Create project"
         cancelHref={clientId ? `/clients/${clientId}` : "/projects"}
       />

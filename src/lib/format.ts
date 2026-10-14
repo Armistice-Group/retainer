@@ -1,9 +1,14 @@
 type Numeric = number | string | { toString(): string };
 
 export function formatCurrency(amount: Numeric, currency: string = "USD") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    Number(amount.toString())
-  );
+  const value = Number(amount.toString());
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
+  } catch {
+    // A currency saved before codes were checked ("dollars"): show the
+    // number rather than fail the whole page.
+    return `${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)} ${currency}`;
+  }
 }
 
 export function formatHours(hours: Numeric) {

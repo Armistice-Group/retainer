@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackLink } from "@/components/layout/back-link";
 import { notFound } from "next/navigation";
 import {
   Mail,
@@ -98,19 +99,35 @@ export default async function ClientDetailPage({
         })
       : [];
 
+  // Retainer balance: hours on retainer invoices actually sent (drafts and
+  // voids don't count) against billable time logged since the first hourly
+  // retainer started, leaving out time already billed by the hour.
+  const retainerStart = client.recurringInvoiceSchedules
+    .filter((s) => s.retainerHours != null)
+    .reduce<Date | null>((earliest, s) => (!earliest || s.createdAt < earliest ? s.createdAt : earliest), null);
+  const retainerStartDay = retainerStart
+    ? new Date(Date.UTC(retainerStart.getUTCFullYear(), retainerStart.getUTCMonth(), retainerStart.getUTCDate()))
+    : null;
   const [invoices, retainerAgg, loggedAgg] = await Promise.all([
     prisma.invoice.findMany({
       where: { clientId: client.id, ...invoiceVisibilityWhere(user.id, role) },
       orderBy: { createdAt: "desc" },
     }),
     prisma.invoice.aggregate({
-      where: { clientId: client.id, status: { not: "VOID" }, retainerHoursIncluded: { not: null } },
+      where: { clientId: client.id, status: { in: ["SENT", "PAID"] }, retainerHoursIncluded: { not: null } },
       _sum: { retainerHoursIncluded: true },
     }),
-    prisma.timeEntry.aggregate({
-      where: { project: { clientId: client.id } },
-      _sum: { hours: true },
-    }),
+    retainerStartDay
+      ? prisma.timeEntry.aggregate({
+          where: {
+            project: { clientId: client.id },
+            billable: true,
+            invoiceLineItemId: null,
+            date: { gte: retainerStartDay },
+          },
+          _sum: { hours: true },
+        })
+      : Promise.resolve({ _sum: { hours: null } }),
   ]);
 
   const invoiceItems = invoices.map((inv) => ({
@@ -185,6 +202,9 @@ export default async function ClientDetailPage({
 
   return (
     <div>
+      <BackLink href={client.status === "LEAD" ? "/clients?view=drafts" : "/clients"}>
+        {client.status === "LEAD" ? "Drafts" : "Clients"}
+      </BackLink>
       <PageHeader
         title={client.name}
         actions={
@@ -248,15 +268,18 @@ export default async function ClientDetailPage({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="flex flex-col gap-4 lg:col-span-1">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Contact info</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3 text-sm">
               {client.description ? (
-                <p className="text-muted-foreground">{client.description}</p>
+                <div>
+                  <p className="mb-0.5 text-xs text-muted-foreground">Notes</p>
+                  <p className="whitespace-pre-line">{client.description}</p>
+                </div>
               ) : null}
               {client.website ? (
                 <div className="flex items-center gap-2">
@@ -338,6 +361,12 @@ export default async function ClientDetailPage({
                     Nobody yet. Add a billing email, or mark a contact to receive invoices.
                   </p>
                 )}
+                {invoiceContacts.length && client.billingEmail ? (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    The billing email ({client.billingEmail}) isn&apos;t used while contacts are
+                    marked to receive invoices.
+                  </p>
+                ) : null}
                 {contactsMissingEmail.length ? (
                   <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">
                     {contactsMissingEmail.map((c) => c.name).join(", ")}{" "}
@@ -406,10 +435,14 @@ export default async function ClientDetailPage({
                         <div className="flex flex-wrap items-center gap-1.5 font-medium">
                           {contact.name}
                           {contact.isPrimary ? (
-                            <Star className="size-3.5 fill-brand text-brand" />
+                            <span title="Primary contact" className="inline-flex">
+                              <Star className="size-3.5 fill-brand text-brand" aria-label="Primary contact" />
+                            </span>
                           ) : null}
                           {contact.receivesInvoices ? (
-                            <Receipt className="size-3.5 text-muted-foreground" />
+                            <span title="Gets invoice emails" className="inline-flex">
+                              <Receipt className="size-3.5 text-muted-foreground" aria-label="Gets invoice emails" />
+                            </span>
                           ) : null}
                         </div>
                         {contact.title || contact.contactRole ? (
@@ -477,7 +510,7 @@ export default async function ClientDetailPage({
           />
         </div>
 
-        <div className="flex flex-col gap-4 lg:col-span-2">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
           <BookingsCard bookings={bookings} />
 
           <Card>

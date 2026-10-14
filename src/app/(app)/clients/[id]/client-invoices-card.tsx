@@ -78,7 +78,7 @@ export function ClientInvoicesCard({
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{invoice.number}</span>
-                    <InvoiceStatusBadge invoice={invoice} />
+                    <InvoiceStatusBadge invoice={{ ...invoice, dueDate: new Date(invoice.dueDate) }} />
                   </div>
                   <div className="flex items-center gap-3">
                     <span

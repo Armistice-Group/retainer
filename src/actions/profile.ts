@@ -84,7 +84,8 @@ export async function updateProfileAction(
     data: { name: parsed.data.name },
   });
 
-  revalidatePath("/profile");
+  // The header shows the name too.
+  revalidatePath("/", "layout");
   return null;
 }
 

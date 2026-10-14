@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { requireOrgContext } from "@/lib/org-context";
 import { prisma } from "@/lib/prisma";
 import { QuickBooksCard } from "../quickbooks-card";
@@ -34,6 +35,8 @@ import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks";
 import { isEmailConfigured } from "@/lib/email";
 import { describeIntegration, getConfig } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
+
+export const metadata: Metadata = { title: "Integrations" };
 
 export default async function IntegrationsPage({
   searchParams,

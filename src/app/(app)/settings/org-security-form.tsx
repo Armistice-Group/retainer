@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,10 +16,11 @@ type OrgSecurity = {
 };
 
 export function OrgSecurityForm({ org, readOnly }: { org: OrgSecurity; readOnly: boolean }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateOrgSecurityAction,
     null
   );
+  useActionFeedback(state, isPending, "Saved");
 
   return (
     <form action={formAction} className="flex flex-col gap-5">

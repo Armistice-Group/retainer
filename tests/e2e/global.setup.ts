@@ -21,7 +21,7 @@ for (const [email, file] of logins) {
     // Seeding runs first (tests in this file run in order).
     await logIn(page, email);
     await page.waitForURL("**/dashboard");
-    await expect(page.getByRole("heading", { level: 1, name: /Welcome back/ })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /^Welcome/ })).toBeVisible();
     await page.context().storageState({ path: file });
   });
 }

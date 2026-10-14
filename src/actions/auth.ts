@@ -149,13 +149,14 @@ export async function loginAction(
   }
 
   const callbackUrl = (formData.get("callbackUrl") as string) || "/dashboard";
-  const code = (formData.get("code") as string) || undefined;
+  const code = ((formData.get("code") as string) || "").trim();
 
   try {
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      code,
+      // Left out when not typed yet (undefined would arrive as "undefined").
+      ...(code ? { code } : {}),
       redirectTo: callbackUrl,
     });
   } catch (err) {

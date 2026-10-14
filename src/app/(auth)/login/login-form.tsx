@@ -163,6 +163,13 @@ export function LoginForm({
             </form>
           </>
         )}
+        {needsCode ? (
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            <a href="/login" className="text-brand hover:underline">
+              Use a different account
+            </a>
+          </p>
+        ) : null}
         {mode === "password" && !needsCode ? (
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Need an account? Ask an admin for an invite.

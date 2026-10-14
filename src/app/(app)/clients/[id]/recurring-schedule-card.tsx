@@ -43,7 +43,7 @@ export function RecurringScheduleCard({
           <EmptyState
             icon={Repeat}
             title="No retainer"
-            description="Bill a fixed amount on a schedule, independent of logged time."
+            description="Bill a fixed amount on a schedule, independent of logged time. Invoices are made by the daily scheduler, so one due today appears within a day."
           />
         ) : (
           <ul className="flex flex-col divide-y divide-border">

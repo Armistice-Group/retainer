@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOrgContext } from "@/lib/org-context";
@@ -9,6 +10,8 @@ import { ShareVerificationForm } from "../share-verification-form";
 import { isEmailConfigured } from "@/lib/email";
 import { getRequestOrigin } from "@/lib/url";
 import { SSO_CALLBACK_PATH } from "@/lib/integrations/sso";
+
+export const metadata: Metadata = { title: "Security" };
 
 export default async function OrgSecurityPage() {
   const { org, role, user } = await requireOrgContext();

@@ -71,7 +71,7 @@ export function ShareLinkCard({
             action={generateShareLinkAction.bind(null, projectId)}
             className="flex flex-wrap items-end gap-2"
           >
-            <ShareExpiryField id="project-share-regenerate" />
+            <ShareExpiryField id="project-share-regenerate" current={expiresAt} />
             <ConfirmSubmitButton
               variant="outline"
               size="sm"

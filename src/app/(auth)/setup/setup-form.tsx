@@ -80,8 +80,8 @@ export function SetupForm({
           <div className="mt-2 border-t border-border pt-4">
             <p className="text-sm font-medium">Owner account</p>
             <p className="text-xs text-muted-foreground">
-              The organization&apos;s owner. It can always sign in with a password, even after SSO
-              is required — keep it as a break-glass login.
+              You. You&apos;ll be the organization&apos;s owner and can invite others once
+              you&apos;re in.
             </p>
           </div>
 
@@ -102,6 +102,7 @@ export function SetupForm({
               name="password"
               type="password"
               autoComplete="new-password"
+              minLength={10}
               required
             />
             <p className="text-xs text-muted-foreground">

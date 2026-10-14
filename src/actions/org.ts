@@ -49,10 +49,24 @@ export async function updateOrgGeneralAction(
     timesheetApproval: formData.get("timesheetApproval") || undefined,
     clockRoundingMinutes: formData.get("clockRoundingMinutes") || undefined,
     brandColor: formData.get("brandColor"),
+    businessAddress: formData.get("businessAddress") ?? "",
+    taxId: formData.get("taxId") ?? "",
+    nextInvoiceNumber: formData.get("nextInvoiceNumber") || undefined,
   });
 
   if (!parsed.success) {
     return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  // Continuing numbering from another tool: the number it would hand out
+  // next must not already be taken.
+  const next = parsed.data.nextInvoiceNumber;
+  if (next != null && (next !== org.nextInvoiceNumber || parsed.data.invoicePrefix !== org.invoicePrefix)) {
+    const number = `${parsed.data.invoicePrefix}-${String(next).padStart(4, "0")}`;
+    const taken = await prisma.invoice.findFirst({ where: { orgId: org.id, number }, select: { id: true } });
+    if (taken) {
+      return { fieldErrors: { nextInvoiceNumber: [`Invoice ${number} already exists. Pick a higher number.`] } };
+    }
   }
 
   await prisma.organization.update({
@@ -72,6 +86,9 @@ export async function updateOrgGeneralAction(
       timesheetApproval: parsed.data.timesheetApproval,
       clockRoundingMinutes: parsed.data.clockRoundingMinutes,
       brandColor: parsed.data.brandColor || null,
+      businessAddress: parsed.data.businessAddress || null,
+      taxId: parsed.data.taxId || null,
+      ...(next != null ? { nextInvoiceNumber: next } : {}),
     },
   });
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { flash } from "@/lib/flash";
 import { randomBytes } from "crypto";
 import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { revalidatePath } from "next/cache";
@@ -66,16 +67,23 @@ export async function createProjectAction(
   // immediately lose access to the project they just made. Separately, a
   // solo org has no one to pick from an "add team member" dialog anyway,
   // so the sole member goes on every project automatically.
+  // An hourly project's form asks for the creator's rate ("Your rate"):
+  // giving one puts them on the project at it.
   const memberCount = await prisma.membership.count({ where: { orgId: org.id } });
   const soloOrg = memberCount === 1;
   const nonAdminConfidentialCreator =
     parsed.data.confidential && role !== "OWNER" && role !== "ADMIN";
-  if (soloOrg || nonAdminConfidentialCreator) {
+  const rawRate = String(formData.get("creatorRate") ?? "").trim();
+  const creatorRate = parsed.data.billingType === "HOURLY" && rawRate !== "" ? Number(rawRate) : null;
+  if (soloOrg || nonAdminConfidentialCreator || creatorRate != null) {
     await prisma.projectMember.create({
       data: {
         projectId: project.id,
         userId: user.id,
-        billRate: await defaultBillRateFor(org.id, user.id),
+        billRate:
+          creatorRate != null && Number.isFinite(creatorRate) && creatorRate >= 0
+            ? creatorRate
+            : await defaultBillRateFor(org.id, user.id),
         currency: org.defaultCurrency,
       },
     });
@@ -83,6 +91,7 @@ export async function createProjectAction(
 
   revalidatePath("/projects");
   revalidatePath(`/clients/${parsed.data.clientId}`);
+  await flash(`Created ${project.name}`);
   redirect(`/projects/${project.id}`);
 }
 
@@ -153,7 +162,8 @@ export async function updateProjectAction(
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
-  return null;
+  await flash("Project saved");
+  redirect(`/projects/${projectId}`);
 }
 
 export async function deleteProjectAction(projectId: string, clientId: string) {
@@ -166,6 +176,7 @@ export async function deleteProjectAction(projectId: string, clientId: string) {
   await prisma.project.delete({ where: { id: projectId, orgId: org.id } });
   revalidatePath("/projects");
   revalidatePath(`/clients/${clientId}`);
+  await flash(`Deleted ${project.name}`);
   redirect(`/clients/${clientId}`);
 }
 

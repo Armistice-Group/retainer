@@ -20,7 +20,11 @@ import { TaskTimerButton } from "@/components/tasks/task-timer-button";
 import { DueDateBadge } from "@/components/tasks/due-date-badge";
 import type { TaskDetail } from "@/lib/task-detail";
 
-const STATUS_ORDER = ["TODO", "IN_PROGRESS", "DONE"] as const;
+const STATUSES = [
+  { value: "TODO", label: "To do" },
+  { value: "IN_PROGRESS", label: "In progress" },
+  { value: "DONE", label: "Done" },
+] as const;
 
 export type TaskItem = {
   id: string;
@@ -55,9 +59,8 @@ export function TaskList({
   const [isPending, startTransition] = useTransition();
   const { openTaskId, openTask, closeTask } = useOpenTask();
 
-  function cycleStatus(task: TaskItem) {
-    const idx = STATUS_ORDER.indexOf(task.status as (typeof STATUS_ORDER)[number]);
-    const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
+  function setStatus(task: TaskItem, next: (typeof STATUSES)[number]["value"]) {
+    if (next === task.status) return;
     startTransition(() => updateTaskStatusAction(task.id, projectId, next));
   }
 
@@ -116,15 +119,26 @@ export function TaskList({
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <button
-                type="button"
-                onClick={() => cycleStatus(task)}
-                disabled={isPending}
-                className="shrink-0"
-                title="Click to advance status"
-              >
-                <StatusBadge status={task.status} />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    className="shrink-0"
+                    aria-label={`Status: ${STATUSES.find((s) => s.value === task.status)?.label ?? task.status}. Change status`}
+                    title="Change status"
+                  >
+                    <StatusBadge status={task.status} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {STATUSES.map((status) => (
+                    <DropdownMenuItem key={status.value} onSelect={() => setStatus(task, status.value)}>
+                      {status.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <LinearKeyBadge linearKey={task.linearKey} url={task.linearUrl} />
               <DueDateBadge dueDate={task.dueDate} done={task.status === "DONE"} />
               <DropdownMenu>

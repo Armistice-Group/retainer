@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isSupportedCurrency } from "@/lib/currencies";
 
 export const paymentTermsValues = [
   "DUE_ON_RECEIPT",
@@ -61,7 +62,11 @@ const domainPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0
 export const orgGeneralSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   invoicePrefix: z.string().trim().min(1).max(20),
-  defaultCurrency: z.string().trim().min(1).max(10),
+  defaultCurrency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine(isSupportedCurrency, "Pick a currency code, like USD or EUR."),
   defaultTaxRate: z.coerce.number().min(0).max(100),
   // Blank = no org-wide default (people without their own rate start at 0).
   defaultBillRate: z.preprocess(
@@ -95,6 +100,14 @@ export const orgGeneralSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "Enter a hex color, e.g. #4f6df5")
     .optional()
     .or(z.literal("")),
+  businessAddress: z.string().trim().max(500).optional().or(z.literal("")),
+  taxId: z.string().trim().max(50).optional().or(z.literal("")),
+  nextInvoiceNumber: z.coerce
+    .number("Enter a number")
+    .int("Enter a whole number")
+    .min(1, "Must be at least 1")
+    .max(99_999_999, "That number is too large")
+    .optional(),
 });
 
 export const orgSecuritySchema = z.object({

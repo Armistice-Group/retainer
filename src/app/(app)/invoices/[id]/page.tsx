@@ -1,32 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarClock, Download, Plus, Trash2 } from "lucide-react";
+import { CalendarClock, Download, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { PageHeader } from "@/components/layout/page-header";
 import { InvoiceStatusBadge } from "@/components/invoice-status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
-import {
-  updateInvoiceMetaAction,
-  updateLineItemAction,
-  addManualLineItemAction,
-  removeLineItemAction,
-  setInvoiceStatusAction,
-  deleteInvoiceAction,
-} from "@/actions/invoices";
-import { formatCurrency } from "@/lib/format";
+import { setInvoiceStatusAction, deleteInvoiceAction } from "@/actions/invoices";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { InvoiceLinesEditor } from "./invoice-lines-editor";
+import { InvoiceDetailsForm } from "./invoice-details-form";
 import { toISODate } from "@/lib/date";
 import { isOverdue, daysOverdue } from "@/lib/invoice-aging";
 import { PushToQuickBooksButton } from "./push-to-quickbooks-button";
@@ -75,7 +60,10 @@ export default async function InvoiceDetailPage({
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, orgId: org.id, ...invoiceVisibilityWhere(user.id, role) },
-    include: { client: true, lineItems: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      client: true,
+      lineItems: { orderBy: { sortOrder: "asc" }, include: { _count: { select: { timeEntries: true } } } },
+    },
   });
 
   if (!invoice || invoice.orgId !== org.id) notFound();
@@ -119,7 +107,8 @@ export default async function InvoiceDetailPage({
         title={invoice.number}
         description={invoice.client.name}
         actions={
-          <>
+          // Wraps on a phone instead of running off the screen.
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" size="sm" asChild>
               <a href={`/invoices/${invoice.id}/pdf`} target="_blank" rel="noopener noreferrer">
                 <Download className="size-3.5" /> Download PDF
@@ -131,15 +120,18 @@ export default async function InvoiceDetailPage({
                 invoiceNumber={invoice.number}
                 recipients={recipients}
                 isDraft={isDraft}
+                emailed={events.some((e) => e.type === "EMAILED")}
                 emailConfigured={emailConfigured}
               />
             ) : null}
-            {!isDraft && invoice.status !== "VOID" ? (
-              <CopyClientLinkButton invoiceId={invoice.id} />
+            {/* On a draft it sends the invoice, so owners and admins only.
+                Without email it's the way to send. */}
+            {invoice.status !== "VOID" && (!isDraft || canManage) ? (
+              <CopyClientLinkButton invoiceId={invoice.id} isDraft={isDraft} primary={isDraft && !emailConfigured} />
             ) : null}
             {/* Sending, marking paid and voiding are for owners and admins;
                 members can generate and edit drafts. */}
-            {isDraft && canManage ? (
+            {isDraft && canManage && emailConfigured ? (
               <ScheduleSendDialog
                 invoiceId={invoice.id}
                 invoiceNumber={invoice.number}
@@ -148,7 +140,7 @@ export default async function InvoiceDetailPage({
                 scheduledSendAt={invoice.scheduledSendAt?.toISOString() ?? null}
               />
             ) : null}
-            {isDraft && canManage ? <SendInvoiceButton invoiceId={invoice.id} /> : null}
+            {isDraft && canManage ? <SendInvoiceButton invoiceId={invoice.id} invoiceNumber={invoice.number} /> : null}
             {invoice.status === "SENT" && canManage ? (
               <>
                 <RecordPaymentDialog invoiceId={invoice.id} balance={balance} currency={invoice.currency} />
@@ -190,7 +182,7 @@ export default async function InvoiceDetailPage({
                 </ConfirmSubmitButton>
               </form>
             ) : null}
-          </>
+          </div>
         }
       />
 
@@ -236,85 +228,50 @@ export default async function InvoiceDetailPage({
             <CardHeader>
               <CardTitle className="text-base">Line items</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {invoice.lineItems.map((item) => (
-                <form
-                  key={item.id}
-                  action={updateLineItemAction.bind(null, item.id, invoice.id)}
-                  className="flex items-end gap-2 border-b border-border pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="flex-1">
-                    <Input
-                      name="description"
-                      defaultValue={item.description}
-                      disabled={!isDraft}
-                      className="disabled:opacity-100"
-                    />
-                  </div>
-                  <div className="w-20">
-                    <Input
-                      name="quantity"
-                      type="number"
-                      step="0.01"
-                      defaultValue={item.quantity.toString()}
-                      disabled={!isDraft}
-                      className="tabular-figures disabled:opacity-100"
-                    />
-                  </div>
-                  <div className="w-28">
-                    <Input
-                      name="rate"
-                      type="number"
-                      step="0.01"
-                      defaultValue={item.rate.toString()}
-                      disabled={!isDraft}
-                      className="tabular-figures disabled:opacity-100"
-                    />
-                  </div>
-                  <div className="tabular-figures w-24 shrink-0 text-right text-sm">
-                    {formatCurrency(item.amount, invoice.currency)}
-                  </div>
-                  {isDraft ? (
-                    <div className="flex shrink-0 gap-1">
-                      <Button variant="outline" size="sm" type="submit">
-                        Save
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        type="submit"
-                        formAction={removeLineItemAction.bind(null, item.id, invoice.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  ) : null}
-                </form>
-              ))}
-
+            <CardContent>
               {isDraft ? (
-                <form
-                  action={addManualLineItemAction.bind(null, invoice.id)}
-                  className="flex items-end gap-2 pt-1"
-                >
-                  <div className="flex-1">
-                    <Label className="mb-1.5 text-xs text-muted-foreground">Description</Label>
-                    <Input name="description" placeholder="Additional item" required />
-                  </div>
-                  <div className="w-20">
-                    <Label className="mb-1.5 text-xs text-muted-foreground">Qty</Label>
-                    <Input name="quantity" type="number" step="0.01" defaultValue="1" required />
-                  </div>
-                  <div className="w-28">
-                    <Label className="mb-1.5 text-xs text-muted-foreground">Rate</Label>
-                    <Input name="rate" type="number" step="0.01" defaultValue="0" required />
-                  </div>
-                  <Button variant="outline" size="sm" type="submit" className="shrink-0">
-                    <Plus className="size-3.5" /> Add
-                  </Button>
-                </form>
-              ) : null}
+                <InvoiceLinesEditor
+                  invoiceId={invoice.id}
+                  currency={invoice.currency}
+                  lines={invoice.lineItems.map((item) => ({
+                    id: item.id,
+                    description: item.description,
+                    quantity: item.quantity.toString(),
+                    rate: Number(item.rate).toFixed(2),
+                    fromTime: item._count.timeEntries > 0,
+                  }))}
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-2 font-medium">Description</th>
+                        <th className="px-2 py-2 text-right font-medium">Qty</th>
+                        <th className="px-2 py-2 text-right font-medium">Rate</th>
+                        <th className="py-2 pl-2 text-right font-medium">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {invoice.lineItems.map((item) => (
+                        <tr key={item.id} className="align-top">
+                          <td className="py-2.5 pr-2 whitespace-pre-line">{item.description}</td>
+                          <td className="tabular-figures px-2 py-2.5 text-right">
+                            {Number(item.quantity)}
+                            {item._count.timeEntries > 0 ? " hrs" : ""}
+                          </td>
+                          <td className="tabular-figures px-2 py-2.5 text-right whitespace-nowrap">
+                            {formatCurrency(item.rate, invoice.currency)}
+                          </td>
+                          <td className="tabular-figures py-2.5 pl-2 text-right whitespace-nowrap">
+                            {formatCurrency(item.amount, invoice.currency)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -324,80 +281,17 @@ export default async function InvoiceDetailPage({
                 <CardTitle className="text-base">Details</CardTitle>
               </CardHeader>
               <CardContent>
-                <form
-                  action={updateInvoiceMetaAction.bind(null, invoice.id)}
-                  className="grid gap-4 sm:grid-cols-2"
-                >
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="issueDate">Issue date</Label>
-                    <Input
-                      id="issueDate"
-                      name="issueDate"
-                      type="date"
-                      defaultValue={toISODate(invoice.issueDate)}
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="dueDate">Due date</Label>
-                    <Input
-                      id="dueDate"
-                      name="dueDate"
-                      type="date"
-                      defaultValue={toISODate(invoice.dueDate)}
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="paymentTerms">Payment terms</Label>
-                    <Select name="paymentTerms" defaultValue={invoice.paymentTerms}>
-                      <SelectTrigger id="paymentTerms" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PAYMENT_TERMS_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="poNumber">PO number</Label>
-                    <Input
-                      id="poNumber"
-                      name="poNumber"
-                      placeholder="e.g. PO-4821"
-                      defaultValue={invoice.poNumber ?? ""}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="taxRate">Tax rate (%)</Label>
-                    <Input
-                      id="taxRate"
-                      name="taxRate"
-                      type="number"
-                      step="0.01"
-                      defaultValue={invoice.taxRate.toString()}
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2 sm:col-span-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      rows={3}
-                      defaultValue={invoice.notes ?? ""}
-                    />
-                  </div>
-                  <div>
-                    <Button size="sm" type="submit">
-                      Save details
-                    </Button>
-                  </div>
-                </form>
+                <InvoiceDetailsForm
+                  invoiceId={invoice.id}
+                  values={{
+                    issueDate: toISODate(invoice.issueDate),
+                    dueDate: toISODate(invoice.dueDate),
+                    paymentTerms: invoice.paymentTerms,
+                    poNumber: invoice.poNumber ?? "",
+                    taxRate: invoice.taxRate.toString(),
+                    notes: invoice.notes ?? "",
+                  }}
+                />
               </CardContent>
             </Card>
           ) : (
@@ -406,6 +300,14 @@ export default async function InvoiceDetailPage({
                 <CardTitle className="text-base">Billing details</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Issued</span>
+                  <span>{formatDate(invoice.issueDate)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Due</span>
+                  <span>{formatDate(invoice.dueDate)}</span>
+                </div>
                 <div className="flex justify-between gap-4">
                   <span className="text-muted-foreground">Payment terms</span>
                   <span>{PAYMENT_TERMS_LABELS[invoice.paymentTerms]}</span>

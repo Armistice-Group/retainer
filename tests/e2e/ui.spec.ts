@@ -153,12 +153,12 @@ test.describe("start and end times", () => {
     await dialog.getByLabel(/^Start/).fill("09:10");
     await dialog.getByLabel(/^End/).fill("11:45");
     await expect(dialog.getByLabel("Hours")).toHaveValue("2.5");
-    await expect(dialog.getByText("Ends the next day.")).toHaveCount(0);
+    await expect(dialog.getByText(/ending the next day/)).toHaveCount(0);
 
     await dialog.getByLabel(/^Start/).fill("22:00");
     await dialog.getByLabel(/^End/).fill("01:00");
     await expect(dialog.getByLabel("Hours")).toHaveValue("3");
-    await expect(dialog.getByText("Ends the next day.")).toBeVisible();
+    await expect(dialog.getByText(/ending the next day/)).toBeVisible();
 
     // Hours stay editable, but not past the span.
     await dialog.getByLabel("Hours").fill("3.5");

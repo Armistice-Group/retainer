@@ -69,6 +69,7 @@ export function TimesheetBar({ sheet }: { sheet: TimesheetBarData }) {
         <Button
           size="sm"
           disabled={pending || sheet.hours === 0}
+          title={sheet.hours === 0 ? "Log some time this week before submitting it" : undefined}
           onClick={() => run(submitTimesheetAction)}
         >
           {sheet.status === "REJECTED" ? "Resubmit week" : "Submit week"}

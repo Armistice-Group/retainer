@@ -40,6 +40,14 @@ export const linkSchema = z.object({
   clientId: z.string().optional(),
   projectId: z.string().optional(),
   label: z.string().trim().min(1, "Label is required").max(150),
-  url: z.string().trim().url("Enter a valid URL"),
+  // "stripe.com/docs" is taken as https://stripe.com/docs.
+  url: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() && !/^[a-z][a-z0-9+.-]*:/i.test(v.trim()) ? `https://${v.trim()}` : v),
+    z
+      .string()
+      .trim()
+      .url("Enter a valid URL")
+      .refine((v) => /^https?:\/\//i.test(v), "Use a web address (https://…)")
+  ),
   type: z.enum(["LOGIN", "GDRIVE", "ONEDRIVE", "BOX", "DOC", "REPO", "OTHER"]).default("OTHER"),
 });

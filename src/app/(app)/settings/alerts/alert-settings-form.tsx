@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import Link from "next/link";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +31,8 @@ export function AlertSettingsForm({
   slackConfigured: boolean;
   emailConfigured: boolean;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(saveAlertSettingsAction, null);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(saveAlertSettingsAction, null);
+  useActionFeedback(state, isPending, "Alert settings saved");
 
   return (
     <form action={formAction}>
@@ -114,8 +116,22 @@ export function AlertSettingsForm({
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="pb-2 font-medium">When</th>
-                  <th className="w-16 pb-2 text-center font-medium">Slack</th>
-                  <th className="w-16 pb-2 text-center font-medium">Email</th>
+                  <th className="w-20 pb-2 text-center font-medium">
+                    Slack
+                    {!slackConfigured ? (
+                      <Link href="/settings#slackWebhookUrl" className="block font-normal text-brand hover:underline">
+                        Connect
+                      </Link>
+                    ) : null}
+                  </th>
+                  <th className="w-20 pb-2 text-center font-medium">
+                    Email
+                    {!emailConfigured ? (
+                      <Link href="/settings/integrations" className="block font-normal text-brand hover:underline">
+                        Set up
+                      </Link>
+                    ) : null}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -138,17 +154,19 @@ export function AlertSettingsForm({
                       {e.hint ? <p className="text-xs text-muted-foreground">{e.hint}</p> : null}
                     </td>
                     <td className="text-center">
-                      <Checkbox
+                      <ChannelBox
                         name={`${e.event}.slack`}
-                        defaultChecked={e.slack}
-                        aria-label={`${e.label}: Slack`}
+                        checked={e.slack}
+                        enabled={slackConfigured}
+                        label={`${e.label}: Slack`}
                       />
                     </td>
                     <td className="text-center">
-                      <Checkbox
+                      <ChannelBox
                         name={`${e.event}.email`}
-                        defaultChecked={e.email}
-                        aria-label={`${e.label}: email`}
+                        checked={e.email}
+                        enabled={emailConfigured}
+                        label={`${e.label}: email`}
                       />
                     </td>
                   </tr>
@@ -178,10 +196,31 @@ export function AlertSettingsForm({
             <SubmitButton size="sm" pendingText="Saving...">
               Save alerts
             </SubmitButton>
-            {state?.saved ? <span className="text-sm text-muted-foreground">Saved.</span> : null}
           </div>
         </CardContent>
       </Card>
     </form>
+  );
+}
+
+/** A channel that isn't connected can't be changed, but its saved choice
+ * is kept (sent along hidden) for when it is. */
+function ChannelBox({
+  name,
+  checked,
+  enabled,
+  label,
+}: {
+  name: string;
+  checked: boolean;
+  enabled: boolean;
+  label: string;
+}) {
+  if (enabled) return <Checkbox name={name} defaultChecked={checked} aria-label={label} />;
+  return (
+    <>
+      <Checkbox checked={checked} disabled aria-label={`${label} (not connected)`} />
+      {checked ? <input type="hidden" name={name} value="on" /> : null}
+    </>
   );
 }

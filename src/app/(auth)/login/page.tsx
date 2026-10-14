@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isSetupComplete } from "@/lib/setup";
 import { isEmailConfigured } from "@/lib/email";
 import { LoginForm } from "./login-form";
+
+export const metadata: Metadata = { title: "Log in" };
 
 export const dynamic = "force-dynamic";
 

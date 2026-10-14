@@ -25,8 +25,9 @@ import { CopyButton } from "@/components/copy-button";
 import { createInviteAction } from "@/actions/org";
 import type { ActionState } from "@/actions/auth";
 
-export function InviteDialog() {
-  const [open, setOpen] = useState(false);
+export function InviteDialog({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  // Opened straight away from "Invite people" links (?invite=1).
+  const [open, setOpen] = useState(defaultOpen);
   // Remounting the form on every open resets its action state, so a
   // previous invite's link doesn't linger the next time the dialog opens.
   const [formKey, setFormKey] = useState(0);
@@ -59,14 +60,20 @@ function InviteForm({ onDone }: { onDone: () => void }) {
 
   if (state?.inviteUrl) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           {state.emailSent
             ? "We emailed them an invite. You can also share this link directly — it expires in 14 days."
             : "Share this link with them — it expires in 14 days."}
         </p>
-        <div className="flex items-center gap-2 rounded-lg border border-border p-2">
-          <code className="min-w-0 flex-1 truncate text-sm">{state.inviteUrl}</code>
+        <div className="flex min-w-0 items-center gap-2">
+          <Input
+            readOnly
+            value={state.inviteUrl}
+            aria-label="Invite link"
+            onFocus={(e) => e.currentTarget.select()}
+            className="min-w-0 flex-1 font-mono text-xs"
+          />
           <CopyButton value={state.inviteUrl} label="Copy" />
         </div>
         <Button type="button" className="self-start" onClick={onDone}>

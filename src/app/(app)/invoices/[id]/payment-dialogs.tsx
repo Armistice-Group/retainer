@@ -25,6 +25,9 @@ const money = (amount: number, currency: string) =>
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Suggestions for the payment method field (any text is still fine). */
+const COMMON_METHODS = ["Bank transfer", "ACH", "Wire", "Check", "Card", "Cash", "PayPal", "Zelle", "Venmo"];
+
 /** Record a payment (part or all of the balance). Owners and admins only. */
 export function RecordPaymentDialog({
   invoiceId,
@@ -36,11 +39,13 @@ export function RecordPaymentDialog({
   currency: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState(balance.toFixed(2));
+  const over = Number(amount) - balance;
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
     const result = await recordPaymentAction(invoiceId, prev, formData);
     if (result?.saved) {
       setOpen(false);
-      toast.success("Payment recorded.");
+      toast.success(over > 0.004 ? `Payment recorded; ${money(over, currency)} added to the client's credit.` : "Payment recorded.");
     }
     return result;
   }, null);
@@ -75,11 +80,18 @@ export function RecordPaymentDialog({
                 type="number"
                 step="0.01"
                 min="0.01"
-                max={balance.toFixed(2)}
-                defaultValue={balance.toFixed(2)}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 required
                 className="tabular-figures"
               />
+              {over > 0.004 ? (
+                <p className="text-xs text-muted-foreground">
+                  That&apos;s {money(over, currency)} more than is due. The extra becomes credit the client
+                  can use on a later invoice.
+                </p>
+              ) : null}
+              {over > 0.004 ? <input type="hidden" name="overpayment" value="credit" /> : null}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="payment-date">Received on</Label>
@@ -89,7 +101,18 @@ export function RecordPaymentDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="payment-method-field">Method (optional)</Label>
-              <Input id="payment-method-field" name="method" placeholder="e.g. Wire, ACH, Check" />
+              <Input
+                id="payment-method-field"
+                name="method"
+                list="payment-method-options"
+                placeholder="e.g. Bank transfer"
+                autoComplete="off"
+              />
+              <datalist id="payment-method-options">
+                {COMMON_METHODS.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="payment-reference">Reference (optional)</Label>

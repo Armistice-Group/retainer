@@ -77,7 +77,9 @@ export function useOpenTask() {
     if (taskId) params.set("task", taskId);
     else params.delete("task");
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    // Closing replaces the entry, so Back doesn't reopen the panel.
+    const go = taskId ? router.push : router.replace;
+    go(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   return {
@@ -107,7 +109,16 @@ export function TaskSheet({
 
   return (
     <Sheet open={!!taskId} onOpenChange={(open) => (open ? null : onClose())}>
-      <SheetContent aria-describedby={undefined}>
+      <SheetContent
+        aria-describedby={undefined}
+        // Escape with @-mention suggestions open closes the suggestions
+        // (MentionTextarea), not the panel and the comment being typed.
+        onEscapeKeyDown={(e) => {
+          if (e.target instanceof HTMLElement && e.target.getAttribute("aria-expanded") === "true") {
+            e.preventDefault();
+          }
+        }}
+      >
         <SheetHeader>
           {task ? (
             <SheetDescription>
@@ -455,8 +466,12 @@ function CommentComposer({ task }: { task: TaskDetail }) {
   const wasPending = useRef(false);
 
   useEffect(() => {
-    if (wasPending.current && !isPending && !state?.error && !state?.fieldErrors) {
-      formRef.current?.reset();
+    const form = formRef.current;
+    if (form && wasPending.current && !isPending && !state?.error && !state?.fieldErrors) {
+      // Posted: clear the box (FormResetGuard lets an opted-in reset through).
+      form.dataset.allowReset = "";
+      form.reset();
+      delete form.dataset.allowReset;
     }
     wasPending.current = isPending;
   }, [isPending, state]);

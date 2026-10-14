@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminOnlyNotice } from "@/components/admin-only-notice";
 import { Badge } from "@/components/ui/badge";
 import { requireOrgContext } from "@/lib/org-context";
 import { listImportBatches } from "@/lib/portability/import";
@@ -7,9 +8,11 @@ import { KIND_LABELS, SOURCE_LABELS, type ImportKind, type ImportSource } from "
 import { ImportWizard } from "./import-wizard";
 import { UndoImportForm } from "./undo-import-form";
 
+export const metadata: Metadata = { title: "Import" };
+
 export default async function ImportSettingsPage() {
   const { org, role } = await requireOrgContext();
-  if (role !== "OWNER" && role !== "ADMIN") notFound();
+  if (role !== "OWNER" && role !== "ADMIN") return <AdminOnlyNotice what="imports" />;
 
   const batches = await listImportBatches(org.id);
 

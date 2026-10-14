@@ -59,6 +59,39 @@ export async function discardActiveTimer(ctx: TimerContext) {
   await prisma.activeTimer.deleteMany({ where: { userId: ctx.actorId, orgId: ctx.orgId } });
 }
 
+/** Checks a project (and task) the actor may time. */
+async function assertTimerTarget(ctx: TimerContext, projectId: string, taskId?: string | null) {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.orgId !== ctx.orgId) throw new TimerError("Project not found.");
+  if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
+    throw new TimerError("Project not found.");
+  }
+  if (taskId) {
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task || task.projectId !== projectId) throw new TimerError("Task not found.");
+  }
+  return project;
+}
+
+/** Changes what the running timer is for, keeping when it started. */
+export async function updateActiveTimer(
+  ctx: TimerContext,
+  input: { projectId: string; taskId?: string | null; description?: string | null; billable: boolean }
+) {
+  const existing = await prisma.activeTimer.findUnique({ where: { userId: ctx.actorId } });
+  if (!existing || existing.orgId !== ctx.orgId) throw new TimerError("No timer is running.");
+  await assertTimerTarget(ctx, input.projectId, input.taskId);
+  return prisma.activeTimer.update({
+    where: { id: existing.id },
+    data: {
+      projectId: input.projectId,
+      taskId: input.taskId || null,
+      description: input.description || null,
+      billable: input.billable,
+    },
+  });
+}
+
 export async function startTimer(
   ctx: TimerContext,
   input: {
@@ -69,15 +102,7 @@ export async function startTimer(
   },
   stopOptions: StopTimerOptions = {}
 ) {
-  const project = await prisma.project.findUnique({ where: { id: input.projectId } });
-  if (!project || project.orgId !== ctx.orgId) throw new TimerError("Project not found.");
-  if (!(await canViewProject(project, ctx.actorId, ctx.role))) {
-    throw new TimerError("Project not found.");
-  }
-  if (input.taskId) {
-    const task = await prisma.task.findUnique({ where: { id: input.taskId } });
-    if (!task || task.projectId !== input.projectId) throw new TimerError("Task not found.");
-  }
+  await assertTimerTarget(ctx, input.projectId, input.taskId);
 
   // A user's timer is app-wide (unique on userId alone, not per-org), so a
   // running timer from any org gets stopped and logged before the new one

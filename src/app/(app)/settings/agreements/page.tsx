@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { requireOrgContext } from "@/lib/org-context";
@@ -19,6 +20,8 @@ import { AGREEMENT_PROVIDER_LABELS, type AgreementProviderId } from "@/lib/integ
 import { describeIntegration } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
 import type { AgreementConnection } from "@/generated/prisma/client";
+
+export const metadata: Metadata = { title: "Agreements" };
 
 const when = (d: Date) => d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 

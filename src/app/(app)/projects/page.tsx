@@ -8,12 +8,42 @@ import { EmptyState } from "@/components/empty-state";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
-export default async function ProjectsPage() {
+const BILLING_LABELS = { HOURLY: "Hourly", FLAT_FEE: "Flat fee", MILESTONE: "Milestones" } as const;
+
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
   const { org, user, role } = await requireOrgContext();
+  const { q: rawQuery, status: rawStatus } = await searchParams;
+  const query = rawQuery?.trim().slice(0, 100) ?? "";
+  // In flight (active or on hold) unless asked otherwise.
+  const statusFilter = rawStatus === "done" || rawStatus === "all" ? rawStatus : "open";
+  const filtering = query !== "" || statusFilter !== "open";
 
   const projects = await prisma.project.findMany({
-    where: { orgId: org.id, ...projectVisibilityWhere(user.id, role) },
+    where: {
+      orgId: org.id,
+      ...projectVisibilityWhere(user.id, role),
+      ...(statusFilter === "all"
+        ? {}
+        : { status: { in: statusFilter === "open" ? ["ACTIVE", "ON_HOLD"] : ["COMPLETED", "ARCHIVED"] } }),
+      ...(query
+        ? {
+            AND: [
+              {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" } },
+                  { client: { name: { contains: query, mode: "insensitive" } } },
+                ],
+              },
+            ],
+          }
+        : {}),
+    },
     include: { client: true, _count: { select: { members: true } } },
     orderBy: [{ client: { name: "asc" } }, { createdAt: "desc" }],
   });
@@ -42,7 +72,49 @@ export default async function ProjectsPage() {
         }
       />
 
-      {projects.length === 0 ? (
+      {projects.length > 0 || filtering ? (
+        <form method="get" className="mb-4 flex flex-wrap items-center gap-2">
+          <Input
+            name="q"
+            type="search"
+            defaultValue={query}
+            placeholder="Search projects or clients"
+            aria-label="Search projects"
+            className="h-9 w-full sm:w-64"
+          />
+          <select
+            name="status"
+            defaultValue={statusFilter}
+            aria-label="Status"
+            className="h-9 rounded-md border border-input bg-transparent px-2.5 text-sm"
+          >
+            <option value="open">Active and on hold</option>
+            <option value="done">Completed and archived</option>
+            <option value="all">All</option>
+          </select>
+          <Button type="submit" variant="outline" size="sm">
+            Filter
+          </Button>
+          {filtering ? (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/projects">Clear</Link>
+            </Button>
+          ) : null}
+        </form>
+      ) : null}
+
+      {projects.length === 0 && filtering ? (
+        <EmptyState
+          icon={FolderKanban}
+          title="No projects match"
+          description={query ? `Nothing matches “${query}”.` : "No projects with that status."}
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/projects">Show active projects</Link>
+            </Button>
+          }
+        />
+      ) : projects.length === 0 ? (
         <EmptyState
           icon={FolderKanban}
           title="No projects yet"
@@ -81,7 +153,8 @@ export default async function ProjectsPage() {
                         <StatusBadge status={project.status} />
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {project._count.members} team member{project._count.members === 1 ? "" : "s"}
+                        {BILLING_LABELS[project.billingType]} · {project._count.members}{" "}
+                        {project._count.members === 1 ? "person" : "people"}
                       </p>
                     </Card>
                   </Link>

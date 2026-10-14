@@ -163,10 +163,11 @@ export function IssueCreditNoteDialog({
 }: {
   clientId: string;
   currency: string;
-  invoices: { id: string; number: string; status: string }[];
+  invoices: { id: string; number: string; status: string; balance: number; currency: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [invoiceId, setInvoiceId] = useState(NONE);
+  const [amount, setAmount] = useState("");
   const selected = invoices.find((i) => i.id === invoiceId) ?? null;
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
     if (formData.get("invoiceId") === NONE) formData.delete("invoiceId");
@@ -202,7 +203,16 @@ export function IssueCreditNoteDialog({
           ) : null}
           <div className="flex flex-col gap-2">
             <Label htmlFor="cn-invoice">Against invoice (optional)</Label>
-            <Select name="invoiceId" value={invoiceId} onValueChange={setInvoiceId}>
+            <Select
+              name="invoiceId"
+              value={invoiceId}
+              onValueChange={(id) => {
+                setInvoiceId(id);
+                // Start from what's still due on it (writing off the rest).
+                const inv = invoices.find((i) => i.id === id);
+                if (inv && inv.status === "SENT" && inv.balance > 0) setAmount(inv.balance.toFixed(2));
+              }}
+            >
               <SelectTrigger id="cn-invoice" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -211,7 +221,7 @@ export function IssueCreditNoteDialog({
                 {invoices.map((i) => (
                   <SelectItem key={i.id} value={i.id}>
                     {i.number}
-                    {i.status === "PAID" ? " (paid)" : ""}
+                    {i.status === "PAID" ? " (paid)" : ` · ${money(i.balance, i.currency)} due`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -229,7 +239,16 @@ export function IssueCreditNoteDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="cn-amount">Amount</Label>
-              <Input id="cn-amount" name="amount" type="number" min="0.01" step="0.01" required />
+              <Input
+                id="cn-amount"
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="cn-date">Issue date</Label>

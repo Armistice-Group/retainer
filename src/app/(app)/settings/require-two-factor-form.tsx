@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
@@ -23,10 +24,11 @@ export function RequireTwoFactorForm({
   /** Members who'd be (or are) stopped at the setup page. */
   missingCount: number;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateRequireTwoFactorAction,
     null
   );
+  useActionFeedback(state, isPending, "Saved");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

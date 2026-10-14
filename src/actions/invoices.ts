@@ -79,15 +79,19 @@ export async function generateInvoiceAction(
   redirect(`/invoices/${invoice.id}`);
 }
 
-export async function updateInvoiceMetaAction(invoiceId: string, formData: FormData) {
+export async function updateInvoiceMetaAction(
+  invoiceId: string,
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const { org, user, role } = await requireOrgContext();
 
   const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
-  if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
-  if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
+  if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
+  if (invoice.status !== "DRAFT") return { error: "Only draft invoices can be edited." };
 
-  const issueDate = formData.get("issueDate") as string;
-  const dueDate = formData.get("dueDate") as string;
+  const issueDate = String(formData.get("issueDate") ?? "");
+  const dueDate = String(formData.get("dueDate") ?? "");
   const taxRate = Number(formData.get("taxRate"));
   const notes = (formData.get("notes") as string) || null;
   const paymentTermsRaw = formData.get("paymentTerms") as string;
@@ -96,11 +100,15 @@ export async function updateInvoiceMetaAction(invoiceId: string, formData: FormD
   )
     ? (paymentTermsRaw as (typeof paymentTermsValues)[number])
     : "NET30";
-  const poNumber = (formData.get("poNumber") as string) || null;
+  // "PO-4821" and "4821" both print as "PO 4821" on the PDF.
+  const poNumber = String(formData.get("poNumber") ?? "").trim().replace(/^PO[\s#:-]*/i, "") || null;
 
-  if (!issueDate || !dueDate || Number.isNaN(taxRate)) {
-    throw new Error("Please fill in all required fields.");
-  }
+  const fieldErrors: Record<string, string[]> = {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issueDate)) fieldErrors.issueDate = ["Pick an issue date."];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) fieldErrors.dueDate = ["Pick a due date."];
+  else if (issueDate && dueDate < issueDate) fieldErrors.dueDate = ["The due date can't be before the issue date."];
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) fieldErrors.taxRate = ["Use a tax rate from 0 to 100."];
+  if (Object.keys(fieldErrors).length) return { fieldErrors };
 
   await prisma.$transaction(async (tx) => {
     await tx.invoice.update({
@@ -118,84 +126,79 @@ export async function updateInvoiceMetaAction(invoiceId: string, formData: FormD
   });
 
   revalidatePath(`/invoices/${invoiceId}`);
+  return { saved: true };
 }
 
-export async function updateLineItemAction(
-  lineItemId: string,
+type LineInput = { id?: string; description: string; quantity: number; rate: number };
+
+/**
+ * Saves a draft's whole line table at once: edits, new lines and removed
+ * ones (whose time, milestones and expenses become unbilled again). One
+ * save, so an edit in one row is never lost by saving another.
+ */
+export async function saveInvoiceLinesAction(
   invoiceId: string,
+  _prev: ActionState,
   formData: FormData
-) {
-  const { org, user, role } = await requireOrgContext();
-  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
-  if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
-  if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
-
-  const description = formData.get("description") as string;
-  const quantity = Number(formData.get("quantity"));
-  const rate = Number(formData.get("rate"));
-
-  if (!description || Number.isNaN(quantity) || Number.isNaN(rate)) {
-    throw new Error("Invalid line item values.");
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.invoiceLineItem.update({
-      where: { id: lineItemId, invoiceId },
-      data: { description, quantity: round2(quantity), rate: round2(rate), amount: round2(quantity * rate) },
-    });
-    await recomputeInvoiceTotals(tx, invoiceId);
-  });
-
-  revalidatePath(`/invoices/${invoiceId}`);
-}
-
-export async function addManualLineItemAction(invoiceId: string, formData: FormData) {
+): Promise<ActionState> {
   const { org, user, role } = await requireOrgContext();
   const invoice = await prisma.invoice.findFirst({
     where: visibleInvoice(invoiceId, org.id, user.id, role),
-    include: { lineItems: true },
+    include: { lineItems: { select: { id: true } } },
   });
-  if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
-  if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
+  if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
+  if (invoice.status !== "DRAFT") return { error: "Only draft invoices can be edited." };
 
-  const description = formData.get("description") as string;
-  const quantity = Number(formData.get("quantity"));
-  const rate = Number(formData.get("rate"));
+  let lines: LineInput[];
+  let removed: string[];
+  try {
+    lines = JSON.parse(String(formData.get("lines") ?? "[]"));
+    removed = JSON.parse(String(formData.get("removed") ?? "[]"));
+    if (!Array.isArray(lines) || !Array.isArray(removed)) throw new Error();
+  } catch {
+    return { error: "Couldn't read the lines. Reload the page and try again." };
+  }
 
-  if (!description || Number.isNaN(quantity) || Number.isNaN(rate)) {
-    throw new Error("Invalid line item values.");
+  const known = new Set(invoice.lineItems.map((l) => l.id));
+  for (const [i, line] of lines.entries()) {
+    const n = i + 1;
+    const description = typeof line.description === "string" ? line.description.trim() : "";
+    if (!description) return { error: `Line ${n} needs a description.` };
+    if (description.length > 500) return { error: `Line ${n}'s description is too long (500 characters at most).` };
+    if (!Number.isFinite(line.quantity)) return { error: `Line ${n} needs a quantity.` };
+    if (!Number.isFinite(line.rate)) return { error: `Line ${n} needs a rate.` };
+    if (Math.abs(line.quantity) > 1_000_000 || Math.abs(line.rate) > 100_000_000) {
+      return { error: `Line ${n}'s numbers are too large.` };
+    }
+    if (line.id && !known.has(line.id)) return { error: "A line was changed elsewhere. Reload the page." };
+    line.description = description;
+  }
+  if (removed.some((id) => typeof id !== "string" || !known.has(id))) {
+    return { error: "A line was changed elsewhere. Reload the page." };
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.invoiceLineItem.create({
-      data: {
-        invoiceId,
-        description,
-        quantity: round2(quantity),
-        rate: round2(rate),
-        amount: round2(quantity * rate),
-        sortOrder: invoice.lineItems.length,
-      },
-    });
+    for (const lineItemId of removed) {
+      await releaseInvoicedWork(tx, { lineItemId });
+      await tx.invoiceLineItem.delete({ where: { id: lineItemId, invoiceId } });
+    }
+    for (const [sortOrder, line] of lines.entries()) {
+      const data = {
+        description: line.description,
+        quantity: round2(line.quantity),
+        rate: round2(line.rate),
+        amount: round2(line.quantity * line.rate),
+        sortOrder,
+      };
+      if (line.id) await tx.invoiceLineItem.update({ where: { id: line.id, invoiceId }, data });
+      else await tx.invoiceLineItem.create({ data: { ...data, invoiceId } });
+    }
     await recomputeInvoiceTotals(tx, invoiceId);
   });
 
   revalidatePath(`/invoices/${invoiceId}`);
-}
-
-export async function removeLineItemAction(lineItemId: string, invoiceId: string) {
-  const { org, user, role } = await requireOrgContext();
-  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
-  if (!invoice || invoice.orgId !== org.id) throw new Error("Invoice not found.");
-  if (invoice.status !== "DRAFT") throw new Error("Only draft invoices can be edited.");
-
-  await prisma.$transaction(async (tx) => {
-    await releaseInvoicedWork(tx, { lineItemId });
-    await tx.invoiceLineItem.delete({ where: { id: lineItemId, invoiceId } });
-    await recomputeInvoiceTotals(tx, invoiceId);
-  });
-
-  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+  return { saved: true };
 }
 
 export async function setInvoiceStatusAction(
@@ -379,14 +382,34 @@ export async function emailInvoiceAction(
   return { saved: true };
 }
 
-/** The client-facing link for a sent invoice, for sharing by hand. */
-export async function invoiceClientLinkAction(invoiceId: string): Promise<{ url?: string; error?: string }> {
+/**
+ * The client-facing link, for sharing by hand. On a draft it sends the
+ * invoice first (owners and admins), so there's always a way to get an
+ * invoice to the client, even without email set up.
+ */
+export async function invoiceClientLinkAction(
+  invoiceId: string
+): Promise<{ url?: string; error?: string; sent?: boolean }> {
   const { org, user, role } = await requireOrgContext();
-  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
+  const invoice = await prisma.invoice.findFirst({
+    where: visibleInvoice(invoiceId, org.id, user.id, role),
+    include: { client: true },
+  });
   if (!invoice || invoice.orgId !== org.id) return { error: "Invoice not found." };
-  if (invoice.status === "DRAFT") return { error: "Send the invoice first." };
+  if (invoice.status === "VOID") return { error: "This invoice is void." };
+  let sent = false;
+  if (invoice.status === "DRAFT") {
+    if (!canChangeInvoiceStatusByKey(role)) return { error: "Only owners and admins can send invoices." };
+    const lineItemCount = await prisma.invoiceLineItem.count({ where: { invoiceId } });
+    if (lineItemCount === 0) return { error: "Add at least one line item before sending." };
+    await prisma.invoice.update({ where: { id: invoiceId }, data: { status: "SENT" } });
+    await notifyInvoiceStatusChange(org, invoice, "SENT");
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices");
+    sent = true;
+  }
   const { viewUrl } = await invoiceLinks(invoiceId);
-  return { url: viewUrl };
+  return { url: viewUrl, sent };
 }
 
 export async function saveReminderSettingsAction(

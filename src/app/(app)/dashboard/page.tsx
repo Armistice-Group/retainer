@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Clock,
@@ -22,12 +23,17 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { isOverdue } from "@/lib/invoice-aging";
 import { balanceDue } from "@/lib/invoice-balance";
 import { MaximizeValueCard, type MaximizeValueItem } from "./maximize-value-card";
+import { DismissSetupCardButton } from "./dismiss-setup-card-button";
+import { gettingStarted } from "@/lib/services/getting-started";
+import { GettingStartedList } from "@/components/getting-started-list";
 import { pendingExpenses } from "@/lib/services/expense-alerts";
 import { cookies } from "next/headers";
 import { isValidTimeZone, upcomingItems } from "@/lib/services/calendar-items";
 import { CALENDAR_STYLE } from "@/components/calendar/item-style";
 import { formatClockRange } from "@/lib/clock-time";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = { title: "Dashboard" };
 
 function startOfWeek(date: Date) {
   const d = new Date(date);
@@ -70,8 +76,8 @@ export default async function DashboardPage() {
       }),
       prisma.timeEntry.findMany({
         where: { orgId: org.id, userId: user.id },
-        include: { project: { include: { client: true } } },
-        orderBy: { date: "desc" },
+        include: { project: { include: { client: true } }, task: { select: { title: true } } },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
         take: 5,
       }),
       prisma.task.findMany({
@@ -86,6 +92,8 @@ export default async function DashboardPage() {
           billable: true,
           invoiceLineItemId: null,
           project: projectVisibilityWhere(user.id, role),
+          // Members see only their own: the org's totals are for owners and admins.
+          ...(canManage ? {} : { userId: user.id }),
         },
         select: { hours: true, rateOverride: true, projectId: true, userId: true },
       }),
@@ -181,11 +189,59 @@ export default async function DashboardPage() {
     },
   ];
 
+  const setup = canManage ? await gettingStarted(org) : null;
+  const firstName = user.name?.split(" ")[0] ?? "";
+  const returning = recentEntries.length > 0 || (setup?.steps.some((s) => s.done && s.key !== "business") ?? false);
+  // A member who isn't on any project yet has nothing to log time against.
+  const memberProjects = canManage
+    ? null
+    : await prisma.projectMember.count({ where: { userId: user.id, project: { orgId: org.id } } });
+  const owner =
+    memberProjects === 0
+      ? await prisma.membership.findFirst({
+          where: { orgId: org.id, role: "OWNER" },
+          select: { user: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+        })
+      : null;
+
   return (
     <div>
-      <PageHeader title={`Welcome back, ${user.name?.split(" ")[0] ?? ""}`} />
+      <PageHeader title={`${returning ? "Welcome back" : "Welcome"}${firstName ? `, ${firstName}` : ""}`} />
 
-      {canManage && !setupCardDismissed ? <MaximizeValueCard items={maximizeValueItems} /> : null}
+      {setup && !setup.done && !setupCardDismissed ? (
+        <Card className="mb-8 p-0">
+          <CardHeader className="flex flex-row items-start justify-between px-6 pt-5">
+            <div>
+              <CardTitle className="text-base">Get to your first invoice</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {setup.steps.filter((s) => s.done).length} of {setup.steps.length} done.{" "}
+                <Link href="/welcome" className="text-brand hover:underline">
+                  Optional extras
+                </Link>
+              </p>
+            </div>
+            <DismissSetupCardButton />
+          </CardHeader>
+          <CardContent className="p-0">
+            <GettingStartedList steps={setup.steps} />
+          </CardContent>
+        </Card>
+      ) : canManage && !setupCardDismissed ? (
+        <MaximizeValueCard items={maximizeValueItems} />
+      ) : null}
+
+      {memberProjects === 0 ? (
+        <Card className="mb-8">
+          <CardContent className="py-5 text-sm">
+            <p className="font-medium">You&apos;re not on a project yet</p>
+            <p className="mt-1 text-muted-foreground">
+              Once {owner?.user.name ?? "an owner or admin"} adds you to a project, you can log time and
+              pick up tasks here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -217,22 +273,29 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Unbilled hours
+              {canManage ? "Unbilled hours" : "Your unbilled hours"}
             </CardTitle>
             <Timer className="size-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <p className="tabular-figures text-2xl font-semibold">{unbilledHours.toFixed(1)}</p>
-            {unbilledHours > 0 ? (
+            {unbilledHours > 0 && canManage ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                ~{formatCurrency(unbilledValue, org.defaultCurrency)} not yet invoiced
+                {unbilledValue > 0
+                  ? `~${formatCurrency(unbilledValue, org.defaultCurrency)} not yet invoiced`
+                  : "No bill rate set on these projects yet"}
               </p>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">Everything billable is invoiced</p>
+            ) : unbilledHours > 0 ? null : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {recentEntries.length === 0 && !canManage
+                  ? "Nothing logged yet"
+                  : "Everything billable is invoiced"}
+              </p>
             )}
           </CardContent>
         </Card>
 
+        {canManage ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -257,6 +320,17 @@ export default async function DashboardPage() {
             ) : null}
           </CardContent>
         </Card>
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Your open tasks</CardTitle>
+              <ListTodo className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <p className="tabular-figures text-2xl font-semibold">{myTasks.length}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {expensesToApprove && expensesToApprove.count > 0 ? (
@@ -357,7 +431,7 @@ export default async function DashboardPage() {
             {recentEntries.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No time logged yet.{" "}
-                <Link href="/time" className="text-brand hover:underline">
+                <Link href="/time?log=1" className="text-brand hover:underline">
                   Log your first entry
                 </Link>
                 .
@@ -366,8 +440,14 @@ export default async function DashboardPage() {
               <div className="flex flex-col divide-y divide-border">
                 {recentEntries.map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between py-3 text-sm">
-                    <div>
-                      <p className="font-medium">{entry.project.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {entry.project.name}
+                        {entry.task ? <span className="font-normal text-muted-foreground"> · {entry.task.title}</span> : null}
+                      </p>
+                      {entry.description ? (
+                        <p className="truncate text-xs text-muted-foreground">{entry.description}</p>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">
                         {entry.project.client.name} · {formatDate(entry.date)}
                         {entry.startMinute != null
@@ -375,7 +455,7 @@ export default async function DashboardPage() {
                           : ""}
                       </p>
                     </div>
-                    <span className="tabular-figures text-sm">{Number(entry.hours).toFixed(2)}h</span>
+                    <span className="tabular-figures shrink-0 text-sm">{Number(entry.hours).toFixed(2)}h</span>
                   </div>
                 ))}
               </div>
@@ -388,26 +468,38 @@ export default async function DashboardPage() {
             <CardTitle className="text-base">Quick links</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
+            {canManage ? (
+              <>
+                <Button variant="ghost" className="justify-start" asChild>
+                  <Link href="/clients/new">
+                    <Building2 className="size-4" /> Add a client
+                  </Link>
+                </Button>
+                <Button variant="ghost" className="justify-start" asChild>
+                  <Link href="/projects/new">
+                    <FolderKanban className="size-4" /> Start a project
+                  </Link>
+                </Button>
+              </>
+            ) : null}
             <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/clients/new">
-                <Building2 className="size-4" /> Add a client
-              </Link>
-            </Button>
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/projects/new">
-                <FolderKanban className="size-4" /> Start a project
-              </Link>
-            </Button>
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/time">
+              <Link href="/time?log=1">
                 <Clock className="size-4" /> Log time
               </Link>
             </Button>
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/invoices/new">
-                <Send className="size-4" /> Send invoice
-              </Link>
-            </Button>
+            {canManage ? (
+              <Button variant="ghost" className="justify-start" asChild>
+                <Link href="/invoices/new">
+                  <Send className="size-4" /> New invoice
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="ghost" className="justify-start" asChild>
+                <Link href="/tasks">
+                  <ListTodo className="size-4" /> Your tasks
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

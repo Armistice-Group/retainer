@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import { Paperclip } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +23,11 @@ export function ContractorProfileCard({
   bio: string | null;
   hasResume: boolean;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateContractorProfileAction,
     null
   );
+  useActionFeedback(state, isPending, "Profile saved");
 
   return (
     <Card>

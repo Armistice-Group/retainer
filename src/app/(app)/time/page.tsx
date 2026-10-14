@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Clock, Download, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Download, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { projectVisibilityWhere } from "@/lib/project-access";
@@ -7,7 +7,6 @@ import { timeEntryWhere } from "@/lib/services/time-entries";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TimeEntryDialog } from "./time-entry-dialog";
@@ -23,7 +22,7 @@ import {
   pendingTimesheets,
   weekStartFromISO,
 } from "@/lib/services/timesheets";
-import { deleteTimeEntryAction } from "@/actions/time-entries";
+import { DeleteEntryButton } from "./delete-entry-button";
 import {
   addDays,
   formatWeekLabel,
@@ -40,10 +39,10 @@ import { attachmentSelect } from "@/lib/services/time-entry-attachments";
 export default async function TimePage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; view?: string; userId?: string }>;
+  searchParams: Promise<{ week?: string; view?: string; userId?: string; log?: string; project?: string }>;
 }) {
   const { org, user, role, memberships } = await requireOrgContext();
-  const { week, view, userId: filterUserId } = await searchParams;
+  const { week, view, userId: filterUserId, log, project: logProjectId } = await searchParams;
 
   const canManageTeam = role === "OWNER" || role === "ADMIN";
   const teamView = canManageTeam && view === "team";
@@ -81,6 +80,7 @@ export default async function TimePage({
       include: {
         project: { include: { client: true } },
         user: true,
+        task: { select: { title: true } },
         attachments: { select: attachmentSelect, orderBy: { createdAt: "asc" } },
       },
       orderBy: [{ date: "asc" }, { startMinute: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
@@ -103,6 +103,12 @@ export default async function TimePage({
       where: { userId: user.id, status: "PENDING", feed: { orgId: org.id } },
     }),
   ]);
+  // New entries start on the project you last logged time to.
+  const lastEntry = await prisma.timeEntry.findFirst({
+    where: { orgId: org.id, userId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: { projectId: true },
+  });
   // Members can't change a week that's submitted or approved.
   const weekLocked =
     !canManageTeam && !!sheet && (sheet.status === "SUBMITTED" || sheet.status === "APPROVED");
@@ -112,6 +118,7 @@ export default async function TimePage({
     name: p.name,
     clientName: p.client.name,
     requireClockTimes: p.client.requireClockTimes,
+    invoiceTimeDetail: p.client.invoiceTimeDetail,
   }));
   const memberOptions = teamMembers.map((m) => ({ id: m.userId, name: m.user.name }));
 
@@ -123,13 +130,28 @@ export default async function TimePage({
   const thisWeekStart = toISODate(startOfWeek(new Date()));
   const viewQuery = teamView ? "&view=team" : "";
 
+  const today = toISODate(new Date());
+  const viewingThisWeek = toISODate(weekStart) === thisWeekStart;
+  const lockedNotice = weekLocked
+    ? `Your timesheet for ${formatWeekLabel(weekStart)} is ${sheet?.status === "APPROVED" ? "approved" : "submitted"}, so time can't be added to that week. Pick a date in another week${sheet?.status === "SUBMITTED" ? ", or recall the timesheet first" : ""}.`
+    : undefined;
+  const dialogProps = {
+    projects: projectOptions,
+    tasks,
+    canManageTeam,
+    teamMembers: memberOptions,
+    currentUserId: user.id,
+    // ?project= (from a project page) wins over the last project you logged to.
+    defaultProjectId: projectOptions.some((p) => p.id === logProjectId) ? logProjectId : lastEntry?.projectId,
+    clockRounding: org.clockRoundingMinutes,
+    notice: lockedNotice,
+  };
+
   const logDialog = (
     <TimeEntryDialog
-      projects={projectOptions}
-      tasks={tasks}
-      canManageTeam={canManageTeam}
-      teamMembers={memberOptions}
-      clockRounding={org.clockRoundingMinutes}
+      {...dialogProps}
+      defaultDate={viewingThisWeek ? today : toISODate(weekStart)}
+      defaultOpen={log === "1"}
     />
   );
 
@@ -141,48 +163,47 @@ export default async function TimePage({
         actions={logDialog}
       />
 
-      {canManageTeam || feedCount > 0 || meetingsView ? (
-        <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
-          {[
-            {
-              href: "/time",
-              label: "My time",
-              active: !teamView && !approvalsView && !meetingsView,
-              count: 0,
-            },
-            { href: "/time?view=meetings", label: "Meetings", active: meetingsView, count: meetingCount },
-            ...(canManageTeam
-              ? [{ href: "/time?view=team", label: "Team", active: teamView, count: 0 }]
-              : []),
-            ...(canManageTeam && (org.timesheetApproval !== "OFF" || pendingCount > 0)
-              ? [
-                  {
-                    href: "/time?view=approvals",
-                    label: "Approvals",
-                    active: approvalsView,
-                    count: pendingCount,
-                  },
-                ]
-              : []),
-          ].map((tab) => (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-                tab.active
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {tab.label}
-              {tab.count > 0 ? (
-                <Badge className="h-4 px-1.5 text-[0.65rem]">{tab.count}</Badge>
-              ) : null}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      {/* Everyone gets My time and Meetings, so members can find the calendar inbox. */}
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-border">
+        {[
+          {
+            href: "/time",
+            label: "My time",
+            active: !teamView && !approvalsView && !meetingsView,
+            count: 0,
+          },
+          { href: "/time?view=meetings", label: "Meetings", active: meetingsView, count: meetingCount },
+          ...(canManageTeam
+            ? [{ href: "/time?view=team", label: "Team", active: teamView, count: 0 }]
+            : []),
+          ...(canManageTeam && (org.timesheetApproval !== "OFF" || pendingCount > 0)
+            ? [
+                {
+                  href: "/time?view=approvals",
+                  label: "Approvals",
+                  active: approvalsView,
+                  count: pendingCount,
+                },
+              ]
+            : []),
+        ].map((tab) => (
+          <Link
+            key={tab.href}
+            href={tab.href}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              tab.active
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab.label}
+            {tab.count > 0 ? (
+              <Badge className="h-4 px-1.5 text-[0.65rem]">{tab.count}</Badge>
+            ) : null}
+          </Link>
+        ))}
+      </div>
 
       {meetingsView ? (
         <MeetingsInbox
@@ -219,12 +240,12 @@ export default async function TimePage({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-1">
               <Button variant="outline" size="icon" className="size-8" asChild>
-                <Link href={`/time?week=${prevWeek}${viewQuery}`}>
+                <Link href={`/time?week=${prevWeek}${viewQuery}`} aria-label="Previous week" title="Previous week">
                   <ChevronLeft className="size-4" />
                 </Link>
               </Button>
               <Button variant="outline" size="icon" className="size-8" asChild>
-                <Link href={`/time?week=${nextWeek}${viewQuery}`}>
+                <Link href={`/time?week=${nextWeek}${viewQuery}`} aria-label="Next week" title="Next week">
                   <ChevronRight className="size-4" />
                 </Link>
               </Button>
@@ -270,8 +291,7 @@ export default async function TimePage({
             <EmptyState
               icon={Clock}
               title="No time logged this week"
-              description="Log hours as you go so invoicing stays effortless."
-              action={logDialog}
+              description="Use Log time above, or start the timer, as you work."
             />
           ) : (
             <div className="flex flex-col gap-4">
@@ -280,32 +300,64 @@ export default async function TimePage({
                 // the week's days are local midnights.
                 const dayKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
                 const dayEntries = entries.filter((e) => toISODate(e.date) === dayKey);
-                if (dayEntries.length === 0) return null;
                 const dayTotal = dayEntries.reduce((sum, e) => sum + Number(e.hours), 0);
+                const dayName = new Intl.DateTimeFormat("en-US", {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                }).format(day);
 
                 return (
-                  <Card key={day.toISOString()} className="p-0">
-                    <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-                      <span className="text-sm font-medium">
-                        {new Intl.DateTimeFormat("en-US", {
-                          weekday: "long",
-                          month: "short",
-                          day: "numeric",
-                        }).format(day)}
+                  <Card key={day.toISOString()} className="gap-0 p-0">
+                    <div
+                      className={cn(
+                        "flex items-center justify-between gap-2 px-4 py-2",
+                        dayEntries.length > 0 && "border-b border-border"
+                      )}
+                    >
+                      <span className={cn("text-sm font-medium", dayEntries.length === 0 && "text-muted-foreground")}>
+                        {dayName}
+                        {dayKey === today ? <span className="ml-2 text-xs text-brand">Today</span> : null}
                       </span>
-                      <span className="tabular-figures text-sm text-muted-foreground">
-                        {dayTotal.toFixed(2)}h
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="tabular-figures text-sm text-muted-foreground">
+                          {dayEntries.length ? `${dayTotal.toFixed(2)}h` : ""}
+                        </span>
+                        {!teamView && !weekLocked ? (
+                          <TimeEntryDialog
+                            {...dialogProps}
+                            defaultDate={dayKey}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                aria-label={`Log time on ${dayName}`}
+                                title={`Log time on ${dayName}`}
+                              >
+                                <Plus className="size-3.5" />
+                              </Button>
+                            }
+                          />
+                        ) : null}
+                      </div>
                     </div>
+                    {dayEntries.length ? (
                     <ul className="divide-y divide-border">
                       {dayEntries.map((entry) => {
                         const canEditThis =
                           teamView || (entry.userId === user.id && !weekLocked);
+                        const range = formatClockRange(entry.startMinute, entry.endMinute);
+                        const label = `${Number(entry.hours)}h on ${entry.project.name}`;
+                        const details = [entry.task?.title, entry.description].filter(Boolean).join(" · ");
                         return (
-                          <li key={entry.id} className="flex items-center gap-3 px-4 py-3">
+                          <li
+                            key={entry.id}
+                            className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:items-center sm:gap-3"
+                          >
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="truncate text-sm font-medium">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <p className="min-w-0 max-w-full truncate text-sm font-medium">
                                   {entry.project.client.name} — {entry.project.name}
                                 </p>
                                 {teamView ? (
@@ -334,35 +386,37 @@ export default async function TimePage({
                                   </Badge>
                                 ) : null}
                               </div>
-                              {entry.description ? (
-                                <p className="truncate text-sm text-muted-foreground">
-                                  {entry.description}
-                                </p>
+                              {details ? (
+                                <p className="truncate text-sm text-muted-foreground">{details}</p>
                               ) : null}
                             </div>
-                            {entry.startMinute != null ? (
-                              <span className="tabular-figures text-sm text-muted-foreground">
-                                {formatClockRange(entry.startMinute, entry.endMinute)}
-                              </span>
+                            <div className="flex items-center gap-3 self-end sm:self-auto">
+                            {range ? (
+                              <span className="tabular-figures text-sm text-muted-foreground">{range}</span>
                             ) : null}
                             <span className="tabular-figures text-sm">
                               {Number(entry.hours).toFixed(2)}h
                             </span>
                             <EvidenceDialog
                               entryId={entry.id}
-                              title={`${entry.project.client.name} — ${entry.project.name}, ${formatDate(entry.date)}`}
+                              title={[
+                                `${entry.project.client.name} — ${entry.project.name}`,
+                                formatDate(entry.date),
+                                range,
+                                entry.description,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
                               items={entry.attachments}
                               canEdit={entry.userId === user.id || canManageTeam}
                               clientSeesDetail={entry.project.client.invoiceTimeDetail}
+                              clientId={entry.project.clientId}
                             />
                             {!entry.invoiceLineItemId && canEditThis ? (
                               <div className="flex items-center gap-1">
                                 <TimeEntryDialog
-                                  projects={projectOptions}
-                                  tasks={tasks}
-                                  canManageTeam={canManageTeam}
-                                  teamMembers={memberOptions}
-                                  clockRounding={org.clockRoundingMinutes}
+                                  {...dialogProps}
+                                  notice={undefined}
                                   editValues={{
                                     id: entry.id,
                                     projectId: entry.projectId,
@@ -380,24 +434,15 @@ export default async function TimePage({
                                       entry.rateOverride != null ? entry.rateOverride.toString() : "",
                                   }}
                                 />
-                                <form action={deleteTimeEntryAction.bind(null, entry.id)}>
-                                  <ConfirmSubmitButton
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7"
-                                    aria-label="Delete time entry"
-                                    title="Delete time entry"
-                                    confirmMessage="Delete this time entry?"
-                                  >
-                                    <Trash2 className="size-3.5" />
-                                  </ConfirmSubmitButton>
-                                </form>
+                                <DeleteEntryButton entryId={entry.id} label={label} />
                               </div>
                             ) : null}
+                            </div>
                           </li>
                         );
                       })}
                     </ul>
+                    ) : null}
                   </Card>
                 );
               })}

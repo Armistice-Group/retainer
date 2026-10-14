@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
@@ -20,10 +21,11 @@ export function ShareVerificationForm({
   canEdit: boolean;
   emailConfigured: boolean;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     updateShareVerificationDefaultAction,
     null
   );
+  useActionFeedback(state, isPending, "Saved");
   // Can always be turned off; turning on needs email.
   const disabled = !canEdit || (!enabled && !emailConfigured);
 

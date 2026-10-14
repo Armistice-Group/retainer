@@ -9,9 +9,15 @@ export function SubmitButton({
   children,
   pendingText,
   disabled,
+  pending: pendingProp,
   ...props
-}: ComponentProps<typeof Button> & { pendingText?: string }) {
-  const { pending } = useFormStatus();
+}: ComponentProps<typeof Button> & {
+  pendingText?: string;
+  /** For forms submitted from onSubmit, which useFormStatus doesn't see. */
+  pending?: boolean;
+}) {
+  const status = useFormStatus();
+  const pending = pendingProp ?? status.pending;
 
   return (
     <Button type="submit" disabled={pending || disabled} {...props}>

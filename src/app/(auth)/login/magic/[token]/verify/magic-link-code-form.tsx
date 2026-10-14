@@ -21,7 +21,7 @@ export function MagicLinkCodeForm({ token }: { token: string }) {
         <CardDescription>Enter the 6-digit code from your authenticator app.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form action={formAction} data-allow-reset className="flex flex-col gap-4">
           <input type="hidden" name="token" value={token} />
           {state?.error ? (
             <Alert variant="destructive">

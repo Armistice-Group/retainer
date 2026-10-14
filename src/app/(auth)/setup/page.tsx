@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { isSetupComplete, isSetupTokenRequired } from "@/lib/setup";
 import { getRequestOrigin } from "@/lib/url";
 import { SetupForm } from "./setup-form";
+
+export const metadata: Metadata = { title: "Set up" };
 
 export const dynamic = "force-dynamic";
 

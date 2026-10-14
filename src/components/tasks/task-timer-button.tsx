@@ -2,9 +2,9 @@
 
 import { useTransition } from "react";
 import { Play, Square } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { startTimerAction, stopTimerAction } from "@/actions/timer";
+import { reportTimerResult } from "@/components/layout/timer-widget";
 import { browserTimeZone } from "@/lib/clock-time";
 import { cn } from "@/lib/utils";
 
@@ -26,15 +26,11 @@ export function TaskTimerButton({
   function toggle() {
     startTransition(async () => {
       const timeZone = browserTimeZone();
-      if (running) {
-        const result = await stopTimerAction(timeZone);
-        if (result?.error) toast.error(result.error);
-        else toast.success("Timer stopped.");
-        result?.warnings?.forEach((w) => toast.warning(w));
-        return;
-      }
-      const result = await startTimerAction(projectId, taskId, null, true, timeZone);
-      if (result?.error) toast.error(result.error);
+      reportTimerResult(
+        running
+          ? await stopTimerAction(timeZone)
+          : await startTimerAction(projectId, taskId, null, true, timeZone)
+      );
     });
   }
 

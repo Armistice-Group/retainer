@@ -25,7 +25,7 @@ export function GoogleTwoFactorForm({ ticket }: { ticket: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form action={formAction} data-allow-reset className="flex flex-col gap-4">
           <input type="hidden" name="ticket" value={ticket} />
           {state?.error ? (
             <Alert variant="destructive">

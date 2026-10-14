@@ -36,7 +36,7 @@ export async function createTaskAction(
     projectId: formData.get("projectId"),
     title: formData.get("title"),
     description: formData.get("description"),
-    assigneeId: formData.get("assigneeId"),
+    assigneeId: formData.get("assigneeId") === "none" ? "" : formData.get("assigneeId"),
     estimatedHours: formData.get("estimatedHours") || undefined,
     dueDate: formData.get("dueDate") ?? undefined,
   });

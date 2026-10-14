@@ -21,6 +21,31 @@ export type InvoiceActivityEvent = {
   createdAt: Date;
 };
 
+type ActivityRow = InvoiceActivityEvent & { times: number };
+
+const REPEATABLE = new Set<InvoiceEventType>(["VIEWED", "PDF_VIEWED", "EMAIL_OPENED"]);
+const REPEAT_WINDOW_MS = 60 * 60 * 1000;
+
+/** The client reloading the page shouldn't fill the list: opens of the same
+ * kind within an hour of each other become one row ("… 5 times"). */
+function collapseRepeats(events: InvoiceActivityEvent[]): ActivityRow[] {
+  const rows: ActivityRow[] = [];
+  for (const e of events) {
+    const last = rows[rows.length - 1];
+    if (
+      last &&
+      REPEATABLE.has(e.type) &&
+      last.type === e.type &&
+      last.createdAt.getTime() - e.createdAt.getTime() < REPEAT_WINDOW_MS * last.times
+    ) {
+      last.times++;
+      continue;
+    }
+    rows.push({ ...e, times: 1 });
+  }
+  return rows;
+}
+
 function describe(e: InvoiceActivityEvent) {
   switch (e.type) {
     case "EMAILED":
@@ -67,13 +92,16 @@ export function InvoiceActivity({
           </p>
         ) : (
           <ul className="flex flex-col gap-3 text-sm">
-            {events.map((e) => {
+            {collapseRepeats(events).map((e) => {
               const Icon = ICONS[e.type];
               return (
                 <li key={e.id} className="flex gap-2">
                   <Icon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
-                    <p className="break-words">{describe(e)}</p>
+                    <p className="break-words">
+                      {describe(e)}
+                      {e.times > 1 ? ` (${e.times} times)` : ""}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {e.createdAt.toLocaleString("en-US", {
                         dateStyle: "medium",

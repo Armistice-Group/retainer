@@ -132,16 +132,16 @@ export function MilestonesCard({
                       ) : null}
                       {status === "COMPLETED" && canManage ? (
                         <form action={reopenMilestoneAction.bind(null, m.id, projectId)}>
-                          <Button
+                          <ConfirmSubmitButton
                             variant="ghost"
                             size="icon"
                             className="size-7"
-                            type="submit"
                             aria-label={`Reopen milestone "${m.name}"`}
-                            title="Reopen milestone"
+                            title="Reopen (mark as not done)"
+                            confirmMessage={`Reopen "${m.name}"? It goes back to pending; its evidence is kept.`}
                           >
                             <RotateCcw className="size-3.5" />
-                          </Button>
+                          </ConfirmSubmitButton>
                         </form>
                       ) : null}
                       {status !== "INVOICED" && canManage ? (

@@ -1,5 +1,6 @@
 "use server";
 
+import { isEmailConfigured } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import { DRAFT_CLIENT_ERROR, isDraftClient } from "@/lib/client-status";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,10 @@ import { parseLocalDate } from "@/lib/date";
 import { alignToInterval, nextRunDate } from "@/lib/billing-interval";
 import { recurringInvoiceScheduleSchema, billingCycleSchema } from "@/lib/validations/recurring-invoice";
 import type { ActionState } from "@/actions/auth";
+
+
+const NO_EMAIL_AUTO_SEND =
+  "Email isn't set up on this instance, so invoices can't be sent automatically. Untick “Send automatically” to get drafts you send yourself, or set up email under Settings → Integrations.";
 
 export async function createRecurringScheduleAction(
   _prevState: ActionState,
@@ -33,6 +38,9 @@ export async function createRecurringScheduleAction(
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
   if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
+  if (parsed.data.autoSend && !(await isEmailConfigured())) {
+    return { error: NO_EMAIL_AUTO_SEND };
+  }
 
   await prisma.recurringInvoiceSchedule.create({
     data: {
@@ -107,6 +115,9 @@ export async function saveBillingCycleAction(
   const client = await prisma.client.findUnique({ where: { id: parsed.data.clientId } });
   if (!client || client.orgId !== org.id) return { error: "Client not found." };
   if (isDraftClient(client)) return { error: DRAFT_CLIENT_ERROR };
+  if (parsed.data.autoSend && !(await isEmailConfigured())) {
+    return { error: NO_EMAIL_AUTO_SEND };
+  }
 
   const start = alignToInterval(parseLocalDate(parsed.data.startDate), parsed.data.interval);
   const data = {

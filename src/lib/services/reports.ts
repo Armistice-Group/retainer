@@ -45,6 +45,8 @@ export type UnbilledRow = {
   clientId: string;
   client: string;
   hours: number;
+  /** Hours at no bill rate (nobody set one), so worth $0 here. */
+  noRateHours: number;
   timeValue: number;
   milestones: number;
   expenses: number;
@@ -89,7 +91,6 @@ export async function buildReport(orgId: string, from: Date, to: Date) {
     }),
     prisma.invoiceLineItem.findMany({
       where: {
-        projectId: { not: null },
         // Deposits aren't work invoiced: the invoice for the work is.
         invoice: { orgId, kind: "STANDARD", status: { in: ["SENT", "PAID"] }, issueDate: { gte: from, lt: to } },
       },
@@ -179,7 +180,13 @@ export async function buildReport(orgId: string, from: Date, to: Date) {
     if (cost == null) p.missingCost = true;
     else p.laborCost += hours * cost;
   }
+  // Lines on no project: retainers, discounts, anything added by hand.
+  let otherInvoiced = 0;
   for (const li of lineItems) {
+    if (!li.projectId) {
+      otherInvoiced += Number(li.amount);
+      continue;
+    }
     const p = projects.get(li.projectId!);
     if (p) p.invoiced += Number(li.amount);
     else {
@@ -209,6 +216,7 @@ export async function buildReport(orgId: string, from: Date, to: Date) {
       .filter((p) => p.hours > 0 || p.cost !== null)
       .sort((a, b) => b.hours - a.hours),
     projects: [...projects.values()].sort((a, b) => b.invoiced - a.invoiced || b.hours - a.hours),
+    otherInvoiced,
     unbilled: await unbilledByClient(orgId, billRate),
     aging: await agingByClient(orgId),
     received: await receivedInRange(orgId, from, to),
@@ -255,7 +263,7 @@ async function unbilledByClient(orgId: string, billRate: Map<string, number>) {
   const row = (c: { id: string; name: string }) => {
     let r = rows.get(c.id);
     if (!r) {
-      r = { clientId: c.id, client: c.name, hours: 0, timeValue: 0, milestones: 0, expenses: 0, total: 0 };
+      r = { clientId: c.id, client: c.name, hours: 0, noRateHours: 0, timeValue: 0, milestones: 0, expenses: 0, total: 0 };
       rows.set(c.id, r);
     }
     return r;
@@ -268,12 +276,16 @@ async function unbilledByClient(orgId: string, billRate: Map<string, number>) {
         ? Number(e.rateOverride)
         : (billRate.get(`${e.projectId}:${e.userId}`) ?? 0);
     r.hours += hours;
+    if (rate === 0) r.noRateHours += hours;
     r.timeValue += hours * rate;
   }
   for (const m of milestones) row(m.project.client).milestones += Number(m.amount);
   for (const x of expenses) row(x.project.client).expenses += Number(x.amount);
   for (const r of rows.values()) r.total = r.timeValue + r.milestones + r.expenses;
-  return [...rows.values()].filter((r) => r.total > 0).sort((a, b) => b.total - a.total);
+  // Hours with no rate set still count: they're work waiting to be billed.
+  return [...rows.values()]
+    .filter((r) => r.total > 0 || r.hours > 0)
+    .sort((a, b) => b.total - a.total || b.hours - a.hours);
 }
 
 async function agingByClient(orgId: string) {

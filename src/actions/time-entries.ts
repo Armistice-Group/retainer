@@ -148,10 +148,16 @@ export async function updateTimeEntryAction(
   return warnings.length ? { warnings } : null;
 }
 
-export async function deleteTimeEntryAction(timeEntryId: string) {
+export async function deleteTimeEntryAction(timeEntryId: string): Promise<ActionState> {
   const ctx = await buildContext();
-  await deleteTimeEntry(ctx, timeEntryId);
+  try {
+    await deleteTimeEntry(ctx, timeEntryId);
+  } catch (err) {
+    if (err instanceof TimeEntryError) return { error: err.message };
+    throw err;
+  }
   revalidatePath("/time");
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
+  return null;
 }

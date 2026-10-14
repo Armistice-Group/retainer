@@ -381,6 +381,15 @@ export async function auditedQuery(base: PrismaClient, params: QueryParams) {
   return result;
 }
 
+/**
+ * Runs writes without the automatic per-row audit entries — for writes in a
+ * transaction whose rows the audit log can't reference until it commits
+ * (first-run setup records its own events afterwards).
+ */
+export function withoutRowAudit<T>(fn: () => Promise<T>): Promise<T> {
+  return inAudit.run(true, fn);
+}
+
 /** For events that aren't a single row write (sign-ins, exports). */
 export async function recordAuditEvent(
   base: PrismaClient,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,8 @@ export function InstanceUrlCard({
   currentUrl: string;
   envOverride: string | null;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(savePublicUrlAction, null);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(savePublicUrlAction, null);
+  useActionFeedback(state, isPending, "Saved");
   const effective = envOverride ?? configuredUrl;
 
   return (

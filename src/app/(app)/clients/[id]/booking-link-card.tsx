@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,10 +18,11 @@ export function BookingLinkCard({
   value: string | null;
   orgDefault: string | null;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     setClientBookingUrlAction.bind(null, clientId),
     null
   );
+  useActionFeedback(state, isPending, "Booking link saved");
   return (
     <Card>
       <CardHeader>

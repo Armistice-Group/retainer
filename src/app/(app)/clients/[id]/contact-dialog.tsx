@@ -117,15 +117,22 @@ export function ContactDialog({
                 Primary contact
               </Label>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <Checkbox
                 id="contact-invoices"
                 name="receivesInvoices"
+                className="mt-0.5"
                 defaultChecked={contact?.receivesInvoices}
               />
-              <Label htmlFor="contact-invoices" className="font-normal">
-                Include on invoice emails
-              </Label>
+              <div className="flex flex-col gap-0.5">
+                <Label htmlFor="contact-invoices" className="font-normal">
+                  Send invoices to this person
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Invoice emails go to everyone marked this way, instead of the client&apos;s billing
+                  email.
+                </p>
+              </div>
             </div>
           </div>
           <SubmitButton pendingText={isEdit ? "Saving..." : "Adding..."}>

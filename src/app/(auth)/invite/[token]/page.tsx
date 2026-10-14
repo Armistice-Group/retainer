@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { InviteForm } from "./invite-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+export const metadata: Metadata = { title: "Join" };
 
 export default async function InvitePage({
   params,

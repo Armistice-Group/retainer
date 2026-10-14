@@ -1,12 +1,15 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { requireOrgContext } from "@/lib/org-context";
+import { AdminOnlyNotice } from "@/components/admin-only-notice";
 import { isEmailConfigured } from "@/lib/email";
 import { ALERT_EVENTS, channelsFor, type AlertEvent } from "@/lib/alert-events";
 import { AlertSettingsForm } from "./alert-settings-form";
 
+export const metadata: Metadata = { title: "Alerts" };
+
 export default async function AlertSettingsPage() {
   const { org, role } = await requireOrgContext();
-  if (role !== "OWNER" && role !== "ADMIN") notFound();
+  if (role !== "OWNER" && role !== "ADMIN") return <AdminOnlyNotice what="alert settings" />;
 
   const events = (Object.keys(ALERT_EVENTS) as AlertEvent[]).map((event) => ({
     event,

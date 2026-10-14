@@ -138,6 +138,7 @@ export function AddTaskDialog({
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
                 {members.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
                     {m.name}

@@ -10,23 +10,44 @@ import { clientLogoUrl } from "@/lib/services/client-logos";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { DISCARD_PURGE_DAYS } from "@/lib/services/scheduling";
 import type { Prisma } from "@/generated/prisma/client";
 
-export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; q?: string; status?: string }>;
+}) {
   const { org, role } = await requireOrgContext();
   const canManage = role === "OWNER" || role === "ADMIN";
-  const { view: rawView } = await searchParams;
+  const { view: rawView, q: rawQuery, status: rawStatus } = await searchParams;
   const view = rawView === "drafts" ? "drafts" : rawView === "discarded" && canManage ? "discarded" : "clients";
+  const query = rawQuery?.trim().slice(0, 100) ?? "";
+  // The Clients tab shows active clients unless asked otherwise.
+  const statusFilter = rawStatus === "inactive" || rawStatus === "all" ? rawStatus : "active";
+  const filtering = view === "clients" && (query !== "" || statusFilter !== "active");
 
   const where: Prisma.ClientWhereInput =
     view === "drafts"
       ? { orgId: org.id, status: "LEAD", leadDiscardedAt: null }
       : view === "discarded"
         ? { orgId: org.id, status: "LEAD", leadDiscardedAt: { not: null } }
-        : { orgId: org.id, status: { not: "LEAD" } };
+        : {
+            orgId: org.id,
+            status: statusFilter === "all" ? { not: "LEAD" } : statusFilter === "inactive" ? "INACTIVE" : "ACTIVE",
+            ...(query
+              ? {
+                  OR: [
+                    { name: { contains: query, mode: "insensitive" } },
+                    { email: { contains: query, mode: "insensitive" } },
+                    { website: { contains: query, mode: "insensitive" } },
+                  ],
+                }
+              : {}),
+          };
 
   const [clients, draftCount, discardedCount] = await Promise.all([
     prisma.client.findMany({
@@ -40,7 +61,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           select: { startAt: true },
         },
       },
-      orderBy: { createdAt: "desc" },
+      // Clients A–Z; drafts newest first, like an inbox.
+      orderBy: view === "clients" ? { name: "asc" } : { createdAt: "desc" },
     }),
     prisma.client.count({ where: { orgId: org.id, status: "LEAD", leadDiscardedAt: null } }),
     canManage
@@ -102,7 +124,49 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
         ))}
       </div>
 
-      {clients.length === 0 ? (
+      {view === "clients" && (clients.length > 0 || filtering) ? (
+        <form method="get" className="mb-4 flex flex-wrap items-center gap-2">
+          <Input
+            name="q"
+            type="search"
+            defaultValue={query}
+            placeholder="Search clients"
+            aria-label="Search clients"
+            className="h-9 w-full sm:w-64"
+          />
+          <select
+            name="status"
+            defaultValue={statusFilter}
+            aria-label="Status"
+            className="h-9 rounded-md border border-input bg-transparent px-2.5 text-sm"
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="all">All</option>
+          </select>
+          <Button type="submit" variant="outline" size="sm">
+            Filter
+          </Button>
+          {filtering ? (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/clients">Clear</Link>
+            </Button>
+          ) : null}
+        </form>
+      ) : null}
+
+      {clients.length === 0 && filtering ? (
+        <EmptyState
+          icon={Building2}
+          title="No clients match"
+          description={query ? `Nothing matches “${query}”.` : "No clients with that status."}
+          action={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/clients">Show active clients</Link>
+            </Button>
+          }
+        />
+      ) : clients.length === 0 ? (
         view === "clients" ? (
           <EmptyState
             icon={Building2}

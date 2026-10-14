@@ -25,15 +25,21 @@ export type TaskGroup = {
     actualHours: number;
     commentCount: number;
     linearKey: string | null;
+    projectId: string;
+    /** "Client — Project", shown on each row of the flat (by due date) list. */
+    projectLabel: string;
   }[];
 };
 
 export function TasksBoard({
   groups,
+  flat = false,
   openTaskDetail,
   runningTaskId,
 }: {
   groups: TaskGroup[];
+  /** One list across projects (sorted by due date), no project headers. */
+  flat?: boolean;
   openTaskDetail: TaskDetail | null;
   /** Task the viewer's timer is running on, if any. */
   runningTaskId: string | null;
@@ -47,7 +53,8 @@ export function TasksBoard({
         {groups.map((group) => (
           <Card key={group.projectId} className="gap-0 py-0">
             <details open className="group/project">
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <summary
+                hidden={flat} className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
                 <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-[:not([open])]/project:-rotate-90" />
                 <span className="min-w-0 flex-1 truncate text-sm">
                   <span className="text-muted-foreground">{group.clientName} — </span>
@@ -63,7 +70,7 @@ export function TasksBoard({
                   {group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}
                 </span>
               </summary>
-              <ul className="flex flex-col divide-y divide-border border-t border-border">
+              <ul className={cn("flex flex-col divide-y divide-border", !flat && "border-t border-border")}>
                 {group.tasks.map((task) => (
                   <li key={task.id} className="flex items-center pr-2">
                     <button
@@ -82,6 +89,9 @@ export function TasksBoard({
                           </span>
                         ) : null}
                         {task.title}
+                        {flat ? (
+                          <span className="ml-2 text-xs text-muted-foreground">{task.projectLabel}</span>
+                        ) : null}
                       </span>
                       <DueDateBadge dueDate={task.dueDate} done={task.status === "DONE"} />
                       {task.commentCount > 0 ? (
@@ -98,8 +108,9 @@ export function TasksBoard({
                             "font-medium text-destructive"
                         )}
                       >
-                        {task.actualHours.toFixed(2)}
-                        {task.estimatedHours ? ` / ${task.estimatedHours.toFixed(2)}` : ""}h
+                        {task.actualHours || task.estimatedHours
+                          ? `${task.actualHours.toFixed(2)}${task.estimatedHours ? ` / ${task.estimatedHours.toFixed(2)}` : ""}h`
+                          : ""}
                       </span>
                       <span className="flex shrink-0 items-center gap-1.5 truncate text-xs sm:w-32 text-muted-foreground">
                         <UserRound className="size-3.5 shrink-0" />
@@ -108,7 +119,7 @@ export function TasksBoard({
                     </button>
                     <TaskTimerButton
                       taskId={task.id}
-                      projectId={group.projectId}
+                      projectId={task.projectId}
                       running={task.id === runningTaskId}
                     />
                   </li>

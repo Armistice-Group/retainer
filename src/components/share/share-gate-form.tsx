@@ -70,7 +70,8 @@ export function ShareGateForm({
       <p className="text-sm text-muted-foreground">
         If that address is on file, we&apos;ve sent a code to it. It expires in 10 minutes.
       </p>
-      <form action={verifyAction} className="flex flex-col gap-3">
+      {/* A refused code clears, ready for the next try. */}
+      <form action={verifyAction} data-allow-reset className="flex flex-col gap-3">
         {verifyState?.error ? (
           <Alert variant="destructive">
             <AlertDescription>{verifyState.error}</AlertDescription>

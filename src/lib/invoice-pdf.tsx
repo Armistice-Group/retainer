@@ -136,6 +136,16 @@ export function InvoiceDocument({
   const pdfMethods = paymentMethods.filter((m) => m.showOnPdf);
   const hiddenCount = paymentMethods.length - pdfMethods.length;
   const settled = amountSettled(invoice);
+  // Says plainly when this isn't a live bill: a draft, paid, or void.
+  const statusMark =
+    invoice.status === "DRAFT"
+      ? { label: "DRAFT — NOT SENT", color: "#888888" }
+      : invoice.status === "PAID"
+        ? { label: "PAID", color: "#15803d" }
+        : invoice.status === "VOID"
+          ? { label: "VOID", color: "#b91c1c" }
+          : null;
+  const showHowToPay = invoice.status === "SENT" || invoice.status === "DRAFT";
   const logoSrc = invoice.org.logoData
     ? `data:${invoice.org.logoContentType};base64,${Buffer.from(invoice.org.logoData).toString("base64")}`
     : invoice.org.logoUrl;
@@ -146,11 +156,20 @@ export function InvoiceDocument({
         <View style={styles.headerRow}>
           <View>
             {logoSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop
-              <Image src={logoSrc} style={styles.logo} />
+              <>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt prop */}
+                <Image src={logoSrc} style={styles.logo} />
+                <Text style={{ fontSize: 9, color: "#555" }}>{invoice.org.name}</Text>
+              </>
             ) : (
               <Text style={styles.orgName}>{invoice.org.name}</Text>
             )}
+            {invoice.org.businessAddress ? (
+              <Text style={{ fontSize: 9, color: "#555", marginTop: 2 }}>{invoice.org.businessAddress}</Text>
+            ) : null}
+            {invoice.org.taxId ? (
+              <Text style={{ fontSize: 9, color: "#555", marginTop: 2 }}>Tax ID {invoice.org.taxId}</Text>
+            ) : null}
           </View>
           <View>
             <Text style={[styles.invoiceTitle, { color: accentColor }]}>
@@ -158,7 +177,12 @@ export function InvoiceDocument({
             </Text>
             <Text style={styles.invoiceMeta}>{invoice.number}</Text>
             {invoice.poNumber ? (
-              <Text style={styles.invoiceMeta}>PO {invoice.poNumber}</Text>
+              <Text style={styles.invoiceMeta}>PO {invoice.poNumber.replace(/^PO[\s#:-]*/i, "")}</Text>
+            ) : null}
+            {statusMark ? (
+              <Text style={[styles.invoiceMeta, { color: statusMark.color, fontWeight: 700, marginTop: 6 }]}>
+                {statusMark.label}
+              </Text>
             ) : null}
           </View>
         </View>
@@ -252,7 +276,7 @@ export function InvoiceDocument({
           ) : null}
         </View>
 
-        {pdfMethods.length || hiddenCount ? (
+        {showHowToPay && (pdfMethods.length || hiddenCount) ? (
           <View style={styles.notes}>
             <Text style={styles.label}>How to Pay</Text>
             {pdfMethods.map((m) => (

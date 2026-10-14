@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { requireOrgContext } from "@/lib/org-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +15,14 @@ import { isEmailConfigured } from "@/lib/email";
 import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 
-export default async function MembersPage() {
+export const metadata: Metadata = { title: "Members" };
+
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ invite?: string }>;
+}) {
+  const { invite } = await searchParams;
   const { org, role, user } = await requireOrgContext();
   const canManage = role === "OWNER" || role === "ADMIN";
 
@@ -47,7 +55,7 @@ export default async function MembersPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Members</CardTitle>
-          {canManage ? <InviteDialog /> : null}
+          {canManage ? <InviteDialog defaultOpen={invite === "1"} /> : null}
         </CardHeader>
         <CardContent>
           {canManage ? (

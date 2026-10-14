@@ -1,5 +1,6 @@
 "use client";
 
+import { useActionFeedback } from "@/components/forms/use-action-feedback";
 import { useActionState, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,7 +24,8 @@ export function OrgLogoCard({
   appAccentFromBrand: boolean;
   brandColor: string | null;
 }) {
-  const [state, formAction] = useActionState<ActionState, FormData>(uploadOrgLogoAction, null);
+  const [state, formAction, isPending] = useActionState<ActionState, FormData>(uploadOrgLogoAction, null);
+  useActionFeedback(state, isPending, "Logo uploaded");
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 

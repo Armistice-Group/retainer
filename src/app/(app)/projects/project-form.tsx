@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,8 +41,11 @@ export function ProjectForm({
   defaultClientId,
   submitLabel,
   cancelHref,
+  creatorRate,
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+  /** New projects: the creator's default hourly rate, offered as "Your rate". */
+  creatorRate?: { value: number; currency: string };
   clients: { id: string; name: string; paymentTermsLabel: string }[];
   initialValues?: ProjectFormValues;
   defaultClientId?: string;
@@ -70,7 +74,22 @@ export function ProjectForm({
         <Field id="name" label="Project name" error={errors.name} wide>
           <Input id="name" name="name" defaultValue={initialValues?.name} required />
         </Field>
-        <Field id="clientId" label="Client" error={errors.clientId}>
+        <Field
+          id="clientId"
+          label="Client"
+          error={errors.clientId}
+          hint={
+            clients.length === 0 ? (
+              <>
+                No clients yet.{" "}
+                <Link href="/clients/new" className="font-medium text-foreground underline underline-offset-2">
+                  Add a client
+                </Link>{" "}
+                first.
+              </>
+            ) : undefined
+          }
+        >
           <Select name="clientId" defaultValue={clientId} onValueChange={setClientId}>
             <SelectTrigger id="clientId" className="w-full">
               <SelectValue placeholder="Select a client" />
@@ -110,7 +129,11 @@ export function ProjectForm({
 
       <FormSection
         title="Billing"
-        description="How this work is charged. Hourly rates are set per person on the project page."
+        description={
+          billingType === "HOURLY"
+            ? "How this work is charged. Hourly rates are per person; add teammates and their rates on the project page."
+            : "How this work is charged."
+        }
       >
         <Field id="billingType" label="Billing type">
           <Select
@@ -128,6 +151,22 @@ export function ProjectForm({
             </SelectContent>
           </Select>
         </Field>
+        {billingType === "HOURLY" && creatorRate ? (
+          <Field
+            id="creatorRate"
+            label={`Your rate (${creatorRate.currency}/hour)`}
+            hint="You're added to the project at this rate."
+          >
+            <Input
+              id="creatorRate"
+              name="creatorRate"
+              type="number"
+              step="0.01"
+              min="0"
+              defaultValue={creatorRate.value || ""}
+            />
+          </Field>
+        ) : null}
         {billingType === "FLAT_FEE" ? (
           <Field id="flatFeeAmount" label="Flat fee amount" error={errors.flatFeeAmount}>
             <Input
@@ -135,7 +174,7 @@ export function ProjectForm({
               name="flatFeeAmount"
               type="number"
               step="0.01"
-              min="0"
+              min="0.01"
               defaultValue={initialValues?.flatFeeAmount ?? ""}
               required
             />
@@ -152,7 +191,7 @@ export function ProjectForm({
             name="budgetHours"
             type="number"
             step="0.25"
-            min="0"
+            min="0.25"
             defaultValue={initialValues?.budgetHours ?? ""}
           />
         </Field>
@@ -178,7 +217,7 @@ export function ProjectForm({
             defaultValue={initialValues?.startDate ? toDateInputValue(initialValues.startDate) : ""}
           />
         </Field>
-        <Field id="endDate" label="End date">
+        <Field id="endDate" label="End date" error={errors.endDate}>
           <Input
             id="endDate"
             name="endDate"
