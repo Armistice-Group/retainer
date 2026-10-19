@@ -64,7 +64,9 @@ export function IntegrationCredentials({
     );
   }
 
-  if (!editing) {
+  // After Remove nothing is saved any more: back to the empty form.
+  const anySet = anyStored || fields.some((f) => f.source === "env");
+  if (!editing && anySet) {
     return (
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">

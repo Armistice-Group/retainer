@@ -29,6 +29,9 @@ async function storageStatus() {
 }
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { EmailCard } from "../email-card";
+import { TestEmailButton } from "../test-email-button";
+import { GoogleSignInCard } from "../google-sign-in-card";
+import { isGoogleSignInConfigured } from "@/lib/auth";
 import { IntegrationCredentials } from "../integration-credentials";
 import { canWrite, isLinearConfigured } from "@/lib/integrations/linear";
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks";
@@ -57,10 +60,12 @@ export default async function IntegrationsPage({
       isLinearConfigured(),
       isEmailConfigured(),
     ]);
-  const [qbFields, linearFields, emailFields] = await Promise.all([
+  const [qbFields, linearFields, emailFields, googleFields, googleConfigured] = await Promise.all([
     describeIntegration("quickbooks"),
     describeIntegration("linear"),
     describeIntegration("email"),
+    describeIntegration("googleSignIn"),
+    isGoogleSignInConfigured(),
   ]);
   // OAuth redirects come back to the address the admin is browsing on.
   const origin = await getRequestOrigin();
@@ -235,6 +240,24 @@ export default async function IntegrationsPage({
             canEdit={canEdit}
             appUrl="https://resend.com/api-keys"
             appLabel="resend.com (API key, plus a verified sending domain)"
+          />
+        }
+        test={!readOnly && user.email ? <TestEmailButton email={user.email} /> : null}
+      />
+
+      <GoogleSignInCard
+        configured={googleConfigured}
+        callbackUrl={`${origin}/api/auth/callback/google`}
+        credentials={
+          <IntegrationCredentials
+            integration="googleSignIn"
+            fields={googleFields}
+            configured={googleConfigured}
+            canEdit={canEdit}
+            callbackUrl={`${origin}/api/auth/callback/google`}
+            callbackLabel="redirect URI"
+            appUrl="https://console.cloud.google.com/auth/clients"
+            appLabel="the Google Cloud console"
           />
         }
       />

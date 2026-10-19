@@ -11,6 +11,9 @@ import {
   type Integration,
 } from "@/lib/instance-config";
 import type { ActionState } from "@/actions/auth";
+import { fromAddress, trySendEmail } from "@/lib/email";
+import { TestEmail } from "@/emails/test-email";
+import { getOrigin } from "@/lib/url";
 
 export async function savePublicUrlAction(
   _prevState: ActionState,
@@ -69,4 +72,19 @@ export async function removeIntegrationCredentialsAction(integration: Integratio
     >
   );
   revalidatePath("/", "layout");
+}
+
+/** Emails the signed-in owner or admin, and says what Resend answered. */
+export async function sendTestEmailAction(): Promise<ActionState> {
+  const { role, user } = await requireOrgContext();
+  requireRole(role, ["OWNER", "ADMIN"]);
+  if (!user.email) return { error: "Your account has no email address." };
+  const [from, origin] = await Promise.all([fromAddress(), getOrigin()]);
+  const { error } = await trySendEmail({
+    to: user.email,
+    subject: "Test email from Consultainer",
+    react: TestEmail({ fromAddress: from, origin }),
+  });
+  if (error) return { error: `Resend said: ${error}` };
+  return { emailSent: true, saved: true };
 }

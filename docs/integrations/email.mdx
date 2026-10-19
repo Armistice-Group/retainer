@@ -78,16 +78,17 @@ the address people can reach. See [Self-hosting](/self-hosting#urls).
 ## Check it worked
 
 The Email card says *Sending invites, login links, and invoice notices by
-email*. To test delivery, sign out and use **Email me a login link** on the
-login page, or invite a second address of your own under **Settings →
-Members** — the dialog says *We emailed them an invite* when Resend accepted
-it.
+email*. Click **Send a test email** on it: the test goes to your own address,
+and if Resend refuses it the card shows Resend's reason (an unverified
+domain, a wrong key) right there.
 
 ## Troubleshooting
 
 Consultainer logs Resend's reason in the app's logs (`docker compose logs
 consultainer-app`), as *Resend returned an error* or *Failed to send email via
 Resend*. In the app you'll see:
+
+- **"Resend said: …"** under **Send a test email** — Resend's own reason.
 
 - **"The email couldn't be sent. Try again."** (emailing an invoice) — Resend
   refused it. Usual causes: the from address isn't on a verified domain, the

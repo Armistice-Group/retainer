@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isSetupComplete } from "@/lib/setup";
 import { isEmailConfigured } from "@/lib/email";
+import { isGoogleSignInConfigured } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in" };
@@ -42,7 +43,7 @@ export default async function LoginPage({
   return (
     <LoginForm
       callbackUrl={callbackUrl || "/dashboard"}
-      googleEnabled={!!process.env.AUTH_GOOGLE_ID}
+      googleEnabled={await isGoogleSignInConfigured()}
       magicLinkEnabled={await isEmailConfigured()}
       ssoProviders={ssoConnections.map((c) => ({
         id: c.id,

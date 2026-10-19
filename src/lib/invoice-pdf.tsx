@@ -6,6 +6,7 @@ import { amountSettled, balanceDue } from "@/lib/invoice-balance";
 import { formatClockRange } from "@/lib/clock-time";
 import { invoiceTimeDetail, type TimeDetailEntry } from "@/lib/services/invoice-time-detail";
 import { clientLogoDataUri } from "@/lib/services/client-logos";
+import { prisma } from "@/lib/prisma";
 
 export type InvoiceForPdf = Prisma.InvoiceGetPayload<{
   include: {
@@ -120,6 +121,7 @@ export function InvoiceDocument({
   paymentMethods,
   timeDetail = null,
   clientLogo = null,
+  attention = null,
 }: {
   invoice: InvoiceForPdf;
   paymentMethods: DisplayMethod[];
@@ -127,9 +129,11 @@ export function InvoiceDocument({
   timeDetail?: TimeDetailEntry[] | null;
   /** PNG/JPEG data: URI of the client's logo. */
   clientLogo?: string | null;
+  /** The person it's addressed to (see billToContact). */
+  attention?: BillToContact | null;
 }) {
   const accentColor = invoice.org.brandColor || "#1a1a1a";
-  const billEmail = invoice.client.billingEmail || invoice.client.email;
+  const billEmail = invoice.client.billingEmail || invoice.client.email || attention?.email;
   const billAddress = invoice.client.billingAddress || invoice.client.address;
   // Methods marked share-page-only (bank details, by default) never go on
   // the PDF, which can be forwarded anywhere.
@@ -195,6 +199,9 @@ export function InvoiceDocument({
               <Image src={clientLogo} style={styles.clientLogo} />
             ) : null}
             <Text>{invoice.client.name}</Text>
+            {attention ? (
+              <Text>Attn: {[attention.name, attention.title].filter(Boolean).join(", ")}</Text>
+            ) : null}
             {billEmail ? <Text>{billEmail}</Text> : null}
             {billAddress ? <Text>{billAddress}</Text> : null}
           </View>
@@ -379,11 +386,24 @@ function formatShortDate(date: Date) {
   }).format(date);
 }
 
+export type BillToContact = { name: string; title: string | null; email: string | null };
+
+/** Who the invoice is addressed to: the first contact invoices are sent to,
+ * or else the client's primary contact. */
+async function billToContact(clientId: string): Promise<BillToContact | null> {
+  return prisma.contact.findFirst({
+    where: { clientId, OR: [{ receivesInvoices: true }, { isPrimary: true }] },
+    orderBy: [{ receivesInvoices: "desc" }, { isPrimary: "desc" }, { createdAt: "asc" }],
+    select: { name: true, title: true, email: true },
+  });
+}
+
 export async function renderInvoicePdf(invoice: InvoiceForPdf) {
-  const [paymentMethods, timeDetail, clientLogo] = await Promise.all([
+  const [paymentMethods, timeDetail, clientLogo, attention] = await Promise.all([
     effectivePaymentMethods(invoice.orgId, invoice.clientId),
     invoiceTimeDetail(invoice),
     invoice.client.logoUpdatedAt ? clientLogoDataUri(invoice.clientId, { pdf: true }) : null,
+    billToContact(invoice.clientId),
   ]);
   return renderToBuffer(
     <InvoiceDocument
@@ -391,6 +411,7 @@ export async function renderInvoicePdf(invoice: InvoiceForPdf) {
       paymentMethods={paymentMethods}
       timeDetail={timeDetail}
       clientLogo={clientLogo}
+      attention={attention}
     />
   );
 }

@@ -210,9 +210,15 @@ export async function autoSendInvoice(
   return { emailed: null, reason };
 }
 
+// Link previews (Slack, Teams, iMessage), mail scanners and scripts fetch
+// the link without anyone reading it.
+const NOT_A_PERSON =
+  /bot|crawl|spider|preview|scanner|curl|wget|python|httpclient|okhttp|go-http|axios|node-fetch|headless|playwright|puppeteer|facebookexternalhit|slack|discord|whatsapp|telegram|skype/i;
+
 /** Records a client opening an invoice and alerts the org on the first open
- * (and again if it's opened after a day). Opens by members of the org are
- * ignored, so previewing the client link yourself doesn't count. */
+ * (and again if it's opened after a day). Opens by members of the org, and
+ * fetches by link previewers and scripts, are ignored, so previewing the
+ * client link yourself or pasting it in Slack doesn't count. */
 export async function recordInvoiceView(
   invoiceId: string,
   type: Extract<InvoiceEventType, "EMAIL_OPENED" | "VIEWED" | "PDF_VIEWED">,
@@ -224,6 +230,10 @@ export async function recordInvoiceView(
       include: { client: { select: { name: true } } },
     });
     if (!invoice || invoice.status === "DRAFT") return;
+    const userAgent = request.headers.get("user-agent") ?? "";
+    // The email-open pixel is fetched by mail clients' image proxies, so it
+    // keeps them; a page or PDF view needs a browser.
+    if (type !== "EMAIL_OPENED" && (!userAgent || NOT_A_PERSON.test(userAgent))) return;
     if (await viewerIsOrgMember(invoice.orgId)) return;
 
     const now = new Date();

@@ -84,3 +84,74 @@ test.describe("logging time", () => {
     await expect(dialog.getByRole("combobox", { name: "Project" })).toContainText(A.openProject.name);
   });
 });
+
+test.describe("client views", () => {
+  const INVOICE = A.invoices.secret.id;
+  const TOKEN = "e2e-view-views-filter";
+  let before: { viewCount: number; firstViewedAt: Date | null; lastViewedAt: Date | null; viewAlertedAt: Date | null };
+  test.beforeAll(async () => {
+    [before] = await sql(`SELECT "viewCount", "firstViewedAt", "lastViewedAt", "viewAlertedAt" FROM "Invoice" WHERE id = $1`, [INVOICE]);
+    await sql(`UPDATE "Invoice" SET "viewToken" = $2 WHERE id = $1`, [INVOICE, TOKEN]);
+  });
+  test.afterAll(async () => {
+    await sql(`DELETE FROM "InvoiceEvent" WHERE "invoiceId" = $1 AND type IN ('VIEWED', 'PDF_VIEWED')`, [INVOICE]);
+    await sql(
+      `UPDATE "Invoice" SET "viewToken" = NULL, "viewCount" = $2, "firstViewedAt" = $3, "lastViewedAt" = $4, "viewAlertedAt" = $5 WHERE id = $1`,
+      [INVOICE, before.viewCount, before.firstViewedAt, before.lastViewedAt, before.viewAlertedAt]
+    );
+  });
+
+  test("link previews and scripts opening the PDF don't count; a browser does", async ({ playwright }) => {
+    const count = async () =>
+      (await sql<{ viewCount: number }>(`SELECT "viewCount" FROM "Invoice" WHERE id = $1`, [INVOICE]))[0].viewCount;
+    const start = await count();
+    for (const ua of ["curl/8.7.1", "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)", "python-requests/2.32.3"]) {
+      const ctx = await playwright.request.newContext({ baseURL: process.env.E2E_BASE_URL, userAgent: ua });
+      expect((await ctx.get(`/i/${TOKEN}/pdf`)).status()).toBe(200);
+      await ctx.dispose();
+    }
+    expect(await count()).toBe(start);
+
+    const browser = await playwright.request.newContext({
+      baseURL: process.env.E2E_BASE_URL,
+      userAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36",
+    });
+    await browser.get(`/i/${TOKEN}/pdf`);
+    await browser.dispose();
+    expect(await count()).toBe(start + 1);
+  });
+});
+
+test.describe("Google sign-in from Settings", () => {
+  test.use({ storageState: STORAGE.ownerA });
+  test.afterEach(async () => {
+    await sql(`DELETE FROM "InstanceSetting" WHERE key IN ('config:AUTH_GOOGLE_ID', 'config:AUTH_GOOGLE_SECRET')`);
+  });
+
+  test("saving the client ID and secret puts Continue with Google on the login page", async ({ page, browser }) => {
+    const login = await browser.newPage({ storageState: { cookies: [], origins: [] } });
+    await login.goto("/login");
+    await expect(login.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
+
+    await page.goto("/settings/integrations");
+    await expect(page.getByText("/api/auth/callback/google").first()).toBeAttached();
+    await page.locator("#googleSignIn-AUTH_GOOGLE_ID").fill("e2e-client.apps.googleusercontent.com");
+    await page.locator("#googleSignIn-AUTH_GOOGLE_SECRET").fill("e2e-google-secret");
+    await page.locator("form").filter({ has: page.locator("#googleSignIn-AUTH_GOOGLE_ID") })
+      .getByRole("button", { name: "Save credentials" }).click();
+    await expect(page.locator("#googleSignIn-AUTH_GOOGLE_ID")).toBeHidden();
+
+    await login.reload();
+    await expect(login.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+
+    // Removing them takes it off again (through the app, which also clears
+    // its cache of saved credentials).
+    const card = page.locator("[data-slot=card]").filter({ hasText: "Google sign-in" });
+    page.once("dialog", (d) => d.accept());
+    await card.getByRole("button", { name: "Remove" }).click();
+    await expect(card.getByLabel("Client ID")).toBeVisible();
+    await login.reload();
+    await expect(login.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
+    await login.close();
+  });
+});

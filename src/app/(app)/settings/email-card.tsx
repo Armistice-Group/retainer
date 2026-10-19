@@ -7,9 +7,12 @@ import { DocsLink } from "@/components/docs-link";
 export function EmailCard({
   configured,
   credentials,
+  test,
 }: {
   configured: boolean;
   credentials: React.ReactNode;
+  /** The Send a test email button, for owners and admins. */
+  test?: React.ReactNode;
 }) {
   return (
     <Card>
@@ -47,6 +50,7 @@ export function EmailCard({
             <DocsLink page="integrations/email" />
           </details>
         )}
+        {configured ? test : null}
         {credentials}
       </CardContent>
     </Card>

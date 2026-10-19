@@ -61,6 +61,10 @@ export const INTEGRATION_FIELDS = {
     { key: "RESEND_API_KEY", label: "Resend API key", secret: true },
     { key: "RESEND_FROM_EMAIL", label: "From address", secret: false },
   ],
+  googleSignIn: [
+    { key: "AUTH_GOOGLE_ID", label: "Client ID", secret: false },
+    { key: "AUTH_GOOGLE_SECRET", label: "Client secret", secret: true },
+  ],
 } as const satisfies Record<
   string,
   readonly { key: string; label: string; secret: boolean; options?: readonly string[] }[]

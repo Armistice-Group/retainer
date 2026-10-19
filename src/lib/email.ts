@@ -26,32 +26,36 @@ async function getClient() {
   return client;
 }
 
-export async function sendEmail({
-  to,
-  subject,
-  react,
-  replyTo,
-}: {
-  to: string;
-  subject: string;
-  react: ReactElement;
-  replyTo?: string;
-}) {
-  const resend = await getClient();
-  if (!resend) return false;
+const DEFAULT_FROM = "Consultainer <onboarding@resend.dev>";
 
-  const from = (await getConfig("RESEND_FROM_EMAIL")) || "Consultainer <onboarding@resend.dev>";
+/** The address mail is sent as. */
+export async function fromAddress() {
+  return (await getConfig("RESEND_FROM_EMAIL")) || DEFAULT_FROM;
+}
+
+type EmailInput = { to: string; subject: string; react: ReactElement; replyTo?: string };
+
+/** Sends one email and says why when it didn't go (for the test button). */
+export async function trySendEmail({ to, subject, react, replyTo }: EmailInput): Promise<{ error?: string }> {
+  const resend = await getClient();
+  if (!resend) return { error: "Email isn't set up." };
+
+  const from = await fromAddress();
   const html = await render(react);
 
   try {
     const { error } = await resend.emails.send({ from, to, subject, html, replyTo });
     if (error) {
       console.warn("Resend returned an error", error);
-      return false;
+      return { error: error.message || error.name || "Resend refused the email." };
     }
-    return true;
+    return {};
   } catch (err) {
     console.warn("Failed to send email via Resend", err);
-    return false;
+    return { error: err instanceof Error ? err.message : "Couldn't reach Resend." };
   }
+}
+
+export async function sendEmail(input: EmailInput) {
+  return !(await trySendEmail(input)).error;
 }

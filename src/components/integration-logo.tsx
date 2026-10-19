@@ -13,6 +13,7 @@ const LOGOS = {
   ironclad: {},
   calcom: {},
   calendly: {},
+  google: {},
   "google-drive": {},
   dropbox: {},
   onedrive: {},

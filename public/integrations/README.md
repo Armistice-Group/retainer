@@ -24,6 +24,7 @@ file.
 | `docusign.svg` | https://www.docusign.com/assets/images/docusign-logo.svg (viewBox cropped to the symbol) |
 | `ironclad.svg` | https://ironcladapp.com/wp-content/uploads/2025/04/main-logo.svg (viewBox cropped to the symbol) |
 | `documenso.svg` | Documenso's logo icon, https://github.com/documenso/documenso/blob/main/apps/remix/app/components/general/branding-logo-icon.tsx (fill #000000, inverted in dark mode) |
+| `google.svg` | Google's "G" mark, the same paths as the Continue with Google button (`src/components/auth/google-signin-button.tsx`) |
 | `mercury.svg`, `mercury-dark.svg` | https://mercury.com/icon.svg — its light fill (#272735) and its own dark-scheme fill (#f4f5f9) as two files, so the app's theme rather than the OS picks one |
 
 S3-compatible storage uses a generic icon from lucide-react, not a vendor mark.

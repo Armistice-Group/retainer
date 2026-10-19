@@ -16,6 +16,7 @@ import { consumeLoginTicket } from "@/lib/webauthn";
 import { recordAuditEvent } from "@/lib/audit";
 import { issueTwoFactorLoginTicket, redeemTwoFactorLoginTicket } from "@/lib/two-factor-ticket";
 import { takeSessionCarry } from "@/lib/session-carry";
+import { getConfig, getConfigs } from "@/lib/instance-config";
 
 /** Sessions finished through the Google code step are Google sign-ins. */
 function signInMethodFor(provider: string) {
@@ -30,7 +31,15 @@ function submittedCode(value: unknown) {
   return code && code !== "undefined" && code !== "null" ? code : undefined;
 }
 
-export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
+/** "Continue with Google" is on: from .env or Settings → Integrations. */
+export async function isGoogleSignInConfigured() {
+  const c = await getConfigs(["AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET"]);
+  return !!c.AUTH_GOOGLE_ID && !!c.AUTH_GOOGLE_SECRET;
+}
+
+// A function, so Google sign-in picks up credentials saved in Settings →
+// Integrations (lib/instance-config, cached briefly) without a restart.
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth(async () => ({
   ...authConfig,
   providers: [
     Credentials({
@@ -169,7 +178,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         return { id: user.id, email: user.email, name: user.name };
       },
     }),
-    Google,
+    Google({
+      clientId: await getConfig("AUTH_GOOGLE_ID"),
+      clientSecret: await getConfig("AUTH_GOOGLE_SECRET"),
+    }),
   ],
   callbacks: {
     ...authConfig.callbacks,
@@ -282,4 +294,4 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       });
     },
   },
-});
+}));

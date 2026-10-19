@@ -64,7 +64,8 @@ export function OrgSecurityForm({ org, readOnly }: { org: OrgSecurity; readOnly:
           <p className="text-xs text-muted-foreground">
             Someone new who uses &ldquo;Continue with Google&rdquo; with an address on this domain
             joins as a Member without an invite. Only applies when Google sign-in is turned on for
-            this server (<code>AUTH_GOOGLE_ID</code>); for other providers, use single sign-on.
+            this server (Settings → Integrations → Google sign-in); for other providers, use single
+            sign-on.
           </p>
         </div>
       </div>

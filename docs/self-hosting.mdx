@@ -174,7 +174,7 @@ Every variable is described in `.env.example`. After changing `.env`, run
 | --- | --- |
 | `AUTH_URL` | Forces one public URL for everything, including sign-in redirects. Usually leave it unset; see [URLs](#urls). |
 | `ALLOW_PRIVATE_FETCH` | `true` lets [calendar links](/integrations/calendars), the [Slack webhook URL](/concepts/alerts-and-audit#how-to-connect-slack) and client websites (for [logos](/concepts/clients-and-projects#client-logos)) point at private-network addresses (for example Nextcloud on your LAN). Off by default so a user-entered URL can't be used to probe the server's own network. |
-| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Shows **Continue with Google** on the login page. Create an OAuth client of type **Web application** in Google Cloud and add the redirect URI `<your URL>/api/auth/callback/google`. Only works through `.env`. Google sign-in never creates accounts on its own: a new Google user gets in only with an invite or through an organization's [auto-join domain](/concepts/team-and-security#auto-join-by-email-domain). |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Shows **Continue with Google** on the login page. Create an OAuth client of type **Web application** in Google Cloud and add the redirect URI `<your URL>/api/auth/callback/google`. Can also be set under Settings → Integrations; see [Google sign-in](#google-sign-in). Google sign-in never creates accounts on its own: a new Google user gets in only with an invite or through an organization's [auto-join domain](/concepts/team-and-security#auto-join-by-email-domain). |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Email through [Resend](https://resend.com). See [Email](#email). |
 | `QUICKBOOKS_CLIENT_ID`, `QUICKBOOKS_CLIENT_SECRET`, `QUICKBOOKS_ENVIRONMENT` | [QuickBooks](/integrations/quickbooks) app credentials. |
 | `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_WEBHOOK_SECRET` | [Linear](/integrations/linear) OAuth app, and its webhook signing secret for live updates. |
@@ -436,7 +436,26 @@ Email is optional. Without it:
 To turn it on, the owner enters a [Resend](https://resend.com) API key and a
 from-address under **Settings → Integrations** (or sets `RESEND_API_KEY` and
 `RESEND_FROM_EMAIL` in `.env`). Verify your sending domain in Resend first,
-or mail can only go to your own Resend account address.
+or mail can only go to your own Resend account address. **Send a test email**
+on the Email card checks it end to end and shows Resend's reason if it fails.
+
+## Google sign-in
+
+**Continue with Google** on the login page is optional. The owner turns it on
+under **Settings → Integrations → Google sign-in** (or with `AUTH_GOOGLE_ID`
+and `AUTH_GOOGLE_SECRET` in `.env`, which wins over the settings):
+
+1. In the [Google Cloud console](https://console.cloud.google.com/auth/clients),
+   pick or create a project and set up Google Auth Platform (Audience:
+   **Internal** for one Google Workspace, otherwise **External**, published).
+2. Create a client of type **Web application** with the redirect URI the card
+   shows: `<your URL>/api/auth/callback/google`.
+3. Paste its client ID and secret on the card and save. The login page shows
+   the button straight away.
+
+Google sign-in never creates accounts on its own: a new Google user gets in
+only with an invite or through an organization's
+[auto-join domain](/concepts/team-and-security#auto-join-by-email-domain).
 
 ## Upgrading
 
