@@ -1,6 +1,5 @@
 import { Database, HardDrive } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { IntegrationCardHeader } from "@/components/integration-card-header";
+import { IntegrationRow } from "@/components/integration-row";
 import { DocsLink } from "@/components/docs-link";
 
 /** Where uploaded files are kept — read-only; set in the server's environment. */
@@ -16,17 +15,21 @@ export function StorageCard({
   error: string | null;
 }) {
   return (
-    <Card>
-      <IntegrationCardHeader
-        title="File storage (S3-compatible)"
-        icon={mode === "object" ? HardDrive : Database}
-        status={{
-          connected: mode === "object" && reachable,
-          detail: bucket,
-          problem: mode === "object" && !reachable ? "Can't reach the bucket" : null,
-        }}
-      />
-      <CardContent className="flex flex-col gap-2 text-sm">
+    <IntegrationRow
+      id="storage"
+      title="File storage"
+      icon={mode === "object" ? <HardDrive /> : <Database />}
+      status={{
+        connected: mode === "object" && reachable,
+        detail: bucket,
+        connectedLabel: "S3",
+        notConnectedLabel: "In the database",
+        problem: mode === "object" && !reachable ? "Can't reach the bucket" : null,
+      }}
+      description="Where uploads are kept: the database (up to 5MB each), or S3-compatible storage (25MB)."
+      actionLabel={mode === "object" ? "Details" : "Use S3"}
+    >
+      <div className="flex flex-col gap-2 text-sm">
         {mode === "object" ? (
           <>
             <p>
@@ -51,10 +54,8 @@ export function StorageCard({
               MinIO, B2…) raises that to 25MB. Links to Drive, Dropbox, OneDrive and Notion don&apos;t
               use storage at all.
             </p>
-            <details className="rounded-lg border border-border p-3 text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-medium text-foreground">
-                How to use S3-compatible storage
-              </summary>
+            <div className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">How to use S3-compatible storage</p>
               <ol className="mt-2 list-decimal space-y-1 pl-4">
                 <li>Create a private bucket, and an access key that can read, write and delete in it.</li>
                 <li>
@@ -78,10 +79,10 @@ export function StorageCard({
                 </li>
               </ol>
               <DocsLink page="self-hosting#file-storage" />
-            </details>
+            </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </IntegrationRow>
   );
 }

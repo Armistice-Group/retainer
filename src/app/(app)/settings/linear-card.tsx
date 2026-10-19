@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { IntegrationCardHeader } from "@/components/integration-card-header";
+import { IntegrationRow } from "@/components/integration-row";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -32,13 +31,14 @@ export function LinearCard({
   webhook: { url: string; secretSet: boolean; lastEventAt: Date | null };
 }) {
   return (
-    <Card>
-      <IntegrationCardHeader
-        title="Linear"
-        logos={["linear"]}
-        status={{ connected, detail: workspaceName }}
-      />
-      <CardContent className="flex flex-col gap-4">
+    <IntegrationRow
+      id="linear"
+      title="Linear"
+      logos={["linear"]}
+      status={{ connected, detail: workspaceName }}
+      description="Projects pull in Linear issues as tasks, and new tasks and edits go back."
+      defaultOpen={!!callbackStatus && callbackStatus !== "connected"}
+    >
         {callbackStatus === "forbidden" ? (
           <Alert variant="destructive">
             <AlertDescription>Only owners and admins can connect integrations.</AlertDescription>
@@ -63,7 +63,11 @@ export function LinearCard({
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-muted-foreground">
-              Projects pull in Linear issues as tasks, and new tasks and edits are sent back.
+              {connected
+                ? "Link projects to a Linear team from each project's page."
+                : configured
+                  ? "Connect, then approve read and write access."
+                  : "Add your Linear OAuth app's credentials first, then connect."}
             </p>
             {connected && !canWrite ? (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -100,15 +104,14 @@ export function LinearCard({
         </div>
         {connected ? <LiveUpdates webhook={webhook} /> : <SetupGuide webhookUrl={webhook.url} />}
         {credentials}
-      </CardContent>
-    </Card>
+    </IntegrationRow>
   );
 }
 
 function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
   return (
-    <details className="text-sm">
-      <summary className="cursor-pointer font-medium">How to set this up</summary>
+    <div className="text-sm">
+      <p className="font-medium">How to set it up</p>
       <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
         <li>
           Open Consultainer at the address your team uses (not localhost) — the callback URL
@@ -134,7 +137,7 @@ function SetupGuide({ webhookUrl }: { webhookUrl: string }) {
         </li>
       </ol>
       <DocsLink page="integrations/linear" />
-    </details>
+    </div>
   );
 }
 

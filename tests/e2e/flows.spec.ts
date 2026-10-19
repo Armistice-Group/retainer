@@ -134,22 +134,22 @@ test.describe("Google sign-in from Settings", () => {
     await expect(login.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
 
     await page.goto("/settings/integrations");
-    await expect(page.getByText("/api/auth/callback/google").first()).toBeAttached();
-    await page.locator("#googleSignIn-AUTH_GOOGLE_ID").fill("e2e-client.apps.googleusercontent.com");
-    await page.locator("#googleSignIn-AUTH_GOOGLE_SECRET").fill("e2e-google-secret");
-    await page.locator("form").filter({ has: page.locator("#googleSignIn-AUTH_GOOGLE_ID") })
-      .getByRole("button", { name: "Save credentials" }).click();
-    await expect(page.locator("#googleSignIn-AUTH_GOOGLE_ID")).toBeHidden();
+    await page.getByRole("button", { name: "Set up Google sign-in" }).click();
+    const panel = page.getByRole("dialog");
+    await expect(panel.getByText("/api/auth/callback/google").first()).toBeVisible();
+    await panel.getByLabel("Client ID").fill("e2e-client.apps.googleusercontent.com");
+    await panel.getByLabel("Client secret").fill("e2e-google-secret");
+    await panel.getByRole("button", { name: "Save credentials" }).click();
+    await expect(panel.getByText("Credentials saved.")).toBeVisible();
 
     await login.reload();
     await expect(login.getByRole("button", { name: "Continue with Google" })).toBeVisible();
 
     // Removing them takes it off again (through the app, which also clears
     // its cache of saved credentials).
-    const card = page.locator("[data-slot=card]").filter({ hasText: "Google sign-in" });
     page.once("dialog", (d) => d.accept());
-    await card.getByRole("button", { name: "Remove" }).click();
-    await expect(card.getByLabel("Client ID")).toBeVisible();
+    await panel.getByRole("button", { name: "Remove" }).click();
+    await expect(panel.getByLabel("Client ID")).toBeVisible();
     await login.reload();
     await expect(login.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
     await login.close();

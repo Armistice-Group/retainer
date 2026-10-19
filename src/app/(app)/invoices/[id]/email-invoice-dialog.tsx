@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
 import { Link2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -67,8 +68,11 @@ export function EmailInvoiceDialog({
           <div className="flex flex-col gap-4">
             <Alert>
               <AlertDescription>
-                Email isn&apos;t set up on this instance (Settings → Integrations), so send the
-                client its link yourself. Opens are still tracked.
+                Email isn&apos;t set up on this instance, so send the client its link yourself.
+                Opens are still tracked.{" "}
+                <Link href="/settings/integrations?open=email" className="underline underline-offset-2">
+                  Set up email
+                </Link>
               </AlertDescription>
             </Alert>
             <CopyClientLinkButton invoiceId={invoiceId} isDraft={isDraft} primary onDone={() => setOpen(false)} />

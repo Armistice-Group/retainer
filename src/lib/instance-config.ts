@@ -58,8 +58,16 @@ export const INTEGRATION_FIELDS = {
     { key: "STRIPE_WEBHOOK_SECRET", label: "Webhook signing secret", secret: true },
   ],
   email: [
+    { key: "EMAIL_PROVIDER", label: "Send with", secret: false, options: ["resend", "smtp"] },
+    { key: "EMAIL_FROM", label: "From address", secret: false },
     { key: "RESEND_API_KEY", label: "Resend API key", secret: true },
-    { key: "RESEND_FROM_EMAIL", label: "From address", secret: false },
+    { key: "SMTP_HOST", label: "SMTP server", secret: false },
+    { key: "SMTP_PORT", label: "Port", secret: false },
+    { key: "SMTP_USER", label: "Username", secret: false },
+    { key: "SMTP_PASSWORD", label: "Password", secret: true },
+    // The older name for EMAIL_FROM, still read; saving the email settings
+    // moves it over.
+    { key: "RESEND_FROM_EMAIL", label: "From address (older setting)", secret: false },
   ],
   googleSignIn: [
     { key: "AUTH_GOOGLE_ID", label: "Client ID", secret: false },

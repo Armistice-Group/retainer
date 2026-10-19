@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { IntegrationCardHeader } from "@/components/integration-card-header";
+import { IntegrationRow } from "@/components/integration-row";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
@@ -24,13 +23,14 @@ export function QuickBooksCard({
   credentials: React.ReactNode;
 }) {
   return (
-    <Card>
-      <IntegrationCardHeader
-        title="QuickBooks"
-        logos={["quickbooks"]}
-        status={{ connected, detail: realmId ? `company ${realmId}` : null }}
-      />
-      <CardContent className="flex flex-col gap-4">
+    <IntegrationRow
+      id="quickbooks"
+      title="QuickBooks"
+      logos={["quickbooks"]}
+      status={{ connected, detail: realmId ? `company ${realmId}` : null }}
+      description="Push invoices to QuickBooks Online and sync their paid status back."
+      defaultOpen={!!callbackStatus && callbackStatus !== "connected"}
+    >
         {callbackStatus === "forbidden" ? (
           <Alert variant="destructive">
             <AlertDescription>Only owners and admins can connect integrations.</AlertDescription>
@@ -54,8 +54,11 @@ export function QuickBooksCard({
 
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            Push invoices to QuickBooks Online from each invoice&apos;s page, and sync their paid
-            status back.
+            {connected
+              ? "Push an invoice from its page; paid status syncs back."
+              : configured
+                ? "Connect, then sign in to Intuit and pick the company."
+                : "Add your QuickBooks app's credentials first, then connect."}
           </p>
           {readOnly ? null : connected ? (
             <form action={disconnectQuickBooksAction} className="shrink-0">
@@ -77,15 +80,14 @@ export function QuickBooksCard({
         </div>
         {connected ? null : <SetupGuide />}
         {credentials}
-      </CardContent>
-    </Card>
+    </IntegrationRow>
   );
 }
 
 function SetupGuide() {
   return (
-    <details className="text-sm">
-      <summary className="cursor-pointer font-medium">How to set this up</summary>
+    <div className="text-sm">
+      <p className="font-medium">How to set it up</p>
       <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted-foreground">
         <li>
           Open Consultainer at the address your team uses — the redirect URI below follows it.
@@ -109,6 +111,6 @@ function SetupGuide() {
         </li>
       </ol>
       <DocsLink page="integrations/quickbooks" />
-    </details>
+    </div>
   );
 }

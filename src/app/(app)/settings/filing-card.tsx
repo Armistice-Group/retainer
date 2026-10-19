@@ -3,8 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { ExternalLink, FolderSync } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
-import { IntegrationCardHeader } from "@/components/integration-card-header";
+import { IntegrationRow } from "@/components/integration-row";
 import type { IntegrationLogoName } from "@/components/integration-logo";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,8 +38,10 @@ export function FilingCard({
   filing,
   myConnections,
   readOnly,
+  defaultOpen,
 }: {
   filing: FilingState;
+  defaultOpen?: boolean;
   /** Filing-capable services the viewer has connected. */
   myConnections: string[];
   readOnly: boolean;
@@ -50,29 +51,27 @@ export function FilingCard({
   const [pending, startTransition] = useTransition();
 
   return (
-    <Card className="lg:col-span-2" id="filing">
-      <IntegrationCardHeader
-        title="Filing"
-        icon={FolderSync}
-        logos={filing.provider && LOGOS[filing.provider] ? [LOGOS[filing.provider]] : []}
-        status={{
-          connected: !!filing.provider,
-          connectedLabel: "On",
-          detail: filing.provider ? LABELS[filing.provider] : null,
-          notConnectedLabel: "Off",
-          problem: filing.provider && filing.lastError ? "Filing failed" : null,
-        }}
-        description={
-          <>
-            Keep a copy of every sent invoice and uploaded client document where the rest of your
-            files live, in <code className="text-xs">Client / Invoices</code>,{" "}
-            <code className="text-xs">Client / Documents</code> and{" "}
-            <code className="text-xs">Client / Project / Documents</code> folders. Each item is filed
-            when it happens; anything that fails is retried every hour.
-          </>
-        }
-      />
-      <CardContent className="flex flex-col gap-4">
+    <IntegrationRow
+      id="filing"
+      title="Filing"
+      icon={<FolderSync />}
+      logos={filing.provider && LOGOS[filing.provider] ? [LOGOS[filing.provider]] : []}
+      status={{
+        connected: !!filing.provider,
+        connectedLabel: "On",
+        detail: filing.provider ? LABELS[filing.provider] : null,
+        notConnectedLabel: "Off",
+        problem: filing.provider && filing.lastError ? "Filing failed" : null,
+      }}
+      description="A copy of every sent invoice and uploaded document, in your Drive, Dropbox or OneDrive."
+      defaultOpen={defaultOpen}
+    >
+        <p className="text-sm text-muted-foreground">
+          Filed in <code className="text-xs">Client / Invoices</code>,{" "}
+          <code className="text-xs">Client / Documents</code> and{" "}
+          <code className="text-xs">Client / Project / Documents</code> folders when it happens;
+          anything that fails is retried every hour.
+        </p>
         {filing.provider ? (
           <>
             <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -189,7 +188,6 @@ export function FilingCard({
             </div>
           </form>
         )}
-      </CardContent>
-    </Card>
+    </IntegrationRow>
   );
 }

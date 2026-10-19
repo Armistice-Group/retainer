@@ -52,6 +52,13 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"] },
     },
+    // Turns instance-wide email on and off again, so it runs after the rest.
+    {
+      name: "email",
+      testMatch: /email\.spec\.ts/,
+      dependencies: ["api", "chromium"],
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
   webServer: {
     command: `npx next start -p ${PORT}`,

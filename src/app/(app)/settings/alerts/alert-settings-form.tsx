@@ -59,7 +59,7 @@ export function AlertSettingsForm({
               {!emailConfigured ? (
                 <>
                   Email isn&apos;t set up on this instance — see the Email card in{" "}
-                  <Link href="/settings/integrations" className="text-brand hover:underline">
+                  <Link href="/settings/integrations?open=email" className="text-brand hover:underline">
                     Integrations
                   </Link>
                   .
@@ -127,7 +127,7 @@ export function AlertSettingsForm({
                   <th className="w-20 pb-2 text-center font-medium">
                     Email
                     {!emailConfigured ? (
-                      <Link href="/settings/integrations" className="block font-normal text-brand hover:underline">
+                      <Link href="/settings/integrations?open=email" className="block font-normal text-brand hover:underline">
                         Set up
                       </Link>
                     ) : null}

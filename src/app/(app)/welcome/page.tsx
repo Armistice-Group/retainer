@@ -8,6 +8,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GettingStartedList } from "@/components/getting-started-list";
+import { EmailSettings } from "../settings/email-settings";
+import { emailStatus } from "@/lib/email";
+import { describeIntegration } from "@/lib/instance-config";
 
 export const metadata: Metadata = { title: "Get started" };
 
@@ -15,19 +18,48 @@ export const metadata: Metadata = { title: "Get started" };
  * organization to a first invoice, plus optional extras. Stays reachable
  * at /welcome afterwards. */
 export default async function WelcomePage() {
-  const { org, role } = await requireOrgContext();
+  const { org, role, user } = await requireOrgContext();
   // The steps are an owner's or admin's to take.
   if (role !== "OWNER" && role !== "ADMIN") redirect("/dashboard");
 
   const { steps, extras } = await gettingStarted(org);
   const done = steps.filter((s) => s.done).length;
+  // Email is the one step done right here: without it nothing reaches
+  // clients. It's instance-wide, so only owners set it up. The card stays
+  // once it's done, so the test send is right there after saving.
+  const email = await emailStatus();
+  const showEmail = role === "OWNER";
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <PageHeader
         title={`${org.name} is ready`}
-        description={`Six steps to your first invoice. ${done} of ${steps.length} done.`}
+        description={`${steps.length} steps to your first invoice. ${done} of ${steps.length} done.`}
       />
+
+      {showEmail ? (
+        <Card className="mb-6" id="email">
+          <CardHeader>
+            <CardTitle className="text-base">
+              {email.configured ? `Email is set up (${email.provider === "smtp" ? "SMTP" : "Resend"})` : "First, set up email"}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {email.configured
+                ? `Invoices, reminders, invites and login links are sent as ${email.from}.`
+                : "Invoices, payment reminders, invites and login links are sent by email. Skip it for now and you'll copy links to send yourself; it's under Settings → Integrations any time."}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <EmailSettings
+              fields={await describeIntegration("email")}
+              provider={email.provider}
+              configured={email.configured}
+              canEdit
+              userEmail={user.email ?? null}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="p-0">
         <CardContent className="p-0">

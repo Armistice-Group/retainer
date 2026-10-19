@@ -120,10 +120,10 @@ invoice as sent.
 
 <Steps>
   <Step title="Make sure email works on your instance">
-    Alert emails are sent with Resend. If **Settings → Alerts** says "Email
-    isn't set up on this instance", follow the **Email** card on **Settings →
-    Integrations** (or set `RESEND_API_KEY`; see
-    [Self-hosting](/self-hosting#email)).
+    Alert emails go out through the instance's email (Resend or SMTP). If
+    **Settings → Alerts** says "Email isn't set up on this instance", set it
+    up under **Settings → Integrations → Email** (see
+    [Email](/integrations/email)).
   </Step>
   <Step title="Choose who gets them">
     On **Settings → Alerts**, enter addresses in **Send alert emails to**,

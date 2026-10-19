@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { isEmailConfigured } from "@/lib/email";
 
 export type GettingStartedStep = {
   key: string;
@@ -21,7 +22,7 @@ export async function gettingStarted(org: {
   logoUrl: string | null;
   slackWebhookUrl: string | null;
 }) {
-  const [paymentMethods, clients, projects, entries, invoices, members, invites, sso, quickbooks, linear] =
+  const [paymentMethods, clients, projects, entries, invoices, members, invites, sso, quickbooks, linear, email] =
     await Promise.all([
       prisma.paymentMethod.count({ where: { orgId: org.id, clientId: null } }),
       prisma.client.count({ where: { orgId: org.id, status: { not: "LEAD" } } }),
@@ -33,6 +34,7 @@ export async function gettingStarted(org: {
       prisma.ssoConnection.findUnique({ where: { orgId: org.id }, select: { enabled: true } }),
       prisma.quickBooksConnection.findUnique({ where: { orgId: org.id }, select: { id: true } }),
       prisma.linearConnection.findUnique({ where: { orgId: org.id }, select: { id: true } }),
+      isEmailConfigured(),
     ]);
 
   const steps: GettingStartedStep[] = [
@@ -43,6 +45,14 @@ export async function gettingStarted(org: {
       href: "/settings",
       cta: "Open settings",
       done: !!org.businessAddress || !!org.logoData || !!org.logoUrl,
+    },
+    {
+      key: "email",
+      title: "Set up email",
+      description: "So invoices, reminders and invites reach people. Resend or any SMTP server.",
+      href: "/settings/integrations?open=email",
+      cta: "Set up email",
+      done: email,
     },
     {
       key: "payment",

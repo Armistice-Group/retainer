@@ -29,13 +29,15 @@ async function storageStatus() {
 }
 import { PROVIDERS, SLUG_FOR } from "@/lib/integrations/storage/registry";
 import { EmailCard } from "../email-card";
-import { TestEmailButton } from "../test-email-button";
+import { EmailSettings } from "../email-settings";
+import { IntegrationRow, IntegrationSection } from "@/components/integration-row";
+import { MessageSquare } from "lucide-react";
 import { GoogleSignInCard } from "../google-sign-in-card";
 import { isGoogleSignInConfigured } from "@/lib/auth";
 import { IntegrationCredentials } from "../integration-credentials";
 import { canWrite, isLinearConfigured } from "@/lib/integrations/linear";
 import { isQuickBooksConfigured } from "@/lib/integrations/quickbooks";
-import { isEmailConfigured } from "@/lib/email";
+import { emailStatus } from "@/lib/email";
 import { describeIntegration, getConfig } from "@/lib/instance-config";
 import { getRequestOrigin } from "@/lib/url";
 
@@ -44,22 +46,24 @@ export const metadata: Metadata = { title: "Integrations" };
 export default async function IntegrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ quickbooks?: string; linear?: string }>;
+  /** `open`: a row to open on arrival, e.g. ?open=email from the welcome page. */
+  searchParams: Promise<{ quickbooks?: string; linear?: string; open?: string }>;
 }) {
   const { org, role, user } = await requireOrgContext();
   const readOnly = role === "MEMBER";
   // Credentials are instance-wide, so only owners can change them.
   const canEdit = role === "OWNER";
-  const { quickbooks, linear } = await searchParams;
+  const { quickbooks, linear, open } = await searchParams;
 
-  const [connection, linearConnection, qbConfigured, linearConfigured, emailConfigured] =
+  const [connection, linearConnection, qbConfigured, linearConfigured, email] =
     await Promise.all([
       prisma.quickBooksConnection.findUnique({ where: { orgId: org.id } }),
       prisma.linearConnection.findUnique({ where: { orgId: org.id } }),
       isQuickBooksConfigured(),
       isLinearConfigured(),
-      isEmailConfigured(),
+      emailStatus(),
     ]);
+  const emailConfigured = email.configured;
   const [qbFields, linearFields, emailFields, googleFields, googleConfigured] = await Promise.all([
     describeIntegration("quickbooks"),
     describeIntegration("linear"),
@@ -139,128 +143,166 @@ export default async function IntegrationsPage({
     }))
   );
 
+  const setup = open ?? (quickbooks && quickbooks !== "connected" ? "quickbooks" : linear && linear !== "connected" ? "linear" : undefined);
+  const [mercury, agreements, scheduling] = await Promise.all([
+    prisma.mercuryConnection.findUnique({ where: { orgId: org.id }, select: { id: true } }),
+    prisma.agreementConnection.findMany({ where: { orgId: org.id }, select: { provider: true } }),
+    prisma.schedulingConnection.findMany({ where: { orgId: org.id }, select: { provider: true } }),
+  ]);
+  const paymentsOn = [org.stripeConnectChargesEnabled ? "Stripe" : null, mercury ? "Mercury" : null].filter(
+    (p): p is string => !!p
+  );
+
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
-      <QuickBooksCard
-        connected={!!connection}
-        realmId={connection?.realmId ?? null}
-        readOnly={readOnly}
-        callbackStatus={quickbooks}
-        configured={qbConfigured}
-        credentials={
-          <IntegrationCredentials
-            integration="quickbooks"
-            fields={qbFields}
-            configured={qbConfigured}
-            canEdit={canEdit}
-            callbackUrl={`${origin}/api/integrations/quickbooks/callback`}
-            callbackLabel="redirect URI"
-            appUrl="https://developer.intuit.com/app/developer/dashboard"
-            appLabel="developer.intuit.com"
-          />
-        }
-      />
-
-      <LinearCard
-        connected={!!linearConnection}
-        workspaceName={linearConnection?.workspaceName ?? null}
-        readOnly={readOnly}
-        callbackStatus={linear}
-        configured={linearConfigured}
-        canWrite={linearConnection ? canWrite(linearConnection) : true}
-        webhook={{
-          url: `${origin}/api/webhooks/linear`,
-          secretSet: !!(await getConfig("LINEAR_WEBHOOK_SECRET")),
-          lastEventAt: linearConnection?.lastWebhookAt ?? null,
-        }}
-        credentials={
-          <IntegrationCredentials
-            integration="linear"
-            fields={linearFields}
-            configured={linearConfigured}
-            canEdit={canEdit}
-            callbackUrl={`${origin}/api/integrations/linear/callback`}
-            appUrl="https://linear.app/settings/api/applications/new"
-            appLabel="Linear → Settings → API → OAuth applications"
-          />
-        }
-      />
-
-      <AgreementsPointerCard
-        readOnly={readOnly}
-        connected={(
-          await prisma.agreementConnection.findMany({ where: { orgId: org.id }, select: { provider: true } })
-        ).map((c) => AGREEMENT_PROVIDER_LABELS[c.provider as AgreementProviderId] ?? c.provider)}
-      />
-
-      <SchedulingPointerCard
-        readOnly={readOnly}
-        connected={(
-          await prisma.schedulingConnection.findMany({ where: { orgId: org.id }, select: { provider: true } })
-        ).map((c) => SCHEDULING_PROVIDER_LABELS[c.provider as SchedulingProviderId] ?? c.provider)}
-      />
-
-      <FilesIntegrationsCard services={fileServices} canEdit={canEdit} />
-
-      <StorageCard {...(await storageStatus())} />
-
-      <FilingCard
-        readOnly={readOnly}
-        myConnections={(
-          await prisma.userConnection.findMany({
-            where: { userId: user.id, provider: { in: ["GOOGLE_DRIVE", "DROPBOX", "ONEDRIVE"] } },
-            select: { provider: true },
-          })
-        ).map((c) => c.provider)}
-        filing={{
-          provider: org.filingProvider,
-          rootName: org.filingRootName,
-          rootUrl: org.filingRootUrl,
-          fileInvoices: org.fileInvoices,
-          fileDocuments: org.fileDocuments,
-          lastError: org.filingLastError,
-          setUpBy: org.filingConnectionId
-            ? ((
-                await prisma.userConnection.findUnique({
-                  where: { id: org.filingConnectionId },
-                  select: { user: { select: { name: true } } },
-                })
-              )?.user.name ?? null)
-            : null,
-        }}
-      />
-
-      <EmailCard
-        configured={emailConfigured}
-        credentials={
-          <IntegrationCredentials
-            integration="email"
+    <div className="flex max-w-4xl flex-col gap-8">
+      <IntegrationSection
+        title="Essentials"
+        description="Instance-wide: they apply to every organization on this server."
+      >
+        <EmailCard
+          configured={emailConfigured}
+          provider={email.provider}
+          detail={email.provider === "smtp" ? email.host : email.from}
+          defaultOpen={setup === "email"}
+        >
+          <EmailSettings
             fields={emailFields}
+            provider={email.provider}
             configured={emailConfigured}
             canEdit={canEdit}
-            appUrl="https://resend.com/api-keys"
-            appLabel="resend.com (API key, plus a verified sending domain)"
+            userEmail={readOnly ? null : (user.email ?? null)}
           />
-        }
-        test={!readOnly && user.email ? <TestEmailButton email={user.email} /> : null}
-      />
+        </EmailCard>
+        <GoogleSignInCard
+          configured={googleConfigured}
+          defaultOpen={setup === "google-sign-in"}
+          credentials={
+            <IntegrationCredentials
+              integration="googleSignIn"
+              fields={googleFields}
+              configured={googleConfigured}
+              canEdit={canEdit}
+              callbackUrl={`${origin}/api/auth/callback/google`}
+              callbackLabel="redirect URI"
+              appUrl="https://console.cloud.google.com/auth/clients"
+              appLabel="the Google Cloud console"
+            />
+          }
+        />
+        <StorageCard {...(await storageStatus())} />
+      </IntegrationSection>
 
-      <GoogleSignInCard
-        configured={googleConfigured}
-        callbackUrl={`${origin}/api/auth/callback/google`}
-        credentials={
-          <IntegrationCredentials
-            integration="googleSignIn"
-            fields={googleFields}
-            configured={googleConfigured}
-            canEdit={canEdit}
-            callbackUrl={`${origin}/api/auth/callback/google`}
-            callbackLabel="redirect URI"
-            appUrl="https://console.cloud.google.com/auth/clients"
-            appLabel="the Google Cloud console"
-          />
-        }
-      />
+      <IntegrationSection title="Money">
+        <IntegrationRow
+          id="payments"
+          title="Online payments"
+          logos={["stripe", "mercury"]}
+          status={{ connected: paymentsOn.length > 0, detail: paymentsOn.join(", ") }}
+          description="Clients pay invoices by card or bank transfer from the invoice link."
+          href={readOnly ? undefined : "/settings/payments"}
+          actionLabel={paymentsOn.length ? "Open" : "Set up"}
+        />
+        <QuickBooksCard
+          connected={!!connection}
+          realmId={connection?.realmId ?? null}
+          readOnly={readOnly}
+          callbackStatus={quickbooks}
+          configured={qbConfigured}
+          credentials={
+            <IntegrationCredentials
+              integration="quickbooks"
+              fields={qbFields}
+              configured={qbConfigured}
+              canEdit={canEdit}
+              callbackUrl={`${origin}/api/integrations/quickbooks/callback`}
+              callbackLabel="redirect URI"
+              appUrl="https://developer.intuit.com/app/developer/dashboard"
+              appLabel="developer.intuit.com"
+            />
+          }
+        />
+      </IntegrationSection>
+
+      <IntegrationSection title="Work and clients">
+        <LinearCard
+          connected={!!linearConnection}
+          workspaceName={linearConnection?.workspaceName ?? null}
+          readOnly={readOnly}
+          callbackStatus={linear}
+          configured={linearConfigured}
+          canWrite={linearConnection ? canWrite(linearConnection) : true}
+          webhook={{
+            url: `${origin}/api/webhooks/linear`,
+            secretSet: !!(await getConfig("LINEAR_WEBHOOK_SECRET")),
+            lastEventAt: linearConnection?.lastWebhookAt ?? null,
+          }}
+          credentials={
+            <IntegrationCredentials
+              integration="linear"
+              fields={linearFields}
+              configured={linearConfigured}
+              canEdit={canEdit}
+              callbackUrl={`${origin}/api/integrations/linear/callback`}
+              appUrl="https://linear.app/settings/api/applications/new"
+              appLabel="Linear → Settings → API → OAuth applications"
+            />
+          }
+        />
+        <AgreementsPointerCard
+          readOnly={readOnly}
+          connected={agreements.map(
+            (c) => AGREEMENT_PROVIDER_LABELS[c.provider as AgreementProviderId] ?? c.provider
+          )}
+        />
+        <SchedulingPointerCard
+          readOnly={readOnly}
+          connected={scheduling.map(
+            (c) => SCHEDULING_PROVIDER_LABELS[c.provider as SchedulingProviderId] ?? c.provider
+          )}
+        />
+        <IntegrationRow
+          id="slack"
+          title="Slack alerts"
+          icon={<MessageSquare />}
+          status={{ connected: !!org.slackWebhookUrl }}
+          description="Overdue invoices, budget warnings and other alerts in a Slack channel."
+          href={readOnly ? undefined : "/settings/alerts"}
+          actionLabel={org.slackWebhookUrl ? "Open" : "Set up"}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="Files and documents"
+        description="Each person then connects their own account under Profile → Files & docs."
+      >
+        <FilesIntegrationsCard services={fileServices} canEdit={canEdit} openId={setup} />
+        <FilingCard
+          readOnly={readOnly}
+          defaultOpen={setup === "filing"}
+          myConnections={(
+            await prisma.userConnection.findMany({
+              where: { userId: user.id, provider: { in: ["GOOGLE_DRIVE", "DROPBOX", "ONEDRIVE"] } },
+              select: { provider: true },
+            })
+          ).map((c) => c.provider)}
+          filing={{
+            provider: org.filingProvider,
+            rootName: org.filingRootName,
+            rootUrl: org.filingRootUrl,
+            fileInvoices: org.fileInvoices,
+            fileDocuments: org.fileDocuments,
+            lastError: org.filingLastError,
+            setUpBy: org.filingConnectionId
+              ? ((
+                  await prisma.userConnection.findUnique({
+                    where: { id: org.filingConnectionId },
+                    select: { user: { select: { name: true } } },
+                  })
+                )?.user.name ?? null)
+              : null,
+          }}
+        />
+      </IntegrationSection>
     </div>
   );
 }

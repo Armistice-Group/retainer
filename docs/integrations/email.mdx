@@ -1,11 +1,14 @@
 ---
 title: Email
-description: Send invites, login and password reset links, invoices and alerts through Resend
+description: Send invites, login and password reset links, invoices and alerts through Resend or any SMTP server
 ---
 
-Consultainer sends email through [Resend](https://resend.com). Email is
-optional: without it, Consultainer shows you links to share yourself, and
-email-only features are off. An **owner** sets it up once for the instance.
+Consultainer sends email through [Resend](https://resend.com) or any SMTP
+server: Postmark, Amazon SES, Mailgun, SendGrid, Google Workspace, Microsoft
+365 or your own. Email is optional: without it, Consultainer shows you links
+to share yourself, and email-only features are off. An **owner** sets it up
+once for the instance, on the welcome page right after setup or any time
+under **Settings → Integrations → Email**.
 
 ## What Consultainer emails
 
@@ -32,44 +35,78 @@ already, client links stay closed to anyone who hasn't verified yet.
 
 ## Set it up
 
-<Steps>
-  <Step title="Create a Resend account">
-    Sign up at [resend.com](https://resend.com).
-  </Step>
-  <Step title="Add your sending domain">
-    In Resend, open **Domains** and add the domain you'll send from. A
-    subdomain such as `mail.example.com` keeps this separate from your normal
-    mail. Pick the region closest to your server.
-  </Step>
-  <Step title="Add the DNS records">
-    Resend lists the records to add at your DNS provider — an **MX** and a
-    **TXT** (SPF) record for sending, and a **TXT** record for DKIM. Add each
-    one exactly as shown, then click Resend's button to verify the records.
-    DNS changes can take from minutes to a few hours; wait until the domain
-    shows **Verified**.
-  </Step>
-  <Step title="Create an API key">
-    In Resend, open **API Keys** and create a key with **Sending access**
-    (you can limit it to your domain). Copy it — it starts with `re_` and is
-    only shown once.
-  </Step>
-  <Step title="Enter it in Consultainer">
-    Go to **Settings → Integrations** and find the **Email** card. Fill in:
+Go to **Settings → Integrations** and click **Set up** on **Email** (a new
+owner also gets this form on the welcome page). Under **Send with**, pick
+**Resend** or **SMTP**.
 
-    | Consultainer field | What to enter | Or in `.env` |
+<Tabs>
+  <Tab title="Resend">
+    <Steps>
+      <Step title="Create a Resend account">
+        Sign up at [resend.com](https://resend.com).
+      </Step>
+      <Step title="Add your sending domain">
+        In Resend, open **Domains** and add the domain you'll send from. A
+        subdomain such as `mail.example.com` keeps this separate from your
+        normal mail. Pick the region closest to your server.
+      </Step>
+      <Step title="Add the DNS records">
+        Resend lists the records to add at your DNS provider: an **MX** and a
+        **TXT** (SPF) record for sending, and a **TXT** record for DKIM. Add
+        each one exactly as shown, then click Resend's button to verify them.
+        Wait until the domain shows **Verified**.
+      </Step>
+      <Step title="Create an API key">
+        In Resend, open **API Keys** and create a key with **Sending access**.
+        Copy it: it starts with `re_` and is only shown once.
+      </Step>
+      <Step title="Enter it in Consultainer">
+        | Field | What to enter | Or in `.env` |
+        | --- | --- | --- |
+        | **Resend API key** | The `re_…` key | `RESEND_API_KEY` |
+        | **From address** | An address on your verified domain, e.g. `Acme Consulting <billing@mail.example.com>` | `EMAIL_FROM` |
+
+        Click **Save**.
+      </Step>
+    </Steps>
+
+    <Warning>
+      Always set a **From address** on your verified domain. If it's left
+      empty, Consultainer sends from Resend's test address
+      `onboarding@resend.dev`, which only delivers to your own Resend
+      account's email.
+    </Warning>
+  </Tab>
+  <Tab title="SMTP">
+    Fill in your mail service's SMTP settings:
+
+    | Field | What to enter | Or in `.env` |
     | --- | --- | --- |
-    | **Resend API key** | The `re_…` key | `RESEND_API_KEY` |
-    | **From address** | An address on your verified domain, e.g. `Acme Consulting <billing@mail.example.com>` | `RESEND_FROM_EMAIL` |
+    | **SMTP server** | The host, e.g. `smtp.postmarkapp.com` | `SMTP_HOST` |
+    | **Port** | `587` (STARTTLS, the usual) or `465` (TLS from the start). Blank means 587. | `SMTP_PORT` |
+    | **Username**, **Password** | The SMTP login. Leave blank for a relay that doesn't need one. | `SMTP_USER`, `SMTP_PASSWORD` |
+    | **From address** | An address the service lets you send as, e.g. `Acme Consulting <billing@example.com>`. Required, unless the username is an email address. | `EMAIL_FROM` |
 
-    Click **Save credentials**. A value set in `.env` always wins.
-  </Step>
-</Steps>
+    Click **Save**. Settings for common services:
 
-<Warning>
-  Always set a **From address** on your verified domain. If it's left empty,
-  Consultainer sends from Resend's test address `onboarding@resend.dev`,
-  which only delivers to your own Resend account's email.
-</Warning>
+    | Service | Server | Port | Login |
+    | --- | --- | --- | --- |
+    | Postmark | `smtp.postmarkapp.com` | 587 | A server API token as both username and password |
+    | Amazon SES | `email-smtp.<region>.amazonaws.com` | 587 | SMTP credentials created in the SES console (not your AWS keys) |
+    | Mailgun | `smtp.mailgun.org` (EU: `smtp.eu.mailgun.org`) | 587 | A domain's SMTP login |
+    | SendGrid | `smtp.sendgrid.net` | 587 | `apikey` and an API key |
+    | Google Workspace | `smtp.gmail.com` | 465 | Your address and an [app password](https://myaccount.google.com/apppasswords) |
+    | Microsoft 365 | `smtp.office365.com` | 587 | A mailbox with SMTP AUTH allowed by your admin |
+
+    Your mail service still needs your domain verified (SPF and DKIM) for
+    mail to reach inboxes.
+  </Tab>
+</Tabs>
+
+A value set in `.env` always wins and shows as read-only in the form. In
+`.env`, `EMAIL_PROVIDER` is `resend` or `smtp`; left out, it's SMTP when only
+`SMTP_HOST` is set and Resend otherwise. `RESEND_FROM_EMAIL`, the older name
+for `EMAIL_FROM`, still works.
 
 Links in emails point to your instance's public URL — `AUTH_URL` if set,
 otherwise the URL confirmed under **Settings → General**. Make sure that's
@@ -77,18 +114,22 @@ the address people can reach. See [Self-hosting](/self-hosting#urls).
 
 ## Check it worked
 
-The Email card says *Sending invites, login links, and invoice notices by
-email*. Click **Send a test email** on it: the test goes to your own address,
+The Email row says *Connected* with **Resend** or **SMTP**. Open it and
+click **Send a test email**: the test goes to your own address,
 and if Resend refuses it the card shows Resend's reason (an unverified
 domain, a wrong key) right there.
 
 ## Troubleshooting
 
-Consultainer logs Resend's reason in the app's logs (`docker compose logs
-consultainer-app`), as *Resend returned an error* or *Failed to send email via
-Resend*. In the app you'll see:
+Consultainer logs the reason in the app's logs (`docker compose logs
+consultainer-app`), as *Resend returned an error*, *Failed to send email via
+Resend* or *Failed to send email via SMTP*. In the app you'll see:
 
-- **"Resend said: …"** under **Send a test email** — Resend's own reason.
+- **"Resend said: …"** or **"The SMTP server said: …"** under **Send a test
+  email**: the service's own reason. With SMTP, *ECONNREFUSED* or a timeout
+  means the server or port is wrong (or blocked by your firewall; many hosts
+  block port 25, so use 587 or 465), and *Invalid login* or *535* means the
+  username or password is wrong.
 
 - **"The email couldn't be sent. Try again."** (emailing an invoice) — Resend
   refused it. Usual causes: the from address isn't on a verified domain, the

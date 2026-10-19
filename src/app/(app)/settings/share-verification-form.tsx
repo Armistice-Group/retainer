@@ -61,7 +61,7 @@ export function ShareVerificationForm({
         <p className="text-xs text-destructive">
           Email isn&apos;t set up, so nobody new can verify: the links are closed to anyone who
           hasn&apos;t already. Set up email in{" "}
-          <Link href="/settings/integrations" className="underline underline-offset-2">
+          <Link href="/settings/integrations?open=email" className="underline underline-offset-2">
             Settings → Integrations
           </Link>
           , or turn this off.
@@ -70,7 +70,7 @@ export function ShareVerificationForm({
       {!emailConfigured && !enabled ? (
         <p className="text-xs text-muted-foreground">
           Verification sends codes by email. Set up email in{" "}
-          <Link href="/settings/integrations" className="underline underline-offset-2">
+          <Link href="/settings/integrations?open=email" className="underline underline-offset-2">
             Settings → Integrations
           </Link>{" "}
           to turn this on.

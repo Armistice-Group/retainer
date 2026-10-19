@@ -156,14 +156,14 @@ export default async function DashboardPage() {
       key: "quickbooks",
       label: "Sync invoices to QuickBooks",
       description: "Push invoices to your books in one click instead of re-entering them.",
-      href: "/settings/integrations",
+      href: "/settings/integrations?open=quickbooks",
       done: !!quickbooksConnection,
     },
     {
       key: "linear",
       label: "Pull tasks in from Linear",
       description: "Assign real backlog items instead of a bucket of hours.",
-      href: "/settings/integrations",
+      href: "/settings/integrations?open=linear",
       done: !!linearConnection,
     },
     {
@@ -191,7 +191,7 @@ export default async function DashboardPage() {
 
   const setup = canManage ? await gettingStarted(org) : null;
   const firstName = user.name?.split(" ")[0] ?? "";
-  const returning = recentEntries.length > 0 || (setup?.steps.some((s) => s.done && s.key !== "business") ?? false);
+  const returning = recentEntries.length > 0 || (setup?.steps.some((s) => s.done && s.key !== "business" && s.key !== "email") ?? false);
   // A member who isn't on any project yet has nothing to log time against.
   const memberProjects = canManage
     ? null
