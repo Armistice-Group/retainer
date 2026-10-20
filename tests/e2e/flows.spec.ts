@@ -77,11 +77,67 @@ test.describe("logging time", () => {
     expect(await sql(`SELECT 1 FROM "TimeEntry" WHERE id = $1`, [id])).toEqual([]);
   });
 
-  test("Log time on a project page opens the dialog on that project", async ({ page }) => {
+  test("Log time on a project page logs it there, staying on the project", async ({ page }) => {
     await page.goto(`/projects/${A.openProject.id}`);
-    await page.getByRole("link", { name: "Log time" }).click();
+    await page.getByRole("button", { name: "Log time" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("combobox", { name: "Project" })).toContainText(A.openProject.name);
+    await dialog.getByLabel("Date").fill("2025-06-02");
+    await dialog.getByLabel("Hours").fill("0.75");
+    await dialog.getByLabel("Description").fill("Logged from the project page");
+    await dialog.getByRole("button", { name: "Log time" }).click();
+    await expect(page.getByText(`Logged 0.75h on ${A.client.name} — ${A.openProject.name}`)).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/projects/${A.openProject.id}$`));
+    await expect(page.getByText("Logged from the project page")).toBeVisible();
+    await sql(`DELETE FROM "TimeEntry" WHERE description = 'Logged from the project page'`);
+  });
+});
+
+test.describe("billing a set amount", () => {
+  test.use({ storageState: STORAGE.ownerA });
+
+  test("a deposit with a comment, and no logged work needed", async ({ page }) => {
+    await page.goto(`/invoices/new?clientId=${A.client.id}&mode=amount`);
+    await expect(page.getByRole("link", { name: "Set amount" })).toHaveAttribute("aria-current", "page");
+    await page.getByLabel("Line 1 description").fill("E2E set amount — Initial deposit");
+    await page.getByLabel("Line 1 amount").fill("abc");
+    await page.getByLabel("Notes").fill("Covers the first two weeks.");
+    await expect(page.getByRole("button", { name: "Create draft invoice" })).toBeDisabled();
+    await page.getByLabel("Line 1 amount").fill("500");
+    await page.getByRole("button", { name: "Add a line" }).click();
+    await page.getByLabel("Line 2 description").fill("E2E set amount — Setup");
+    await page.getByLabel("Line 2 amount").fill("1,250.50");
+    await page.getByRole("checkbox", { name: /This is a deposit/ }).check();
+    await expect(page.getByText("$1,750.50").first()).toBeVisible();
+    await page.getByRole("button", { name: "Create draft invoice" }).click();
+
+    await expect(page).toHaveURL(/\/invoices\/(?!new)[^/?]+$/);
+    const id = page.url().split("/").pop()!;
+    const [inv] = await sql<{ kind: string; total: string; taxAmount: string; notes: string; status: string }>(
+      `SELECT kind, total::text, "taxAmount"::text, notes, status FROM "Invoice" WHERE id = $1`,
+      [id]
+    );
+    expect(inv).toEqual({ kind: "DEPOSIT", total: "1750.50", taxAmount: "0.00", notes: "Covers the first two weeks.", status: "DRAFT" });
+    const lines = await sql<{ description: string; amount: string }>(
+      `SELECT description, amount::text FROM "InvoiceLineItem" WHERE "invoiceId" = $1 ORDER BY "sortOrder"`,
+      [id]
+    );
+    expect(lines).toEqual([
+      { description: "E2E set amount — Initial deposit", amount: "500.00" },
+      { description: "E2E set amount — Setup", amount: "1250.50" },
+    ]);
+    await sql(`DELETE FROM "Invoice" WHERE id = $1`, [id]);
+  });
+
+  test("a refused amount keeps the lines typed", async ({ page }) => {
+    await page.goto(`/invoices/new?clientId=${A.client.id}&mode=amount`);
+    await page.getByLabel("Line 1 description").fill("E2E set amount — Too precise");
+    await page.getByLabel("Line 1 amount").fill("10.005");
+    await page.getByLabel("Notes").fill("Still here");
+    await page.getByRole("button", { name: "Create draft invoice" }).click();
+    await expect(page.getByText("Line 1 needs an amount greater than zero, to the cent.")).toBeVisible();
+    await expect(page.getByLabel("Line 1 description")).toHaveValue("E2E set amount — Too precise");
+    await expect(page.getByLabel("Notes")).toHaveValue("Still here");
   });
 });
 

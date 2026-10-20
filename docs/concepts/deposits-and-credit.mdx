@@ -30,7 +30,7 @@ invoices.
 
 ## Deposits
 
-A deposit invoice is an ordinary invoice with one line, marked **Deposit**
+A deposit invoice is an ordinary invoice, marked **Deposit**
 in the invoice list and titled *DEPOSIT INVOICE* on the PDF. You send it and
 the client pays it the usual ways, including **Pay now**. What's different is
 where the money goes: every payment on a deposit becomes client credit, which
@@ -61,6 +61,10 @@ you then apply to the invoices for the work.
     any other invoice.
   </Step>
 </Steps>
+
+You can also bill a deposit from **Invoices → New invoice → Set amount**:
+tick **This is a deposit**. That way it can have more than one line, a PO
+number and notes. See [How to bill a set amount](/concepts/invoicing#how-to-bill-a-set-amount).
 
 **Check it worked:** the draft shows a **Deposit** badge, and the client's
 **Deposits and credit** card lists it under **Deposit invoices**. Once the
@@ -184,5 +188,6 @@ Invoices over the [API](/api-reference/invoices) and the
 `amountPaid`, `creditApplied` and `balanceDue`.
 `GET /api/v1/invoices/{id}/payments` and the `list_invoice_payments` tool list
 an invoice's payments, credit applied to it and credit notes against it.
-Creating deposits, issuing credit notes and applying credit are in the app
-only.
+`POST /api/v1/invoices/custom` and the `create_custom_invoice` tool create a
+deposit with `"deposit": true`. Issuing credit notes and applying credit are
+in the app only.

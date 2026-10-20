@@ -270,7 +270,8 @@ what that person can see.
 | --- | --- |
 | `list_invoices` | List invoices, optionally by status, with `isOverdue`, `daysOverdue`, `kind` (`STANDARD` or `DEPOSIT`), `amountPaid`, `creditApplied` and `balanceDue` (a partly paid invoice stays `SENT` until its balance is 0). A member doesn't see invoices with a line on a confidential project they're not on (the invoice tools answer *Invoice not found.* for those). |
 | `generate_invoice` | Owner/admin: create a draft invoice from unbilled time, completed milestones and approved expenses. |
-| `email_invoice` | Owner/admin: email an invoice to the client with a tracked link to view and pay it. A draft is marked sent. |
+| `create_custom_invoice` | Owner/admin: create a draft invoice for amounts you name, not logged work: `lines` of `{ description, amount }`, e.g. *Initial deposit*, 500. `deposit: true` makes it an untaxed deposit whose payments become client credit. |
+| `email_invoice` | Owner/admin: email an invoice to the client with a tracked link to view and pay it. A draft is marked sent. `attachPdf` attaches the PDF too (default: the client's setting); `includeTimesheet` turns this invoice's timesheet on or off. |
 | `schedule_invoice_send` | Owner/admin: schedule a draft to be emailed at `sendAt` (an ISO date-time with a time zone), or `null` to cancel. See [scheduling](/concepts/invoicing#how-to-schedule-an-invoice). |
 | `get_invoice_activity` | When an invoice was emailed, reminded and opened, plus its client link. |
 | `mark_invoice_sent` | Owner/admin: mark a draft invoice as sent (it needs at least one line item). |

@@ -50,6 +50,7 @@ export default async function EditClientPage({ params }: { params: Promise<{ id:
           invoiceReminders: client.invoiceReminders,
           requireClockTimes: client.requireClockTimes,
           invoiceTimeDetail: client.invoiceTimeDetail,
+          attachInvoicePdf: client.attachInvoicePdf,
           status: client.status,
         }}
       />

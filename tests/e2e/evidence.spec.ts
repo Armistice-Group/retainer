@@ -133,6 +133,14 @@ test.describe("time detail on invoices", () => {
       await sql(`UPDATE "Client" SET "invoiceTimeDetail" = false WHERE id = $1`, [A.clockClient.id]);
       expect(await (await request.get(`/i/${token}`)).text()).not.toContain("Time detail");
       expect((await request.get(`/i/${token}/evidence/${shown.id}`)).status()).toBe(404);
+
+      // One invoice can carry it anyway, and drop it when the client's on.
+      await sql(`UPDATE "Invoice" SET "timeDetail" = true WHERE id = $1`, [invoiceId]);
+      expect(await (await request.get(`/i/${token}`)).text()).toContain("Time detail");
+      expect((await request.get(`/i/${token}/evidence/${shown.id}`)).status()).toBe(200);
+      await sql(`UPDATE "Client" SET "invoiceTimeDetail" = true WHERE id = $1`, [A.clockClient.id]);
+      await sql(`UPDATE "Invoice" SET "timeDetail" = false WHERE id = $1`, [invoiceId]);
+      expect(await (await request.get(`/i/${token}`)).text()).not.toContain("Time detail");
     } finally {
       await sql(`UPDATE "Client" SET "invoiceTimeDetail" = false WHERE id = $1`, [A.clockClient.id]);
     }

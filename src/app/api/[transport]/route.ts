@@ -31,6 +31,7 @@ import {
 import {
   canChangeInvoiceStatusByKey,
   generateInvoice,
+  createCustomInvoice,
   invoiceStatusChangeError,
   notifyInvoiceStatusChange,
   voidInvoice,
@@ -116,8 +117,12 @@ const invoiceTimeDetailArg = z
   .boolean()
   .optional()
   .describe(
-    "This client's invoices get a time detail page (each entry's date, start/end, hours) with attachments marked for the client. Omit to leave unchanged."
+    "This client's invoices include a timesheet page (each entry's date, start/end, hours) with attachments marked for the client by default; each invoice can override it. Omit to leave unchanged."
   );
+const attachInvoicePdfArg = z
+  .boolean()
+  .optional()
+  .describe("Invoice emails to this client attach the PDF as well as the link. Omit to leave unchanged.");
 const expenseCategoryDescription =
   "Free-text category, e.g. Travel, Software, Materials.";
 
@@ -278,6 +283,7 @@ const handler = createMcpHandler(
         paymentTerms: defaultTermsArg,
         requireClockTimes: requireClockTimesArg,
         invoiceTimeDetail: invoiceTimeDetailArg,
+        attachInvoicePdf: attachInvoicePdfArg,
         status: z.enum(clientStatusValues).default("ACTIVE"),
       },
       async (args, extra) => {
@@ -306,6 +312,7 @@ const handler = createMcpHandler(
         paymentTerms: defaultTermsArg,
         requireClockTimes: requireClockTimesArg,
         invoiceTimeDetail: invoiceTimeDetailArg,
+        attachInvoicePdf: attachInvoicePdfArg,
         status: z
           .enum(clientStatusValues)
           .optional()
@@ -1423,14 +1430,63 @@ const handler = createMcpHandler(
     );
 
     server.tool(
+      "create_custom_invoice",
+      "Owner/admin only: create a draft invoice for amounts you name rather than logged work, e.g. a set fee or a deposit (lines: [{description: \"Initial deposit\", amount: 500}]). With deposit: true it's a deposit invoice, untaxed, whose payments become client credit. Nothing is marked billed.",
+      {
+        clientId: z.string(),
+        lines: z
+          .array(z.object({ description: z.string().min(1).max(500), amount: z.number().positive() }))
+          .min(1)
+          .max(100),
+        deposit: z.boolean().default(false),
+        projectId: z.string().optional(),
+        issueDate: isoDate(),
+        dueDate: isoDate()
+          .optional()
+          .describe("ISO date. Defaults to the issue date plus the payment terms."),
+        paymentTerms: z
+          .enum(["DUE_ON_RECEIPT", "NET15", "NET30", "NET45", "NET60", "NET90", "CUSTOM"])
+          .optional()
+          .describe("Defaults to the project's terms, else the client's, else the org's."),
+        poNumber: z.string().max(100).optional(),
+        taxRate: z.number().min(0).max(100).default(0).describe("Ignored for a deposit."),
+        notes: z.string().max(2000).optional(),
+      },
+      async (args, extra) => {
+        const ctx = ctxFrom(extra);
+        if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
+          return errorResult("Only owners and admins can create invoices.");
+        }
+        try {
+          const invoice = await createCustomInvoice(
+            { orgId: ctx.orgId, defaultCurrency: ctx.defaultCurrency, actorId: ctx.actorId, role: ctx.role },
+            args
+          );
+          return text(invoice);
+        } catch (err) {
+          if (err instanceof InvoiceError) return errorResult(err.message);
+          throw err;
+        }
+      }
+    );
+
+    server.tool(
       "email_invoice",
       "Owner/admin only: email an invoice to the client with a link to view and pay it (opens are tracked and alert the org). A draft is marked sent. Recipients default to the client's invoice contacts, else its billing email.",
       {
         invoiceId: z.string(),
         to: z.array(z.string().email()).max(20).optional(),
         message: z.string().max(2000).optional(),
+        attachPdf: z
+          .boolean()
+          .optional()
+          .describe("Attach the invoice PDF as well as the link. Defaults to the client's setting."),
+        includeTimesheet: z
+          .boolean()
+          .optional()
+          .describe("Put the timesheet page on this invoice (PDF and client link). Omit to leave as it is."),
       },
-      async ({ invoiceId, to, message }, extra) => {
+      async ({ invoiceId, to, message, attachPdf, includeTimesheet }, extra) => {
         const ctx = ctxFrom(extra);
         if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") {
           return errorResult("Only owners and admins can send invoices.");
@@ -1443,6 +1499,8 @@ const handler = createMcpHandler(
             await emailInvoice({ orgId: ctx.orgId, actorId: ctx.actorId }, invoiceId, {
               to: recipients,
               message,
+              attachPdf,
+              ...(includeTimesheet === undefined ? {} : { timeDetail: includeTimesheet }),
             })
           );
         } catch (err) {

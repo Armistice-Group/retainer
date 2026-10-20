@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { balanceDue, isPartlyPaid } from "@/lib/invoice-balance";
-import { sendEmail, isEmailConfigured } from "@/lib/email";
+import { sendEmail, isEmailConfigured, type EmailAttachment } from "@/lib/email";
 import { InvoiceEmail } from "@/emails/invoice-email";
 import { sendAlert } from "@/lib/alerts";
 import { orgLogoUrl } from "@/lib/branding";
@@ -59,12 +59,25 @@ async function loadInvoice(invoiceId: string) {
   });
 }
 
+/** The invoice's PDF as an email attachment. A draft is being sent as it's
+ * emailed, so its copy doesn't say DRAFT. */
+async function invoicePdfAttachment(invoiceId: string): Promise<EmailAttachment> {
+  const invoice = await prisma.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
+    include: { client: true, org: true, lineItems: { include: { timeEntries: { select: { id: true } } } } },
+  });
+  const { renderInvoicePdf } = await import("@/lib/invoice-pdf");
+  const pdf = await renderInvoicePdf(invoice.status === "DRAFT" ? { ...invoice, status: "SENT" } : invoice);
+  return { filename: `${invoice.number}.pdf`, content: Buffer.from(pdf), contentType: "application/pdf" };
+}
+
 async function deliver(
   invoice: NonNullable<Awaited<ReturnType<typeof loadInvoice>>>,
   to: string[],
-  opts: { message: string | null; reminder?: number; replyTo?: string | null }
+  opts: { message: string | null; reminder?: number; replyTo?: string | null; attachPdf?: boolean }
 ) {
   const { viewUrl, pixelUrl } = await invoiceLinks(invoice.id);
+  const attachments = opts.attachPdf ? [await invoicePdfAttachment(invoice.id)] : undefined;
   const origin = await getOrigin();
   const logo = orgLogoUrl(invoice.org);
   // Once part of it is paid, the email asks for what's still due.
@@ -79,6 +92,7 @@ async function deliver(
       to: recipient,
       subject,
       replyTo: opts.replyTo ?? undefined,
+      attachments,
       react: InvoiceEmail({
         orgName: invoice.org.name,
         logoUrl: logo ? (logo.startsWith("/") ? `${origin}${logo}` : logo) : null,
@@ -89,6 +103,7 @@ async function deliver(
         viewUrl,
         pixelUrl,
         reminder: opts.reminder,
+        pdfAttached: !!attachments,
       }),
     });
     if (ok) sent.push(recipient);
@@ -103,7 +118,14 @@ async function deliver(
 export async function emailInvoice(
   ctx: { orgId: string; actorId: string | null; replyTo?: string | null },
   invoiceId: string,
-  input: { to: string[]; message?: string | null }
+  input: {
+    to: string[];
+    message?: string | null;
+    /** Attach the PDF; defaults to the client's "attach the PDF" setting. */
+    attachPdf?: boolean | null;
+    /** Include the timesheet: saved on the invoice (null follows the client). */
+    timeDetail?: boolean | null;
+  }
 ) {
   const invoice = await loadInvoice(invoiceId);
   if (!invoice || invoice.orgId !== ctx.orgId) throw new InvoiceDeliveryError("Invoice not found.");
@@ -125,9 +147,13 @@ export async function emailInvoice(
   const actor = ctx.actorId
     ? await prisma.user.findUnique({ where: { id: ctx.actorId }, select: { email: true } })
     : null;
+  if (input.timeDetail !== undefined && input.timeDetail !== invoice.timeDetail) {
+    await prisma.invoice.update({ where: { id: invoiceId }, data: { timeDetail: input.timeDetail } });
+  }
   const sent = await deliver(invoice, to, {
     message: input.message?.trim() || null,
     replyTo: actor?.email ?? ctx.replyTo,
+    attachPdf: input.attachPdf ?? invoice.client.attachInvoicePdf,
   });
   if (sent.length === 0) throw new InvoiceDeliveryError("The email couldn't be sent. Try again.");
 
@@ -325,7 +351,11 @@ export async function sendOverdueReminders(now = new Date()) {
 
     const to = await defaultInvoiceRecipients(invoice.clientId);
     if (to.length === 0) continue;
-    const delivered = await deliver(invoice, to, { message: null, reminder: overdue });
+    const delivered = await deliver(invoice, to, {
+      message: null,
+      reminder: overdue,
+      attachPdf: invoice.client.attachInvoicePdf,
+    });
     if (delivered.length === 0) continue;
     await prisma.invoiceEvent.create({
       data: {

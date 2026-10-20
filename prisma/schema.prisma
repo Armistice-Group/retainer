@@ -406,6 +406,8 @@ model Client {
   // Invoices for this client get a time detail page: each entry's date,
   // start/end and hours, plus screenshots marked for the client.
   invoiceTimeDetail           Boolean               @default(false)
+  // Invoice emails carry the PDF as an attachment, not just the link.
+  attachInvoicePdf            Boolean               @default(false)
   // When the logo (ClientLogo) last changed; null means no logo. Kept here
   // so lists know whether there is one without loading the image.
   logoUpdatedAt               DateTime?
@@ -1293,6 +1295,9 @@ model Invoice {
   // What the Mercury invoice above asks for (the balance when it was made),
   // so a changed balance gets a fresh Mercury invoice.
   mercuryInvoiceAmount    Decimal?      @db.Decimal(12, 2)
+  // The timesheet (time detail page) on this invoice: null follows the
+  // client's invoiceTimeDetail, true/false overrides it.
+  timeDetail              Boolean?
   kind                    InvoiceKind   @default(STANDARD)
   // Sums of Payment.amount and CreditApplication.amount for this invoice,
   // kept in step by src/lib/services/payments.ts. Balance due is

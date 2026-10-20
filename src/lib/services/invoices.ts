@@ -426,3 +426,121 @@ export async function generateInvoice(ctx: GenerateInvoiceContext, input: Genera
 
   return invoice;
 }
+
+export type CustomInvoiceInput = {
+  clientId: string;
+  /** Each line is a description and an amount, e.g. "Initial deposit", 500. */
+  lines: { description: string; amount: number | string }[];
+  /** A deposit's payments become client credit for later invoices. */
+  deposit?: boolean;
+  /** Optional: keeps a confidential project's invoice hidden like its others. */
+  projectId?: string | null;
+  issueDate: string;
+  /** Defaults to the issue date plus the payment terms. */
+  dueDate?: string | null;
+  /** Defaults to the project's terms, else the client's, else the org's. */
+  paymentTerms?: PaymentTermsValue | null;
+  poNumber?: string | null;
+  /** Ignored for a deposit, which is never taxed (the work's invoice is). */
+  taxRate?: number;
+  notes?: string | null;
+};
+
+// "$1,500.00" or 1500, to the cent; null if it isn't a positive amount.
+function lineAmount(raw: number | string): number | null {
+  const n = typeof raw === "number" ? raw : Number(String(raw).replace(/[,\s$]/g, ""));
+  if (!Number.isFinite(n) || n <= 0 || n > 999_999_999) return null;
+  const cents = Math.round(n * 100);
+  if (Math.abs(n * 100 - cents) > 1e-6) return null;
+  return cents / 100;
+}
+
+/**
+ * A draft invoice for amounts you type, not logged work: a retainer, a
+ * set fee, or a deposit up front ("Initial deposit — $500"). Nothing is
+ * marked billed. Throws InvoiceError on bad input.
+ */
+export async function createCustomInvoice(ctx: GenerateInvoiceContext, input: CustomInvoiceInput) {
+  const client = await prisma.client.findFirst({ where: { id: input.clientId, orgId: ctx.orgId } });
+  if (!client) throw new InvoiceError("Client not found.");
+  if (isDraftClient(client)) throw new InvoiceError(DRAFT_CLIENT_ERROR);
+  const project = input.projectId
+    ? await prisma.project.findFirst({
+        where: {
+          id: input.projectId,
+          orgId: ctx.orgId,
+          clientId: client.id,
+          ...projectVisibilityWhere(ctx.actorId, ctx.role),
+        },
+      })
+    : null;
+  if (input.projectId && !project) throw new InvoiceError("Project not found for this client.");
+
+  const lines = input.lines
+    .map((l) => ({ description: l.description.trim().slice(0, 500), raw: l.amount }))
+    .filter((l) => l.description || String(l.raw ?? "").trim());
+  if (lines.length === 0) throw new InvoiceError("Add at least one line with a description and an amount.");
+  if (lines.length > 100) throw new InvoiceError("That's more than 100 lines.");
+  const parsed = lines.map((l, i) => {
+    if (!l.description) throw new InvoiceError(`Line ${i + 1} needs a description.`);
+    const amount = lineAmount(l.raw);
+    if (amount === null) throw new InvoiceError(`Line ${i + 1} needs an amount greater than zero, to the cent.`);
+    return { description: l.description, amount };
+  });
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.issueDate)) throw new InvoiceError("Enter the issue date as yyyy-mm-dd.");
+  const taxRate = input.deposit ? 0 : (input.taxRate ?? 0);
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new InvoiceError("Use a tax rate from 0 to 100.");
+  let paymentTerms: PaymentTermsValue | undefined = input.paymentTerms ?? undefined;
+  if (!paymentTerms) {
+    const org = await prisma.organization.findUniqueOrThrow({
+      where: { id: ctx.orgId },
+      select: { defaultPaymentTerms: true },
+    });
+    paymentTerms = resolvePaymentTerms({
+      project: project?.paymentTerms as DefaultPaymentTerms | null | undefined,
+      client: client.paymentTerms as DefaultPaymentTerms | null,
+      org: org.defaultPaymentTerms as DefaultPaymentTerms,
+    });
+  }
+  const dueDate = input.dueDate || dueDateFor(input.issueDate, paymentTerms);
+  if (!dueDate) throw new InvoiceError("Custom payment terms need a due date.");
+  if (dueDate < input.issueDate) throw new InvoiceError("The due date can't be before the issue date.");
+
+  return prisma.$transaction(async (tx) => {
+    const org = await tx.organization.update({
+      where: { id: ctx.orgId },
+      data: { nextInvoiceNumber: { increment: 1 } },
+      select: { invoicePrefix: true, nextInvoiceNumber: true },
+    });
+    const number = `${org.invoicePrefix}-${String(org.nextInvoiceNumber - 1).padStart(4, "0")}`;
+    const created = await tx.invoice.create({
+      data: {
+        orgId: ctx.orgId,
+        clientId: client.id,
+        number,
+        kind: input.deposit ? "DEPOSIT" : "STANDARD",
+        status: "DRAFT",
+        issueDate: new Date(input.issueDate),
+        dueDate: new Date(dueDate),
+        paymentTerms,
+        poNumber: input.poNumber?.trim().replace(/^PO[\s#:-]*/i, "") || null,
+        taxRate,
+        currency: ctx.defaultCurrency,
+        notes: input.notes?.trim() ? input.notes.trim().slice(0, 2000) : null,
+        lineItems: {
+          create: parsed.map((l, i) => ({
+            description: l.description,
+            quantity: 1,
+            rate: l.amount,
+            amount: l.amount,
+            projectId: project?.id ?? null,
+            sortOrder: i,
+          })),
+        },
+      },
+    });
+    await recomputeInvoiceTotals(tx, created.id);
+    return tx.invoice.findUniqueOrThrow({ where: { id: created.id } });
+  });
+}

@@ -29,6 +29,8 @@ export function EmailInvoiceDialog({
   isDraft,
   emailed,
   emailConfigured,
+  attachPdfDefault = false,
+  timesheet = null,
 }: {
   invoiceId: string;
   invoiceNumber: string;
@@ -38,6 +40,10 @@ export function EmailInvoiceDialog({
   /** It's been emailed before (so the button says "Email again"). */
   emailed: boolean;
   emailConfigured: boolean;
+  /** The client's "attach the PDF" setting. */
+  attachPdfDefault?: boolean;
+  /** Whether it carries its timesheet, or null when it has no hourly time. */
+  timesheet?: boolean | null;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<ActionState, FormData>(async (prev, formData) => {
@@ -112,6 +118,30 @@ export function EmailInvoiceDialog({
                 rows={3}
                 placeholder="Thanks for your business! Let me know if you have any questions."
               />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox name="attachPdf" defaultChecked={attachPdfDefault} className="mt-0.5" />
+                <span>
+                  Attach the PDF
+                  <span className="block text-xs text-muted-foreground">
+                    For clients whose accounts team wants the file. The link still comes with it.
+                  </span>
+                </span>
+              </label>
+              {timesheet !== null ? (
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="hidden" name="timeDetailAsked" value="1" />
+                  <Checkbox name="timeDetail" defaultChecked={timesheet} className="mt-0.5" />
+                  <span>
+                    Include the timesheet
+                    <span className="block text-xs text-muted-foreground">
+                      A page listing each entry&apos;s date, times, hours and description, on the PDF
+                      and the client link.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
             </div>
             <SubmitButton pendingText="Sending...">Send invoice</SubmitButton>
           </form>

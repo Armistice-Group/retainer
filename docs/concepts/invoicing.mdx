@@ -48,7 +48,8 @@ and its page and PDF read as not found.
      rate** from Settings → General) and **Notes** (shown on the invoice).
 5. Click **Generate invoice**. You land on the new **Draft**.
 
-If the client has nothing to bill you'll see **Nothing to invoice** instead.
+If the client has nothing logged to bill, Consultainer opens
+[**Set amount**](#how-to-bill-a-set-amount) instead.
 
 How items become lines:
 
@@ -61,6 +62,29 @@ How items become lines:
 
 Everything you include is marked as billed, so it can't be invoiced twice.
 Invoices are in your organization's **Default currency**.
+
+## How to bill a set amount
+
+For money that isn't logged work, such as a set fee, a monthly retainer or a
+deposit (*Initial deposit — $500*):
+
+1. Go to **Invoices**, click **New invoice** and pick the client.
+2. Click **Set amount** at the top. It's already open if the client has no
+   logged work to bill.
+3. For each line, type a **Description** (what the client sees, e.g.
+   *Initial deposit*) and an **Amount**. Click **Add a line** for more.
+4. Owners and admins can tick **This is a deposit**. A deposit is untaxed, and
+   once paid its money becomes the client's
+   [credit](/concepts/deposits-and-credit), which you apply to the invoices
+   for the work. Leave it off for a fee that's settled by its own payment.
+5. Optionally pick a **Project**, then set the dates, terms, **PO number**,
+   **Tax rate** and **Notes** (shown on the invoice, a good place for
+   anything else you want to say).
+6. Click **Create draft invoice**. You land on the draft; send it like any
+   other.
+
+Nothing is marked billed, so this never uses up logged time. A draft's lines
+can still be edited before you send it.
 
 ### Invoice numbers
 
@@ -130,10 +154,18 @@ This needs email set up on your instance (**Settings → Integrations**).
    contacts with **Send invoices to this person** ticked, else its billing email,
    else its main email.
 3. Optional: add a **Message**.
-4. Click **Send invoice**.
+4. Optional: tick **Attach the PDF** to send the file as well as the link,
+   for clients whose accounts team wants it. It starts ticked if the client
+   has **Attach the PDF to invoice emails** on, which also attaches it to
+   [overdue reminders](#overdue-reminders) and automatic sends.
+5. If the invoice has hourly time, **Include the timesheet** says whether it
+   carries its [timesheet](#timesheets-on-invoices). Changing it here changes
+   it for this invoice.
+6. Click **Send invoice**.
 
 The email has the invoice number, total, due date and a link to the
-[client invoice page](#the-client-invoice-page). Replies go to your email
+[client invoice page](#the-client-invoice-page), plus the PDF if you attached
+it. Opening an attached PDF isn't tracked; opening the link is. Replies go to your email
 address. It shows under **Activity** as *Ana Ruiz emailed it to …* (with your name).
 
 If email isn't set up, the dialog says so; use **Copy client link** instead.
@@ -239,11 +271,19 @@ login is needed. It shows:
 Drafts have no client page. The link keeps working after the invoice is paid
 or voided.
 
-## Time detail on invoices
+## Timesheets on invoices
 
-For a client who wants to see exactly when the billed hours were worked, edit
-the client and tick **Show time detail on invoices** (under **Time**). Their
-invoices then get:
+For a client who wants to see exactly when the billed hours were worked, add
+a timesheet to the invoice. Either:
+
+- **For one invoice:** on the invoice, tick **Include the timesheet** (under
+  the totals), or tick it in the **Email to client** dialog. Anyone can change
+  it on a draft; on a sent invoice, owners and admins.
+- **For every invoice for a client:** edit the client and tick **Include a
+  timesheet on invoices** (under **Time**). One invoice can still turn it off.
+
+The option shows only on invoices with hourly time. An invoice with a
+timesheet gets:
 
 - **A second page in the PDF**: every time entry on the invoice, in order,
   with its date, start and end times (or *—* if it has none), hours and what
@@ -254,9 +294,10 @@ invoices then get:
   the [evidence](/concepts/time-tracking#evidence-screenshots) marked
   **Client can see it**. Evidence that isn't marked is never shown.
 
-It applies to every invoice for the client, including ones already sent,
-because the PDF and page are made when they're opened. Turn it off and the
-detail and evidence links disappear from all of them. To make sure every entry
+The client setting applies to every invoice that hasn't been changed on its
+own, including ones already sent, because the PDF and page are made when
+they're opened. Turn it off and the detail and evidence links disappear from
+them. To make sure every entry
 has times, also tick
 [Require start and end times](/concepts/time-tracking#requiring-start-and-end-times).
 

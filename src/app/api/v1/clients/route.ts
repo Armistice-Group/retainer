@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       address: parsed.data.address || null,
       requireClockTimes: parsed.data.requireClockTimes,
       invoiceTimeDetail: parsed.data.invoiceTimeDetail,
+      attachInvoicePdf: parsed.data.attachInvoicePdf,
       status: parsed.data.status,
     },
   });

@@ -1,4 +1,5 @@
 import "server-only";
+import { showsTimeDetail } from "@/lib/services/invoice-time-detail";
 import { prisma } from "@/lib/prisma";
 import { canViewProject } from "@/lib/project-access";
 import { deleteStoredFile, readFile, storeFile } from "@/lib/file-storage";
@@ -203,16 +204,17 @@ export async function readAttachmentForMember(ctx: Ctx, attachmentId: string) {
 }
 
 /** A client-visible attachment on one of this invoice's entries, when the
- * client has time detail on. */
-export async function readAttachmentForInvoice(invoiceId: string, attachmentId: string) {
+ * invoice carries its timesheet. */
+export async function readAttachmentForInvoice(
+  invoice: { id: string; timeDetail: boolean | null; client: { invoiceTimeDetail: boolean } },
+  attachmentId: string
+) {
+  if (!showsTimeDetail(invoice)) return null;
   const attachment = await prisma.timeEntryAttachment.findFirst({
     where: {
       id: attachmentId,
       clientVisible: true,
-      timeEntry: {
-        invoiceLineItem: { invoiceId },
-        project: { client: { invoiceTimeDetail: true } },
-      },
+      timeEntry: { invoiceLineItem: { invoiceId: invoice.id } },
     },
   });
   if (!attachment) return null;

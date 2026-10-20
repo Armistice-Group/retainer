@@ -75,7 +75,12 @@ Any role. Returns `201` with `{ "client": { ... } }`.
 </ParamField>
 <ParamField body="invoiceTimeDetail" type="boolean" default="false">
   The client's invoices get a
-  [time detail](/concepts/invoicing#time-detail-on-invoices) page.
+  [timesheet](/concepts/invoicing#timesheets-on-invoices) page, unless an
+  invoice turns it off.
+</ParamField>
+<ParamField body="attachInvoicePdf" type="boolean" default="false">
+  Invoice emails and reminders to this client attach the PDF as well as the
+  link.
 </ParamField>
 <ParamField body="status" type="string" default="ACTIVE">
   `ACTIVE` or `INACTIVE`. `LEAD` answers `422`: draft clients only come from

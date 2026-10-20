@@ -112,6 +112,28 @@ test.describe("org isolation", () => {
     expect(mixed.status()).toBe(422);
   });
 
+  test("a set amount can't be billed to another org's client or project", async ({ request }) => {
+    const line = [{ description: "E2E API set amount", amount: 100 }];
+    const other = await request.post("/api/v1/invoices/custom", {
+      headers: ownerA,
+      data: { clientId: B.client.id, lines: line, issueDate: "2026-01-05" },
+    });
+    expect(other.status()).toBe(422);
+    const ok = await request.post("/api/v1/invoices/custom", {
+      headers: ownerA,
+      data: { clientId: A.client.id, lines: line, deposit: true, taxRate: 10, issueDate: "2026-01-05", paymentTerms: "NET15" },
+    });
+    expect(ok.status()).toBe(201);
+    const { invoice } = await ok.json();
+    expect(invoice).toMatchObject({ kind: "DEPOSIT", status: "DRAFT", total: "100", dueDate: expect.stringMatching(/^2026-01-20/) });
+    await sql(`DELETE FROM "Invoice" WHERE id = $1`, [invoice.id]);
+    const bad = await request.post("/api/v1/invoices/custom", {
+      headers: ownerA,
+      data: { clientId: A.client.id, lines: [{ description: "x", amount: -5 }], issueDate: "2026-01-05" },
+    });
+    expect(bad.status()).toBe(422);
+  });
+
   test("the audit log only shows the key's own org", async ({ request }) => {
     const res = await json(await request.get("/api/v1/audit-log?limit=200", { headers: ownerB }));
     const rows = await sql<{ id: string }>(`SELECT id FROM "AuditLog" WHERE "orgId" <> 'e2e_org_b'`);
@@ -132,6 +154,14 @@ test.describe("roles", () => {
       [A.memberEntry.id]
     );
     expect(entry.invoiceLineItemId).toBeNull();
+  });
+
+  test("members can't bill a set amount over the API", async ({ request }) => {
+    const res = await request.post("/api/v1/invoices/custom", {
+      headers: memberA,
+      data: { clientId: A.client.id, lines: [{ description: "E2E member", amount: 5 }], issueDate: "2026-01-05" },
+    });
+    expect(res.status()).toBe(403);
   });
 
   test("members can't read the audit log; owners and admins can", async ({ request }) => {

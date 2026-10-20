@@ -29,6 +29,7 @@ export async function createClientAction(
     invoiceReminders: formData.get("invoiceReminders") === "on",
     requireClockTimes: formData.get("requireClockTimes") === "on",
     invoiceTimeDetail: formData.get("invoiceTimeDetail") === "on",
+    attachInvoicePdf: formData.get("attachInvoicePdf") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -54,6 +55,7 @@ export async function createClientAction(
       invoiceReminders: parsed.data.invoiceReminders,
       requireClockTimes: parsed.data.requireClockTimes,
       invoiceTimeDetail: parsed.data.invoiceTimeDetail,
+      attachInvoicePdf: parsed.data.attachInvoicePdf,
       status: parsed.data.status,
     },
   });
@@ -84,6 +86,7 @@ export async function updateClientAction(
     invoiceReminders: formData.get("invoiceReminders") === "on",
     requireClockTimes: formData.get("requireClockTimes") === "on",
     invoiceTimeDetail: formData.get("invoiceTimeDetail") === "on",
+    attachInvoicePdf: formData.get("attachInvoicePdf") === "on",
     status: formData.get("status") || "ACTIVE",
   });
 
@@ -115,6 +118,7 @@ export async function updateClientAction(
       invoiceReminders: parsed.data.invoiceReminders,
       requireClockTimes: parsed.data.requireClockTimes,
       invoiceTimeDetail: parsed.data.invoiceTimeDetail,
+      attachInvoicePdf: parsed.data.attachInvoicePdf,
       status: parsed.data.status,
       ...(current.status === "LEAD" && parsed.data.status !== "LEAD" ? { leadDiscardedAt: null } : {}),
     },

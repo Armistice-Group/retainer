@@ -41,6 +41,7 @@ import { formatClockRange } from "@/lib/clock-time";
 import { resolveBillRate } from "@/lib/bill-rates";
 import { EvidenceDialog } from "@/components/time-evidence";
 import { attachmentSelect } from "@/lib/services/time-entry-attachments";
+import { TimeEntryDialog } from "@/app/(app)/time/time-entry-dialog";
 
 export default async function ProjectDetailPage({
   params,
@@ -237,11 +238,27 @@ export default async function ProjectDetailPage({
         actions={
           <>
             {project.status === "ACTIVE" ? (
-              <Button size="sm" asChild>
-                <Link href={`/time?log=1&project=${project.id}`}>
-                  <Clock className="size-3.5" /> Log time
-                </Link>
-              </Button>
+              // Logged here, so you stay on the project.
+              <TimeEntryDialog
+                projects={[
+                  {
+                    id: project.id,
+                    name: project.name,
+                    clientName: project.client.name,
+                    requireClockTimes: project.client.requireClockTimes,
+                    invoiceTimeDetail: project.client.invoiceTimeDetail,
+                  },
+                ]}
+                tasks={project.tasks.map((t) => ({ id: t.id, title: t.title, projectId: project.id }))}
+                defaultProjectId={project.id}
+                currentUserId={user.id}
+                clockRounding={org.clockRoundingMinutes}
+                trigger={
+                  <Button size="sm">
+                    <Clock className="size-3.5" /> Log time
+                  </Button>
+                }
+              />
             ) : null}
             <Button variant="outline" size="sm" asChild>
               <Link href={`/projects/${project.id}/edit`}>

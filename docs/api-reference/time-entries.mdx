@@ -184,7 +184,7 @@ POST /api/v1/time-entries/{id}/attachments
 Send `multipart/form-data` with one or more `file` parts (PNG, JPEG, GIF,
 WebP or PDF; checked by contents, up to 5MB each, or 25MB with S3 storage;
 20 per entry). Add `clientVisible=true` to show them on the invoice's
-[time detail](/concepts/invoicing#time-detail-on-invoices). Returns `201` with
+[time detail](/concepts/invoicing#timesheets-on-invoices). Returns `201` with
 `{ "attachments": [ ... ] }`.
 
 ```bash

@@ -23,6 +23,7 @@ export function InvoiceEmail({
   viewUrl,
   pixelUrl,
   reminder,
+  pdfAttached = false,
 }: {
   orgName: string;
   logoUrl: string | null;
@@ -31,9 +32,12 @@ export function InvoiceEmail({
   dueDate: string;
   message: string | null;
   viewUrl: string;
-  pixelUrl: string;
+  /** Counts the open; left out of a sample. */
+  pixelUrl?: string;
   /** Days overdue, for a reminder. */
   reminder?: number;
+  /** The PDF came as an attachment. */
+  pdfAttached?: boolean;
 }) {
   const headline = reminder
     ? `Invoice ${invoiceNumber} is ${reminder} day${reminder === 1 ? "" : "s"} overdue`
@@ -82,9 +86,9 @@ export function InvoiceEmail({
             View invoice
           </Button>
           <Text style={{ fontSize: 12, color: "#8a8599", marginTop: 24 }}>
-            Questions? Reply to this email.
+            {pdfAttached ? "The invoice is also attached as a PDF. " : ""}Questions? Reply to this email.
           </Text>
-          <Img src={pixelUrl} width="1" height="1" alt="" style={{ display: "block" }} />
+          {pixelUrl ? <Img src={pixelUrl} width="1" height="1" alt="" style={{ display: "block" }} /> : null}
         </Container>
       </Body>
     </Html>

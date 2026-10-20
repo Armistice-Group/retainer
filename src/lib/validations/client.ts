@@ -14,6 +14,7 @@ export const clientSchema = z.object({
   invoiceReminders: z.boolean().default(true),
   requireClockTimes: z.boolean().default(false),
   invoiceTimeDetail: z.boolean().default(false),
+  attachInvoicePdf: z.boolean().default(false),
   // LEAD (draft client) only comes from Cal.com/Calendly bookings; the form
   // offers it only to keep a draft a draft (see updateClientAction).
   status: z.enum(["ACTIVE", "INACTIVE", "LEAD"]).default("ACTIVE"),

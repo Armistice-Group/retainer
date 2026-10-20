@@ -13,6 +13,9 @@ import {
 import type { ActionState } from "@/actions/auth";
 import { emailStatus, fromAddress, isEmailConfigured, trySendEmail } from "@/lib/email";
 import { TestEmail } from "@/emails/test-email";
+import { InvoiceEmail } from "@/emails/invoice-email";
+import { orgLogoUrl } from "@/lib/branding";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { getOrigin } from "@/lib/url";
 
 export async function savePublicUrlAction(
@@ -75,16 +78,40 @@ export async function removeIntegrationCredentialsAction(integration: Integratio
 }
 
 /** Emails the signed-in owner or admin, and says what Resend answered. */
-export async function sendTestEmailAction(): Promise<ActionState> {
-  const { role, user } = await requireOrgContext();
+const TEST_TO_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
+/** Sends a test (a short note, or a sample of the invoice email clients get)
+ * to the given address, or to you, and reports what the mail service said.
+ * Needs no invoice: the sample uses made-up numbers and links back here. */
+export async function sendTestEmailAction(input?: { to?: string; kind?: "basic" | "invoice" }): Promise<ActionState> {
+  const { role, user, org } = await requireOrgContext();
   requireRole(role, ["OWNER", "ADMIN"]);
-  if (!user.email) return { error: "Your account has no email address." };
+  const to = (input?.to ?? "").trim() || user.email;
+  if (!to) return { error: "Enter an address to send the test to." };
+  if (!TEST_TO_RE.test(to) || to.length > 254) return { error: "Enter one email address, like you@example.com." };
   const [from, origin] = await Promise.all([fromAddress(), getOrigin()]);
-  const { error } = await trySendEmail({
-    to: user.email,
-    subject: "Test email from Consultainer",
-    react: TestEmail({ fromAddress: from, origin }),
-  });
+  let message;
+  if (input?.kind === "invoice") {
+    const logo = orgLogoUrl(org);
+    const due = new Date();
+    due.setDate(due.getDate() + 30);
+    const total = formatCurrency(500, org.defaultCurrency);
+    message = {
+      subject: `[Sample] Invoice ${org.invoicePrefix}-0000 from ${org.name} — ${total}`,
+      react: InvoiceEmail({
+        orgName: org.name,
+        logoUrl: logo ? (logo.startsWith("/") ? `${origin}${logo}` : logo) : null,
+        invoiceNumber: `${org.invoicePrefix}-0000`,
+        total,
+        dueDate: formatDate(due),
+        message: "This is a sample of the email your clients get with an invoice. Nothing was billed; the button opens your email settings.",
+        viewUrl: `${origin}/settings/integrations?open=email`,
+      }),
+    };
+  } else {
+    message = { subject: "Test email from Consultainer", react: TestEmail({ fromAddress: from, origin }) };
+  }
+  const { error } = await trySendEmail({ to, ...message });
   if (error) {
     const { provider } = await emailStatus();
     return { error: `${provider === "smtp" ? "The SMTP server" : "Resend"} said: ${error}` };

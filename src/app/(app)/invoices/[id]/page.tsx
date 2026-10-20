@@ -28,6 +28,8 @@ import { clientCreditCents, invoiceLedger } from "@/lib/services/payments";
 import { invoiceVoidBlockedReason } from "@/lib/services/invoices";
 import { SyncQuickBooksStatusButton } from "./sync-quickbooks-status-button";
 import { EmailInvoiceDialog, CopyClientLinkButton } from "./email-invoice-dialog";
+import { TimesheetToggle } from "./timesheet-toggle";
+import { showsTimeDetail } from "@/lib/services/invoice-time-detail";
 import { InvoiceActivity } from "./invoice-activity";
 import { defaultInvoiceRecipients } from "@/lib/services/invoice-delivery";
 import { isEmailConfigured } from "@/lib/email";
@@ -70,6 +72,9 @@ export default async function InvoiceDetailPage({
 
   const isDraft = invoice.status === "DRAFT";
   const canManage = role === "OWNER" || role === "ADMIN";
+  // A timesheet only means something with hourly lines on it.
+  const hasTime = invoice.lineItems.some((li) => li._count.timeEntries > 0);
+  const timesheet = showsTimeDetail(invoice);
 
   const [ledger, clientCredit] = await Promise.all([
     invoiceLedger(invoice.id),
@@ -122,6 +127,8 @@ export default async function InvoiceDetailPage({
                 isDraft={isDraft}
                 emailed={events.some((e) => e.type === "EMAILED")}
                 emailConfigured={emailConfigured}
+                attachPdfDefault={invoice.client.attachInvoicePdf}
+                timesheet={hasTime ? timesheet : null}
               />
             ) : null}
             {/* On a draft it sends the invoice, so owners and admins only.
@@ -393,6 +400,14 @@ export default async function InvoiceDetailPage({
                   <span>Balance due</span>
                   <span className="tabular-figures">{formatCurrency(balance, invoice.currency)}</span>
                 </div>
+              ) : null}
+              {hasTime ? (
+                <TimesheetToggle
+                  invoiceId={invoice.id}
+                  included={timesheet}
+                  clientDefault={invoice.client.invoiceTimeDetail}
+                  disabled={invoice.status === "VOID" || (!isDraft && !canManage)}
+                />
               ) : null}
               <Link
                 href={`/clients/${invoice.clientId}`}

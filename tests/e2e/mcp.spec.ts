@@ -89,6 +89,27 @@ test.describe("members", () => {
     expect(r.text).toMatch(/owners and admins/i);
   });
 
+  test("can't bill a set amount", async ({ request }) => {
+    const r = await mcp(request, member, "create_custom_invoice", {
+      clientId: A.client.id,
+      lines: [{ description: "E2E MCP member", amount: 5 }],
+      issueDate: "2026-01-05",
+    });
+    expect(r.isError).toBe(true);
+    expect(r.text).toMatch(/owners and admins/i);
+  });
+
+  test("owners bill a set amount, but not to another org's client", async ({ request }) => {
+    const lines = [{ description: "E2E MCP set amount", amount: 500 }];
+    const foreign = await mcp(request, owner, "create_custom_invoice", { clientId: B.client.id, lines, issueDate: "2026-01-05" });
+    expect(foreign.isError).toBe(true);
+    const r = await mcp(request, owner, "create_custom_invoice", { clientId: A.client.id, lines, deposit: true, issueDate: "2026-01-05" });
+    expect(r.isError, r.text).toBeFalsy();
+    const invoice = JSON.parse(r.text);
+    expect(invoice).toMatchObject({ kind: "DEPOSIT", status: "DRAFT" });
+    await sql(`DELETE FROM "Invoice" WHERE id = $1`, [invoice.id]);
+  });
+
   test("can't manage milestones", async ({ request }) => {
     const base = { projectId: A.openProject.id, milestoneId: A.milestone.id };
     const calls: [string, Record<string, unknown>][] = [

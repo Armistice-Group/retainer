@@ -8,6 +8,7 @@ import { invoiceVisibilityWhere } from "@/lib/project-access";
 import { generateInvoiceSchema, paymentTermsValues } from "@/lib/validations/invoice";
 import {
   generateInvoice,
+  createCustomInvoice,
   recomputeInvoiceTotals,
   round2,
   InvoiceError,
@@ -76,6 +77,52 @@ export async function generateInvoiceAction(
 
   revalidatePath("/invoices");
   revalidatePath("/time");
+  redirect(`/invoices/${invoice.id}`);
+}
+
+/** A draft invoice for amounts typed in (a set fee, a deposit), not
+ * logged work. */
+export async function createCustomInvoiceAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { org, user, role } = await requireOrgContext();
+  const str = (key: string) => String(formData.get(key) ?? "").trim();
+  const deposit = formData.get("deposit") === "on";
+  // Deposits become client credit, which only owners and admins manage.
+  if (deposit && !canChangeInvoiceStatusByKey(role)) {
+    return { error: "Only owners and admins can create deposit invoices." };
+  }
+  const descriptions = formData.getAll("lineDescription").map(String);
+  const amounts = formData.getAll("lineAmount").map(String);
+  const termsRaw = str("paymentTerms");
+  const paymentTerms = paymentTermsValues.find((t) => t === termsRaw) ?? null;
+  const taxRate = Number(str("taxRate") || 0);
+
+  let invoice;
+  try {
+    invoice = await createCustomInvoice(
+      { orgId: org.id, defaultCurrency: org.defaultCurrency, actorId: user.id, role },
+      {
+        clientId: str("clientId"),
+        lines: descriptions.map((description, i) => ({ description, amount: amounts[i] ?? "" })),
+        deposit,
+        projectId: ["", "none"].includes(str("projectId")) ? null : str("projectId"),
+        issueDate: str("issueDate"),
+        dueDate: str("dueDate") || null,
+        paymentTerms,
+        poNumber: str("poNumber"),
+        taxRate,
+        notes: str("notes"),
+      }
+    );
+  } catch (err) {
+    if (err instanceof InvoiceError) return { error: err.message };
+    throw err;
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/clients/${invoice.clientId}`);
   redirect(`/invoices/${invoice.id}`);
 }
 
@@ -372,6 +419,9 @@ export async function emailInvoiceAction(
     await emailInvoice({ orgId: org.id, actorId: user.id }, invoiceId, {
       to,
       message: (formData.get("message") as string | null) ?? null,
+      attachPdf: formData.get("attachPdf") === "on",
+      // Only asked when the invoice has hourly time to list.
+      ...(formData.get("timeDetailAsked") ? { timeDetail: formData.get("timeDetail") === "on" } : {}),
     });
   } catch (err) {
     if (err instanceof InvoiceDeliveryError) return { error: err.message };
@@ -430,5 +480,20 @@ export async function saveReminderSettingsAction(
     data: { overdueReminderDays: [...new Set(days)].sort((a, b) => a - b) },
   });
   revalidatePath("/settings/payments");
+  return { saved: true };
+}
+
+/** Whether this invoice carries its timesheet (the time detail page on the
+ * PDF and the client link), overriding the client's default. Anyone can
+ * change a draft's; once sent, owners and admins. */
+export async function setInvoiceTimeDetailAction(invoiceId: string, include: boolean): Promise<ActionState> {
+  const { org, user, role } = await requireOrgContext();
+  const invoice = await prisma.invoice.findFirst({ where: visibleInvoice(invoiceId, org.id, user.id, role) });
+  if (!invoice) return { error: "Invoice not found." };
+  if (invoice.status !== "DRAFT" && !canChangeInvoiceStatusByKey(role)) {
+    return { error: "Only owners and admins can change a sent invoice." };
+  }
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { timeDetail: include } });
+  revalidatePath(`/invoices/${invoiceId}`);
   return { saved: true };
 }

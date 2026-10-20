@@ -1,6 +1,6 @@
 ---
 title: Invoices
-description: List invoices, generate a draft, and record payments
+description: List invoices, generate a draft or bill a set amount, and record payments
 ---
 
 ## List invoices
@@ -132,6 +132,66 @@ curl -X POST https://<your-instance>/api/v1/invoices/generate \
 | `422` | `{ "timeEntryIds": ["Select at least one time entry, milestone, or expense"] }` | Send at least one ID. |
 | `422` | `Client not found.` | Check `clientId`. |
 | `422` | `No eligible unbilled time entries, milestones, or expenses were selected.` | None of the IDs qualified. Check they're on this client's projects, billable, approved, and not already invoiced. |
+| `422` | `Custom payment terms need a due date.` | Send `dueDate` with `CUSTOM` terms. |
+
+## Bill a set amount
+
+```
+POST /api/v1/invoices/custom
+```
+
+Owner/admin only. Creates a draft for amounts you name rather than logged
+work: a set fee, a retainer or a deposit, the same as **Set amount** in the
+app. Nothing is marked billed. Returns `201` with `{ "invoice": { ... } }`.
+
+<ParamField body="clientId" type="string" required />
+<ParamField body="lines" type="object[]" required>
+  1 to 100 lines, each `{ "description": string, "amount": number }`. The
+  amount is to the cent and greater than zero.
+</ParamField>
+<ParamField body="deposit" type="boolean" default="false">
+  A [deposit invoice](/concepts/deposits-and-credit#deposits): untaxed, and
+  its payments become client credit.
+</ParamField>
+<ParamField body="projectId" type="string">
+  One of the client's projects. Its payment terms are the default, and a
+  confidential project's invoice is hidden like its others.
+</ParamField>
+<ParamField body="issueDate" type="string" required>`YYYY-MM-DD`.</ParamField>
+<ParamField body="dueDate" type="string">
+  `YYYY-MM-DD`. Defaults to `issueDate` plus the payment terms.
+</ParamField>
+<ParamField body="paymentTerms" type="string">
+  As for [generate](#generate-an-invoice). Defaults to the project's terms,
+  else the client's, else the organization's.
+</ParamField>
+<ParamField body="poNumber" type="string">Up to 100 characters.</ParamField>
+<ParamField body="taxRate" type="number" default="0">
+  Percent, 0 to 100. Ignored for a deposit.
+</ParamField>
+<ParamField body="notes" type="string">Up to 2,000 characters, shown on the invoice.</ParamField>
+
+```bash
+curl -X POST https://<your-instance>/api/v1/invoices/custom \
+  -H "Authorization: Bearer ch_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "cm9...",
+    "lines": [{ "description": "Initial deposit", "amount": 500 }],
+    "deposit": true,
+    "issueDate": "2026-10-19",
+    "paymentTerms": "DUE_ON_RECEIPT"
+  }'
+```
+
+**Errors**
+
+| Status | Message | Fix |
+| --- | --- | --- |
+| `403` | `Only owners and admins can create invoices.` | Use an owner or admin key. |
+| `422` | `{ "lines": [...] }` | Send at least one line with a description and a positive amount. |
+| `422` | `Client not found.` | Check `clientId`. |
+| `422` | `Project not found for this client.` | Use one of the client's projects, or leave `projectId` out. |
 | `422` | `Custom payment terms need a due date.` | Send `dueDate` with `CUSTOM` terms. |
 
 ## List an invoice's payments

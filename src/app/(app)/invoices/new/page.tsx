@@ -7,6 +7,9 @@ import { Card } from "@/components/ui/card";
 import { FileText } from "lucide-react";
 import { ClientPicker } from "./client-picker";
 import { InvoiceEntrySelector } from "./invoice-entry-selector";
+import { CustomInvoiceForm } from "./custom-invoice-form";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { toISODate } from "@/lib/date";
 import { invoiceableTimeWhere } from "@/lib/services/timesheets";
 import { formatClockRange } from "@/lib/clock-time";
@@ -15,10 +18,10 @@ import type { PaymentTerms } from "@/generated/prisma/client";
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ clientId?: string }>;
+  searchParams: Promise<{ clientId?: string; mode?: string }>;
 }) {
   const { org, user, role } = await requireOrgContext();
-  const { clientId } = await searchParams;
+  const { clientId, mode } = await searchParams;
 
   const clients = await prisma.client.findMany({
     // Draft clients (from bookings) can't be invoiced or get projects yet.
@@ -137,12 +140,30 @@ export default async function NewInvoicePage({
             });
       const heldHours = Number(awaitingApproval?._sum.hours ?? 0);
 
-      const selection =
-        eligible.length === 0 && milestones.length === 0 && expenses.length === 0 ? (
+      const nothingLogged = eligible.length === 0 && milestones.length === 0 && expenses.length === 0;
+      // A set amount (a fee, a deposit) needs no logged work; it's where
+      // you start when there's none.
+      const amountMode = mode === "amount" || (mode !== "work" && nothingLogged);
+      const clientProjects = await prisma.project.findMany({
+        where: { clientId, orgId: org.id, ...projectVisibilityWhere(user.id, role) },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, paymentTerms: true },
+      });
+      const selection = amountMode ? (
+        <CustomInvoiceForm
+          key={client.id}
+          clientId={client.id}
+          projects={clientProjects}
+          currency={org.defaultCurrency}
+          defaultTaxRate={Number(org.defaultTaxRate)}
+          clientTerms={client.paymentTerms ?? org.defaultPaymentTerms}
+          canDeposit={role === "OWNER" || role === "ADMIN"}
+        />
+      ) : nothingLogged ? (
           <EmptyState
             icon={FileText}
             title="Nothing to invoice"
-            description="This client has no unbilled, billable time entries, completed milestones, or approved expenses yet."
+            description="This client has no unbilled, billable time entries, completed milestones, or approved expenses yet. Bill a set amount instead."
           />
         ) : (
           <InvoiceEntrySelector
@@ -158,9 +179,27 @@ export default async function NewInvoicePage({
           />
         );
 
+      const tab = (value: "work" | "amount", label: string) => (
+        <Link
+          href={`/invoices/new?clientId=${client.id}&mode=${value}`}
+          aria-current={(value === "amount") === amountMode ? "page" : undefined}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-sm font-medium",
+            (value === "amount") === amountMode
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {label}
+        </Link>
+      );
       eligibleSection = (
         <>
-          {heldHours > 0 ? (
+          <nav aria-label="What to bill" className="mb-4 inline-flex gap-1 rounded-lg bg-muted p-1">
+            {tab("work", "Logged work")}
+            {tab("amount", "Set amount")}
+          </nav>
+          {heldHours > 0 && !amountMode ? (
             <p className="mb-4 rounded-lg border border-border px-4 py-3 text-sm text-muted-foreground">
               {heldHours.toFixed(2)}h of billable time for this client isn&apos;t shown — it&apos;s
               waiting on timesheet approval (Time → Approvals).
@@ -176,7 +215,7 @@ export default async function NewInvoicePage({
     <div>
       <PageHeader
         title="New invoice"
-        description="Pick a client, then select the unbilled time, milestones, and expenses to include."
+        description="Pick a client, then bill their unbilled time, milestones and expenses, or a set amount such as a deposit."
       />
 
       <Card className="mb-6 p-5">

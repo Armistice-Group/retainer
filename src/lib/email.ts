@@ -94,10 +94,17 @@ function smtpTransport(s: Awaited<ReturnType<typeof emailSettings>>) {
   return smtp.transport;
 }
 
-type EmailInput = { to: string; subject: string; react: ReactElement; replyTo?: string };
+export type EmailAttachment = { filename: string; content: Buffer; contentType?: string };
+type EmailInput = {
+  to: string;
+  subject: string;
+  react: ReactElement;
+  replyTo?: string;
+  attachments?: EmailAttachment[];
+};
 
 /** Sends one email and says why when it didn't go (for the test button). */
-export async function trySendEmail({ to, subject, react, replyTo }: EmailInput): Promise<{ error?: string }> {
+export async function trySendEmail({ to, subject, react, replyTo, attachments }: EmailInput): Promise<{ error?: string }> {
   if (!(await isEmailConfigured())) return { error: "Email isn't set up." };
   const s = await emailSettings();
   const from = await fromAddress();
@@ -105,7 +112,7 @@ export async function trySendEmail({ to, subject, react, replyTo }: EmailInput):
 
   if (s.provider === "smtp") {
     try {
-      await smtpTransport(s).sendMail({ from, to, subject, html, replyTo });
+      await smtpTransport(s).sendMail({ from, to, subject, html, replyTo, attachments });
       return {};
     } catch (err) {
       console.warn("Failed to send email via SMTP", err);
@@ -117,7 +124,14 @@ export async function trySendEmail({ to, subject, react, replyTo }: EmailInput):
     resend = { key: s.RESEND_API_KEY!, client: new Resend(s.RESEND_API_KEY!) };
   }
   try {
-    const { error } = await resend.client.emails.send({ from, to, subject, html, replyTo });
+    const { error } = await resend.client.emails.send({
+      from,
+      to,
+      subject,
+      html,
+      replyTo,
+      attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })),
+    });
     if (error) {
       console.warn("Resend returned an error", error);
       return { error: error.message || error.name || "Resend refused the email." };

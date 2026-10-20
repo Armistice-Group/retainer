@@ -143,7 +143,7 @@ export function EvidencePicker({
 }: {
   files: File[];
   onChange: (files: File[]) => void;
-  /** The project's client has "Show time detail on invoices" on. */
+  /** The project's client has "Include a timesheet on invoices" on. */
   canShare: boolean;
   error?: string;
 }) {
@@ -206,7 +206,7 @@ export function EvidenceDialog({
   title: string;
   items: EvidenceItem[];
   canEdit: boolean;
-  /** The client has "Show time detail on invoices" on. */
+  /** The client has "Include a timesheet on invoices" on. */
   clientSeesDetail: boolean;
   /** For the link to turn time detail on. */
   clientId?: string;
@@ -338,10 +338,10 @@ export function EvidenceDialog({
               Only your team sees these. To share them with the client, turn on{" "}
               {clientId ? (
                 <a href={`/clients/${clientId}/edit`} className="font-medium text-foreground underline underline-offset-2">
-                  Show time detail on invoices
+                  Include a timesheet on invoices
                 </a>
               ) : (
-                "Show time detail on invoices"
+                "Include a timesheet on invoices"
               )}{" "}
               for the client.
             </>

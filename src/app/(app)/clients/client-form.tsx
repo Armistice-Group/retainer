@@ -31,6 +31,7 @@ type ClientFormValues = {
   invoiceReminders: boolean;
   requireClockTimes: boolean;
   invoiceTimeDetail: boolean;
+  attachInvoicePdf: boolean;
   status: "ACTIVE" | "INACTIVE" | "LEAD";
 };
 
@@ -183,11 +184,29 @@ export function ClientForm({
           />
           <div className="flex flex-col gap-1">
             <Label htmlFor="invoiceTimeDetail" className="text-sm font-normal">
-              Show time detail on invoices
+              Include a timesheet on invoices
             </Label>
             <p className="text-xs text-muted-foreground">
               Adds a page listing each entry&apos;s date, start and end times, hours and description.
-              Screenshots marked for the client can be opened from the invoice link.
+              Screenshots marked for the client can be opened from the invoice link. You can still
+              turn it on or off for one invoice.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-start gap-2 sm:col-span-2">
+          <Checkbox
+            id="attachInvoicePdf"
+            name="attachInvoicePdf"
+            className="mt-0.5"
+            defaultChecked={initialValues?.attachInvoicePdf ?? false}
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="attachInvoicePdf" className="text-sm font-normal">
+              Attach the PDF to invoice emails
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Invoices and reminders come with the PDF as well as the link. You can change it each
+              time you send.
             </p>
           </div>
         </div>
