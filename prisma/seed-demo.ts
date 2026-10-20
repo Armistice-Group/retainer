@@ -39,6 +39,7 @@ async function main() {
       defaultCurrency: "USD",
       defaultBillRate: 175,
       nextInvoiceNumber: 1,
+      businessAddress: "100 Example Ave, Suite 4\nPortland, OR 97201",
     },
   });
 
@@ -72,15 +73,18 @@ async function main() {
   const people = [
     // billRate: their default when put on a project; Priya has none, so she
     // starts at the org's default.
-    { name: "Maya Chen", email: "maya@northwind.example", role: "OWNER", title: "Principal", billRate: 210 },
-    { name: "Diego Alvarez", email: "diego@northwind.example", role: "ADMIN", title: "Staff Engineer", billRate: 185 },
-    { name: "Priya Nair", email: "priya@northwind.example", role: "MEMBER", title: "Security Engineer" },
-    { name: "Sam Okafor", email: "sam@contractor.example", role: "MEMBER", title: "Designer", contractor: true, billRate: 140 },
+    { name: "Maya Chen", email: "maya@northwind.example", role: "OWNER", title: "Principal", billRate: 210, costRate: 115 },
+    { name: "Diego Alvarez", email: "diego@northwind.example", role: "ADMIN", title: "Staff Engineer", billRate: 185, costRate: 98 },
+    { name: "Priya Nair", email: "priya@northwind.example", role: "MEMBER", title: "Security Engineer", costRate: 92 },
+    { name: "Sam Okafor", email: "sam@contractor.example", role: "MEMBER", title: "Designer", contractor: true, billRate: 140, costRate: 95 },
   ] as const;
 
   const users: User[] = [];
   for (const p of people) {
-    const user = await prisma.user.create({ data: { name: p.name, email: p.email, passwordHash } });
+    // Maya has used it for a while and closed the dashboard's setup card.
+    const user = await prisma.user.create({
+      data: { name: p.name, email: p.email, passwordHash, setupCardDismissedAt: p.role === "OWNER" ? daysAgo(30) : null },
+    });
     await prisma.membership.create({
       data: {
         userId: user.id,
@@ -89,6 +93,7 @@ async function main() {
         title: p.title,
         employmentType: "contractor" in p ? "CONTRACTOR" : "EMPLOYEE",
         billRate: "billRate" in p ? p.billRate : null,
+        costRate: p.costRate,
       },
     });
     users.push(user);
@@ -303,6 +308,8 @@ async function main() {
       );
       if (theirs.length === 0 || rand() < 0.12) continue;
       const count = theirs.length > 1 && rand() < 0.5 ? 2 : 1;
+      // The day starts at 9:00; a second entry follows a lunch break.
+      let startMinute = 9 * 60;
       for (let i = 0; i < count; i++) {
         const p = pick(theirs);
         const hours = Math.round((count === 2 ? 2 + rand() * 3 : 4 + rand() * 4) * 4) / 4;
@@ -318,8 +325,11 @@ async function main() {
             hours,
             description: pick(p.def.work),
             billable: rand() > 0.08,
+            startMinute,
+            endMinute: startMinute + Math.round(hours * 60),
           },
         });
+        startMinute += Math.round(hours * 60) + 45;
         entries.push({ id: entry.id, projectId: p.project.id, userId: user.id, date, hours, rate });
       }
     }
@@ -392,7 +402,23 @@ async function main() {
   await invoiceFor(tidewater, 80, 42, "PAID", 41);
   await invoiceFor(pinecrest, 50, 28, "PAID", 27);
   const tidewaterCycleInvoice = await invoiceFor(tidewater, 42, 28, "PAID", 27, "NET15");
-  await invoiceFor(atlas, 32, 14, "SENT", 13);
+  // Atlas's sent invoice: emailed with its timesheet, and opened by the
+  // client (the website shows its client page at /i/demo-atlas-invoice).
+  const atlasInvoice = await invoiceFor(atlas, 32, 14, "SENT", 13);
+  if (atlasInvoice) {
+    await prisma.invoice.update({
+      where: { id: atlasInvoice.id },
+      data: { viewToken: "demo-atlas-invoice", timeDetail: true, viewCount: 3, firstViewedAt: daysAgo(12), lastViewedAt: daysAgo(2) },
+    });
+    await prisma.invoiceEvent.createMany({
+      data: [
+        { invoiceId: atlasInvoice.id, type: "EMAILED", recipients: ["ops@atlasrobotics.example"], actorId: maya.id, createdAt: daysAgo(13) },
+        { invoiceId: atlasInvoice.id, type: "EMAIL_OPENED", createdAt: daysAgo(12) },
+        { invoiceId: atlasInvoice.id, type: "VIEWED", createdAt: daysAgo(12) },
+        { invoiceId: atlasInvoice.id, type: "PDF_VIEWED", createdAt: daysAgo(2) },
+      ],
+    });
+  }
   await invoiceFor(pinecrest, 28, 14, "SENT", 40); // issued long ago → overdue
   await invoiceFor(lumen, 26, 7, "DRAFT", 0);
 
@@ -429,6 +455,23 @@ async function main() {
     ],
   });
   await prisma.organization.update({ where: { id: org.id }, data: { nextInvoiceNumber: invoiceNumber } });
+
+  // Paid invoices were paid in full, by bank transfer, on the day they're marked paid.
+  for (const paid of await prisma.invoice.findMany({ where: { orgId: org.id, status: "PAID" } })) {
+    await prisma.payment.create({
+      data: {
+        orgId: org.id,
+        invoiceId: paid.id,
+        clientId: paid.clientId,
+        amount: paid.total,
+        currency: paid.currency,
+        receivedAt: dateOnly(paid.paidAt ?? paid.issueDate),
+        method: "ACH",
+        recordedById: maya.id,
+      },
+    });
+    await prisma.invoice.update({ where: { id: paid.id }, data: { amountPaid: paid.total } });
+  }
 
   // Expenses.
   const fleet = projects.find((p) => p.def.name === "Fleet Dashboard")!.project;

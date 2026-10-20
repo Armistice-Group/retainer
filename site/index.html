@@ -82,12 +82,26 @@
     .row h3 { font-size: 22px; letter-spacing: -0.015em; margin: 0 0 10px; font-weight: 600; }
     .row p { color: var(--muted); margin: 0; }
 
+    .scenarios { display: grid; grid-template-columns: 1fr 1fr; gap: 40px 32px; }
+    .scenario { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+    .scenario figcaption { display: flex; flex-direction: column; gap: 6px; }
+    .scenario .step {
+      font: 500 12px/1 "JetBrains Mono", ui-monospace, monospace; color: var(--brand);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .scenario h3 { font-size: 19px; letter-spacing: -0.01em; margin: 0; font-weight: 600; }
+    .scenario p { color: var(--muted); margin: 0; font-size: 15px; }
+    .scenario.phone { flex-direction: row; align-items: center; gap: 28px; }
+    .scenario.phone picture { flex: 0 0 38%; }
+    .scenario.phone .shot { border-radius: 20px; }
+
     footer {
       margin-top: 112px; padding: 32px 0 48px; border-top: 1px solid var(--border);
       color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
     @media (max-width: 820px) {
-      .quickstart, .row, .row:nth-child(even) { grid-template-columns: 1fr; gap: 24px; }
+      .quickstart, .row, .row:nth-child(even), .scenarios { grid-template-columns: 1fr; gap: 24px; }
+      .scenario.phone picture { flex-basis: 45%; }
       .row:nth-child(even) .copy { order: 0; }
       header { padding-top: 40px; }
       nav .links a:not(.gh) { display: none; }
@@ -111,6 +125,7 @@
       <div class="links">
         <a href="#quickstart">Quickstart</a>
         <a href="#tour">Tour</a>
+        <a href="#scenarios">Scenarios</a>
         <a href="docs/">Docs</a>
         <a class="gh" href="https://github.com/Armistice-Group/retainer">GitHub</a>
       </div>
@@ -183,8 +198,8 @@ docker compose up -d</pre>
         </div>
         <div class="row">
           <div class="copy">
-            <h3>Invoices from unbilled work</h3>
-            <p>Pull unbilled time, completed milestones, and expenses into an invoice in a few clicks. Email clients a link to view and pay it — and know when they open it. Take payment through Stripe or Mercury, push to QuickBooks.</p>
+            <h3>Invoices from unbilled work, or a set amount</h3>
+            <p>Pull unbilled time, completed milestones, and expenses into an invoice in a few clicks, or bill a set fee or deposit. Email clients a link to view and pay it, with the PDF and timesheet attached if they want them — and know when they open it. Take payment through Stripe or Mercury, push to QuickBooks.</p>
           </div>
           <picture>
             <source srcset="screenshots/invoices-dark.png" media="(prefers-color-scheme: dark)" />
@@ -201,6 +216,83 @@ docker compose up -d</pre>
             <img class="shot" src="screenshots/client-light.png" width="2880" height="1800" loading="lazy" alt="Client page with projects, invoices, and a bi-weekly billing cycle" />
           </picture>
         </div>
+      </div>
+    </section>
+
+    <section id="scenarios">
+      <h2>A month at a small consultancy</h2>
+      <p class="sub">
+        Northwind Labs is made up: four people, five clients, a mix of hourly, flat-fee and retainer work.
+        Here's how a month of it goes in Consultainer. Every screen is the real app on the demo data
+        that ships in the repo, so you can load it and click around yourself.
+      </p>
+      <div class="scenarios">
+        <figure class="scenario">
+          <picture>
+            <source srcset="screenshots/email-setup-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/email-setup-light.png" loading="lazy" alt="Email settings panel with SMTP chosen and Postmark's server filled in" />
+          </picture>
+          <figcaption>
+            <div class="step">Day 1 · Setup</div>
+            <h3>Email in two minutes, from the browser</h3>
+            <p>Maya, the owner, picks Resend or any SMTP server (Postmark, SES, Google Workspace…), pastes the settings and sends herself a test, or a sample of the invoice email clients get. No config files, no restart.</p>
+          </figcaption>
+        </figure>
+        <figure class="scenario">
+          <picture>
+            <source srcset="screenshots/deposit-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/deposit-light.png" loading="lazy" alt="New invoice form billing a set amount as a deposit" />
+          </picture>
+          <figcaption>
+            <div class="step">Day 2 · Kickoff</div>
+            <h3>Bill the deposit before any work is logged</h3>
+            <p>Atlas Robotics signs phase 2. Maya bills 50% up front: one line, $9,000, a note saying what it covers. Ticked as a deposit, the payment becomes Atlas's credit for the phase 2 invoices.</p>
+          </figcaption>
+        </figure>
+        <figure class="scenario">
+          <picture>
+            <source srcset="screenshots/email-invoice-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/email-invoice-light.png" loading="lazy" alt="Email invoice dialog with the PDF attached and the timesheet included" />
+          </picture>
+          <figcaption>
+            <div class="step">Day 30 · Invoicing</div>
+            <h3>Their accounts team wants the PDF and a timesheet</h3>
+            <p>Atlas's AP team files PDFs and checks hours. Maya attaches the PDF and includes the timesheet: every entry's date, start and end time, who did it and what. Ken still gets the link to pay online.</p>
+          </figcaption>
+        </figure>
+        <figure class="scenario">
+          <picture>
+            <source srcset="screenshots/client-invoice-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/client-invoice-light.png" loading="lazy" alt="Client-facing invoice page with payment details and a time detail table" />
+          </picture>
+          <figcaption>
+            <div class="step">Day 31 · The client's side</div>
+            <h3>What Atlas sees when they open it</h3>
+            <p>No login: the invoice, how to pay, and the timesheet, with any screenshots the team marked as evidence. Maya sees under Activity that Ken opened the email, the page and the PDF.</p>
+          </figcaption>
+        </figure>
+        <figure class="scenario phone">
+          <picture>
+            <source srcset="screenshots/phone-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/phone-light.png" loading="lazy" alt="Phone view with today's hours, a timer and recent entries" />
+          </picture>
+          <figcaption>
+            <div class="step">Every day</div>
+            <h3>Log time from your phone</h3>
+            <p>Sam, a contractor, installs the phone app from Chrome, starts a timer on Fleet Dashboard, and shares a screenshot straight into a time entry as evidence.</p>
+          </figcaption>
+        </figure>
+        <figure class="scenario">
+          <picture>
+            <source srcset="screenshots/reports-dark.png" media="(prefers-color-scheme: dark)" />
+            <img class="shot" src="screenshots/reports-light.png" loading="lazy" alt="Reports page with revenue and hours" />
+          </picture>
+          <figcaption>
+            <div class="step">Month end</div>
+            <h3>See where the month landed</h3>
+            <p>Hours, invoiced, received and outstanding, utilization by person and profit by project, with each table a CSV away, for Maya's monthly review.</p>
+          </figcaption>
+        </figure>
       </div>
     </section>
 

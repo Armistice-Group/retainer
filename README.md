@@ -12,6 +12,14 @@ Client, project, and billing management for consultants and contractors. Track c
 | ![Time tracking](docs/screenshots/time-light.png) | ![Project with budget and rates](docs/screenshots/project-light.png) |
 | ![Invoices](docs/screenshots/invoices-light.png) | ![Client with a billing cycle](docs/screenshots/client-light.png) |
 
+**A month at a fictional consultancy**, from the demo data:
+
+| | |
+|---|---|
+| **Set up email from the browser** — Resend or any SMTP server, with a test send.<br>![Email settings](docs/screenshots/email-setup-light.png) | **Bill a deposit before any work** — a set amount, with notes, that becomes client credit.<br>![Deposit invoice](docs/screenshots/deposit-light.png) |
+| **Send the PDF and a timesheet** — for an accounts team that files PDFs and checks hours.<br>![Emailing an invoice](docs/screenshots/email-invoice-light.png) | **What the client sees** — no login: the invoice, how to pay, and the timesheet.<br>![Client invoice page](docs/screenshots/client-invoice-light.png) |
+| **Integrations in one place** — email, sign-in, payments, QuickBooks, Linear, files.<br>![Integrations](docs/screenshots/integrations-light.png) | **Reports** — utilization, profit by project, receivables.<br>![Reports](docs/screenshots/reports-light.png) |
+
 More at [consultainer.app](https://consultainer.app); full documentation at [consultainer.app/docs](https://consultainer.app/docs/) (source in [`docs/`](docs/introduction.mdx)). Screenshots use the fictional demo data in `prisma/seed-demo.ts`; regenerate them with `scripts/screenshots.mjs`.
 
 ## Stack
